@@ -1,0 +1,10 @@
+hash: 9fc39138efeebaa3fdb35cbb7689a155e6fbef1783ece38566202f302909b10c
+updated: 2017-03-18T04:37:37.361187384+01:00
+imports:
+- name: gopkg.in/stretchr/testify.v1
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
+- name: gopkg.in/yaml.v2
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+testImports: []
