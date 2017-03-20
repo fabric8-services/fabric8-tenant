@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fabric8io/fabric8-init-tenant/keycloak"
 	"github.com/fabric8io/fabric8-init-tenant/openshift"
@@ -16,6 +18,15 @@ const (
 	headerContentType   = "Content-Type"
 )
 
+var (
+	// Commit current build commit set by build script
+	Commit = "0"
+	// BuildTime set by build script in ISO 8601 (UTC) format: YYYY-MM-DDThh:mm:ssTZD (see https://www.w3.org/TR/NOTE-datetime for details)
+	BuildTime = "0"
+	// StartTime in ISO 8601 (UTC) format
+	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+)
+
 type errorResponse struct {
 	Msg string `json:"msg"`
 }
@@ -23,20 +34,21 @@ type errorResponse struct {
 type okResponse struct {
 }
 
-var (
-	namespaces = []string{
-		"%s-development",
-		"%s-testing",
-		"%s-staging",
-		"%s-runtime",
-		"%s-dsaas-jenkins",
-		"%s-dsaas-che",
+func status(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+
+	type status struct {
+		Commit    string `json:"commit"`
+		BuildTime string `json:"buildTime"`
+		StartTime string `json:"startTime"`
 	}
-)
+	json.NewEncoder(w).Encode(&status{Commit: Commit, BuildTime: BuildTime, StartTime: StartTime})
+}
 
 func createTenant(keycloakConfig keycloak.Config, openshiftConfig openshift.Config) func(http.ResponseWriter, *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		w.Header().Set(headerContentType, "application/json")
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -68,6 +80,8 @@ func createTenant(keycloakConfig keycloak.Config, openshiftConfig openshift.Conf
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(&errorResponse{Msg: err.Error()})
 		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Println("Execution time", time.Since(start))
 	}
 
 }
@@ -101,6 +115,7 @@ func main() {
 	host := ":8080"
 
 	http.HandleFunc("/init", createTenant(kcc, osc))
+	http.HandleFunc("/status", status)
 	log.Println("Started listening on ", host)
 	log.Fatal(http.ListenAndServe(host, nil))
 }

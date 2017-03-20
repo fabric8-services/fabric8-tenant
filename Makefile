@@ -7,6 +7,15 @@ VENDOR_DIR=vendor
 WORKSPACE ?= /tmp
 GO_BINDATA_BIN=$(VENDOR_DIR)/github.com/jteeuwen/go-bindata/go-bindata/go-bindata
 
+COMMIT=$(shell git rev-parse HEAD)
+GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
+ifneq ($(GITUNTRACKEDCHANGES),)
+COMMIT := $(COMMIT)-dirty
+endif
+BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
+
+LDFLAGS=-ldflags "-X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}"
+
 # If running in Jenkins we don't allow for interactively running the container
 ifneq ($(BUILD_TAG),)
 	DOCKER_RUN_INTERACTIVE_SWITCH :=
@@ -84,7 +93,7 @@ test: template/bindata.go
 .PHONY: build
 build: template/bindata.go
 	mkdir -p bin
-	go build -o bin/$(PROJECT_NAME)
+	go build -v ${LDFLAGS} -o bin/$(PROJECT_NAME)
 
 .PHONY: install
 install:
