@@ -1,10 +1,23 @@
-hash: 9fc39138efeebaa3fdb35cbb7689a155e6fbef1783ece38566202f302909b10c
-updated: 2017-03-18T04:37:37.361187384+01:00
+hash: e233d305c725a0178e186059043b715b369fd8844b42a475c29711e6d739ce00
+updated: 2017-03-19T22:56:56.755915778+01:00
 imports:
-- name: gopkg.in/stretchr/testify.v1
+- name: github.com/jteeuwen/go-bindata
+  version: bbd0c6e271208dce66d8fda4bc536453cd27fc4a
+  subpackages:
+  - '...'
+- name: github.com/stretchr/testify
   version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
+  - require
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
-testImports: []
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib

@@ -5,6 +5,7 @@ TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin
 VENDOR_DIR=vendor
 WORKSPACE ?= /tmp
+GO_BINDATA_BIN=$(VENDOR_DIR)/github.com/jteeuwen/go-bindata/go-bindata/go-bindata
 
 # If running in Jenkins we don't allow for interactively running the container
 ifneq ($(BUILD_TAG),)
@@ -25,6 +26,18 @@ DOCKER_CONTAINER_NAME := $(BUILD_TAG)
 # Where is the GOPATH inside the build container?
 GOPATH_IN_CONTAINER=/tmp/go
 PACKAGE_PATH=$(GOPATH_IN_CONTAINER)/src/$(PACKAGE_NAME)
+
+$(GO_BINDATA_BIN): $(VENDOR_DIR)
+	cd $(VENDOR_DIR)/github.com/jteeuwen/go-bindata/go-bindata && go build -v
+
+# Pack all templates yaml files into a compilable Go file
+template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yaml)
+	$(GO_BINDATA_BIN) \
+		-o template/bindata.go \
+		-pkg template \
+		-prefix template \
+		-nocompress \
+		template
 
 .PHONY: docker-build-build
 docker-build-build:
@@ -65,11 +78,11 @@ endif
 
 
 .PHONY: test
-test:
+test: template/bindata.go
 	go test $$(glide novendor)
 
 .PHONY: build
-build:
+build: template/bindata.go
 	mkdir -p bin
 	go build -o bin/$(PROJECT_NAME)
 

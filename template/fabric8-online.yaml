@@ -1,0 +1,87 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  labels:
+    provider: fabric8
+    project: fabric8-online-team-environments
+    version: 1.0.58
+    group: io.fabric8.online.packages
+  name: fabric8-online-team-envi
+objects:
+- apiVersion: v1
+  kind: Project
+  metadata:
+    annotations:
+      openshift.io/description: ${PROJECT_DESCRIPTION}
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME}
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-online-team-environments
+      version: 1.0.58
+      group: io.fabric8.online.packages
+    name: ${PROJECT_NAME}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    name: admin
+    namespace: ${PROJECT_NAME}
+  subjects:
+    - kind: User
+      name: ${PROJECT_ADMIN_USER}
+  roleRef:
+    name: admin
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team-environments
+      version: 1.0.58
+      group: io.fabric8.online.packages
+    name: system:deployers
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: system:deployer
+  subjects:
+  - kind: ServiceAccount
+    namespace: ${PROJECT_NAME}
+    name: deployer
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team-environments
+      version: 1.0.58
+      group: io.fabric8.online.packages
+    name: system:image-builders
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: system:image-builder
+  subjects:
+  - kind: ServiceAccount
+    namespace: ${PROJECT_NAME}
+    name: builder
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team-environments
+      version: 1.0.58
+      group: io.fabric8.online.packages
+    name: system:image-pullers
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: system:image-puller
+  subjects:
+  - kind: SystemGroup
+    name: system:serviceaccounts:${PROJECT_NAME}
+parameters:
+- name: PROJECT_NAME
+- name: PROJECT_DISPLAYNAME
+- name: PROJECT_DESCRIPTION
+- name: PROJECT_ADMIN_USER
+- name: PROJECT_REQUESTING_USER
