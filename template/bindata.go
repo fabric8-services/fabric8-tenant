@@ -316,7 +316,6 @@ items:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      volume.beta.kubernetes.io/storage-class: standard
     labels:
       provider: fabric8
       project: content-repository
@@ -683,7 +682,6 @@ items:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      volume.beta.kubernetes.io/storage-class: standard
     labels:
       provider: fabric8
       project: jenkins-openshift
@@ -700,7 +698,6 @@ items:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      volume.beta.kubernetes.io/storage-class: standard
     labels:
       provider: fabric8
       project: jenkins-openshift
