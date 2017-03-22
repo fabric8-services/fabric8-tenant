@@ -8,3 +8,4 @@ import:
   version: ^3.0.7
   subpackages:
   - '...'
+- package: github.com/satori/go.uuid

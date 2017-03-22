@@ -25,6 +25,8 @@ var (
 	BuildTime = "0"
 	// StartTime in ISO 8601 (UTC) format
 	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+	// TeamVersion is the current version configured to be deployed for tenants
+	TeamVersion = ""
 )
 
 type errorResponse struct {
@@ -35,14 +37,16 @@ type okResponse struct {
 }
 
 func status(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(headerContentType, "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	type status struct {
-		Commit    string `json:"commit"`
-		BuildTime string `json:"buildTime"`
-		StartTime string `json:"startTime"`
+		Commit      string `json:"commit"`
+		BuildTime   string `json:"buildTime"`
+		StartTime   string `json:"startTime"`
+		TeamVersion string `json:"teamVersion"`
 	}
-	json.NewEncoder(w).Encode(&status{Commit: Commit, BuildTime: BuildTime, StartTime: StartTime})
+	json.NewEncoder(w).Encode(&status{Commit: Commit, BuildTime: BuildTime, StartTime: StartTime, TeamVersion: TeamVersion})
 }
 
 func createTenant(keycloakConfig keycloak.Config, openshiftConfig openshift.Config) func(http.ResponseWriter, *http.Request) {
@@ -68,17 +72,20 @@ func createTenant(keycloakConfig keycloak.Config, openshiftConfig openshift.Conf
 			json.NewEncoder(w).Encode(&errorResponse{Msg: "require openshift token"})
 			return
 		}
+
 		openshiftUser, err := openshift.WhoAmI(openshift.Config{MasterURL: openshiftConfig.MasterURL, Token: openshiftUserToken})
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(&errorResponse{Msg: "unknown/unauthorized openshift user"})
+			json.NewEncoder(w).Encode(&errorResponse{Msg: "unknown/unauthorized openshift user" + err.Error()})
 			return
 		}
 
-		err = openshift.InitTenant(openshiftConfig, openshiftUser)
+		err = openshift.InitTenant(openshiftConfig, openshiftUser, openshiftUserToken)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			//w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusOK) // assume ok for now
 			json.NewEncoder(w).Encode(&errorResponse{Msg: err.Error()})
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Println("Execution time", time.Since(start))
@@ -100,7 +107,7 @@ func main() {
 
 	osURL := os.Getenv("OPENSHIFT_URL")
 	if osURL == "" {
-		osURL = "https://tsrv.devshift.net:8443"
+		osURL = "https://api.free-int.openshift.com"
 	}
 	osServiceToken := os.Getenv("OPENSHIFT_SERVICE_TOKEN")
 	if osServiceToken == "" {
@@ -111,6 +118,12 @@ func main() {
 		MasterURL: osURL,
 		Token:     osServiceToken,
 	}
+
+	masterUser, err := openshift.WhoAmI(osc)
+	if err != nil {
+		panic("Could not determine MasterUser fronm provided token")
+	}
+	osc.MasterUser = masterUser
 
 	host := ":8080"
 

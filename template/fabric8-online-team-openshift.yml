@@ -1,0 +1,178 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  labels:
+    provider: fabric8
+    project: fabric8-online-team
+    version: 1.0.74
+    group: io.fabric8.online.packages
+  name: fabric8-online-team
+objects:
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${PROJECT_DESCRIPTION}
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME}
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: ${PROJECT_NAME}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: dsaas-admin
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_ADMIN_USER}
+  userNames:
+  - ${PROJECT_ADMIN_USER}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-devops/master/content-repository/src/main/fabric8/icon.svg
+      fabric8.io/git-commit: ff04d40357d4b680ee0c685b6ea5fb247f0e5a86
+      fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/packages/fabric8-online-team
+      fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/packages/fabric8-online-team
+      fabric8.io/git-branch: release-v1.0.74
+      fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/packages/fabric8-online-team
+      fabric8.io/scm-tag: fabric8-online-2.0.1
+    labels:
+      expose: "true"
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: content-repository
+  spec:
+    externalName: content-repository.${PROJECT_NAME}-jenkins
+    ports:
+    - port: 80
+    selector:
+      project: fabric8-online-team
+      provider: fabric8
+      group: io.fabric8.online.packages
+    type: ExternalName
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      fabric8.io/app-menu: development
+      fabric8.io/git-commit: 2626c7c3ef02e7dcfc54d9cd7b9359b66ecf269c
+      fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-devops.git/jenkins-openshift
+      fabric8.io/scm-url: http://github.com/fabric8io/fabric8-devops/jenkins-openshift
+      fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-devops/master/jenkins-openshift/src/main/fabric8/icon.svg
+      fabric8.io/git-branch: release-v2.2.329
+      fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-devops.git/jenkins-openshift
+      fabric8.io/scm-tag: fabric8-devops-2.0.1
+    labels:
+      project: jenkins
+      provider: fabric8
+      expose: "false"
+      version: 2.2.329
+      group: io.fabric8.devops.apps
+    name: jenkins
+  spec:
+    externalName: jenkins.${PROJECT_NAME}-jenkins
+    ports:
+    - name: http
+      port: 80
+    selector:
+      project: fabric8-online-team
+      provider: fabric8
+      group: io.fabric8.online.packages
+    type: ExternalName
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    annotations:
+      description: Defines the environments used by your Continuous Delivery pipelines.
+      fabric8.console/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-console/master/app-kubernetes/src/main/fabric8/icon.svg
+    labels:
+      kind: environments
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: fabric8-environments
+  data:
+    test: |-
+      name: Test
+      namespace: ${PROJECT_NAME}-test
+      order: 0
+    stage: |-
+      name: Stage
+      namespace: ${PROJECT_NAME}-stage
+      order: 1
+    run: |-
+      name: Run
+      namespace: ${PROJECT_NAME}-run
+      order: 2
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: fabric8-pipelines
+  data:
+    ci-branch-patterns: '- PR-.*'
+    cd-branch-patterns: '- master'
+parameters:
+- name: PROJECT_NAME
+  value: myproject
+- name: PROJECT_ADMIN_USER
+  value: developer
+- name: PROJECT_REQUESTING_USER
+  value: system:admin
+- name: PROJECT_DISPLAYNAME
+- name: PROJECT_DESCRIPTION
