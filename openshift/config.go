@@ -3,8 +3,13 @@ package openshift
 import "fmt"
 
 type Config struct {
-	MasterURL string
-	Token     string
+	MasterURL  string
+	MasterUser string
+	Token      string
+}
+
+func (c Config) WithToken(token string) Config {
+	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token}
 }
 
 type multiError struct {

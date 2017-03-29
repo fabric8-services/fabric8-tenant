@@ -1,5 +1,6 @@
 PROJECT_NAME=fabric8-init-tenant
 PACKAGE_NAME := github.com/fabric8io/fabric8-init-tenant
+TEAM_VERSION=1.0.66
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin
@@ -14,7 +15,7 @@ COMMIT := $(COMMIT)-dirty
 endif
 BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
 
-LDFLAGS=-ldflags "-X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}"
+LDFLAGS=-ldflags "-X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X main.TeamVersion=${TEAM_VERSION}"
 
 # If running in Jenkins we don't allow for interactively running the container
 ifneq ($(BUILD_TAG),)
@@ -41,6 +42,7 @@ $(GO_BINDATA_BIN): $(VENDOR_DIR)
 
 # Pack all templates yaml files into a compilable Go file
 template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yaml)
+	TEAM_VERSION=$(TEAM_VERSION) go generate ${PACKAGE_NAME}/template
 	$(GO_BINDATA_BIN) \
 		-o template/bindata.go \
 		-pkg template \

@@ -1,10 +1,12 @@
-hash: e233d305c725a0178e186059043b715b369fd8844b42a475c29711e6d739ce00
-updated: 2017-03-19T22:56:56.755915778+01:00
+hash: 2970a20ed1dcb37060518ed4c1c1ebea1b34f198ab612d6966ecd7c1cf2300c6
+updated: 2017-03-23T06:48:38.088258763+01:00
 imports:
 - name: github.com/jteeuwen/go-bindata
   version: bbd0c6e271208dce66d8fda4bc536453cd27fc4a
   subpackages:
   - '...'
+- name: github.com/satori/go.uuid
+  version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/stretchr/testify
   version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:

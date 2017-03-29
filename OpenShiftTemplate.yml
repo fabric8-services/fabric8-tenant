@@ -1,0 +1,54 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: fabric8-tenant-service
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: f8tenant
+    name: f8tenant
+  spec:
+    replicas: 1
+    selector:
+      app: f8tenant
+      deploymentconfig: f8tenant
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: f8tenant
+          deploymentconfig: f8tenant
+      spec:
+        containers:
+        - env:
+          - name: KEYCLOAK_BASE_URL
+            value: http://sso.prod-preview.openshift.io
+          - name: OPENSHIFT_URL
+            value: https://api.free-int.openshift.com
+          - name: OPENSHIFT_SERVICE_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: openshift-online-tokens
+                key: dsaas-service-token
+          image: registry.devshift.net/fabric8io/fabric8-init-tenant:latest
+          imagePullPolicy: Always
+          name: f8tenant
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: f8tenant
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 8080
+    selector:
+      deploymentconfig: f8tenant
