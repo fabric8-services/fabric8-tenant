@@ -3,7 +3,7 @@ package openshift
 import (
 	"bytes"
 	"html/template"
-	"strings"
+	"regexp"
 )
 
 // Process takes a K8/Openshift Template as input and resolves the variable expresions
@@ -22,9 +22,6 @@ func Process(source string, variables map[string]string) (string, error) {
 }
 
 func replaceTemplateExpression(template string) string {
-	tmpl := template
-	tmpl = strings.Replace(tmpl, "${", "{{.", -1)
-	tmpl = strings.Replace(tmpl, "}", "}}", -1)
-
-	return tmpl
+	reg := regexp.MustCompile(`\${([A-Z_]+)}`)
+	return reg.ReplaceAllString(template, "{{.$1}}")
 }
