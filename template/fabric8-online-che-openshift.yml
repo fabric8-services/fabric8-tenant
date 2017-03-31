@@ -23,7 +23,7 @@ items:
     hard:
       persistentvolumeclaims: "3"
       replicationcontrollers: "20"
-      secrets: "40"
+      secrets: "20"
       services: "5"
 - apiVersion: v1
   kind: ResourceQuota
@@ -31,7 +31,7 @@ items:
     name: compute-resources
   spec:
     hard:
-      limits.cpu: "2"
+      limits.cpu: "4"
       limits.memory: 2Gi
     scopes:
     - NotTerminating
@@ -41,10 +41,41 @@ items:
     name: compute-resources-timebound
   spec:
     hard:
-      limits.cpu: "2"
+      limits.cpu: "4"
       limits.memory: 2Gi
     scopes:
     - Terminating
+- apiVersion: v1
+  kind: LimitRange
+  metadata:
+    name: resource-limits
+  spec:
+    limits:
+    - max:
+        cpu: "2540m"
+        memory: 1300Mi
+      min:
+        cpu: 29m
+        memory: 150Mi
+      type: Pod
+    - default:
+        cpu: "2540m"
+        memory: 1300Mi
+      defaultRequest:
+        cpu: 60m
+        memory: 307Mi
+      max:
+        cpu: "2540m"
+        memory: 1300Mi
+      min:
+        cpu: 29m
+        memory: 150Mi
+      type: Container
+    - max:
+        storage: 1Gi
+      min:
+        storage: 1Gi
+      type: PersistentVolumeClaim
 - apiVersion: v1
   kind: RoleBinding
   metadata:
@@ -314,13 +345,16 @@ items:
               configMapKeyRef:
                 key: java-opts
                 name: che
-          image: mariolet/che-server:nightly
-          imagePullPolicy: IfNotPresent
+          image: rhche/che-server:f538239
+          imagePullPolicy: Always
           livenessProbe:
             initialDelaySeconds: 120
             tcpSocket:
               port: 8080
             timeoutSeconds: 10
+          resources:
+              limits:
+                memory: 700Mi
           name: che
           ports:
           - containerPort: 8080
