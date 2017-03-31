@@ -1,134 +1,160 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
+	"flag"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
+	_ "github.com/lib/pq"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/almighty/almighty-core/log"
+	"github.com/fabric8io/fabric8-init-tenant/app"
+	"github.com/fabric8io/fabric8-init-tenant/configuration"
+	"github.com/fabric8io/fabric8-init-tenant/controller"
+	"github.com/fabric8io/fabric8-init-tenant/jsonapi"
 	"github.com/fabric8io/fabric8-init-tenant/keycloak"
+	"github.com/fabric8io/fabric8-init-tenant/migration"
 	"github.com/fabric8io/fabric8-init-tenant/openshift"
+	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/middleware"
+	"github.com/goadesign/goa/middleware/gzip"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/jinzhu/gorm"
+
+	goalogrus "github.com/goadesign/goa/logging/logrus"
 )
-
-const (
-	headerAuthorization = "Authorization"
-	headerContentType   = "Content-Type"
-)
-
-var (
-	// Commit current build commit set by build script
-	Commit = "0"
-	// BuildTime set by build script in ISO 8601 (UTC) format: YYYY-MM-DDThh:mm:ssTZD (see https://www.w3.org/TR/NOTE-datetime for details)
-	BuildTime = "0"
-	// StartTime in ISO 8601 (UTC) format
-	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
-	// TeamVersion is the current version configured to be deployed for tenants
-	TeamVersion = ""
-)
-
-type errorResponse struct {
-	Msg string `json:"msg"`
-}
-
-type okResponse struct {
-}
-
-func status(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set(headerContentType, "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	type status struct {
-		Commit      string `json:"commit"`
-		BuildTime   string `json:"buildTime"`
-		StartTime   string `json:"startTime"`
-		TeamVersion string `json:"teamVersion"`
-	}
-	json.NewEncoder(w).Encode(&status{Commit: Commit, BuildTime: BuildTime, StartTime: StartTime, TeamVersion: TeamVersion})
-}
-
-func createTenant(keycloakConfig keycloak.Config, openshiftConfig openshift.Config) func(http.ResponseWriter, *http.Request) {
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		w.Header().Set(headerContentType, "application/json")
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(&errorResponse{Msg: "Only POST allowed"})
-			return
-		}
-		authorization := r.Header.Get(headerAuthorization)
-		if authorization == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(&errorResponse{Msg: "require '" + headerAuthorization + "' header"})
-			return
-		}
-		authorization = strings.Replace(authorization, "Bearer ", "", -1)
-		openshiftUserToken, err := keycloak.OpenshiftToken(keycloakConfig, authorization)
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(&errorResponse{Msg: "require openshift token"})
-			return
-		}
-
-		openshiftUser, err := openshift.WhoAmI(openshift.Config{MasterURL: openshiftConfig.MasterURL, Token: openshiftUserToken})
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(&errorResponse{Msg: "unknown/unauthorized openshift user" + err.Error()})
-			return
-		}
-
-		err = openshift.InitTenant(openshiftConfig, openshiftUser, openshiftUserToken)
-		if err != nil {
-			//w.WriteHeader(http.StatusInternalServerError)
-			w.WriteHeader(http.StatusOK) // assume ok for now
-			json.NewEncoder(w).Encode(&errorResponse{Msg: err.Error()})
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Println("Execution time", time.Since(start))
-	}
-
-}
 
 func main() {
+	var migrateDB bool
+	flag.BoolVar(&migrateDB, "migrateDatabase", false, "Migrates the database to the newest version and exits.")
+	flag.Parse()
 
-	kcBaseURL := os.Getenv("KEYCLOAK_BASE_URL")
-	if kcBaseURL == "" {
-		kcBaseURL = "https://sso.prod-preview.openshift.io"
-	}
-	kcc := keycloak.Config{
-		BaseURL: kcBaseURL,
-		Realm:   "fabric8",
-		Broker:  "openshift-v3",
-	}
-
-	osURL := os.Getenv("OPENSHIFT_URL")
-	if osURL == "" {
-		osURL = "https://api.free-int.openshift.com"
-	}
-	osServiceToken := os.Getenv("OPENSHIFT_SERVICE_TOKEN")
-	if osServiceToken == "" {
-		panic("Missing env variable OPENSHIFT_SERVICE_TOKEN")
-	}
-
-	osc := openshift.Config{
-		MasterURL: osURL,
-		Token:     osServiceToken,
-	}
-
-	masterUser, err := openshift.WhoAmI(osc)
+	// Initialized configuration
+	config, err := configuration.GetData()
 	if err != nil {
-		panic("Could not determine MasterUser fronm provided token")
+		logrus.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the configuration")
 	}
-	osc.MasterUser = masterUser
 
-	host := ":8080"
+	// Initialized developer mode flag for the logger
+	log.InitializeLogger(config.IsDeveloperModeEnabled())
 
-	http.HandleFunc("/init", createTenant(kcc, osc))
-	http.HandleFunc("/status", status)
-	log.Println("Started listening on ", host)
-	log.Fatal(http.ListenAndServe(host, nil))
+	db := connect(config)
+	defer db.Close()
+	migrate(db)
+
+	// Nothing to here except exit, since the migration is already performed.
+	if migrateDB {
+		os.Exit(0)
+	}
+
+	serviceToken := config.GetOpenshiftServiceToken()
+	if serviceToken == "" {
+		logrus.Panic(nil, map[string]interface{}{}, "missing service token")
+	}
+
+	openshiftConfig := openshift.Config{
+		MasterURL: config.GetOpenshiftTenantMasterURL(),
+		Token:     serviceToken,
+	}
+
+	openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)
+	if err != nil {
+		logrus.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "unknown master user based on service token")
+	}
+	openshiftConfig.MasterUser = openshiftMasterUser
+
+	keycloakConfig := keycloak.Config{
+		BaseURL: config.GetKeycloakDevModeURL(),
+		Realm:   config.GetKeycloakRealm(),
+		Broker:  config.GetKeycloakOpenshiftBroker(),
+	}
+
+	publicKey, err := keycloak.GetPublicKey(keycloakConfig)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to parse public token")
+	}
+
+	// Create service
+	service := goa.New("tenant")
+
+	// Mount middleware
+	service.Use(middleware.RequestID())
+	service.Use(middleware.LogRequest(config.IsDeveloperModeEnabled()))
+	service.Use(gzip.Middleware(9))
+	service.Use(jsonapi.ErrorHandler(service, true))
+	service.Use(middleware.Recover())
+	service.WithLogger(goalogrus.New(log.Logger()))
+	app.UseJWTMiddleware(service, goajwt.New(publicKey, nil, app.NewJWTSecurity()))
+
+	// Mount "status" controller
+	statusCtrl := controller.NewStatusController(service, db)
+	app.MountStatusController(service, statusCtrl)
+
+	// Mount "tenant" controller
+	tenantCtrl := controller.NewTenantController(service, db, keycloakConfig, openshiftConfig)
+	app.MountTenantController(service, tenantCtrl)
+
+	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
+	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
+	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
+	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
+
+	http.Handle("/api/", service.Mux)
+	http.Handle("/favicon.ico", http.NotFoundHandler())
+
+	// Start http
+	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
+		log.Error(nil, map[string]interface{}{
+			"addr": config.GetHTTPAddress(),
+			"err":  err,
+		}, "unable to connect to server")
+		service.LogError("startup", "err", err)
+	}
+}
+
+func connect(config *configuration.Data) *gorm.DB {
+	var err error
+	var db *gorm.DB
+	for {
+		db, err = gorm.Open("postgres", config.GetPostgresConfigString())
+		if err != nil {
+			log.Logger().Errorf("ERROR: Unable to open connection to database %v", err)
+			log.Logger().Infof("Retrying to connect in %v...", config.GetPostgresConnectionRetrySleep())
+			time.Sleep(config.GetPostgresConnectionRetrySleep())
+		} else {
+			break
+		}
+	}
+
+	if config.IsDeveloperModeEnabled() {
+		db = db.Debug()
+	}
+
+	if config.GetPostgresConnectionMaxIdle() > 0 {
+		log.Logger().Infof("Configured connection pool max idle %v", config.GetPostgresConnectionMaxIdle())
+		db.DB().SetMaxIdleConns(config.GetPostgresConnectionMaxIdle())
+	}
+	if config.GetPostgresConnectionMaxOpen() > 0 {
+		log.Logger().Infof("Configured connection pool max open %v", config.GetPostgresConnectionMaxOpen())
+		db.DB().SetMaxOpenConns(config.GetPostgresConnectionMaxOpen())
+	}
+	return db
+}
+
+func migrate(db *gorm.DB) {
+	// Migrate the schema
+	err := migration.Migrate(db.DB())
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed migration")
+	}
 }

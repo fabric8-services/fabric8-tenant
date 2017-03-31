@@ -7,12 +7,12 @@ ENV ALMIGHTY_INSTALL_PREFIX=/usr/local/alm
 ENV ALMIGHTY_USER_NAME=almighty
 RUN useradd --no-create-home -s /bin/bash ${ALMIGHTY_USER_NAME}
 
-COPY bin/fabric8-init-tenant ${ALMIGHTY_INSTALL_PREFIX}/bin/fabric8-init-tenant
+COPY bin/fabric8-tenant ${ALMIGHTY_INSTALL_PREFIX}/bin/fabric8-tenant
 
 # From here onwards, any RUN, CMD, or ENTRYPOINT will be run under the following user
 USER ${ALMIGHTY_USER_NAME}
 
 WORKDIR ${ALMIGHTY_INSTALL_PREFIX}
-ENTRYPOINT [ "bin/fabric8-init-tenant" ]
+ENTRYPOINT [ "bin/fabric8-tenant" ]
 
 EXPOSE 8080

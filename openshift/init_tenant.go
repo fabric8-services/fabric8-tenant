@@ -35,7 +35,7 @@ const (
 )
 
 // InitTenant initializes a new tenant in openshift
-// Creates the new n-tuneim|develop,ment|staging and x-dsaas-* namespaces
+// Creates the new x-test|stage|run and x-jenkins|che namespaces
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
 func InitTenant(config Config, username, usertoken string) error {
@@ -63,31 +63,31 @@ func do(config Config, username, usertoken string) error {
 	masterOpts := ApplyOptions{Config: config, Overwrite: true}
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Overwrite: true}
 
-	userProjectT, err := template.Asset("fabric8-online-team-openshift.yml")
+	userProjectT, err := template.Asset("template/fabric8-online-team-openshift.yml")
 	if err != nil {
 		return err
 	}
 
-	userProjectRolesT, err := template.Asset("fabric8-online-team-rolebindings.yml")
+	userProjectRolesT, err := template.Asset("template/fabric8-online-team-rolebindings.yml")
 	if err != nil {
 		return err
 	}
 
-	userProjectCollabT, err := template.Asset("fabric8-online-team-colaborators.yml")
+	userProjectCollabT, err := template.Asset("template/fabric8-online-team-colaborators.yml")
 	if err != nil {
 		return err
 	}
 
-	projectT, err := template.Asset("fabric8-online-project-openshift.yml")
+	projectT, err := template.Asset("template/fabric8-online-project-openshift.yml")
 	if err != nil {
 		return err
 	}
 
-	jenkinsT, err := template.Asset("fabric8-online-jenkins-openshift.yml")
+	jenkinsT, err := template.Asset("template/fabric8-online-jenkins-openshift.yml")
 	if err != nil {
 		return err
 	}
-	cheT, err := template.Asset("fabric8-online-che-openshift.yml")
+	cheT, err := template.Asset("template/fabric8-online-che-openshift.yml")
 	if err != nil {
 		return err
 	}

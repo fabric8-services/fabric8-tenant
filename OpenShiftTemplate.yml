@@ -24,16 +24,16 @@ objects:
       spec:
         containers:
         - env:
-          - name: KEYCLOAK_BASE_URL
+          - name: F8_KEYCLOAK_URL
             value: http://sso.prod-preview.openshift.io
-          - name: OPENSHIFT_URL
+          - name: F8_OPENSHIFT_TENANT_MASTERURL
             value: https://api.free-int.openshift.com
-          - name: OPENSHIFT_SERVICE_TOKEN
+          - name: F8_OPENSHIFT_SERVICE_TOKEN
             valueFrom:
               secretKeyRef:
                 name: openshift-online-tokens
                 key: dsaas-service-token
-          image: registry.devshift.net/fabric8io/fabric8-init-tenant:latest
+          image: registry.devshift.net/fabric8io/fabric8-tenant:latest
           imagePullPolicy: Always
           name: f8tenant
           ports:
