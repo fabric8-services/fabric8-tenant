@@ -350,16 +350,10 @@ items:
               port: 8080
             timeoutSeconds: 10
           volumeMounts:
-          - mountPath: /conf
-            name: che-conf-volume
-            readOnly: false
           - mountPath: /data
             name: che-data-volume
         serviceAccountName: che
         volumes:
-        - name: che-conf-volume
-          persistentVolumeClaim:
-            claimName: che-conf-volume
         - name: che-data-volume
           persistentVolumeClaim:
             claimName: che-data-volume
