@@ -206,7 +206,14 @@ items:
     port: "8080"
     remote-debugging-enabled: "false"
     che-oauth-github-forceactivation: "true"
-    java-opts: "-Xms256m -Xmx256m"
+    java-opts: >-
+        -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40
+        -XX:MaxRAM=700m -Xms256m
+    che-workspaces-java-opts: >-
+        -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40
+        -XX:MaxRAM=1300m -Xms256m    
+    workspaces-memory-limit: 1300Mi
+    workspaces-memory-request: 500Mi
 - apiVersion: v1
   kind: ConfigMap
   metadata:
@@ -240,6 +247,8 @@ items:
       group: io.fabric8.online.apps
     name: che
   spec:
+    strategy:
+      type: Recreate
     replicas: 1
     selector:
       project: che
@@ -328,7 +337,22 @@ items:
               configMapKeyRef:
                 key: java-opts
                 name: che
-          image: rhche/che-server:f538239
+          - name: CHE_OPENSHIFT_WORKSPACE_MEMORY_OVERRIDE
+            valueFrom:
+              configMapKeyRef:
+                name: che
+                key: workspaces-memory-limit
+          - name: CHE_OPENSHIFT_WORKSPACE_MEMORY_REQUEST
+            valueFrom:
+              configMapKeyRef:
+                name: che
+                key: workspaces-memory-request
+          - name: CHE_WORKSPACE_JAVA_OPTIONS
+            valueFrom:
+              configMapKeyRef:
+                name: che
+                key: che-workspaces-java-opts
+          image: rhche/che-server:e52a5a1
           imagePullPolicy: Always
           livenessProbe:
             initialDelaySeconds: 120
@@ -338,6 +362,8 @@ items:
           resources:
               limits:
                 memory: 700Mi
+              requests:
+                memory: 256Mi
           name: che
           ports:
           - containerPort: 8080
