@@ -21,7 +21,7 @@ items:
     name: object-counts
   spec:
     hard:
-      persistentvolumeclaims: "3"
+      persistentvolumeclaims: "2"
       replicationcontrollers: "20"
       secrets: "20"
       services: "5"
@@ -52,21 +52,21 @@ items:
   spec:
     limits:
     - max:
-        cpu: "2540m"
-        memory: 1300Mi
+        cpu: "2930m"
+        memory: 1500Mi
       min:
         cpu: 29m
         memory: 150Mi
       type: Pod
     - default:
-        cpu: "2540m"
-        memory: 1300Mi
+        cpu: "1"
+        memory: 512Mi
       defaultRequest:
         cpu: 60m
         memory: 307Mi
       max:
-        cpu: "2540m"
-        memory: 1300Mi
+        cpu: "2930m"
+        memory: 1500Mi
       min:
         cpu: 29m
         memory: 150Mi
@@ -149,23 +149,6 @@ items:
   subjects:
   - kind: ServiceAccount
     name: che
-- apiVersion: v1
-  kind: PersistentVolumeClaim
-  metadata:
-    annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.71.jar!/META-INF/fabric8/openshift.yml
-    labels:
-      provider: fabric8
-      project: che
-      version: 1.0.71
-      group: io.fabric8.online.apps
-    name: che-conf-volume
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    resources:
-      requests:
-        storage: 1Gi
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
@@ -367,16 +350,10 @@ items:
               port: 8080
             timeoutSeconds: 10
           volumeMounts:
-          - mountPath: /conf
-            name: che-conf-volume
-            readOnly: false
           - mountPath: /data
             name: che-data-volume
         serviceAccountName: che
         volumes:
-        - name: che-conf-volume
-          persistentVolumeClaim:
-            claimName: che-conf-volume
         - name: che-data-volume
           persistentVolumeClaim:
             claimName: che-data-volume
