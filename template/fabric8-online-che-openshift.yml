@@ -21,7 +21,7 @@ items:
     name: object-counts
   spec:
     hard:
-      persistentvolumeclaims: "3"
+      persistentvolumeclaims: "2"
       replicationcontrollers: "20"
       secrets: "20"
       services: "5"
@@ -52,21 +52,21 @@ items:
   spec:
     limits:
     - max:
-        cpu: "2540m"
-        memory: 1300Mi
+        cpu: "2930m"
+        memory: 1500Mi
       min:
         cpu: 29m
         memory: 150Mi
       type: Pod
     - default:
-        cpu: "2540m"
-        memory: 1300Mi
+        cpu: "1"
+        memory: 512Mi
       defaultRequest:
         cpu: 60m
         memory: 307Mi
       max:
-        cpu: "2540m"
-        memory: 1300Mi
+        cpu: "2930m"
+        memory: 1500Mi
       min:
         cpu: 29m
         memory: 150Mi
