@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"unsafe"
 
+	"time"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -110,10 +112,13 @@ func Apply(source string, opts ApplyOptions) error {
 }
 
 func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
-	for _, obj := range objects {
+	for index, obj := range objects {
 		_, err := apply(obj, "POST", opts)
 		if err != nil {
 			return err
+		}
+		if index == 0 {
+			time.Sleep(time.Second * 2)
 		}
 	}
 	return nil
