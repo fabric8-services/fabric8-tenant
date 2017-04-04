@@ -7,6 +7,16 @@ import (
 	"github.com/fabric8io/fabric8-init-tenant/template"
 )
 
+const (
+	varProjectName           = "PROJECT_NAME"
+	varProjectDisplayName    = "PROJECT_DISPLAYNAME"
+	varProjectDescription    = "PROJECT_DESCRIPTION"
+	varProjectUser           = "PROJECT_USER"
+	varProjectRequestingUser = "PROJECT_REQUESTING_USER"
+	varProjectAdminUser      = "PROJECT_ADMIN_USER"
+	varProjectNamespace      = "PROJECT_NAMESPACE"
+)
+
 // InitTenant initializes a new tenant in openshift
 // Creates the new n-tuneim|develop,ment|staging and x-dsaas-* namespaces
 // and install the required services/routes/deployment configurations to run
@@ -23,12 +33,12 @@ func do(config Config, username, usertoken string) error {
 	name := createName(username)
 
 	vars := map[string]string{
-		"PROJECT_NAME":            name,
-		"PROJECT_DISPLAYNAME":     name + " Test Project",
-		"PROJECT_DESCRIPTION":     name + " Test Project",
-		"PROJECT_USER":            username,
-		"PROJECT_REQUESTING_USER": username,
-		"PROJECT_ADMIN_USER":      config.MasterUser,
+		varProjectName:           name,
+		varProjectDisplayName:    name + " Test Project",
+		varProjectDescription:    name + " Test Project",
+		varProjectUser:           username,
+		varProjectRequestingUser: username,
+		varProjectAdminUser:      config.MasterUser,
 	}
 
 	masterOpts := ApplyOptions{Config: config, Overwrite: true}
@@ -53,7 +63,7 @@ func do(config Config, username, usertoken string) error {
 	}
 
 	var channels []chan error
-	err = createNamespaceSync(string(userProjectT), vars, userOpts)
+	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
 	if err != nil {
 		return err
 	}
@@ -62,24 +72,24 @@ func do(config Config, username, usertoken string) error {
 
 	for _, pattern := range namespaces {
 		lvars := clone(vars)
-		lvars["PROJECT_NAME"] = fmt.Sprintf(pattern, vars["PROJECT_NAME"])
-		lvars["PROJECT_DISPLAYNAME"] = lvars["PROJECT_NAME"]
+		lvars[varProjectName] = fmt.Sprintf(pattern, vars[varProjectName])
+		lvars[varProjectDisplayName] = lvars[varProjectName]
 
-		ns := createNamespace(string(projectT), lvars, masterOpts)
+		ns := executeNamespaceAsync(string(projectT), lvars, masterOpts)
 		channels = append(channels, ns)
 	}
 
 	{
 		lvars := clone(vars)
-		lvars["PROJECT_NAME"] = fmt.Sprintf("%v-jenkins", vars["PROJECT_NAME"])
-		lvars["PROJECT_NAMESPACE"] = vars["PROJECT_NAME"]
-		ns := createJenkinsNamespace(string(jenkinsT), lvars, masterOpts)
+		lvars[varProjectName] = fmt.Sprintf("%v-jenkins", vars[varProjectName])
+		lvars[varProjectNamespace] = vars[varProjectName]
+		ns := executeNamespaceAsync(string(jenkinsT), lvars, masterOpts)
 		channels = append(channels, ns)
 	}
 	{
 		lvars := clone(vars)
-		lvars["PROJECT_NAME"] = fmt.Sprintf("%v-che", vars["PROJECT_NAME"])
-		ns := createCheNamespace(string(cheT), lvars, masterOpts)
+		lvars[varProjectName] = fmt.Sprintf("%v-che", vars[varProjectName])
+		ns := executeNamespaceAsync(string(cheT), lvars, masterOpts)
 		channels = append(channels, ns)
 	}
 
@@ -100,7 +110,7 @@ func createName(username string) string {
 	return strings.Replace(strings.Split(username, "@")[0], ".", "-", -1)
 }
 
-func createNamespaceSync(template string, vars map[string]string, opts ApplyOptions) error {
+func executeNamespaceSync(template string, vars map[string]string, opts ApplyOptions) error {
 	t, err := Process(template, vars)
 	if err != nil {
 		return err
@@ -113,12 +123,12 @@ func createNamespaceSync(template string, vars map[string]string, opts ApplyOpti
 	return nil
 }
 
-func createNamespace(template string, vars map[string]string, opts ApplyOptions) chan error {
+func executeNamespaceAsync(template string, vars map[string]string, opts ApplyOptions) chan error {
 	ch := make(chan error)
 	go func() {
 		lopts := ApplyOptions{
 			Config:    opts.Config,
-			Namespace: vars["PROJECT_NAME"],
+			Namespace: vars[varProjectName],
 		}
 
 		t, err := Process(template, vars)
@@ -132,51 +142,6 @@ func createNamespace(template string, vars map[string]string, opts ApplyOptions)
 		}
 
 		ch <- nil
-		close(ch)
-	}()
-	return ch
-}
-
-func createJenkinsNamespace(template string, vars map[string]string, opts ApplyOptions) chan error {
-	ch := make(chan error)
-	go func() {
-		lopts := ApplyOptions{
-			Config:    opts.Config,
-			Namespace: vars["PROJECT_NAME"],
-		}
-
-		t, err := Process(template, vars)
-		if err != nil {
-			ch <- err
-		}
-
-		err = Apply(t, lopts)
-		if err != nil {
-			ch <- err
-		}
-
-		close(ch)
-	}()
-	return ch
-}
-
-func createCheNamespace(template string, vars map[string]string, opts ApplyOptions) chan error {
-	ch := make(chan error)
-	go func() {
-		lopts := ApplyOptions{
-			Config:    opts.Config,
-			Namespace: vars["PROJECT_NAME"],
-		}
-
-		t, err := Process(template, vars)
-		if err != nil {
-			ch <- err
-		}
-
-		err = Apply(t, lopts)
-		if err != nil {
-			ch <- err
-		}
 		close(ch)
 	}()
 	return ch
