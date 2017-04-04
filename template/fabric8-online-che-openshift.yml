@@ -419,8 +419,6 @@ items:
       group: io.fabric8.online.apps
     name: che
   spec:
-    tls:
-      termination: edge
     to:
       kind: Service
       name: che-host
