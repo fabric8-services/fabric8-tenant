@@ -12,33 +12,24 @@ items:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.packages
     name: ${PROJECT_NAME}
 - apiVersion: v1
-  kind: RoleBinding
+  kind: RoleBindingRestriction
   metadata:
-    labels:
-      provider: fabric8
-      project: fabric8-online-team
-      version: 1.0.77
-      group: io.fabric8.online.packages
-    name: useradmin
-    namespace: ${PROJECT_NAME}
-  roleRef:
-    name: admin
-  subjects:
-  - kind: User
-    name: ${PROJECT_USER}
-  userNames:
-  - ${PROJECT_USER}
+    name: dsaas-user-access
+  spec: 
+    userrestriction:
+      users: 
+      - ${PROJECT_USER}
 - apiVersion: v1
   kind: LimitRange
   metadata:
     labels:
       provider: fabric8
       project: fabric8-online-che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.packages
     name: resource-limits
   spec:
@@ -74,7 +65,7 @@ items:
     labels:
       provider: fabric8
       project: fabric8-online-che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.packages
     name: compute-resources
   spec:
@@ -89,7 +80,7 @@ items:
     labels:
       provider: fabric8
       project: fabric8-online-che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.packages
     name: compute-resources-timebound
   spec:
@@ -104,7 +95,7 @@ items:
     labels:
       provider: fabric8
       project: fabric8-online-che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.packages
     name: object-counts
   spec:
@@ -114,14 +105,31 @@ items:
       secrets: "20"
       services: "5"
 - apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.79
+      group: io.fabric8.online.packages
+    name: useradmin
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
   kind: ServiceAccount
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che
 - apiVersion: v1
@@ -129,19 +137,19 @@ items:
   metadata:
     annotations:
       fabric8.io/app-menu: development
-      fabric8.io/git-commit: f4a4e57c73a9d796ff61cfd8b36efc36fb8dc789
+      fabric8.io/git-commit: 2a6db671623696718e08f52aec65520e02ae564a
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/che
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/apps/che
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-online/master/apps/che/src/main/fabric8/icon.png
-      fabric8.io/git-branch: release-v1.0.77
+      fabric8.io/git-branch: release-v1.0.79
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/che
       fabric8.io/scm-tag: fabric8-online-2.0.1
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       project: che
       provider: fabric8
       expose: "false"
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che-host
   spec:
@@ -158,11 +166,11 @@ items:
   kind: RoleBinding
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che
   roleRef:
@@ -170,15 +178,16 @@ items:
   subjects:
   - kind: ServiceAccount
     name: che
+    namespace: ${PROJECT_NAME}    
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che-data-volume
   spec:
@@ -191,11 +200,11 @@ items:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: claim-che-workspace
   spec:
@@ -208,11 +217,11 @@ items:
   kind: ConfigMap
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che
   data:
@@ -232,13 +241,15 @@ items:
     enable-workspaces-autostart: "false"
     che-server-java-opts: -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40 -XX:MaxRAM=700m -Xms256m
     che-workspaces-java-opts: -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40 -XX:MaxRAM=1300m -Xms256m
+    che-openshift-secure-routes: "true"
+    che-secure-external-urls: "true"
 - apiVersion: v1
   kind: ConfigMap
   metadata:
     labels:
       fabric8.io/kind: package
       provider: fabric8.io
-      version: 1.0.77
+      version: 1.0.79
       project: fabric8-online-che
       group: io.fabric8.online.packages
     name: fabric8-online-che
@@ -249,19 +260,19 @@ items:
   kind: DeploymentConfig
   metadata:
     annotations:
-      fabric8.io/git-commit: f4a4e57c73a9d796ff61cfd8b36efc36fb8dc789
-      fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=che&var-version=1.0.77
+      fabric8.io/git-commit: 2a6db671623696718e08f52aec65520e02ae564a
+      fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=che&var-version=1.0.79
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/che
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/apps/che
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-online/master/apps/che/src/main/fabric8/icon.png
-      fabric8.io/git-branch: release-v1.0.77
+      fabric8.io/git-branch: release-v1.0.79
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/che
       fabric8.io/scm-tag: fabric8-online-2.0.1
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che
   spec:
@@ -269,23 +280,23 @@ items:
     selector:
       project: che
       provider: fabric8
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     template:
       metadata:
         annotations:
-          fabric8.io/git-commit: f4a4e57c73a9d796ff61cfd8b36efc36fb8dc789
-          fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=che&var-version=1.0.77
+          fabric8.io/git-commit: 2a6db671623696718e08f52aec65520e02ae564a
+          fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=che&var-version=1.0.79
           fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/che
           fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/apps/che
           fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-online/master/apps/che/src/main/fabric8/icon.png
-          fabric8.io/git-branch: release-v1.0.77
+          fabric8.io/git-branch: release-v1.0.79
           fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/che
           fabric8.io/scm-tag: fabric8-online-2.0.1
         labels:
           provider: fabric8
           project: che
-          version: 1.0.77
+          version: 1.0.79
           group: io.fabric8.online.apps
       spec:
         containers:
@@ -374,7 +385,17 @@ items:
               configMapKeyRef:
                 key: che-workspaces-java-opts
                 name: che
-          image: rhche/che-server:e52a5a1
+          - name: CHE_OPENSHIFT_SECURE_ROUTES
+            valueFrom:
+              configMapKeyRef:
+                key: che-openshift-secure-routes
+                name: che
+          - name: CHE_DOCKER_SERVER__EVALUATION__STRATEGY_SECURE_EXTERNAL_URLS
+            valueFrom:
+              configMapKeyRef:
+                key: che-secure-external-urls
+                name: che
+          image: rhche/che-server:3b7e9b9
           imagePullPolicy: IfNotPresent
           livenessProbe:
             initialDelaySeconds: 120
@@ -411,14 +432,16 @@ items:
   kind: Route
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.77.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/che/target/che-1.0.79.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: che
-      version: 1.0.77
+      version: 1.0.79
       group: io.fabric8.online.apps
     name: che
   spec:
+    tls:
+      termination: edge
     to:
       kind: Service
       name: che-host

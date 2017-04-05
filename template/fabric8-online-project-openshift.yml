@@ -23,6 +23,14 @@ objects:
       group: io.fabric8.online.packages
     name: ${PROJECT_NAME}
 - apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    name: dsaas-user-access
+  spec: 
+    userrestriction:
+      users: 
+      - ${PROJECT_USER}
+- apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:

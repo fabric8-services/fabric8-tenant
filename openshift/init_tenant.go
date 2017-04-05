@@ -2,10 +2,26 @@ package openshift
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/fabric8io/fabric8-init-tenant/template"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
 
 const (
 	varProjectName           = "PROJECT_NAME"
@@ -49,10 +65,21 @@ func do(config Config, username, usertoken string) error {
 		return err
 	}
 
+	userProjectRolesT, err := template.Asset("fabric8-online-team-rolebindings.yml")
+	if err != nil {
+		return err
+	}
+
+	userProjectCollabT, err := template.Asset("fabric8-online-team-colaborators.yml")
+	if err != nil {
+		return err
+	}
+
 	projectT, err := template.Asset("fabric8-online-project-openshift.yml")
 	if err != nil {
 		return err
 	}
+
 	jenkinsT, err := template.Asset("fabric8-online-jenkins-openshift.yml")
 	if err != nil {
 		return err
@@ -63,7 +90,18 @@ func do(config Config, username, usertoken string) error {
 	}
 
 	var channels []chan error
+
 	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
+	if err != nil {
+		return err
+	}
+
+	err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.withNamespace(name))
+	if err != nil {
+		return err
+	}
+
+	err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.withNamespace(name))
 	if err != nil {
 		return err
 	}
@@ -107,7 +145,7 @@ func do(config Config, username, usertoken string) error {
 }
 
 func createName(username string) string {
-	return strings.Replace(strings.Split(username, "@")[0], ".", "-", -1)
+	return strings.Replace(strings.Split(username, "@")[0], ".", "-", -1) + "-" + RandStringRunes(4)
 }
 
 func executeNamespaceSync(template string, vars map[string]string, opts ApplyOptions) error {

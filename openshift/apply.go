@@ -32,44 +32,47 @@ const (
 var (
 	endpoints = map[string]map[string]string{
 		"POST": {
-			"Project":               `/oapi/v1/projects`,
-			"ProjectRequest":        `/oapi/v1/projectrequests`,
-			"RoleBinding":           `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`,
-			"Route":                 `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes`,
-			"DeploymentConfig":      `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs`,
-			"PersistentVolumeClaim": `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`,
-			"Service":               `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services`,
-			"Secret":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets`,
-			"ServiceAccount":        `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts`,
-			"ConfigMap":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps`,
-			"ResourceQuota":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`,
-			"LimitRange":            `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`,
+			"Project":                `/oapi/v1/projects`,
+			"ProjectRequest":         `/oapi/v1/projectrequests`,
+			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`,
+			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions`,
+			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes`,
+			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs`,
+			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`,
+			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services`,
+			"Secret":                 `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets`,
+			"ServiceAccount":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts`,
+			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps`,
+			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`,
+			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`,
 		},
 		"PUT": {
-			"Project":               `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
-			"RoleBinding":           `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
-			"Route":                 `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
-			"DeploymentConfig":      `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
-			"PersistentVolumeClaim": `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
-			"Service":               `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
-			"Secret":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`,
-			"ServiceAccount":        `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`,
-			"ConfigMap":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
-			"ResourceQuota":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
-			"LimitRange":            `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
+			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
+			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
+			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
+			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
+			"Secret":                 `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`,
+			"ServiceAccount":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`,
+			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
+			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
+			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"GET": {
-			"Project":               `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
-			"RoleBinding":           `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
-			"Route":                 `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
-			"DeploymentConfig":      `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
-			"PersistentVolumeClaim": `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
-			"Service":               `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
-			"Secret":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`,
-			"ServiceAccount":        `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`,
-			"ConfigMap":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
-			"ResourceQuota":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
-			"LimitRange":            `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
+			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
+			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
+			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
+			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
+			"Secret":                 `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`,
+			"ServiceAccount":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`,
+			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
+			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
+			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		/*
 			"PUT": {
@@ -88,6 +91,14 @@ type ApplyOptions struct {
 	Config
 	Overwrite bool
 	Namespace string
+}
+
+func (a ApplyOptions) withNamespace(namespace string) ApplyOptions {
+	return ApplyOptions{
+		Config:    a.Config,
+		Overwrite: a.Overwrite,
+		Namespace: namespace,
+	}
 }
 
 // Apply a given template structure to a target API
