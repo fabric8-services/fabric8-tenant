@@ -463,7 +463,7 @@ metadata:
   labels:
     provider: fabric8
     project: fabric8-online-jenkins
-    version: 1.0.81
+    version: 1.0.82
     group: io.fabric8.online.packages
   name: fabric8-online-jenkins
 objects:
@@ -477,7 +477,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.79
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: ${PROJECT_NAME}
 - apiVersion: v1
@@ -494,7 +494,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: resource-limits
   spec:
@@ -530,7 +530,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: compute-resources
   spec:
@@ -545,13 +545,13 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: compute-resources-timebound
   spec:
     hard:
-      limits.cpu: "3"
-      limits.memory: 1536Mi
+      limits.cpu: "4"
+      limits.memory: 2Gi
     scopes:
     - Terminating
 - apiVersion: v1
@@ -560,7 +560,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: object-counts
   spec:
@@ -573,11 +573,11 @@ objects:
   kind: Secret
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-docker-cfg
   data:
@@ -587,11 +587,11 @@ objects:
   kind: Secret
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-git-ssh
   data:
@@ -602,11 +602,11 @@ objects:
   kind: Secret
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-hub-api-token
   data:
@@ -616,11 +616,11 @@ objects:
   kind: Secret
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-maven-settings
   data:
@@ -630,11 +630,11 @@ objects:
   kind: Secret
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-release-gpg
   data:
@@ -647,11 +647,11 @@ objects:
   kind: Secret
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-ssh-config
   data:
@@ -663,7 +663,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: cd-bot
 - apiVersion: v1
@@ -671,29 +671,29 @@ objects:
   metadata:
     annotations:
       serviceaccounts.openshift.io/oauth-redirectreference.jenkins: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"jenkins"}}'
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins
 - apiVersion: v1
   kind: Service
   metadata:
     annotations:
-      fabric8.io/git-commit: 923a7fa63ae88f89c62d98017ca8bf54b8df89ab
-      fabric8.io/git-branch: release-v1.0.81
+      fabric8.io/git-commit: 9d4e3db3bdf1cfc8abd93de0231968b4f7c285d8
+      fabric8.io/git-branch: release-v1.0.82
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/bayesian-link
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/apps/bayesian-link
       fabric8.io/scm-tag: fabric8-online-2.0.1
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/apps/bayesian-link
-      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/bayesian-link/target/bayesian-link-1.0.81.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/home/jenkins/workspace/c8-cd_fabric8-online_master-RZCQJXY66EHCHAKJPPRB7OQ2EYEWQC7JYFR7O4VWUBUVXPQNSF5A@2/apps/bayesian-link/target/bayesian-link-1.0.82.jar!/META-INF/fabric8/openshift.yml
     labels:
       expose: "false"
       provider: fabric8
       project: bayesian-link
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.apps
     name: bayesian-link
   spec:
@@ -712,17 +712,17 @@ objects:
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-devops/master/content-repository/src/main/fabric8/icon.svg
       prometheus.io/port: "9180"
       prometheus.io/scrape: "true"
-      fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
+      fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/content-repository
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/content-repository
-      fabric8.io/git-branch: release-v3.0.5
+      fabric8.io/git-branch: release-v3.0.6
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/content-repository
       fabric8.io/scm-tag: fabric8-team-components-1.0.0
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.5/content-repository-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.6/content-repository-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: content-repository
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.devops.apps
       expose: "true"
     name: content-repository
@@ -740,19 +740,19 @@ objects:
   metadata:
     annotations:
       fabric8.io/app-menu: development
-      fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
+      fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/jenkins-openshift
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-team-components/master/jenkins-openshift/src/main/fabric8/icon.svg
-      fabric8.io/git-branch: release-v3.0.5
+      fabric8.io/git-branch: release-v3.0.6
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
       fabric8.io/scm-tag: fabric8-team-components-1.0.0
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       project: jenkins
       provider: fabric8
       expose: "false"
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins
   spec:
@@ -769,19 +769,19 @@ objects:
   kind: Service
   metadata:
     annotations:
-      fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
+      fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/jenkins-openshift
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-team-components/master/jenkins-openshift/src/main/fabric8/icon.svg
-      fabric8.io/git-branch: release-v3.0.5
+      fabric8.io/git-branch: release-v3.0.6
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
       fabric8.io/scm-tag: fabric8-team-components-1.0.0
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       project: jenkins
       provider: fabric8
       expose: "false"
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-jnlp
   spec:
@@ -798,11 +798,11 @@ objects:
   kind: RoleBinding
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: edit-jenkins
   roleRef:
@@ -817,7 +817,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: view
   roleRef:
@@ -833,7 +833,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.81
+      version: 1.0.82
       group: io.fabric8.online.packages
     name: view-cd-bot
   roleRef:
@@ -846,11 +846,11 @@ objects:
   kind: RoleBinding
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: view-jenkins
   roleRef:
@@ -863,11 +863,11 @@ objects:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.5/content-repository-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.6/content-repository-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: content-repository
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: content-repository
   spec:
@@ -880,11 +880,11 @@ objects:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-home
   spec:
@@ -897,11 +897,11 @@ objects:
   kind: PersistentVolumeClaim
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins-mvn-local-repo
   spec:
@@ -916,7 +916,7 @@ objects:
     labels:
       fabric8.io/kind: package
       provider: fabric8.io
-      version: 1.0.81
+      version: 1.0.82
       project: fabric8-online-jenkins
       group: io.fabric8.online.packages
     name: fabric8-online-jenkins
@@ -924,22 +924,36 @@ objects:
     metadata-url: http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/maven-metadata.xml
     package-url-prefix: http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/%[1]s/fabric8-online-jenkins-%[1]s-
 - apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    annotations:
+      description: Links this namespace to the Space that contains all the environments
+    labels:
+      fabric8.io/kind: space-link
+      provider: fabric8.io
+      version: 1.0.82
+      project: fabric8-online-jenkins
+      group: io.fabric8.online.packages
+    name: fabric8-space-link
+  data:
+    space: ${PROJECT_NAMESPACE}
+- apiVersion: v1
   kind: DeploymentConfig
   metadata:
     annotations:
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-devops/master/content-repository/src/main/fabric8/icon.svg
-      fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
-      fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=content-repository&var-version=3.0.5
+      fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
+      fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=content-repository&var-version=3.0.6
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/content-repository
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/content-repository
-      fabric8.io/git-branch: release-v3.0.5
+      fabric8.io/git-branch: release-v3.0.6
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/content-repository
       fabric8.io/scm-tag: fabric8-team-components-1.0.0
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.5/content-repository-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.6/content-repository-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: content-repository
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.devops.apps
     name: content-repository
   spec:
@@ -947,23 +961,23 @@ objects:
     selector:
       project: content-repository
       provider: fabric8
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     template:
       metadata:
         annotations:
-          fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
-          fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=content-repository&var-version=3.0.5
+          fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
+          fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=content-repository&var-version=3.0.6
           fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/content-repository
           fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/content-repository
           fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-devops/master/content-repository/src/main/fabric8/icon.svg
-          fabric8.io/git-branch: release-v3.0.5
+          fabric8.io/git-branch: release-v3.0.6
           fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/content-repository
           fabric8.io/scm-tag: fabric8-team-components-1.0.0
         labels:
           provider: fabric8
           project: content-repository
-          version: 3.0.5
+          version: 3.0.6
           group: io.fabric8.fabric8-team-components.apps
       spec:
         containers:
@@ -998,20 +1012,20 @@ objects:
   kind: DeploymentConfig
   metadata:
     annotations:
-      fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
-      fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=jenkins-openshift&var-version=3.0.5
+      fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
+      fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=jenkins-openshift&var-version=3.0.6
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/jenkins-openshift
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-team-components/master/jenkins-openshift/src/main/fabric8/icon.svg
-      fabric8.io/git-branch: release-v3.0.5
+      fabric8.io/git-branch: release-v3.0.6
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
       fabric8.io/scm-tag: fabric8-team-components-1.0.0
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       fabric8.io/type: preview
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins
   spec:
@@ -1019,23 +1033,23 @@ objects:
     selector:
       project: jenkins-openshift
       provider: fabric8
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     template:
       metadata:
         annotations:
-          fabric8.io/git-commit: 6c85b448aab3c238057ba665e40673c22f80a93a
-          fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=jenkins-openshift&var-version=3.0.5
+          fabric8.io/git-commit: 1a22c26fb6368ae8530a6d19f1ca7f7168720685
+          fabric8.io/metrics-path: dashboard/file/kubernetes-pods.json/?var-project=jenkins-openshift&var-version=3.0.6
           fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
           fabric8.io/scm-url: http://github.com/fabric8io/fabric8-team-components/jenkins-openshift
           fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-team-components/master/jenkins-openshift/src/main/fabric8/icon.svg
-          fabric8.io/git-branch: release-v3.0.5
+          fabric8.io/git-branch: release-v3.0.6
           fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-team-components.git/jenkins-openshift
           fabric8.io/scm-tag: fabric8-team-components-1.0.0
         labels:
           provider: fabric8
           project: jenkins-openshift
-          version: 3.0.5
+          version: 3.0.6
           group: io.fabric8.fabric8-team-components.apps
       spec:
         containers:
@@ -1054,7 +1068,7 @@ objects:
             value: "true"
           - name: KUBERNETES_MASTER
             value: https://kubernetes.default:443
-          image: fabric8/jenkins-openshift:v57fc8be
+          image: fabric8/jenkins-openshift:v30e4d92
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 30
@@ -1094,11 +1108,11 @@ objects:
   kind: Route
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.5/content-repository-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/content-repository/3.0.6/content-repository-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: content-repository
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: content-repository
   spec:
@@ -1112,11 +1126,11 @@ objects:
   kind: Route
   metadata:
     annotations:
-      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.5/jenkins-openshift-3.0.5.jar!/META-INF/fabric8/openshift.yml
+      maven.fabric8.io/source-url: jar:file:/root/.mvnrepository/io/fabric8/fabric8-team-components/apps/jenkins-openshift/3.0.6/jenkins-openshift-3.0.6.jar!/META-INF/fabric8/openshift.yml
     labels:
       provider: fabric8
       project: jenkins-openshift
-      version: 3.0.5
+      version: 3.0.6
       group: io.fabric8.fabric8-team-components.apps
     name: jenkins
   spec:
