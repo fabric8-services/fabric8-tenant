@@ -1182,6 +1182,14 @@ objects:
       users: 
       - ${PROJECT_USER}
 - apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    name: dsaas-access-sa-ns
+  spec: 
+    serviceaccountrestriction:
+      namespaces: 
+      - ${PROJECT_TEMPLATE_NAME}-jenkins
+- apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
@@ -1197,6 +1205,40 @@ objects:
     name: ${PROJECT_USER}
   userNames:
   - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_TEMPLATE_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.74
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_TEMPLATE_NAME}-jenkins:jenkins
 `)
 
 func fabric8_online_project_openshift_yml() ([]byte, error) {

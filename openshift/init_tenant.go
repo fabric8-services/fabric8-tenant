@@ -25,6 +25,7 @@ func RandStringRunes(n int) string {
 
 const (
 	varProjectName           = "PROJECT_NAME"
+	varProjectTemplateName   = "PROJECT_TEMPLATE_NAME"
 	varProjectDisplayName    = "PROJECT_DISPLAYNAME"
 	varProjectDescription    = "PROJECT_DESCRIPTION"
 	varProjectUser           = "PROJECT_USER"
@@ -50,6 +51,7 @@ func do(config Config, username, usertoken string) error {
 
 	vars := map[string]string{
 		varProjectName:           name,
+		varProjectTemplateName:   name,
 		varProjectDisplayName:    name + " Test Project",
 		varProjectDescription:    name + " Test Project",
 		varProjectUser:           username,
