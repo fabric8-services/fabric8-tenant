@@ -145,7 +145,7 @@ func do(config Config, username, usertoken string) error {
 }
 
 func createName(username string) string {
-	return strings.Replace(strings.Split(username, "@")[0], ".", "-", -1) + "-" + RandStringRunes(4)
+	return strings.Replace(strings.Split(username, "@")[0], ".", "-", -1)
 }
 
 func executeNamespaceSync(template string, vars map[string]string, opts ApplyOptions) error {
