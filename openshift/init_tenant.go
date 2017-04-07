@@ -57,7 +57,7 @@ func do(config Config, username, usertoken string) error {
 		varProjectUser:           username,
 		varProjectRequestingUser: username,
 		varProjectAdminUser:      config.MasterUser,
-		"EXTERNAL_NAME": "recommender.api.prod-preview.openshift.io",
+		"EXTERNAL_NAME":          "recommender.api.prod-preview.openshift.io",
 	}
 
 	masterOpts := ApplyOptions{Config: config, Overwrite: true}
