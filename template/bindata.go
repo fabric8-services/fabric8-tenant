@@ -819,9 +819,9 @@ objects:
       project: fabric8-online-jenkins
       version: 1.0.84
       group: io.fabric8.online.packages
-    name: view
+    name: edit
   roleRef:
-    name: view
+    name: edit
   subjects:
   - kind: User
     name: ${PROJECT_USER}
