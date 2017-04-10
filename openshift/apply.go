@@ -74,15 +74,6 @@ var (
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
-		/*
-			"PUT": {
-				"ResourceQuota": `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
-				"LimitRange":    `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
-			},
-		*/
-		"DELETE": {
-			"ResourceQuota": `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
-		},
 	}
 )
 
@@ -181,10 +172,11 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	}
 
 	if resp.StatusCode == http.StatusConflict {
+		if object[fieldKind] == valProjectRequest {
+			return respType, nil
+		}
 		/*
-			if object[fieldKind] == valProjectRequest {
-				return respType, nil
-			}
+			fmt.Println("Conflict-Update")
 			resp, err := apply(object, "GET", opts)
 			if err != nil {
 				return nil, err
@@ -211,7 +203,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 func updateResourceVersion(source, target map[interface{}]interface{}) {
 	if sourceMeta, sourceMetaFound := source[fieldMetadata].(map[interface{}]interface{}); sourceMetaFound {
 		if sourceVersion, sourceVersionFound := sourceMeta[fieldResourceVersion]; sourceVersionFound {
-			if targetMeta, targetMetaFound := source[fieldMetadata].(map[interface{}]interface{}); targetMetaFound {
+			if targetMeta, targetMetaFound := target[fieldMetadata].(map[interface{}]interface{}); targetMetaFound {
 				fmt.Println("setting v", sourceVersion, reflect.TypeOf(sourceVersion).Kind())
 				targetMeta[fieldResourceVersion] = sourceVersion
 			}
