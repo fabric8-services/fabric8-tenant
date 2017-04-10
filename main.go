@@ -97,7 +97,7 @@ func main() {
 
 	kcBaseURL := os.Getenv("KEYCLOAK_BASE_URL")
 	if kcBaseURL == "" {
-		kcBaseURL = "http://sso.prod-preview.openshift.io"
+		kcBaseURL = "https://sso.prod-preview.openshift.io"
 	}
 	kcc := keycloak.Config{
 		BaseURL: kcBaseURL,
