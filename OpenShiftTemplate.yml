@@ -25,9 +25,9 @@ objects:
         containers:
         - env:
           - name: F8_POSTGRES_HOST
-            value: localhost
+            value: 'localhost'
           - name: F8_POSTGRES_PORT
-            value: 5432
+            value: '5432'
           - name: F8_POSTGRES_USER
             value: postgres
           - name: F8_POSTGRES_DATABSE
@@ -35,13 +35,13 @@ objects:
           - name: F8_POSTGRES_PASSWORD
             value: mysecretpasssword
           - name: F8_POSTGRES_CONNECTION_MAXIDLE
-            value: 30
+            value: '30'
           - name: F8_POSTGRES_CONNECTION_MAXOPEN
-            value: 30
+            value: '30'
           - name: F8_KEYCLOAK_URL
-            value: http://sso.prod-preview.openshift.io
+            value: 'http://sso.prod-preview.openshift.io'
           - name: F8_OPENSHIFT_TENANT_MASTERURL
-            value: https://api.free-int.openshift.com
+            value: 'https://api.free-int.openshift.com'
           - name: F8_OPENSHIFT_SERVICE_TOKEN
             valueFrom:
               secretKeyRef:
