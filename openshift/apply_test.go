@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8io/fabric8-init-tenant/openshift"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var applyTemplate = `
@@ -34,6 +35,41 @@ objects:
     name: aslak-test
 `
 
+var sortTemplate = `
+---
+apiVersion: v1
+kind: Template
+objects:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: aslak-test
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    name: aslak-test
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: aslak-test
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    name: aslak-test
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    name: aslak-test
+- apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    name: aslak-test
+- apiVersion: v1
+  kind: LimitRange
+  metadata:
+    name: aslak-test
+`
+
 // Ignore for now. Need vcr setup to record openshift interactions
 func xTestApply(t *testing.T) {
 	opts := openshift.ApplyOptions{
@@ -48,4 +84,18 @@ func xTestApply(t *testing.T) {
 		assert.NoError(t, result, "apply error")
 	})
 
+}
+
+func TestSort(t *testing.T) {
+	l, err := openshift.ParseObjects(sortTemplate, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, "ProjectRequest", kind(l[0]))
+	assert.Equal(t, "RoleBindingRestriction", kind(l[1]))
+	assert.Equal(t, "LimitRange", kind(l[2]))
+	assert.Equal(t, "ResourceQuota", kind(l[3]))
+}
+
+func kind(object map[interface{}]interface{}) string {
+	return object["kind"].(string)
 }

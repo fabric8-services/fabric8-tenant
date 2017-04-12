@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"reflect"
+	"sort"
 	"unsafe"
 
 	"time"
@@ -95,7 +96,7 @@ func (a ApplyOptions) withNamespace(namespace string) ApplyOptions {
 // Apply a given template structure to a target API
 func Apply(source string, opts ApplyOptions) error {
 
-	objects, err := parseObjects(source, opts.Namespace)
+	objects, err := ParseObjects(source, opts.Namespace)
 	if err != nil {
 		return err
 	}
@@ -220,7 +221,8 @@ func getName(obj map[interface{}]interface{}) string {
 	return ""
 }
 
-func parseObjects(source string, namespace string) ([]map[interface{}]interface{}, error) {
+// ParseObjects return a string yaml and return a array of the objects/items from a Template/List kind
+func ParseObjects(source string, namespace string) ([]map[interface{}]interface{}, error) {
 	var template map[interface{}]interface{}
 
 	err := yaml.Unmarshal([]byte(source), &template)
@@ -249,6 +251,7 @@ func parseObjects(source string, namespace string) ([]map[interface{}]interface{
 			}
 		}
 
+		sort.Sort(ByKind(objs))
 		return objs, nil
 	}
 	return []map[interface{}]interface{}{template}, nil
@@ -284,4 +287,28 @@ func createURL(hostURL, action string, object map[interface{}]interface{}) (stri
 	}
 	str := buf.String()
 	return hostURL + str, nil
+}
+
+var sortOrder = map[string]int{
+	"ProjectRequest":         1,
+	"RoleBindingRestriction": 2,
+	"LimitRange":             3,
+	"ResourceQuota":          4,
+}
+
+type ByKind []map[interface{}]interface{}
+
+func (a ByKind) Len() int      { return len(a) }
+func (a ByKind) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByKind) Less(i, j int) bool {
+	iO := 30
+	jO := 30
+
+	if val, ok := sortOrder[a[i][fieldKind].(string)]; ok {
+		iO = val
+	}
+	if val, ok := sortOrder[a[j][fieldKind].(string)]; ok {
+		jO = val
+	}
+	return iO < jO
 }
