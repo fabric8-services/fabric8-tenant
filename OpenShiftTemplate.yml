@@ -74,7 +74,7 @@ objects:
               secretKeyRef:
                 name: openshift-online-tokens
                 key: dsaas-service-token
-          image: registry.devshift.net/fabric8io/fabric8-tenant:$IMAGE_TAG
+          image: registry.devshift.net/fabric8io/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
           ports:
