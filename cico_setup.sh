@@ -101,11 +101,20 @@ function run_tests_with_coverage() {
   echo "CICO: ran tests and uploaded coverage"
 }
 
+function tag_push() {
+  TARGET=$1
+  docker tag fabric8-init-tenant-deploy $TARGET
+  docker push $TARGET
+}
+
 function deploy() {
   # Let's deploy
   make docker-image-deploy
-  docker tag fabric8-init-tenant-deploy registry.devshift.net/fabric8io/fabric8-tenant:latest
-  docker push registry.devshift.net/fabric8io/fabric8-tenant:latest
+
+  TAG=$(echo $GIT_COMMIT | cut -c1-6)
+
+  tag_push registry.devshift.net/fabric8io/fabric8-tenant:$TAG
+  tag_push registry.devshift.net/fabric8io/fabric8-tenant:latest
   echo 'CICO: Image pushed, ready to update deployed app'
 }
 
