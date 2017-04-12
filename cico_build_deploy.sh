@@ -1,19 +1,9 @@
 #!/bin/bash
 
-/usr/sbin/setenforce 0
+. cico_setup.sh
 
-# Get all the deps in
-yum -y install \
-    docker \
-    make \
-    git \
-    curl
+cico_setup;
 
-service docker start
+run_tests_without_coverage;
 
-make docker-build-build
-make docker-install
-make docker-test
-make docker-build
-make docker-build-run
-make docker-run-deploy
+deploy;

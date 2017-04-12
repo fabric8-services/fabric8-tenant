@@ -17,10 +17,19 @@ type Config struct {
 	Broker  string
 }
 
+// RealmAuthURL return endpoint for realm auth config "{BaseURL}/auth/realms/{Realm}/broker/{Broker}/token"
+func (c Config) RealmAuthURL() string {
+	return fmt.Sprintf("%v/auth/realms/%v", c.BaseURL, c.Realm)
+}
+
+// BrokerTokenURL return endpoint to fetch Brokern token "{BaseURL}/auth/realms/{Realm}/broker/{Broker}/token"
+func (c Config) BrokerTokenURL() string {
+	return fmt.Sprintf("%v/auth/realms/%v/broker/%v/token", c.BaseURL, c.Realm, c.Broker)
+}
+
 // OpenshiftToken fetches the Openshift token defined for the current user in Keycloak
 func OpenshiftToken(config Config, token string) (string, error) {
-	tokenURL := fmt.Sprintf("%v/auth/realms/%v/broker/%v/token", config.BaseURL, config.Realm, config.Broker)
-	ut, err := get(tokenURL, token)
+	ut, err := get(config.BrokerTokenURL(), token)
 	if err != nil {
 		return "", err
 	}
