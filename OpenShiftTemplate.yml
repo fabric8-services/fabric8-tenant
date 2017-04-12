@@ -39,7 +39,7 @@ objects:
               secretKeyRef:
                 name: f8tenant
                 key: postgres.user
-          - name: F8_POSTGRES_DATABSE
+          - name: F8_POSTGRES_DATABASE
             valueFrom:
               secretKeyRef:
                 name: f8tenant
