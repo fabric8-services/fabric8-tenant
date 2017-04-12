@@ -25,29 +25,56 @@ objects:
         containers:
         - env:
           - name: F8_POSTGRES_HOST
-            value: 'localhost'
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: postgres.host
           - name: F8_POSTGRES_PORT
-            value: '5432'
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: postgres.host
           - name: F8_POSTGRES_USER
-            value: postgres
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: postgres.host
           - name: F8_POSTGRES_DATABSE
-            value: postgres
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: postgres.host
           - name: F8_POSTGRES_PASSWORD
-            value: mysecretpasssword
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: postgres.host
           - name: F8_POSTGRES_CONNECTION_MAXIDLE
-            value: '30'
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: postgres.connection.maxidle
           - name: F8_POSTGRES_CONNECTION_MAXOPEN
-            value: '30'
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: postgres.connection.maxopen
           - name: F8_KEYCLOAK_URL
-            value: 'http://sso.prod-preview.openshift.io'
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: keycloak.url
           - name: F8_OPENSHIFT_TENANT_MASTERURL
-            value: 'https://api.free-int.openshift.com'
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: openshift.tenant.masterurl
           - name: F8_OPENSHIFT_SERVICE_TOKEN
             valueFrom:
               secretKeyRef:
                 name: openshift-online-tokens
                 key: dsaas-service-token
-          image: registry.devshift.net/fabric8io/fabric8-tenant:latest
+          image: registry.devshift.net/fabric8io/fabric8-tenant:$IMAGE_TAG
           imagePullPolicy: Always
           name: f8tenant
           ports:
@@ -66,3 +93,6 @@ objects:
         targetPort: 8080
     selector:
       deploymentconfig: f8tenant
+parameters:
+- name: IMAGE_TAG
+  value: latest
