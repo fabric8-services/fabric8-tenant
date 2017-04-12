@@ -70,7 +70,7 @@ func main() {
 	openshiftConfig.MasterUser = openshiftMasterUser
 
 	keycloakConfig := keycloak.Config{
-		BaseURL: config.GetKeycloakDevModeURL(),
+		BaseURL: config.GetKeycloakURL(),
 		Realm:   config.GetKeycloakRealm(),
 		Broker:  config.GetKeycloakOpenshiftBroker(),
 	}

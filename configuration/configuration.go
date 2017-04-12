@@ -8,8 +8,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/almighty/almighty-core/errors"
-	"github.com/goadesign/goa"
 	"github.com/spf13/viper"
 )
 
@@ -29,11 +27,9 @@ const (
 	varPostgresConnectionMaxOpen    = "postgres.connection.maxopen"
 	varHTTPAddress                  = "http.address"
 	varDeveloperModeEnabled         = "developer.mode.enabled"
-	varKeycloakDomainPrefix         = "keycloak.domain.prefix"
 	varKeycloakRealm                = "keycloak.realm"
 	varKeycloakOpenshiftBroker      = "keycloak.openshift.broker"
 	varKeycloakURL                  = "keycloak.url"
-	varKeycloakEndpointBroker       = "keycloak.endpoint.broker"
 	varOpenshiftTenantMasterURL     = "openshift.tenant.masterurl"
 	varOpenshiftServiceToken        = "openshift.service.token"
 )
@@ -190,11 +186,6 @@ func (c *Data) IsDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
 }
 
-// GetKeycloakDomainPrefix returns the domain prefix which should be used in all Keycloak requests
-func (c *Data) GetKeycloakDomainPrefix() string {
-	return c.v.GetString(varKeycloakDomainPrefix)
-}
-
 // GetKeycloakRealm returns the keyclaok realm name
 func (c *Data) GetKeycloakRealm() string {
 	if c.v.IsSet(varKeycloakRealm) {
@@ -211,73 +202,15 @@ func (c *Data) GetKeycloakOpenshiftBroker() string {
 	return c.v.GetString(varKeycloakOpenshiftBroker)
 }
 
-// GetKeycloakEndpointBroker returns the <keyclaok>/realms/<realm>/authz/entitlement/<clientID> endpoint
-// set via config file or environment variable.
-// If nothing set then in Dev environment the defualt endopoint will be returned.
-// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
-// Example: api.service.domain.org -> sso.service.domain.org
-// or api.domain.org -> sso.domain.org
-func (c *Data) GetKeycloakEndpointBroker(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointBroker, "auth/realms/"+c.GetKeycloakRealm()+"/broker")
-}
-
-// GetKeycloakDevModeURL returns Keycloak URL used by default in Dev mode
-func (c *Data) GetKeycloakDevModeURL() string {
-	return devModeKeycloakURL
-}
-
-func (c *Data) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
-	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
-}
-
-func (c *Data) getKeycloakEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
-	if c.v.IsSet(endpointVarName) {
-		return c.v.GetString(endpointVarName), nil
-	}
-	var endpoint string
-	var err error
+// GetKeycloakURL returns Keycloak URL used by default in Dev mode
+func (c *Data) GetKeycloakURL() string {
 	if c.v.IsSet(varKeycloakURL) {
-		// Keycloak URL is set. Calculate the URL endpoint
-		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), pathSufix)
-	} else {
-		if c.IsDeveloperModeEnabled() {
-			// Devmode is enabled. Calculate the URL endopoint using the devmode Keyclaok URL
-			endpoint = fmt.Sprintf("%s/%s", devModeKeycloakURL, pathSufix)
-		} else {
-			// Calculate relative URL based on request
-			endpoint, err = c.getKeycloakURL(req, pathSufix)
-			if err != nil {
-				return "", err
-			}
-		}
+		return c.v.GetString(varKeycloakURL)
 	}
-
-	// Can't set this variable because viper is not thread-safe. See https://github.com/spf13/viper/issues/268
-	// c.v.Set(endpointVarName, endpoint) // Set the variable, so, we don't have to recalculate it again the next time
-	return endpoint, nil
-}
-
-func (c *Data) openIDConnectPath(suffix string) string {
-	return "auth/realms/" + c.GetKeycloakRealm() + "/protocol/openid-connect/" + suffix
-}
-
-func (c *Data) getKeycloakURL(req *goa.RequestData, path string) (string, error) {
-	scheme := "http"
-	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
-		scheme = "https"
+	if c.IsDeveloperModeEnabled() {
+		return devModeKeycloakURL
 	}
-	xForwardProto := req.Header.Get("X-Forwarded-Proto")
-	if xForwardProto != "" {
-		scheme = xForwardProto
-	}
-
-	newHost, err := ReplaceDomainPrefix(req.Host, c.GetKeycloakDomainPrefix())
-	if err != nil {
-		return "", err
-	}
-	newURL := fmt.Sprintf("%s://%s/%s", scheme, newHost, path)
-
-	return newURL, nil
+	return defaultKeycloakURL
 }
 
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
@@ -293,6 +226,7 @@ func (c *Data) GetOpenshiftServiceToken() string {
 const (
 	// Auth-related defaults
 
+	defaultKeycloakURL             = "https://sso.prod-preview.openshift.io"
 	defaultKeycloakRealm           = "fabric8"
 	defaultKeycloakOpenshiftBroker = "openshift-v3"
 
@@ -302,12 +236,3 @@ const (
 
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
 )
-
-// ReplaceDomainPrefix replaces the last name in the host by a new name. Example: api.service.domain.org -> sso.service.domain.org
-func ReplaceDomainPrefix(host string, replaceBy string) (string, error) {
-	split := strings.SplitN(host, ".", 2)
-	if len(split) < 2 {
-		return host, errors.NewBadParameterError("host", host).Expected("must contain more than one domain")
-	}
-	return replaceBy + "." + split[1], nil
-}
