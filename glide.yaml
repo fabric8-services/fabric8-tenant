@@ -49,4 +49,7 @@ import:
 - package: github.com/elazarl/go-bindata-assetfs
   subpackages:
   - go-bindata-assetfs
+- package: golang.org/x/tools
+  subpackages:
+  - go/ast/astutil
 - package: github.com/satori/go.uuid

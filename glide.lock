@@ -1,5 +1,5 @@
-hash: 71f71138aade27c676df3074adfc779e1fe2e01ee71de309252e8455b600d189
-updated: 2017-04-12T01:01:08.862309697+02:00
+hash: 05fddf661826f5f5f32234fc944983b89a3ef5ac122ad2bb055671ef1c3dca81
+updated: 2017-04-12T02:24:55.288313634+02:00
 imports:
 - name: github.com/almighty/almighty-core
   version: 46ee62000b3a1520b8a688e50669735b351f34a8
@@ -125,6 +125,10 @@ imports:
   subpackages:
   - transform
   - unicode/norm
+- name: golang.org/x/tools
+  version: a888bfdffa4526cc6987572bca9a2c6b7758290f
+  subpackages:
+  - go/ast/astutil
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports:
