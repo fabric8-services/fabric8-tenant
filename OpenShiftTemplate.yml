@@ -33,22 +33,22 @@ objects:
             valueFrom:
               secretKeyRef:
                 name: f8tenant
-                key: postgres.host
+                key: postgres.port
           - name: F8_POSTGRES_USER
             valueFrom:
               secretKeyRef:
                 name: f8tenant
-                key: postgres.host
+                key: postgres.user
           - name: F8_POSTGRES_DATABSE
             valueFrom:
               secretKeyRef:
                 name: f8tenant
-                key: postgres.host
+                key: postgres.database
           - name: F8_POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: f8tenant
-                key: postgres.host
+                key: postgres.password
           - name: F8_POSTGRES_CONNECTION_MAXIDLE
             valueFrom:
               configMapKeyRef:
