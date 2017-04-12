@@ -104,8 +104,8 @@ function run_tests_with_coverage() {
 function deploy() {
   # Let's deploy
   make docker-image-deploy
-  docker tag f8tenant-deploy registry.devshift.net/fabric8io/fabric8-init-tenant:latest
-  docker push registry.devshift.net/fabric8io/fabric8-init-tenant:latest
+  docker tag fabric8-init-tenant-deploy registry.devshift.net/fabric8io/fabric8-tenant:latest
+  docker push registry.devshift.net/fabric8io/fabric8-tenant:latest
   echo 'CICO: Image pushed, ready to update deployed app'
 }
 
