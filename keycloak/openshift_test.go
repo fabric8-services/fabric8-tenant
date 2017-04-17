@@ -8,10 +8,10 @@ import (
 )
 
 // ignore for now, require vcr recording
-func xTestWhoAmI(t *testing.T) {
+func xTestOpenshiftToken(t *testing.T) {
 
 	c := keycloak.Config{
-		BaseURL: "http://sso.prod-preview.openshift.io",
+		BaseURL: "https://sso.prod-preview.openshift.io",
 		Realm:   "fabric8",
 		Broker:  "openshift-v3",
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8io/fabric8-init-tenant/keycloak"
 	"github.com/fabric8io/fabric8-init-tenant/migration"
 	"github.com/fabric8io/fabric8-init-tenant/openshift"
+	"github.com/fabric8io/fabric8-init-tenant/tenant"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
@@ -99,7 +100,7 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, db, keycloakConfig, openshiftConfig)
+	tenantCtrl := controller.NewTenantController(service, tenant.NewService(db), keycloakConfig, openshiftConfig)
 	app.MountTenantController(service, tenantCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

@@ -101,6 +101,7 @@ func getMigrations() migrations {
 	m := migrations{}
 
 	m = append(m, steps{executeSQLFile("000-bootstrap.sql")})
+	m = append(m, steps{executeSQLFile("001-tenant-and-namespaces.sql")})
 
 	// Version N
 	//

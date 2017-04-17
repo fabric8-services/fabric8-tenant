@@ -46,8 +46,8 @@ func get(url, token string) (*usertoken, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", "application/yaml")
-	req.Header.Set("Content-Type", "application/yaml")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	// for debug only

@@ -8,7 +8,6 @@ import (
 	"net/http/httputil"
 	"reflect"
 	"sort"
-	"unsafe"
 
 	"time"
 
@@ -16,18 +15,20 @@ import (
 )
 
 const (
-	fieldKind            = "kind"
-	fieldAPIVersion      = "apiVersion"
-	fieldObjects         = "objects"
-	fieldItems           = "items"
-	fieldMetadata        = "metadata"
-	fieldNamespace       = "namespace"
-	fieldName            = "name"
-	fieldResourceVersion = "resourceVersion"
+	FieldKind            = "kind"
+	FieldAPIVersion      = "apiVersion"
+	FieldObjects         = "objects"
+	FieldItems           = "items"
+	FieldMetadata        = "metadata"
+	FieldLabels          = "labels"
+	FieldVersion         = "version"
+	FieldNamespace       = "namespace"
+	FieldName            = "name"
+	FieldResourceVersion = "resourceVersion"
 
-	valTemplate       = "Template"
-	valProjectRequest = "ProjectRequest"
-	valList           = "List"
+	ValKindTemplate       = "Template"
+	ValKindProjectRequest = "ProjectRequest"
+	ValKindList           = "List"
 )
 
 var (
@@ -78,17 +79,20 @@ var (
 	}
 )
 
+// Callback is called after initial action
+type Callback func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{})
+
 // ApplyOptions contains options for connecting to the target API
 type ApplyOptions struct {
 	Config
-	Overwrite bool
 	Namespace string
+	Callback  Callback
 }
 
-func (a ApplyOptions) withNamespace(namespace string) ApplyOptions {
+func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 	return ApplyOptions{
 		Config:    a.Config,
-		Overwrite: a.Overwrite,
+		Callback:  a.Callback,
 		Namespace: namespace,
 	}
 }
@@ -128,6 +132,7 @@ func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
 }
 
 func apply(object map[interface{}]interface{}, action string, opts ApplyOptions) (map[interface{}]interface{}, error) {
+	//fmt.Println("apply ", action, GetKind(object), GetName(object), opts.Callback)
 	body, err := yaml.Marshal(object)
 	if err != nil {
 		return nil, err
@@ -149,8 +154,8 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	req.Header.Set("Authorization", "Bearer "+opts.Token)
 
 	// for debug only
-	rb, _ := httputil.DumpRequest(req, true)
 	if false {
+		rb, _ := httputil.DumpRequest(req, true)
 		fmt.Println(string(rb))
 	}
 
@@ -172,50 +177,86 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		return nil, err
 	}
 
-	if resp.StatusCode == http.StatusConflict {
-		if object[fieldKind] == valProjectRequest {
-			return respType, nil
+	if opts.Callback != nil {
+		act, newObject := opts.Callback(resp.StatusCode, action, object, respType)
+		if act != "" {
+			return apply(newObject, act, opts)
 		}
-		/*
-			fmt.Println("Conflict-Update")
-			resp, err := apply(object, "GET", opts)
-			if err != nil {
-				return nil, err
-			}
-			fmt.Println(resp)
-			updateResourceVersion(resp, object)
-			fmt.Println(object)
-		*/
-		return apply(object, "PUT", opts)
-	}
-	/*
-		if resp.StatusCode == http.StatusForbidden && opts.Overwrite {
 
-		} else
-	*/
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unknown response:\n%v\n%v", *(*string)(unsafe.Pointer(&b)), string(rb))
 	}
-
-	fmt.Printf("%v %v %v in %v\n", action, respType[fieldKind], getName(respType), opts.Namespace)
 	return respType, nil
+
+	/*
+		if resp.StatusCode == http.StatusConflict {
+			if object[fieldKind] == valProjectRequest {
+				return respType, nil
+			}
+				fmt.Println("Conflict-Update")
+				resp, err := apply(object, "GET", opts)
+				if err != nil {
+					return nil, err
+				}
+				fmt.Println(resp)
+				updateResourceVersion(resp, object)
+				fmt.Println(object)
+			return apply(object, "PUT", opts)
+		}
+	*/
+	/*
+			if resp.StatusCode == http.StatusForbidden && opts.Overwrite {
+
+			} else
+		if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Unknown response:\n%v\n%v", *(*string)(unsafe.Pointer(&b)), string(rb))
+		}
+
+		fmt.Printf("%v %v %v in %v\n", action, respType[fieldKind], getName(respType), opts.Namespace)
+		return respType, nil
+	*/
 }
 
 func updateResourceVersion(source, target map[interface{}]interface{}) {
-	if sourceMeta, sourceMetaFound := source[fieldMetadata].(map[interface{}]interface{}); sourceMetaFound {
-		if sourceVersion, sourceVersionFound := sourceMeta[fieldResourceVersion]; sourceVersionFound {
-			if targetMeta, targetMetaFound := target[fieldMetadata].(map[interface{}]interface{}); targetMetaFound {
+	if sourceMeta, sourceMetaFound := source[FieldMetadata].(map[interface{}]interface{}); sourceMetaFound {
+		if sourceVersion, sourceVersionFound := sourceMeta[FieldResourceVersion]; sourceVersionFound {
+			if targetMeta, targetMetaFound := target[FieldMetadata].(map[interface{}]interface{}); targetMetaFound {
 				fmt.Println("setting v", sourceVersion, reflect.TypeOf(sourceVersion).Kind())
-				targetMeta[fieldResourceVersion] = sourceVersion
+				targetMeta[FieldResourceVersion] = sourceVersion
 			}
 		}
 	}
 }
 
-func getName(obj map[interface{}]interface{}) string {
-	if meta, metaFound := obj[fieldMetadata].(map[interface{}]interface{}); metaFound {
-		if name, nameFound := meta[fieldName].(string); nameFound {
+func GetName(obj map[interface{}]interface{}) string {
+	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
+		if name, nameFound := meta[FieldName].(string); nameFound {
 			return name
+		}
+	}
+	return ""
+}
+
+func GetNamespace(obj map[interface{}]interface{}) string {
+	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
+		if name, nameFound := meta[FieldNamespace].(string); nameFound {
+			return name
+		}
+	}
+	return ""
+}
+
+func GetKind(obj map[interface{}]interface{}) string {
+	if kind, kindFound := obj[FieldKind].(string); kindFound {
+		return kind
+	}
+	return ""
+}
+
+func GetLabelVersion(obj map[interface{}]interface{}) string {
+	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
+		if labels, labelsFound := meta[FieldLabels].(map[interface{}]interface{}); labelsFound {
+			if version, versionFound := labels[FieldVersion].(string); versionFound {
+				return version
+			}
 		}
 	}
 	return ""
@@ -230,12 +271,12 @@ func ParseObjects(source string, namespace string) ([]map[interface{}]interface{
 		return nil, err
 	}
 
-	if template[fieldKind] == valTemplate || template[fieldKind] == valList {
+	if GetKind(template) == ValKindTemplate || GetKind(template) == ValKindList {
 		var ts []interface{}
-		if template[fieldKind] == valTemplate {
-			ts = template[fieldObjects].([]interface{})
-		} else if template[fieldKind] == valList {
-			ts = template[fieldItems].([]interface{})
+		if GetKind(template) == ValKindTemplate {
+			ts = template[FieldObjects].([]interface{})
+		} else if GetKind(template) == ValKindList {
+			ts = template[FieldItems].([]interface{})
 		}
 		var objs []map[interface{}]interface{}
 		for _, obj := range ts {
@@ -243,9 +284,9 @@ func ParseObjects(source string, namespace string) ([]map[interface{}]interface{
 		}
 		if namespace != "" {
 			for _, obj := range objs {
-				if val, ok := obj[fieldMetadata].(map[interface{}]interface{}); ok {
-					if _, ok := val[fieldNamespace]; !ok {
-						val[fieldNamespace] = namespace
+				if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok {
+					if _, ok := val[FieldNamespace]; !ok {
+						val[FieldNamespace] = namespace
 					}
 				}
 			}
@@ -261,8 +302,8 @@ func ParseObjects(source string, namespace string) ([]map[interface{}]interface{
 func allKnownTypes(objects []map[interface{}]interface{}) error {
 	m := multiError{}
 	for _, obj := range objects {
-		if _, ok := endpoints["POST"][obj[fieldKind].(string)]; !ok {
-			m.Errors = append(m.Errors, fmt.Errorf("Unknown type: %v", obj[fieldKind]))
+		if _, ok := endpoints["POST"][GetKind(obj)]; !ok {
+			m.Errors = append(m.Errors, fmt.Errorf("Unknown type: %v", GetKind(obj)))
 		}
 	}
 	if len(m.Errors) > 0 {
@@ -272,7 +313,7 @@ func allKnownTypes(objects []map[interface{}]interface{}) error {
 }
 
 func createURL(hostURL, action string, object map[interface{}]interface{}) (string, error) {
-	urlTemplate, found := endpoints[action][object[fieldKind].(string)]
+	urlTemplate, found := endpoints[action][GetKind(object)]
 	if !found {
 		return "", nil
 	}
@@ -296,6 +337,7 @@ var sortOrder = map[string]int{
 	"ResourceQuota":          4,
 }
 
+// ByKind represents a list of Openshift objects sortable by Kind
 type ByKind []map[interface{}]interface{}
 
 func (a ByKind) Len() int      { return len(a) }
@@ -304,10 +346,10 @@ func (a ByKind) Less(i, j int) bool {
 	iO := 30
 	jO := 30
 
-	if val, ok := sortOrder[a[i][fieldKind].(string)]; ok {
+	if val, ok := sortOrder[GetKind(a[i])]; ok {
 		iO = val
 	}
-	if val, ok := sortOrder[a[j][fieldKind].(string)]; ok {
+	if val, ok := sortOrder[GetKind(a[j])]; ok {
 		jO = val
 	}
 	return iO < jO
