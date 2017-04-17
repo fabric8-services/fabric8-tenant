@@ -1,6 +1,7 @@
 package openshift_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fabric8io/fabric8-init-tenant/openshift"
@@ -98,4 +99,16 @@ func TestSort(t *testing.T) {
 
 func kind(object map[interface{}]interface{}) string {
 	return object["kind"].(string)
+}
+
+func TestA(t *testing.T) {
+	opts := &openshift.ApplyOptions{Callback: A}
+	fmt.Println(opts.Callback)
+	opts2 := opts.WithNamespace("a")
+	fmt.Println(opts2.Callback)
+}
+
+func A(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+	fmt.Println("A")
+	return "", nil
 }

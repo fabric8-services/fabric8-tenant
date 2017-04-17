@@ -38,15 +38,15 @@ const (
 // Creates the new x-test|stage|run and x-jenkins|che namespaces
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
-func InitTenant(config Config, username, usertoken string) error {
-	err := do(config, username, usertoken)
+func InitTenant(config Config, callback Callback, username, usertoken string) error {
+	err := do(config, callback, username, usertoken)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func do(config Config, username, usertoken string) error {
+func do(config Config, callback Callback, username, usertoken string) error {
 	name := createName(username)
 
 	vars := map[string]string{
@@ -60,8 +60,8 @@ func do(config Config, username, usertoken string) error {
 		"EXTERNAL_NAME":          "recommender.api.prod-preview.openshift.io",
 	}
 
-	masterOpts := ApplyOptions{Config: config, Overwrite: true}
-	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Overwrite: true}
+	masterOpts := ApplyOptions{Config: config, Callback: callback}
+	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Callback: callback}
 
 	userProjectT, err := template.Asset("template/fabric8-online-team-openshift.yml")
 	if err != nil {
@@ -99,12 +99,12 @@ func do(config Config, username, usertoken string) error {
 		return err
 	}
 
-	err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.withNamespace(name))
+	err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
 	if err != nil {
 		return err
 	}
 
-	err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.withNamespace(name))
+	err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,6 @@ func executeNamespaceSync(template string, vars map[string]string, opts ApplyOpt
 	if err != nil {
 		return err
 	}
-
 	err = Apply(t, opts)
 	if err != nil {
 		return err
@@ -167,10 +166,7 @@ func executeNamespaceSync(template string, vars map[string]string, opts ApplyOpt
 func executeNamespaceAsync(template string, vars map[string]string, opts ApplyOptions) chan error {
 	ch := make(chan error)
 	go func() {
-		lopts := ApplyOptions{
-			Config:    opts.Config,
-			Namespace: vars[varProjectName],
-		}
+		lopts := opts.WithNamespace(vars[varProjectName])
 
 		t, err := Process(template, vars)
 		if err != nil {
