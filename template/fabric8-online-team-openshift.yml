@@ -5,7 +5,7 @@ metadata:
   labels:
     provider: fabric8
     project: fabric8-online-team
-    version: 1.0.74
+    version: 1.0.91
     group: io.fabric8.online.packages
   name: fabric8-online-team
 objects:
@@ -19,7 +19,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: ${PROJECT_NAME}
 - apiVersion: v1
@@ -30,14 +30,14 @@ objects:
       fabric8.io/git-commit: ff04d40357d4b680ee0c685b6ea5fb247f0e5a86
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/packages/fabric8-online-team
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/packages/fabric8-online-team
-      fabric8.io/git-branch: release-v1.0.74
+      fabric8.io/git-branch: release-v1.0.91
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/packages/fabric8-online-team
       fabric8.io/scm-tag: fabric8-online-2.0.1
     labels:
       expose: "true"
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: content-repository
   spec:
@@ -88,7 +88,7 @@ objects:
       kind: environments
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: fabric8-environments
   data:
@@ -110,7 +110,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: fabric8-pipelines
   data:

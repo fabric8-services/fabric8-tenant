@@ -9,7 +9,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: dsaas-admin
     namespace: ${PROJECT_NAME}
@@ -26,7 +26,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: jenkins-edit
     namespace: ${PROJECT_NAME}
@@ -43,7 +43,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: jenkins-view
     namespace: ${PROJECT_NAME}
