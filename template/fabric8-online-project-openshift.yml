@@ -5,7 +5,7 @@ metadata:
   labels:
     provider: fabric8
     project: fabric8-online-jenkins
-    version: 1.0.66
+    version: 1.0.91
     group: io.fabric8.online.packages
   name: fabric8-online-jenkins
 objects:
@@ -19,7 +19,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.66
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: ${PROJECT_NAME}
 - apiVersion: v1
@@ -44,7 +44,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-jenkins
-      version: 1.0.66
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: useradmin
   roleRef:
@@ -60,7 +60,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: jenkins-edit
     namespace: ${PROJECT_NAME}
@@ -77,7 +77,7 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.74
+      version: 1.0.91
       group: io.fabric8.online.packages
     name: jenkins-view
     namespace: ${PROJECT_NAME}
