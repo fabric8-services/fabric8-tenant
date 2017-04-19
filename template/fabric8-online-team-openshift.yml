@@ -5,7 +5,7 @@ metadata:
   labels:
     provider: fabric8
     project: fabric8-online-team
-    version: 1.0.91
+    version: 1.0.103
     group: io.fabric8.online.packages
   name: fabric8-online-team
 objects:
@@ -13,31 +13,83 @@ objects:
   kind: ProjectRequest
   metadata:
     annotations:
-      openshift.io/description: ${PROJECT_DESCRIPTION}
-      openshift.io/display-name: ${PROJECT_DISPLAYNAME}
+      openshift.io/description: ${PROJECT_DESCRIPTION} Che Environment
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME} Che
       openshift.io/requester: ${PROJECT_REQUESTING_USER}
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.91
+      version: 1.0.103
       group: io.fabric8.online.packages
-    name: ${PROJECT_NAME}
+    name: ${PROJECT_NAME}-che
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${PROJECT_DESCRIPTION} Jenkins Environment
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME} Jenkins
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: ${PROJECT_NAME}-jenkins
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${PROJECT_DESCRIPTION} Run Environment
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME} Run
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: ${PROJECT_NAME}-run
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${PROJECT_DESCRIPTION} Staging Environment
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME} Stage
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: ${PROJECT_NAME}-stage
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${PROJECT_DESCRIPTION} Test Environment
+      openshift.io/display-name: ${PROJECT_DISPLAYNAME} Test
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: ${PROJECT_NAME}-test
 - apiVersion: v1
   kind: Service
   metadata:
     annotations:
       fabric8.io/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-devops/master/content-repository/src/main/fabric8/icon.svg
-      fabric8.io/git-commit: ff04d40357d4b680ee0c685b6ea5fb247f0e5a86
+      fabric8.io/git-commit: f9d4f5fa52bcad0a0e6d64b406efd81badf3f5ac
       fabric8.io/scm-con-url: scm:git:git@github.com:fabric8io/fabric8-online.git/packages/fabric8-online-team
       fabric8.io/scm-url: http://github.com/fabric8io/fabric8-online/packages/fabric8-online-team
-      fabric8.io/git-branch: release-v1.0.91
+      fabric8.io/git-branch: release-v1.0.103
       fabric8.io/scm-devcon-url: scm:git:git@github.com:fabric8io/fabric8-online.git/packages/fabric8-online-team
       fabric8.io/scm-tag: fabric8-online-2.0.1
     labels:
       expose: "true"
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.91
+      version: 1.0.103
       group: io.fabric8.online.packages
     name: content-repository
   spec:
@@ -79,6 +131,227 @@ objects:
       group: io.fabric8.online.packages
     type: ExternalName
 - apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}-run
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}-stage
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-edit
+    namespace: ${PROJECT_NAME}-test
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}-stage
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}-test
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: jenkins-view
+    namespace: ${PROJECT_NAME}-run
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: useradmin
+    namespace: ${PROJECT_NAME}-stage
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: useradmin
+    namespace: ${PROJECT_NAME}-test
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: useradmin
+    namespace: ${PROJECT_NAME}-run
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
   kind: ConfigMap
   metadata:
     annotations:
@@ -88,7 +361,7 @@ objects:
       kind: environments
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.91
+      version: 1.0.103
       group: io.fabric8.online.packages
     name: fabric8-environments
   data:
@@ -110,12 +383,96 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-online-team
-      version: 1.0.91
+      version: 1.0.103
       group: io.fabric8.online.packages
     name: fabric8-pipelines
   data:
     ci-branch-patterns: '- PR-.*'
     cd-branch-patterns: '- master'
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: dsaas-access-sa-ns
+    namespace: ${PROJECT_NAME}-stage
+  spec:
+    serviceaccountrestriction:
+      namespaces:
+      - ${PROJECT_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: dsaas-access-sa-ns
+    namespace: ${PROJECT_NAME}-test
+  spec:
+    serviceaccountrestriction:
+      namespaces:
+      - ${PROJECT_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: dsaas-access-sa-ns
+    namespace: ${PROJECT_NAME}-run
+  spec:
+    serviceaccountrestriction:
+      namespaces:
+      - ${PROJECT_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: dsaas-user-access
+    namespace: ${PROJECT_NAME}-stage
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: dsaas-user-access
+    namespace: ${PROJECT_NAME}-run
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      provider: fabric8
+      project: fabric8-online-team
+      version: 1.0.103
+      group: io.fabric8.online.packages
+    name: dsaas-user-access
+    namespace: ${PROJECT_NAME}-test
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
 parameters:
 - name: PROJECT_NAME
   value: myproject
