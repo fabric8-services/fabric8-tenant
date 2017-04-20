@@ -143,7 +143,7 @@ items:
       group: io.fabric8.online.apps
     name: che
   data:
-    hostname-http: ${PROJECT_NAME}.d800.free-int.openshiftapps.com
+    hostname-http: ${PROJECT_NAME}.8a09.starter-us-east-2.openshiftapps.com
     workspace-storage: /home/user/che/workspaces
     workspace-storage-create-folders: "false"
     local-conf-dir: /etc/conf
