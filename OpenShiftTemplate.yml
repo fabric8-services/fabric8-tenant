@@ -15,6 +15,18 @@ objects:
     selector:
       app: f8tenant
       deploymentconfig: f8tenant
+    strategy:
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 1Gi
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
     template:
       metadata:
         creationTimestamp: null
