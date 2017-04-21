@@ -23,13 +23,13 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService   *tenant.Service
+	tenantService   tenant.Service
 	keycloakConfig  keycloak.Config
 	openshiftConfig openshift.Config
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService *tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
 		tenantService:   tenantService,
@@ -119,7 +119,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service *tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
+func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":    statusCode,

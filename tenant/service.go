@@ -5,15 +5,21 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func NewService(db *gorm.DB) *Service {
-	return &Service{db: db}
+type Service interface {
+	Exists(tenantID uuid.UUID) bool
+	UpdateTenant(tenant *Tenant) error
+	UpdateNamespace(namespace *Namespace) error
 }
 
-type Service struct {
+func NewDBService(db *gorm.DB) Service {
+	return &DBService{db: db}
+}
+
+type DBService struct {
 	db *gorm.DB
 }
 
-func (s Service) Exists(tenantID uuid.UUID) bool {
+func (s DBService) Exists(tenantID uuid.UUID) bool {
 	var t Tenant
 	err := s.db.Table(t.TableName()).Where("id = ?", tenantID).Find(&t).Error
 	if err != nil {
@@ -22,13 +28,28 @@ func (s Service) Exists(tenantID uuid.UUID) bool {
 	return true
 }
 
-func (s Service) UpdateTenant(tenant *Tenant) error {
+func (s DBService) UpdateTenant(tenant *Tenant) error {
 	return s.db.Save(tenant).Error
 }
 
-func (s Service) UpdateNamespace(namespace *Namespace) error {
+func (s DBService) UpdateNamespace(namespace *Namespace) error {
 	if namespace.ID == uuid.Nil {
 		namespace.ID = uuid.NewV4()
 	}
 	return s.db.Save(namespace).Error
+}
+
+type NilService struct {
+}
+
+func (s NilService) Exists(tenantID uuid.UUID) bool {
+	return false
+}
+
+func (s NilService) UpdateTenant(tenant *Tenant) error {
+	return nil
+}
+
+func (s NilService) UpdateNamespace(namespace *Namespace) error {
+	return nil
 }
