@@ -100,7 +100,7 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenant.NewService(db), keycloakConfig, openshiftConfig)
+	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig)
 	app.MountTenantController(service, tenantCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

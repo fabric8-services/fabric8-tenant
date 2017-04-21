@@ -2,26 +2,10 @@ package openshift
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/fabric8io/fabric8-init-tenant/template"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
-
-func RandStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
 
 const (
 	varProjectName           = "PROJECT_NAME"
@@ -50,35 +34,36 @@ func do(config Config, callback Callback, username, usertoken string) error {
 	name := createName(username)
 
 	vars := map[string]string{
-		varProjectName:           name,
-		varProjectTemplateName:   name,
-		varProjectDisplayName:    name + " Test Project",
-		varProjectDescription:    name + " Test Project",
-		varProjectUser:           username,
-		varProjectRequestingUser: username,
-		varProjectAdminUser:      config.MasterUser,
-		"EXTERNAL_NAME":          "recommender.api.prod-preview.openshift.io",
+		varProjectName:              name,
+		varProjectTemplateName:      name,
+		varProjectDisplayName:       name,
+		varProjectDescription:       name,
+		varProjectUser:              username,
+		varProjectRequestingUser:    username,
+		varProjectAdminUser:         config.MasterUser,
+		"RECOMMENDER_EXTERNAL_NAME": "recommender.api.prod-preview.openshift.io",
+		"DOMAIN":                    "d800.free-int.openshiftapps.com",
 	}
 
 	masterOpts := ApplyOptions{Config: config, Callback: callback}
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Callback: callback}
 
-	userProjectT, err := template.Asset("template/fabric8-online-team-openshift.yml")
+	userProjectT, err := template.Asset("template/fabric8-online-user-project.yml")
 	if err != nil {
 		return err
 	}
 
-	userProjectRolesT, err := template.Asset("template/fabric8-online-team-rolebindings.yml")
+	userProjectRolesT, err := template.Asset("template/fabric8-online-user-rolebindings.yml")
 	if err != nil {
 		return err
 	}
 
-	userProjectCollabT, err := template.Asset("template/fabric8-online-team-colaborators.yml")
+	userProjectCollabT, err := template.Asset("template/fabric8-online-user-colaborators.yml")
 	if err != nil {
 		return err
 	}
 
-	projectT, err := template.Asset("template/fabric8-online-project-openshift.yml")
+	projectT, err := template.Asset("template/fabric8-online-team-openshift.yml")
 	if err != nil {
 		return err
 	}
@@ -109,28 +94,28 @@ func do(config Config, callback Callback, username, usertoken string) error {
 		return err
 	}
 
-	namespaces := []string{"%v-test", "%v-stage", "%v-run"}
-
-	for _, pattern := range namespaces {
+	{
 		lvars := clone(vars)
-		lvars[varProjectName] = fmt.Sprintf(pattern, vars[varProjectName])
 		lvars[varProjectDisplayName] = lvars[varProjectName]
 
-		ns := executeNamespaceAsync(string(projectT), lvars, masterOpts)
-		channels = append(channels, ns)
+		err = executeNamespaceSync(string(projectT), lvars, masterOpts.WithNamespace(name))
+		if err != nil {
+			return err
+		}
 	}
 
 	{
 		lvars := clone(vars)
-		lvars[varProjectName] = fmt.Sprintf("%v-jenkins", vars[varProjectName])
+		nsname := fmt.Sprintf("%v-jenkins", name)
 		lvars[varProjectNamespace] = vars[varProjectName]
-		ns := executeNamespaceAsync(string(jenkinsT), lvars, masterOpts)
+		ns := executeNamespaceAsync(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
 		channels = append(channels, ns)
 	}
 	{
 		lvars := clone(vars)
-		lvars[varProjectName] = fmt.Sprintf("%v-che", vars[varProjectName])
-		ns := executeNamespaceAsync(string(cheT), lvars, masterOpts)
+		nsname := fmt.Sprintf("%v-che", name)
+		lvars[varProjectNamespace] = vars[varProjectName]
+		ns := executeNamespaceAsync(string(cheT), lvars, masterOpts.WithNamespace(nsname))
 		channels = append(channels, ns)
 	}
 
@@ -166,14 +151,12 @@ func executeNamespaceSync(template string, vars map[string]string, opts ApplyOpt
 func executeNamespaceAsync(template string, vars map[string]string, opts ApplyOptions) chan error {
 	ch := make(chan error)
 	go func() {
-		lopts := opts.WithNamespace(vars[varProjectName])
-
 		t, err := Process(template, vars)
 		if err != nil {
 			ch <- err
 		}
 
-		err = Apply(t, lopts)
+		err = Apply(t, opts)
 		if err != nil {
 			ch <- err
 		}
