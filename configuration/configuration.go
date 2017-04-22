@@ -15,23 +15,25 @@ const (
 	// Constants for viper variable names. Will be used to set
 	// default values as well as to get each value
 
-	varPostgresHost                 = "postgres.host"
-	varPostgresPort                 = "postgres.port"
-	varPostgresUser                 = "postgres.user"
-	varPostgresDatabase             = "postgres.database"
-	varPostgresPassword             = "postgres.password"
-	varPostgresSSLMode              = "postgres.sslmode"
-	varPostgresConnectionTimeout    = "postgres.connection.timeout"
-	varPostgresConnectionRetrySleep = "postgres.connection.retrysleep"
-	varPostgresConnectionMaxIdle    = "postgres.connection.maxidle"
-	varPostgresConnectionMaxOpen    = "postgres.connection.maxopen"
-	varHTTPAddress                  = "http.address"
-	varDeveloperModeEnabled         = "developer.mode.enabled"
-	varKeycloakRealm                = "keycloak.realm"
-	varKeycloakOpenshiftBroker      = "keycloak.openshift.broker"
-	varKeycloakURL                  = "keycloak.url"
-	varOpenshiftTenantMasterURL     = "openshift.tenant.masterurl"
-	varOpenshiftServiceToken        = "openshift.service.token"
+	varPostgresHost                    = "postgres.host"
+	varPostgresPort                    = "postgres.port"
+	varPostgresUser                    = "postgres.user"
+	varPostgresDatabase                = "postgres.database"
+	varPostgresPassword                = "postgres.password"
+	varPostgresSSLMode                 = "postgres.sslmode"
+	varPostgresConnectionTimeout       = "postgres.connection.timeout"
+	varPostgresConnectionRetrySleep    = "postgres.connection.retrysleep"
+	varPostgresConnectionMaxIdle       = "postgres.connection.maxidle"
+	varPostgresConnectionMaxOpen       = "postgres.connection.maxopen"
+	varHTTPAddress                     = "http.address"
+	varDeveloperModeEnabled            = "developer.mode.enabled"
+	varKeycloakRealm                   = "keycloak.realm"
+	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
+	varKeycloakURL                     = "keycloak.url"
+	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
+	varOpenshiftServiceToken           = "openshift.service.token"
+	varTemplateRecommenderExternalName = "template.recommender.external.name"
+	varTemplateDomain                  = "template.domain"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -221,6 +223,21 @@ func (c *Data) GetOpenshiftTenantMasterURL() string {
 // GetOpenshiftServiceToken returns the token be used by matser user for tenant init
 func (c *Data) GetOpenshiftServiceToken() string {
 	return c.v.GetString(varOpenshiftServiceToken)
+}
+
+// GetTemplateValues return a Map of additional variables used to process the templates
+func (c *Data) GetTemplateValues() (map[string]string, error) {
+	if !c.v.IsSet(varTemplateRecommenderExternalName) {
+		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderExternalName)
+	}
+	if !c.v.IsSet(varTemplateDomain) {
+		return nil, fmt.Errorf("Missing required configuration %v", varTemplateDomain)
+	}
+
+	return map[string]string{
+		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
+		"DOMAIN":                    c.v.GetString(varTemplateDomain),
+	}, nil
 }
 
 const (

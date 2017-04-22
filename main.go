@@ -25,9 +25,13 @@ import (
 	"github.com/jinzhu/gorm"
 
 	goalogrus "github.com/goadesign/goa/logging/logrus"
+	"github.com/spf13/viper"
 )
 
 func main() {
+
+	viper.GetStringMapString("TEST")
+
 	var migrateDB bool
 	flag.BoolVar(&migrateDB, "migrateDatabase", false, "Migrates the database to the newest version and exits.")
 	flag.Parse()
@@ -76,6 +80,11 @@ func main() {
 		Broker:  config.GetKeycloakOpenshiftBroker(),
 	}
 
+	templateVars, err := config.GetTemplateValues()
+	if err != nil {
+		panic(err)
+	}
+
 	publicKey, err := keycloak.GetPublicKey(keycloakConfig)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -100,7 +109,7 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig)
+	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
