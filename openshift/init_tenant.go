@@ -22,27 +22,31 @@ const (
 // Creates the new x-test|stage|run and x-jenkins|che namespaces
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
-func InitTenant(config Config, callback Callback, username, usertoken string) error {
-	err := do(config, callback, username, usertoken)
+func InitTenant(config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+	err := do(config, callback, username, usertoken, templateVars)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func do(config Config, callback Callback, username, usertoken string) error {
+func do(config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
 	name := createName(username)
 
 	vars := map[string]string{
-		varProjectName:              name,
-		varProjectTemplateName:      name,
-		varProjectDisplayName:       name,
-		varProjectDescription:       name,
-		varProjectUser:              username,
-		varProjectRequestingUser:    username,
-		varProjectAdminUser:         config.MasterUser,
-		"RECOMMENDER_EXTERNAL_NAME": "recommender.api.prod-preview.openshift.io",
-		"DOMAIN":                    "d800.free-int.openshiftapps.com",
+		varProjectName:           name,
+		varProjectTemplateName:   name,
+		varProjectDisplayName:    name,
+		varProjectDescription:    name,
+		varProjectUser:           username,
+		varProjectRequestingUser: username,
+		varProjectAdminUser:      config.MasterUser,
+	}
+
+	for k, v := range templateVars {
+		if _, exist := vars[k]; !exist {
+			vars[k] = v
+		}
 	}
 
 	masterOpts := ApplyOptions{Config: config, Callback: callback}

@@ -26,38 +26,18 @@ type TenantController struct {
 	tenantService   tenant.Service
 	keycloakConfig  keycloak.Config
 	openshiftConfig openshift.Config
+	templateVars    map[string]string
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
 		tenantService:   tenantService,
 		keycloakConfig:  keycloakConfig,
 		openshiftConfig: openshiftConfig,
+		templateVars:    templateVars,
 	}
-}
-
-type TenantToken struct {
-	token *jwt.Token
-}
-
-func (t TenantToken) Subject() uuid.UUID {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		id, err := uuid.FromString(claims["sub"].(string))
-		if err != nil {
-			return uuid.UUID{}
-		}
-		return id
-	}
-	return uuid.UUID{}
-}
-
-func (t TenantToken) Email() string {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		return claims["email"].(string)
-	}
-	return ""
 }
 
 // Setup runs the setup action.
@@ -95,7 +75,13 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		ctx := ctx
 		t := tenant
 		oc := c.openshiftConfig
-		err = openshift.InitTenant(oc, InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t), openshiftUser, openshiftUserToken)
+		err = openshift.InitTenant(
+			oc,
+			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
+			openshiftUser,
+			openshiftUserToken,
+			c.templateVars)
+
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":     err,
@@ -168,4 +154,26 @@ func GetNamespaceType(name string) tenant.NamespaceType {
 		return tenant.TypeRun
 	}
 	return tenant.TypeUser
+}
+
+type TenantToken struct {
+	token *jwt.Token
+}
+
+func (t TenantToken) Subject() uuid.UUID {
+	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+		id, err := uuid.FromString(claims["sub"].(string))
+		if err != nil {
+			return uuid.UUID{}
+		}
+		return id
+	}
+	return uuid.UUID{}
+}
+
+func (t TenantToken) Email() string {
+	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+		return claims["email"].(string)
+	}
+	return ""
 }
