@@ -87,7 +87,6 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 				"err":     err,
 				"os_user": openshiftUser,
 			}, "unable initialize tenant")
-			//return jsonapi.JSONErrorResponse(ctx, err)
 		}
 	}()
 
@@ -118,7 +117,13 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				return "", nil
 			}
-			return "PUT", request
+			if openshift.GetKind(request) == openshift.ValKindPersistenceVolumeClaim {
+				return "", nil
+			}
+			if openshift.GetKind(request) == openshift.ValKindServiceAccount {
+				return "", nil
+			}
+			return "DELETE", request
 		} else if statusCode == http.StatusCreated {
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				name := openshift.GetName(request)
@@ -131,7 +136,22 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					MasterURL: masterURL,
 				})
 			}
+			return "", nil
+		} else if statusCode == http.StatusOK {
+			if method == "DELETE" {
+				return "POST", request
+			}
+			return "", nil
 		}
+		log.Info(ctx, map[string]interface{}{
+			"status":    statusCode,
+			"method":    method,
+			"namespace": openshift.GetNamespace(request),
+			"name":      openshift.GetName(request),
+			"kind":      openshift.GetKind(request),
+			"request":   request,
+			"response":  response,
+		}, "unhandled resource response")
 		return "", nil
 	}
 }
