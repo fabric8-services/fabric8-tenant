@@ -74,6 +74,20 @@ var _ = a.Resource("tenant", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
+	a.Action("update", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH(""),
+		)
+
+		a.Description("Initialize new tenant environment.")
+		a.Response(d.Accepted)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
 	a.Action("show", func() {
 		a.Security("jwt")
 		a.Routing(

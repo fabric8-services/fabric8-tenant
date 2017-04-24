@@ -94,6 +94,57 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	return ctx.Accepted()
 }
 
+// Update runs the setup action.
+func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	}
+	ttoken := &TenantToken{token: token}
+	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
+	}
+
+	openshiftUserToken, err := keycloak.OpenshiftToken(c.keycloakConfig, token.Raw)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to authenticate user with keycloak")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
+	}
+
+	openshiftUser, err := openshift.WhoAmI(c.openshiftConfig.WithToken(openshiftUserToken))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to authenticate user with tenant target server")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
+	}
+
+	go func() {
+		ctx := ctx
+		t := tenant
+		oc := c.openshiftConfig
+		err = openshift.InitTenant(
+			oc,
+			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
+			openshiftUser,
+			openshiftUserToken,
+			c.templateVars)
+
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":     err,
+				"os_user": openshiftUser,
+			}, "unable initialize tenant")
+		}
+	}()
+
+	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData, app.TenantHref()))
+	return ctx.Accepted()
+}
+
 // Show runs the setup action.
 func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	token := goajwt.ContextJWT(ctx)
