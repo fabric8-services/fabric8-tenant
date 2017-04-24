@@ -96,11 +96,48 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 
 // Show runs the setup action.
 func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
-	authorization := goajwt.ContextJWT(ctx).Raw
-	if authorization == "" {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	return ctx.OK(nil)
+
+	ttoken := &TenantToken{token: token}
+	tenantID := ttoken.Subject()
+	tenant, err := c.tenantService.GetTenant(tenantID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	response := app.Tenant{
+		ID:   &tenantID,
+		Type: "tenants",
+		Attributes: &app.TenantAttributes{
+			CreatedAt:  &tenant.CreatedAt,
+			Email:      &tenant.Email,
+			Namespaces: []*app.NamespaceAttributes{},
+		},
+	}
+	for _, ns := range namespaces {
+		tenantType := string(ns.Type)
+		response.Attributes.Namespaces = append(
+			response.Attributes.Namespaces,
+			&app.NamespaceAttributes{
+				CreatedAt:  &ns.CreatedAt,
+				UpdatedAt:  &ns.UpdatedAt,
+				ClusterURL: &ns.MasterURL,
+				Name:       &ns.Name,
+				Type:       &tenantType,
+				Version:    &ns.Version,
+				State:      &ns.State,
+			})
+	}
+
+	return ctx.OK(&app.TenantSingle{Data: &response})
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created

@@ -45,7 +45,7 @@ var namespaceAttributes = a.Type("NamespaceAttributes", func() {
 	})
 	a.Attribute("state", d.String, "The namespaces state", func() {
 	})
-	a.Attribute("api_url", d.String, "The cluster url", func() {
+	a.Attribute("cluster-url", d.String, "The cluster url", func() {
 	})
 	a.Attribute("type", d.String, "The tenant namespaces", func() {
 		a.Enum("che", "jenkins", "stage", "test", "run")
@@ -81,7 +81,7 @@ var _ = a.Resource("tenant", func() {
 		)
 
 		a.Description("Initialize new tenant environment.")
-		a.Response(d.OK)
+		a.Response(d.OK, tenantSingle)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
