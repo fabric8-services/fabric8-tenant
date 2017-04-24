@@ -1,5 +1,6 @@
 PROJECT_NAME=fabric8-init-tenant
 PACKAGE_NAME := github.com/fabric8io/fabric8-init-tenant
+TEAM_VERSION=$(shell cat TEAM_VERSION)
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin
@@ -140,7 +141,8 @@ migration/sqlbindata.go: $(GO_BINDATA_BIN) $(wildcard migration/sql-files/*.sql)
 		-nocompress \
 		migration/sql-files
 
-template/bindata.go: $(GO_BINDATA_BIN) $(wildcard tempalte/*.yml)
+template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
+	TEAM_VERSION=$(TEAM_VERSION) go generate template/generate.go
 	$(GO_BINDATA_BIN) \
 		-o template/bindata.go \
 		-pkg template \
