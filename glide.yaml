@@ -35,7 +35,6 @@ import:
   subpackages:
   - golint
 - package: github.com/fzipp/gocyclo
-- package: github.com/wadey/gocovmerge
 - package: github.com/Sirupsen/logrus
 - package: github.com/lib/pq
 - package: github.com/stretchr/testify
