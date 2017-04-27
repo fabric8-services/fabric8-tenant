@@ -79,6 +79,11 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: template.recommender.external.name
+          - name: F8_TEMPLATE_RECOMMENDER_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: template.recommender.api.token
           - name: F8_TEMPLATE_DOMAIN
             valueFrom:
               configMapKeyRef:
