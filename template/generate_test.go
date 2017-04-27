@@ -28,8 +28,8 @@ func TestFoundJenkins(t *testing.T) {
 	if !ok {
 		t.Fatalf("parameters not found")
 	}
-	if len(params) != 3 {
-		t.Fatalf("unknown number of parameters. found %v expected 3", len(params))
+	if len(params) != 4 {
+		t.Fatalf("unknown number of parameters. found %v expected 4", len(params))
 	}
 }
 
@@ -54,8 +54,8 @@ func TestFoundChe(t *testing.T) {
 	if !ok {
 		t.Fatalf("parameters not found")
 	}
-	if len(params) != 4 {
-		t.Fatalf("unknown number of parameters. found %v expected 4", len(params))
+	if len(params) != 5 {
+		t.Fatalf("unknown number of parameters. found %v expected 5", len(params))
 	}
 }
 

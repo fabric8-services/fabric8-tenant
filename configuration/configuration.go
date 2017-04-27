@@ -8,6 +8,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 
+	"encoding/base64"
+
 	"github.com/spf13/viper"
 )
 
@@ -33,6 +35,7 @@ const (
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
 	varOpenshiftServiceToken           = "openshift.service.token"
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
+	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
 )
 
@@ -230,12 +233,16 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 	if !c.v.IsSet(varTemplateRecommenderExternalName) {
 		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderExternalName)
 	}
+	if !c.v.IsSet(varTemplateRecommenderAPIToken) {
+		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderAPIToken)
+	}
 	if !c.v.IsSet(varTemplateDomain) {
 		return nil, fmt.Errorf("Missing required configuration %v", varTemplateDomain)
 	}
 
 	return map[string]string{
 		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
+		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
 		"DOMAIN":                    c.v.GetString(varTemplateDomain),
 	}, nil
 }
