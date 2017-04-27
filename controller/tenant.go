@@ -23,41 +23,21 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService   *tenant.Service
+	tenantService   tenant.Service
 	keycloakConfig  keycloak.Config
 	openshiftConfig openshift.Config
+	templateVars    map[string]string
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService *tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
 		tenantService:   tenantService,
 		keycloakConfig:  keycloakConfig,
 		openshiftConfig: openshiftConfig,
+		templateVars:    templateVars,
 	}
-}
-
-type TenantToken struct {
-	token *jwt.Token
-}
-
-func (t TenantToken) Subject() uuid.UUID {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		id, err := uuid.FromString(claims["sub"].(string))
-		if err != nil {
-			return uuid.UUID{}
-		}
-		return id
-	}
-	return uuid.UUID{}
-}
-
-func (t TenantToken) Email() string {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		return claims["email"].(string)
-	}
-	return ""
 }
 
 // Setup runs the setup action.
@@ -95,13 +75,69 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		ctx := ctx
 		t := tenant
 		oc := c.openshiftConfig
-		err = openshift.InitTenant(oc, InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t), openshiftUser, openshiftUserToken)
+		err = openshift.InitTenant(
+			oc,
+			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
+			openshiftUser,
+			openshiftUserToken,
+			c.templateVars)
+
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":     err,
 				"os_user": openshiftUser,
 			}, "unable initialize tenant")
-			//return jsonapi.JSONErrorResponse(ctx, err)
+		}
+	}()
+
+	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData, app.TenantHref()))
+	return ctx.Accepted()
+}
+
+// Update runs the setup action.
+func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	}
+	ttoken := &TenantToken{token: token}
+	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
+	}
+
+	openshiftUserToken, err := keycloak.OpenshiftToken(c.keycloakConfig, token.Raw)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to authenticate user with keycloak")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
+	}
+
+	openshiftUser, err := openshift.WhoAmI(c.openshiftConfig.WithToken(openshiftUserToken))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to authenticate user with tenant target server")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
+	}
+
+	go func() {
+		ctx := ctx
+		t := tenant
+		oc := c.openshiftConfig
+		err = openshift.InitTenant(
+			oc,
+			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
+			openshiftUser,
+			openshiftUserToken,
+			c.templateVars)
+
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":     err,
+				"os_user": openshiftUser,
+			}, "unable initialize tenant")
 		}
 	}()
 
@@ -111,15 +147,52 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 
 // Show runs the setup action.
 func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
-	authorization := goajwt.ContextJWT(ctx).Raw
-	if authorization == "" {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	return ctx.OK(nil)
+
+	ttoken := &TenantToken{token: token}
+	tenantID := ttoken.Subject()
+	tenant, err := c.tenantService.GetTenant(tenantID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	response := app.Tenant{
+		ID:   &tenantID,
+		Type: "tenants",
+		Attributes: &app.TenantAttributes{
+			CreatedAt:  &tenant.CreatedAt,
+			Email:      &tenant.Email,
+			Namespaces: []*app.NamespaceAttributes{},
+		},
+	}
+	for _, ns := range namespaces {
+		tenantType := string(ns.Type)
+		response.Attributes.Namespaces = append(
+			response.Attributes.Namespaces,
+			&app.NamespaceAttributes{
+				CreatedAt:  &ns.CreatedAt,
+				UpdatedAt:  &ns.UpdatedAt,
+				ClusterURL: &ns.MasterURL,
+				Name:       &ns.Name,
+				Type:       &tenantType,
+				Version:    &ns.Version,
+				State:      &ns.State,
+			})
+	}
+
+	return ctx.OK(&app.TenantSingle{Data: &response})
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service *tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
+func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":    statusCode,
@@ -132,7 +205,13 @@ func InitTenant(ctx context.Context, masterURL string, service *tenant.Service, 
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				return "", nil
 			}
-			return "PUT", request
+			if openshift.GetKind(request) == openshift.ValKindPersistenceVolumeClaim {
+				return "", nil
+			}
+			if openshift.GetKind(request) == openshift.ValKindServiceAccount {
+				return "", nil
+			}
+			return "DELETE", request
 		} else if statusCode == http.StatusCreated {
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				name := openshift.GetName(request)
@@ -145,7 +224,22 @@ func InitTenant(ctx context.Context, masterURL string, service *tenant.Service, 
 					MasterURL: masterURL,
 				})
 			}
+			return "", nil
+		} else if statusCode == http.StatusOK {
+			if method == "DELETE" {
+				return "POST", request
+			}
+			return "", nil
 		}
+		log.Info(ctx, map[string]interface{}{
+			"status":    statusCode,
+			"method":    method,
+			"namespace": openshift.GetNamespace(request),
+			"name":      openshift.GetName(request),
+			"kind":      openshift.GetKind(request),
+			"request":   request,
+			"response":  response,
+		}, "unhandled resource response")
 		return "", nil
 	}
 }
@@ -168,4 +262,26 @@ func GetNamespaceType(name string) tenant.NamespaceType {
 		return tenant.TypeRun
 	}
 	return tenant.TypeUser
+}
+
+type TenantToken struct {
+	token *jwt.Token
+}
+
+func (t TenantToken) Subject() uuid.UUID {
+	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+		id, err := uuid.FromString(claims["sub"].(string))
+		if err != nil {
+			return uuid.UUID{}
+		}
+		return id
+	}
+	return uuid.UUID{}
+}
+
+func (t TenantToken) Email() string {
+	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+		return claims["email"].(string)
+	}
+	return ""
 }

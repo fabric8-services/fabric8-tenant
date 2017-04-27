@@ -15,23 +15,29 @@ import (
 )
 
 const (
-	FieldKind            = "kind"
-	FieldAPIVersion      = "apiVersion"
-	FieldObjects         = "objects"
-	FieldItems           = "items"
-	FieldMetadata        = "metadata"
-	FieldLabels          = "labels"
-	FieldVersion         = "version"
-	FieldNamespace       = "namespace"
-	FieldName            = "name"
-	FieldResourceVersion = "resourceVersion"
-
-	ValKindTemplate       = "Template"
-	ValKindProjectRequest = "ProjectRequest"
-	ValKindList           = "List"
+	FieldKind                     = "kind"
+	FieldAPIVersion               = "apiVersion"
+	FieldObjects                  = "objects"
+	FieldItems                    = "items"
+	FieldMetadata                 = "metadata"
+	FieldLabels                   = "labels"
+	FieldVersion                  = "version"
+	FieldNamespace                = "namespace"
+	FieldName                     = "name"
+	FieldResourceVersion          = "resourceVersion"
+	ValKindTemplate               = "Template"
+	ValKindProjectRequest         = "ProjectRequest"
+	ValKindPersistenceVolumeClaim = "PersistentVolumeClaim"
+	ValKindServiceAccount         = "ServiceAccount"
+	ValKindList                   = "List"
 )
 
 var (
+	deleteOptions = `apiVersion: v1
+kind: DeleteOptions
+gracePeriodSeconds: 0
+orphanDependents: false`
+
 	endpoints = map[string]map[string]string{
 		"POST": {
 			"Project":                `/oapi/v1/projects`,
@@ -62,7 +68,35 @@ var (
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
+		"PATCH": {
+			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
+			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
+			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
+			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
+			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
+			"Secret":                 `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`,
+			"ServiceAccount":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`,
+			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
+			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
+			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+		},
 		"GET": {
+			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
+			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
+			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
+			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
+			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
+			"Secret":                 `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`,
+			"ServiceAccount":         `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`,
+			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
+			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
+			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+		},
+		"DELETE": {
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
@@ -133,9 +167,13 @@ func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
 
 func apply(object map[interface{}]interface{}, action string, opts ApplyOptions) (map[interface{}]interface{}, error) {
 	//fmt.Println("apply ", action, GetKind(object), GetName(object), opts.Callback)
+
 	body, err := yaml.Marshal(object)
 	if err != nil {
 		return nil, err
+	}
+	if action == "DELETE" {
+		body = []byte(deleteOptions)
 	}
 
 	url, err := createURL(opts.MasterURL, action, object)
@@ -151,6 +189,9 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	}
 	req.Header.Set("Accept", "application/yaml")
 	req.Header.Set("Content-Type", "application/yaml")
+	if action == "PATCH" {
+		req.Header.Set("Content-Type", "application/merge-patch+json")
+	}
 	req.Header.Set("Authorization", "Bearer "+opts.Token)
 
 	// for debug only
@@ -185,34 +226,6 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 
 	}
 	return respType, nil
-
-	/*
-		if resp.StatusCode == http.StatusConflict {
-			if object[fieldKind] == valProjectRequest {
-				return respType, nil
-			}
-				fmt.Println("Conflict-Update")
-				resp, err := apply(object, "GET", opts)
-				if err != nil {
-					return nil, err
-				}
-				fmt.Println(resp)
-				updateResourceVersion(resp, object)
-				fmt.Println(object)
-			return apply(object, "PUT", opts)
-		}
-	*/
-	/*
-			if resp.StatusCode == http.StatusForbidden && opts.Overwrite {
-
-			} else
-		if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Unknown response:\n%v\n%v", *(*string)(unsafe.Pointer(&b)), string(rb))
-		}
-
-		fmt.Printf("%v %v %v in %v\n", action, respType[fieldKind], getName(respType), opts.Namespace)
-		return respType, nil
-	*/
 }
 
 func updateResourceVersion(source, target map[interface{}]interface{}) {

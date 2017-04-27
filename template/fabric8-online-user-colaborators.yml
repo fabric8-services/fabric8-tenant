@@ -10,7 +10,7 @@ objects:
   spec: 
     userrestriction:
       users: 
-      - devtools-sre
+      - ${PROJECT_ADMIN_USER}
       - system:serviceaccount:${PROJECT_NAME}-jenkins:jenkins
 - apiVersion: v1
   kind: RoleBindingRestriction

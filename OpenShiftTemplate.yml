@@ -86,6 +86,21 @@ objects:
               secretKeyRef:
                 name: openshift-online-tokens
                 key: dsaas-service-token
+          - name: F8_TEMPLATE_RECOMMENDER_EXTERNAL_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: template.recommender.external.name
+          - name: F8_TEMPLATE_RECOMMENDER_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: template.recommender.api.token
+          - name: F8_TEMPLATE_DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: template.domain
           image: registry.devshift.net/fabric8io/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
