@@ -18,7 +18,7 @@ objects:
     strategy:
       resources:
         limits:
-          cpu: 2000m
+          cpu: 500m
           memory: 1Gi
       rollingParams:
         intervalSeconds: 1
