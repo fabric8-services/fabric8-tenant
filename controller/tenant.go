@@ -252,9 +252,6 @@ func GetNamespaceType(name string) tenant.NamespaceType {
 	if strings.HasSuffix(name, "-che") {
 		return tenant.TypeChe
 	}
-	if strings.HasSuffix(name, "-test") {
-		return tenant.TypeTest
-	}
 	if strings.HasSuffix(name, "-stage") {
 		return tenant.TypeStage
 	}

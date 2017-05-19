@@ -48,7 +48,7 @@ var namespaceAttributes = a.Type("NamespaceAttributes", func() {
 	a.Attribute("cluster-url", d.String, "The cluster url", func() {
 	})
 	a.Attribute("type", d.String, "The tenant namespaces", func() {
-		a.Enum("che", "jenkins", "stage", "test", "run")
+		a.Enum("che", "jenkins", "stage", "run")
 	})
 })
 
