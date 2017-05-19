@@ -19,7 +19,7 @@ const (
 )
 
 // InitTenant initializes a new tenant in openshift
-// Creates the new x-test|stage|run and x-jenkins|che namespaces
+// Creates the new x-stage|run and x-jenkins|che namespaces
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
 func InitTenant(config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {

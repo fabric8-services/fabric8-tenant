@@ -38,7 +38,6 @@ func (ns *NamespaceType) Scan(value interface{}) error {
 const (
 	TypeChe     NamespaceType = "che"
 	TypeJenkins NamespaceType = "jenkins"
-	TypeTest    NamespaceType = "test"
 	TypeStage   NamespaceType = "stage"
 	TypeRun     NamespaceType = "run"
 	TypeUser    NamespaceType = "user"
