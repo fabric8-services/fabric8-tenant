@@ -1,15 +1,19 @@
 package openshift
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 type Config struct {
-	MasterURL  string
-	MasterUser string
-	Token      string
+	MasterURL     string
+	MasterUser    string
+	Token         string
+	HttpTransport *http.Transport
 }
 
 func (c Config) WithToken(token string) Config {
-	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token}
+	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token, HttpTransport: c.HttpTransport}
 }
 
 type multiError struct {

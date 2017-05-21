@@ -130,6 +130,15 @@ func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 		Namespace: namespace,
 	}
 }
+func (a *ApplyOptions) CreateHttpClient() *http.Client {
+	transport := a.HttpTransport
+	if transport != nil {
+		return &http.Client{
+			Transport: transport,
+		}
+	}
+	return http.DefaultClient
+}
 
 // Apply a given template structure to a target API
 func Apply(source string, opts ApplyOptions) error {
@@ -200,7 +209,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		fmt.Println(string(rb))
 	}
 
-	client := http.DefaultClient
+	client := opts.CreateHttpClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
