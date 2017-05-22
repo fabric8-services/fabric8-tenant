@@ -12,7 +12,6 @@ type Config struct {
 	HttpTransport *http.Transport
 	TemplateDir   string
 	TeamVersion   string
-	Verbose       bool
 }
 
 func (c Config) WithToken(token string) Config {

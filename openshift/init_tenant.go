@@ -3,12 +3,13 @@ package openshift
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/fabric8io/almighty-core/log"
 	"github.com/fabric8io/fabric8-init-tenant/template"
-	"net/http"
 )
 
 const (
@@ -156,9 +157,7 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
-			if config.Verbose {
-				fmt.Println("Loading template from URL:", url)
-			}
+			log.Debug(nil, nil, "Loading template from URL:", url)
 			resp, err := http.Get(url)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
@@ -173,9 +172,7 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		d, err := os.Stat(fullName)
 		if err == nil {
 			if m := d.Mode(); m.IsRegular() {
-				if config.Verbose {
-					fmt.Println("Loading template from file:", fullName)
-				}
+				log.Debug(nil, nil, "Loading template from file:", fullName)
 				return ioutil.ReadFile(fullName)
 			}
 		}
