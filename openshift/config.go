@@ -10,6 +10,9 @@ type Config struct {
 	MasterUser    string
 	Token         string
 	HttpTransport *http.Transport
+	TemplateDir   string
+	TeamVersion   string
+	Verbose       bool
 }
 
 func (c Config) WithToken(token string) Config {
