@@ -163,6 +163,10 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 				return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
 			}
 			defer resp.Body.Close()
+			statusCode := resp.StatusCode
+			if statusCode >= 300 {
+				return nil, fmt.Errorf("Failed to GET template from %s got status code to: %d", url, statusCode)
+			}
 			return ioutil.ReadAll(resp.Body)
 		}
 	}
