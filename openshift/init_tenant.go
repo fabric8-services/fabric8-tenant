@@ -157,7 +157,7 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
-			log.Debug(nil, nil, "Loading template from URL:", url)
+			log.Debug(nil, nil, "Loading template from URL: %s", url)
 			resp, err := http.Get(url)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
@@ -172,7 +172,7 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		d, err := os.Stat(fullName)
 		if err == nil {
 			if m := d.Mode(); m.IsRegular() {
-				log.Debug(nil, nil, "Loading template from file:", fullName)
+				log.Debug(nil, nil, "Loading template from file: %s", fullName)
 				return ioutil.ReadFile(fullName)
 			}
 		}
