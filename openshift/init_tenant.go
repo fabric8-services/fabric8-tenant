@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/almighty/almighty-core/log"
 	"github.com/fabric8io/fabric8-init-tenant/template"
 )
 
@@ -145,6 +144,7 @@ func do(config Config, callback Callback, username, usertoken string, templateVa
 // or default to the OOTB template included
 func loadTemplate(config Config, name string) ([]byte, error) {
 	teamVersion := config.TeamVersion
+	logCallback := config.LogCallback
 	if len(teamVersion) > 0 {
 		url := ""
 		switch name {
@@ -157,7 +157,9 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
-			log.Debug(nil, nil, "Loading template from URL: %s", url)
+			if logCallback != nil {
+				logCallback(fmt.Sprintf("Loading template from URL: %s", url))
+			}
 			resp, err := http.Get(url)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
@@ -176,7 +178,9 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		d, err := os.Stat(fullName)
 		if err == nil {
 			if m := d.Mode(); m.IsRegular() {
-				log.Debug(nil, nil, "Loading template from file: %s", fullName)
+				if logCallback != nil {
+					logCallback(fmt.Sprintf("Loading template from file: %s", fullName))
+				}
 				return ioutil.ReadFile(fullName)
 			}
 		}
