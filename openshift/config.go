@@ -17,7 +17,6 @@ type Config struct {
 
 type LogCallback func(message string)
 
-
 func (c Config) WithToken(token string) Config {
 	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token, HttpTransport: c.HttpTransport}
 }
