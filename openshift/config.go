@@ -21,6 +21,16 @@ func (c Config) WithToken(token string) Config {
 	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token, HttpTransport: c.HttpTransport}
 }
 
+func (c Config) GetLogCallback() LogCallback {
+	if c.LogCallback == nil {
+		return nilLogCallback
+	}
+	return c.LogCallback
+}
+
+func nilLogCallback(string) {
+}
+
 type multiError struct {
 	Message string
 	Errors  []error
