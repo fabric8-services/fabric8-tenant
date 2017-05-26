@@ -18,7 +18,7 @@ goTemplate{
         }
 
         pushPomPropertyChangePR{
-            propertyName = 'fabric8-init-tenant'
+            propertyName = 'init-tenant.version'
             projects = [
                     'fabric8io/fabric8-platform'
             ]
