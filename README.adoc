@@ -1,1 +1,7 @@
-## Service for initializing the tenant services in DSaas 
+## Service for initializing the tenant services in DSaas
+
+Tips to running unit tests - this command seems to work on OS X:
+
+```
+make clean && make && make deps && glide update && make test-unit
+```
