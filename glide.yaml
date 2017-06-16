@@ -52,3 +52,5 @@ import:
   subpackages:
   - go/ast/astutil
 - package: github.com/satori/go.uuid
+testImport:
+- package: github.com/wadey/gocovmerge

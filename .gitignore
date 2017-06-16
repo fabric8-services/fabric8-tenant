@@ -86,5 +86,7 @@ bin/
 
 #Ignore dynamically downloaded templates
 template/fabric8-online-che-openshift.yml
+template/fabric8-online-che-quotas-oso-openshift.yml
 template/fabric8-online-jenkins-openshift.yml
+template/fabric8-online-jenkins-quotas-oso-openshift.yml
 template/fabric8-online-team-openshift.yml
