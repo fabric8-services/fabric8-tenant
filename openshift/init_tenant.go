@@ -85,6 +85,15 @@ func do(config Config, callback Callback, username, usertoken string, templateVa
 		return err
 	}
 
+	jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-openshift.yml")
+	if err != nil {
+		return err
+	}
+	cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-openshift.yml")
+	if err != nil {
+		return err
+	}
+
 	var channels []chan error
 
 	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
@@ -127,6 +136,28 @@ func do(config Config, callback Callback, username, usertoken string, templateVa
 		channels = append(channels, ns)
 	}
 
+	osoQuotas := true
+	disableOsoQuotasFlag := os.Getenv("DISABLE_OSO_QUOTAS")
+	if disableOsoQuotasFlag == "true" {
+		osoQuotas = false
+	}
+	if osoQuotas {
+		{
+			lvars := clone(vars)
+			nsname := fmt.Sprintf("%v-jenkins", name)
+			lvars[varProjectNamespace] = vars[varProjectName]
+			ns := executeNamespaceAsync(string(jenkinsQuotasT), lvars, masterOpts.WithNamespace(nsname))
+			channels = append(channels, ns)
+		}
+		{
+			lvars := clone(vars)
+			nsname := fmt.Sprintf("%v-che", name)
+			lvars[varProjectNamespace] = vars[varProjectName]
+			ns := executeNamespaceAsync(string(cheQuotasT), lvars, masterOpts.WithNamespace(nsname))
+			channels = append(channels, ns)
+		}
+	}
+
 	var errors []error
 	for _, channel := range channels {
 		err := <-channel
@@ -152,8 +183,12 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-jenkins-openshift.yml":
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-openshift.yml"
+		case "fabric8-online-jenkins-quotas-oso-openshift.yml":
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins-quotas-oso/$TEAM_VERSION/fabric8-online-jenkins-quotas-oso-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-che-openshift.yml":
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-openshift.yml"
+		case "fabric8-online-che-quotas-oso-openshift.yml":
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)

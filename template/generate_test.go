@@ -33,6 +33,24 @@ func TestFoundJenkins(t *testing.T) {
 	}
 }
 
+func TestFoundJenkinsQuotasOSO(t *testing.T) {
+	c, err := Asset("template/fabric8-online-jenkins-quotas-oso-openshift.yml")
+	if err != nil {
+		t.Fatalf("Asset template/fabric8-online-jenkins-quotas-oso-openshift.yml not found")
+	}
+
+	cs := string(c)
+	if !strings.Contains(cs, "Limit") {
+		t.Fatalf("Word Limit not found in the resource")
+	}
+
+	var template map[interface{}]interface{}
+	err = yaml.Unmarshal(c, &template)
+	if err != nil {
+		t.Fatalf("Could not parse resource as yaml")
+	}
+}
+
 func TestFoundChe(t *testing.T) {
 	c, err := Asset("template/fabric8-online-che-openshift.yml")
 	if err != nil {
@@ -56,6 +74,24 @@ func TestFoundChe(t *testing.T) {
 	}
 	if len(params) != 5 {
 		t.Fatalf("unknown number of parameters. found %v expected 5", len(params))
+	}
+}
+
+func TestFoundCheQuotasOSO(t *testing.T) {
+	c, err := Asset("template/fabric8-online-che-quotas-oso-openshift.yml")
+	if err != nil {
+		t.Fatalf("Asset template/fabric8-online-che-quotas-oso-openshift.yml not found")
+	}
+
+	cs := string(c)
+	if !strings.Contains(cs, "Limit") {
+		t.Fatalf("Word Limit not found in the resource")
+	}
+
+	var template map[interface{}]interface{}
+	err = yaml.Unmarshal(c, &template)
+	if err != nil {
+		t.Fatalf("Could not parse resource as yaml")
 	}
 }
 
