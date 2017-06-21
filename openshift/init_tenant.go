@@ -1,13 +1,18 @@
 package openshift
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/almighty/almighty-core/log"
 	"github.com/fabric8io/fabric8-init-tenant/template"
 )
 
@@ -26,15 +31,15 @@ const (
 // Creates the new x-test|stage|run and x-jenkins|che namespaces
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
-func InitTenant(config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
-	err := do(config, callback, username, usertoken, templateVars)
+func InitTenant(ctx context.Context, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+	err := do(ctx, config, callback, username, usertoken, templateVars)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func do(config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+func do(ctx context.Context, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
 	name := createName(username)
 
 	vars := map[string]string{
@@ -93,9 +98,7 @@ func do(config Config, callback Callback, username, usertoken string, templateVa
 	if err != nil {
 		return err
 	}
-
 	var channels []chan error
-
 	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
 	if err != nil {
 		return err
@@ -120,22 +123,7 @@ func do(config Config, callback Callback, username, usertoken string, templateVa
 			return err
 		}
 	}
-
-	{
-		lvars := clone(vars)
-		nsname := fmt.Sprintf("%v-jenkins", name)
-		lvars[varProjectNamespace] = vars[varProjectName]
-		ns := executeNamespaceAsync(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
-		channels = append(channels, ns)
-	}
-	{
-		lvars := clone(vars)
-		nsname := fmt.Sprintf("%v-che", name)
-		lvars[varProjectNamespace] = vars[varProjectName]
-		ns := executeNamespaceAsync(string(cheT), lvars, masterOpts.WithNamespace(nsname))
-		channels = append(channels, ns)
-	}
-
+	// Quotas needs to be applied before we attempt to install the resources on OSO
 	osoQuotas := true
 	disableOsoQuotasFlag := os.Getenv("DISABLE_OSO_QUOTAS")
 	if disableOsoQuotasFlag == "true" {
@@ -146,16 +134,60 @@ func do(config Config, callback Callback, username, usertoken string, templateVa
 			lvars := clone(vars)
 			nsname := fmt.Sprintf("%v-jenkins", name)
 			lvars[varProjectNamespace] = vars[varProjectName]
-			ns := executeNamespaceAsync(string(jenkinsQuotasT), lvars, masterOpts.WithNamespace(nsname))
-			channels = append(channels, ns)
+			err := executeNamespaceSync(string(jenkinsQuotasT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				return err
+			}
 		}
 		{
 			lvars := clone(vars)
 			nsname := fmt.Sprintf("%v-che", name)
 			lvars[varProjectNamespace] = vars[varProjectName]
-			ns := executeNamespaceAsync(string(cheQuotasT), lvars, masterOpts.WithNamespace(nsname))
-			channels = append(channels, ns)
+			err := executeNamespaceSync(string(cheQuotasT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				return err
+			}
 		}
+	}
+
+	{
+		lvars := clone(vars)
+		nsname := fmt.Sprintf("%v-jenkins", name)
+		lvars[varProjectNamespace] = vars[varProjectName]
+		output, err := executeNamespaceCMD(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"output":    output,
+				"namespace": nsname,
+				"error":     err,
+			}, "failed")
+
+			return err
+		}
+		log.Info(ctx, map[string]interface{}{
+			"output":    output,
+			"namespace": nsname,
+		}, "applied")
+
+	}
+	{
+		lvars := clone(vars)
+		nsname := fmt.Sprintf("%v-che", name)
+		lvars[varProjectNamespace] = vars[varProjectName]
+		output, err := executeNamespaceCMD(string(cheT), lvars, masterOpts.WithNamespace(nsname))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"output":    output,
+				"namespace": nsname,
+				"error":     err,
+			}, "failed")
+			return err
+		}
+		log.Info(ctx, map[string]interface{}{
+			"output":    output,
+			"namespace": nsname,
+		}, "applied")
+
 	}
 
 	var errors []error
@@ -252,6 +284,41 @@ func executeNamespaceAsync(template string, vars map[string]string, opts ApplyOp
 		close(ch)
 	}()
 	return ch
+}
+
+func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOptions) (string, error) {
+	t, err := Process(template, vars)
+	if err != nil {
+		return "", err
+	}
+
+	cmdName := "/usr/bin/sh"
+	cmdArgs := []string{"-c", "oc process -f - --server=" + opts.MasterURL + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f - --server=" + opts.MasterURL + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
+
+	var buf bytes.Buffer
+	cmd := exec.Command(cmdName, cmdArgs...)
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, t)
+
+	}()
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return buf.String(), err
+	}
+
+	return buf.String(), nil
 }
 
 func clone(maps map[string]string) map[string]string {
