@@ -2,12 +2,21 @@ FROM centos:7
 MAINTAINER "Aslak Knutsen <aslak@redhat.com>"
 ENV LANG=en_US.utf8
 ENV ALMIGHTY_INSTALL_PREFIX=/usr/local/alm
+ENV KUBECONFIG_DIR=${ALMIGHTY_INSTALL_PREFIX}/.kube
+ENV KUBECONFIG=${KUBECONFIG_DIR}/config
 
 # Create a non-root user and a group with the same name: "almighty"
 ENV ALMIGHTY_USER_NAME=almighty
 RUN useradd --no-create-home -s /bin/bash ${ALMIGHTY_USER_NAME}
 
+RUN cd /tmp \
+    && curl -L https://github.com/openshift/origin/releases/download/v1.4.1/openshift-origin-client-tools-v1.4.1-3f9807a-linux-64bit.tar.gz > openshift-origin-client-tools-v1.4.1-3f9807a-linux-64bit.tar.gz \
+    && tar xvzf openshift-origin*.tar.gz \
+    && mv openshift-origin*/oc /usr/bin \
+    && rm -rfv openshift-origin*
+
 COPY bin/fabric8-tenant ${ALMIGHTY_INSTALL_PREFIX}/bin/fabric8-tenant
+RUN mkdir ${KUBECONFIG_DIR} && chmod +777 ${KUBECONFIG_DIR}
 
 # From here onwards, any RUN, CMD, or ENTRYPOINT will be run under the following user
 USER ${ALMIGHTY_USER_NAME}
