@@ -293,7 +293,13 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 	}
 
 	cmdName := "/usr/bin/sh"
-	cmdArgs := []string{"-c", "oc process -f - --server=" + opts.MasterURL + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f - --server=" + opts.MasterURL + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
+	hostVerify := ""
+	flag := os.Getenv("KEYCLOAK_SKIP_HOST_VERIFY")
+	if strings.ToLower(flag) == "true" {
+		hostVerify = " --insecure-skip-tls-verify=true"
+	}
+
+	cmdArgs := []string{"-c", "oc process -f - --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f - --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
 
 	var buf bytes.Buffer
 	cmd := exec.Command(cmdName, cmdArgs...)
