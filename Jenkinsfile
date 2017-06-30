@@ -2,6 +2,7 @@
 @Library('github.com/fabric8io/fabric8-pipeline-library@master')
 def utils = new io.fabric8.Utils()
 def initServiceGitHash
+def releaseVersion
 goTemplate{
   dockerNode{
     ws {
@@ -22,6 +23,7 @@ goTemplate{
           dockerBuildOptions = '--file Dockerfile.deploy'
         }
 
+        releaseVersion = readFile('TEAM_VERSION').trim()
         initServiceGitHash = sh(script: 'git rev-parse HEAD', returnStdout: true).toString().trim()
 
         pushPomPropertyChangePR{
@@ -51,7 +53,7 @@ goTemplate{
           sh "git checkout -b versionUpdate${uid}"
 
           sh "sed -i -r 's/- hash: .*/- hash: ${initServiceGitHash}/g' dsaas-services/f8-tenant.yaml"
-          def releaseVersion = readFile('TEAM_VERSION').trim()
+
           def message = "Update tenants version to ${releaseVersion}"
           sh "git commit -a -m \"${message}\""
           sh "git push origin versionUpdate${uid}"
