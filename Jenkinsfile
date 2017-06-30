@@ -7,8 +7,12 @@ goTemplate{
       checkout scm
 
       if (utils.isCI()){
-        echo 'CI is provided by ci.centos'
-
+        goCI{
+          githubOrganisation = 'fabric8io'
+          dockerOrganisation = 'fabric8'
+          project = 'fabric8-init-tenant'
+          dockerBuildOptions = '--file Dockerfile.deploy'
+        }
       } else if (utils.isCD()){
         def v = goRelease{
           githubOrganisation = 'fabric8io'
