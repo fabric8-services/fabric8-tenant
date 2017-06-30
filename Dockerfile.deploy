@@ -10,7 +10,7 @@ ENV ALMIGHTY_USER_NAME=almighty
 RUN useradd --no-create-home -s /bin/bash ${ALMIGHTY_USER_NAME}
 
 RUN cd /tmp \
-    && curl -L https://github.com/openshift/origin/releases/download/v1.4.1/openshift-origin-client-tools-v1.4.1-3f9807a-linux-64bit.tar.gz > openshift-origin-client-tools-v1.4.1-3f9807a-linux-64bit.tar.gz \
+    && curl -L https://github.com/openshift/origin/releases/download/v1.5.1/openshift-origin-client-tools-v1.5.1-7b451fc-linux-64bit.tar.gz > openshift-origin-client-tools.tar.gz \
     && tar xvzf openshift-origin*.tar.gz \
     && mv openshift-origin*/oc /usr/bin \
     && rm -rfv openshift-origin*
