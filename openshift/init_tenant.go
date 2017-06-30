@@ -299,7 +299,7 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 		hostVerify = " --insecure-skip-tls-verify=true"
 	}
 
-	cmdArgs := []string{"-c", "oc process -f - --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f - --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
+	cmdArgs := []string{"-c", "oc process -f - --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
 
 	var buf bytes.Buffer
 	cmd := exec.Command(cmdName, cmdArgs...)
