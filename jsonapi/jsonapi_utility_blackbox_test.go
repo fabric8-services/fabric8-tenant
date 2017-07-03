@@ -1,13 +1,14 @@
 package jsonapi_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"testing"
 
-	"github.com/almighty/almighty-core/errors"
-	"github.com/almighty/almighty-core/resource"
+	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/fabric8io/fabric8-init-tenant/app"
 	"github.com/fabric8io/fabric8-init-tenant/jsonapi"
 	"github.com/stretchr/testify/require"
@@ -45,7 +46,7 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
 	// test internal server error
-	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(errors.NewInternalError("foo"))
+	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(errors.NewInternalError(context.Background(), errs.New("foo")))
 	require.Equal(t, http.StatusInternalServerError, httpStatus)
 	require.NotNil(t, jerr.Code)
 	require.NotNil(t, jerr.Status)
@@ -58,6 +59,14 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	require.NotNil(t, jerr.Code)
 	require.NotNil(t, jerr.Status)
 	require.Equal(t, jsonapi.ErrorCodeUnauthorizedError, *jerr.Code)
+	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
+
+	// test forbidden error
+	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(errors.NewForbiddenError("foo"))
+	require.Equal(t, http.StatusForbidden, httpStatus)
+	require.NotNil(t, jerr.Code)
+	require.NotNil(t, jerr.Status)
+	require.Equal(t, jsonapi.ErrorCodeForbiddenError, *jerr.Code)
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
 	// test unspecified error

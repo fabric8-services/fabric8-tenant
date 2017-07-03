@@ -39,6 +39,8 @@ const (
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
+	varLogLevel                        = "log.level"
+	varLogJSON                         = "log.json"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -112,6 +114,7 @@ func (c *Data) setConfigDefaults() {
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
+	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
 	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
@@ -243,6 +246,22 @@ func (c *Data) APIServerInsecureSkipTLSVerify() bool {
 	return c.v.GetBool(varAPIServerInsecureSkipTLSVerify)
 }
 
+// GetLogLevel returns the loggging level (as set via config file or environment variable)
+func (c *Data) GetLogLevel() string {
+	return c.v.GetString(varLogLevel)
+}
+
+// IsLogJSON returns if we should log json format (as set via config file or environment variable)
+func (c *Data) IsLogJSON() bool {
+	if c.v.IsSet(varLogJSON) {
+		return c.v.GetBool(varLogJSON)
+	}
+	if c.IsDeveloperModeEnabled() {
+		return false
+	}
+	return true
+}
+
 // GetTemplateValues return a Map of additional variables used to process the templates
 func (c *Data) GetTemplateValues() (map[string]string, error) {
 	if !c.v.IsSet(varTemplateRecommenderExternalName) {
@@ -274,4 +293,6 @@ const (
 	devModeKeycloakRealm = "fabric8-test"
 
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
+
+	defaultLogLevel = "info"
 )

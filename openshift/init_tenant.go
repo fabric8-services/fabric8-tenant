@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/almighty/almighty-core/log"
+	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8io/fabric8-init-tenant/template"
 )
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/almighty/almighty-core/resource"
+	"github.com/fabric8-services/fabric8-wit/resource"
 	config "github.com/fabric8io/fabric8-init-tenant/configuration"
 
 	_ "github.com/lib/pq"

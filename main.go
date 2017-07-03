@@ -12,7 +12,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/almighty/almighty-core/log"
+	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8io/fabric8-init-tenant/app"
 	"github.com/fabric8io/fabric8-init-tenant/configuration"
 	"github.com/fabric8io/fabric8-init-tenant/controller"
@@ -48,7 +48,7 @@ func main() {
 	}
 
 	// Initialized developer mode flag for the logger
-	log.InitializeLogger(config.IsDeveloperModeEnabled())
+	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
 
 	db := connect(config)
 	defer db.Close()
