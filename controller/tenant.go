@@ -6,10 +6,10 @@ import (
 
 	"strings"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8io/fabric8-init-tenant/app"
 	"github.com/fabric8io/fabric8-init-tenant/jsonapi"
 	"github.com/fabric8io/fabric8-init-tenant/keycloak"
