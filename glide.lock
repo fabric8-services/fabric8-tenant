@@ -1,15 +1,6 @@
-hash: 294fa9292cef44a18311ba4270cefc7e4df243bf1c4cb1b85d98e5e3d4a51094
-updated: 2017-04-23T21:38:39.444666682-04:00
+hash: 1280cb388bf00ce20e6c0aef59496ae8a717e290c363d89a655c4d8c1c36641e
+updated: 2017-07-03T22:41:20.05390643+02:00
 imports:
-- name: github.com/almighty/almighty-core
-  version: 46ee62000b3a1520b8a688e50669735b351f34a8
-  subpackages:
-  - errors
-  - jsonapi
-  - log
-  - login/token_context
-  - resource
-  - rest
 - name: github.com/armon/go-metrics
   version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
 - name: github.com/dgrijalva/jwt-go
@@ -17,17 +8,28 @@ imports:
 - name: github.com/dimfeld/httppath
   version: c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc
 - name: github.com/dimfeld/httptreemux
-  version: 86f7c217d9043ebc6adfd8e2ed04a0bb1e1db651
+  version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
   subpackages:
   - go-bindata-assetfs
+- name: github.com/fabric8-services/fabric8-wit
+  version: 9df0657ca7166c737001b12a21e12c1759be6002
+  subpackages:
+  - configuration
+  - errors
+  - jsonapi
+  - log
+  - login/token_context
+  - login/tokencontext
+  - resource
+  - rest
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo
   version: 6acd4345c835499920e8426c7e4e8d7a34f1bb83
 - name: github.com/goadesign/goa
-  version: 8f0fdca409904318050f9e03579c3878f8928826
+  version: 58f3177f36f2c50ee6119da92795e48bac6d6243
   vcs: git
   subpackages:
   - client
@@ -139,3 +141,5 @@ testImports:
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
   - difflib
+- name: github.com/wadey/gocovmerge
+  version: b5bfa59ec0adc420475f97f89b58045c721d761c

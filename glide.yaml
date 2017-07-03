@@ -18,7 +18,7 @@ import:
   - goatest
   - middleware
   - middleware/security/jwt
-- package: github.com/almighty/almighty-core/
+- package: github.com/fabric8-services/fabric8-wit
   subpackages:
     - log
     - errors

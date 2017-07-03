@@ -9,7 +9,7 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/almighty/almighty-core/log"
+	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
 	errs "github.com/pkg/errors"
