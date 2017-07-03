@@ -12,6 +12,8 @@ import (
 	"github.com/fabric8io/fabric8-init-tenant/app"
 	"github.com/fabric8io/fabric8-init-tenant/jsonapi"
 	"github.com/stretchr/testify/require"
+
+	errs "github.com/pkg/errors"
 )
 
 func TestErrorToJSONAPIError(t *testing.T) {
