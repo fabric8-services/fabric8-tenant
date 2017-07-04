@@ -76,25 +76,30 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 		return err
 	}
 
-	projectT, err := loadTemplate(config, "fabric8-online-team-openshift.yml")
+	extension := "openshift.yml"
+	if isKubernetesMode() {
+		extension = "kubernetes.yml"
+	}
+
+	projectT, err := loadTemplate(config, "fabric8-online-team-"+extension)
 	if err != nil {
 		return err
 	}
 
-	jenkinsT, err := loadTemplate(config, "fabric8-online-jenkins-openshift.yml")
+	jenkinsT, err := loadTemplate(config, "fabric8-online-jenkins-"+extension)
 	if err != nil {
 		return err
 	}
-	cheT, err := loadTemplate(config, "fabric8-online-che-openshift.yml")
+	cheT, err := loadTemplate(config, "fabric8-online-che-"+extension)
 	if err != nil {
 		return err
 	}
 
-	jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-openshift.yml")
+	jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
 	if err != nil {
 		return err
 	}
-	cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-openshift.yml")
+	cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
 	if err != nil {
 		return err
 	}
@@ -221,6 +226,12 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-che-quotas-oso-openshift.yml":
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
+		case "fabric8-online-team-kubernetes.yml":
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-kubernetes.yml"
+		case "fabric8-online-jenkins-kubernetes.yml":
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-kubernetes.yml"
+		case "fabric8-online-che-kubernetes.yml":
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-kubernetes.yml"
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
@@ -298,8 +309,12 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 	if strings.ToLower(flag) == "true" {
 		hostVerify = " --insecure-skip-tls-verify=true"
 	}
+	serverFlag := "--server=" + opts.MasterURL + hostVerify
+	if isKubernetesMode() {
+		serverFlag = "--local=true"
+	}
 
-	cmdArgs := []string{"-c", "oc process -f - --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
+	cmdArgs := []string{"-c", "oc process -f - " + serverFlag + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
 
 	var buf bytes.Buffer
 	cmd := exec.Command(cmdName, cmdArgs...)
@@ -325,6 +340,11 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 	}
 
 	return buf.String(), nil
+}
+
+func isKubernetesMode() bool {
+	k8sMode := os.Getenv("F8_KUBERENTES_MODE")
+	return k8sMode == "true"
 }
 
 func clone(maps map[string]string) map[string]string {

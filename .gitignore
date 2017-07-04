@@ -90,3 +90,6 @@ template/fabric8-online-che-quotas-oso-openshift.yml
 template/fabric8-online-jenkins-openshift.yml
 template/fabric8-online-jenkins-quotas-oso-openshift.yml
 template/fabric8-online-team-openshift.yml
+template/fabric8-online-che-kubernetes.yml
+template/fabric8-online-jenkins-kubernetes.yml
+template/fabric8-online-team-kubernetes.yml
