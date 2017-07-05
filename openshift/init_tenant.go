@@ -344,6 +344,7 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 
 func isKubernetesMode() bool {
 	k8sMode := os.Getenv("F8_KUBERNETES_MODE")
+	fmt.Println("$F8_KUBERNETES_MODE = ", k8sMode)
 	return k8sMode == "true"
 }
 
