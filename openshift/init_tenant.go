@@ -243,11 +243,11 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		case "fabric8-online-che-quotas-oso-openshift.yml":
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-team-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-kubernetes.yml"
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-online-jenkins-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-kubernetes.yml"
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-online-che-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-kubernetes.yml"
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-k8s-template.yml"
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
