@@ -26,6 +26,7 @@ const (
 	FieldName                     = "name"
 	FieldResourceVersion          = "resourceVersion"
 	ValKindTemplate               = "Template"
+	ValKindNamespace	      = "Namespace"
 	ValKindProjectRequest         = "ProjectRequest"
 	ValKindPersistenceVolumeClaim = "PersistentVolumeClaim"
 	ValKindServiceAccount         = "ServiceAccount"
@@ -40,6 +41,7 @@ orphanDependents: false`
 
 	endpoints = map[string]map[string]string{
 		"POST": {
+			"Namespace":              `/api/v1/namespaces`,
 			"Project":                `/oapi/v1/projects`,
 			"ProjectRequest":         `/oapi/v1/projectrequests`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`,
@@ -55,6 +57,7 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`,
 		},
 		"PUT": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
@@ -69,6 +72,7 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"PATCH": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
@@ -83,6 +87,7 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"GET": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
@@ -97,6 +102,7 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"DELETE": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,

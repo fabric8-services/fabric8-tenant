@@ -141,7 +141,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
 	}
 
-	openshiftUser, err := openshift.WhoAmI(c.openshiftConfig.WithToken(openshiftUserToken))
+	openshiftUser, err := c.WhoAmI(token, openshiftUserToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -196,7 +196,8 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
 	}
 
-	openshiftUser, err := openshift.WhoAmI(c.openshiftConfig.WithToken(openshiftUserToken))
+	userConfig := c.openshiftConfig.WithToken(openshiftUserToken)
+	openshiftUser, err := c.WhoAmI(token, openshiftUserToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -208,6 +209,9 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		ctx := ctx
 		t := tenant
 		oc := c.openshiftConfig
+		if openshift.KubernetesMode() {
+			oc = userConfig
+		}
 		err = openshift.InitTenant(
 			ctx,
 			oc,
@@ -238,6 +242,21 @@ func (c *TenantController) OpenshiftToken(token *jwt.Token) (string, error) {
 		return openshift.GetOrCreateKubeToken(c.openshiftConfig, kcUserName)
 	}
 	return keycloak.OpenshiftToken(c.keycloakConfig, token.Raw)
+}
+
+func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (string, error) {
+	if openshift.KubernetesMode() {
+		// We don't currently store the Kubernetes token into KeyCloak for now
+		// so lets try load the token for the ServiceAccount for the KeyCloak username
+		// or lazily create a ServiceAccount if there is none created yet
+		ttoken := &TenantToken{token: token}
+		userName := ttoken.Username()
+		if len(userName) == 0 {
+			return "", fmt.Errorf("No username or preferred_username associated with the JWT token!")
+		}
+		return userName, nil
+	}
+	return openshift.WhoAmI(c.openshiftConfig.WithToken(openshiftUserToken))
 }
 
 // Show runs the setup action.
@@ -297,6 +316,9 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			"kind":      openshift.GetKind(request),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
+			if openshift.GetKind(request) == openshift.ValKindNamespace {
+				return "", nil
+			}
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				return "", nil
 			}
@@ -309,6 +331,16 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			return "DELETE", request
 		} else if statusCode == http.StatusCreated {
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
+				name := openshift.GetName(request)
+				service.UpdateNamespace(&tenant.Namespace{
+					TenantID:  currentTenant.ID,
+					Name:      name,
+					State:     "created",
+					Version:   openshift.GetLabelVersion(request),
+					Type:      GetNamespaceType(name),
+					MasterURL: masterURL,
+				})
+			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
 				name := openshift.GetName(request)
 				service.UpdateNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,

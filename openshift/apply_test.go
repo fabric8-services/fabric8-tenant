@@ -36,6 +36,33 @@ objects:
     name: aslak-test
 `
 
+var parseNamespaceTemplate = `
+---
+apiVersion: v1
+kind: Template
+metadata:
+  labels:
+    provider: fabric8
+    project: fabric8-online-team-environments
+    version: 1.0.58
+    group: io.fabric8.online.packages
+  name: fabric8-online-team-envi
+objects:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    annotations:
+      openshift.io/description: Test-Project-Description
+      openshift.io/display-name: Test-Project-Name
+      openshift.io/requester: Aslak-User
+    labels:
+      provider: fabric8
+      project: fabric8-online-team-environments
+      version: 1.0.58
+      group: io.fabric8.online.packages
+    name: aslak-test
+`
+
 var sortTemplate = `
 ---
 apiVersion: v1
@@ -95,6 +122,13 @@ func TestSort(t *testing.T) {
 	assert.Equal(t, "RoleBindingRestriction", kind(l[1]))
 	assert.Equal(t, "LimitRange", kind(l[2]))
 	assert.Equal(t, "ResourceQuota", kind(l[3]))
+}
+
+func TestParseNamespace(t *testing.T) {
+	l, err := openshift.ParseObjects(parseNamespaceTemplate, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, "Namespace", kind(l[0]))
 }
 
 func kind(object map[interface{}]interface{}) string {

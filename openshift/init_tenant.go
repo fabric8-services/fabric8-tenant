@@ -64,7 +64,12 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	masterOpts := ApplyOptions{Config: config, Callback: callback}
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Callback: callback}
 
-	userProjectT, err := loadTemplate(config, "fabric8-online-user-project.yml")
+	extension := "openshift.yml"
+	if KubernetesMode() {
+		extension = "kubernetes.yml"
+	}
+
+	userProjectT, err := loadTemplate(config, "fabric8-online-user-project-"+extension)
 	if err != nil {
 		return err
 	}
@@ -77,11 +82,6 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	userProjectCollabT, err := loadTemplate(config, "fabric8-online-user-colaborators.yml")
 	if err != nil {
 		return err
-	}
-
-	extension := "openshift.yml"
-	if KubernetesMode() {
-		extension = "kubernetes.yml"
 	}
 
 	projectT, err := loadTemplate(config, "fabric8-online-team-"+extension)
@@ -107,28 +107,23 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 		return err
 	}
 
-	jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
-	if err != nil {
-		return err
-	}
-	cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
-	if err != nil {
-		return err
-	}
 	var channels []chan error
 	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
 	if err != nil {
 		return err
 	}
 
-	err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
-	if err != nil {
-		return err
-	}
+	// TODO have kubernetes versions of these!
+	if !KubernetesMode() {
+		err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
+		if err != nil {
+			return err
+		}
 
-	err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
-	if err != nil {
-		return err
+		err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
+		if err != nil {
+			return err
+		}
 	}
 
 	{
@@ -146,7 +141,16 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	if disableOsoQuotasFlag == "true" {
 		osoQuotas = false
 	}
-	if osoQuotas {
+	if osoQuotas && !KubernetesMode() {
+		jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
+		if err != nil {
+			return err
+		}
+		cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
+		if err != nil {
+			return err
+		}
+
 		{
 			lvars := clone(vars)
 			nsname := fmt.Sprintf("%v-jenkins", name)
