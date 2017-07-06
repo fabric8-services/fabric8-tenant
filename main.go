@@ -132,6 +132,7 @@ func main() {
 	// Mount "tenant" controller
 	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
 	app.MountTenantController(service, tenantCtrl)
+	app.MountAuthController(service, tenantCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
@@ -139,6 +140,7 @@ func main() {
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
 
 	http.Handle("/api/", service.Mux)
+	http.Handle("/auth/realms/", service.Mux)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 
 	// Start http

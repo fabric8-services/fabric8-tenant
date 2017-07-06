@@ -80,7 +80,7 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	}
 
 	extension := "openshift.yml"
-	if isKubernetesMode() {
+	if KubernetesMode() {
 		extension = "kubernetes.yml"
 	}
 
@@ -322,7 +322,7 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 		hostVerify = " --insecure-skip-tls-verify=true"
 	}
 	serverFlag := "--server=" + opts.MasterURL + hostVerify
-	if isKubernetesMode() {
+	if KubernetesMode() {
 		serverFlag = "--local=true"
 	}
 
@@ -354,7 +354,7 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 	return buf.String(), nil
 }
 
-func isKubernetesMode() bool {
+func KubernetesMode() bool {
 	k8sMode := os.Getenv("F8_KUBERNETES_MODE")
 	return k8sMode == "true"
 }

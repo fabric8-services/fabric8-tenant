@@ -1,9 +1,10 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"net/http"
-
 	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -40,6 +41,86 @@ func NewTenantController(service *goa.Service, tenantService tenant.Service, key
 	}
 }
 
+// AuthToken validates the KeyCloak token then returns the associated kubernetes token if kubernetes otherwise
+// delegates to KeyCloak
+func (c *TenantController) AuthToken(ctx *app.SetupTenantContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	}
+	params := ctx.Params
+	broker := params.Get("broker")
+	realm := params.Get("realm")
+	if len(realm) == 0 {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("realm", "missing!"))
+	}
+	if len(broker) == 0 {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("broker", "missing!"))
+	}
+	if openshift.KubernetesMode() && realm == "fabric8" && broker == "openshift-v3" {
+		// For Kubernetes lets serve the tokens from Kubernetes
+		// for the KeyCloak username's associated ServiceAccount
+		openshiftUserToken, err := c.OpenshiftToken(token)
+		if len(openshiftUserToken) == 0 {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+		/*
+			result := []byte("access_token=" + openshiftUserToken + "&scope=full&token_type=bearer")
+			contentType := "application/octet-stream"
+		*/
+		result := []byte(`{"access_token":"` + openshiftUserToken + `","expires_in":31536000,"scope":"user:full","token_type":"Bearer"}`)
+		contentType := "application/octet-stream"
+
+		ctx.ResponseData.Header().Set("Content-Type", contentType)
+		ctx.ResponseData.WriteHeader(200)
+		ctx.ResponseData.Length = len(result)
+		_, err = ctx.ResponseData.Write(result)
+		return err
+	}
+
+	// delegate to the underlying KeyCloak server
+	var body []byte
+	fullUrl := strings.TrimSuffix(c.keycloakConfig.BaseURL, "/") + ctx.Request.RequestURI
+	req, err := http.NewRequest("GET", fullUrl, bytes.NewReader(body))
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("Failed to forward request to KeyCloak: %v", err)))
+	}
+	copyHeaders := []string{"Authorization", "Content-Type", "Accept", "User-Agent", "Host", "Referrer"}
+	for _, header := range copyHeaders {
+		value := ctx.Request.Header.Get(header)
+		if len(value) > 0 {
+			req.Header.Set(header, value)
+		}
+	}
+	client := c.CreateHttpClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("Failed to invoke KeyCloak: %v", err)))
+	}
+	defer resp.Body.Close()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	b := buf.Bytes()
+	//result := string(b)
+	status := resp.StatusCode
+	ctx.ResponseData.Header().Set("Content-Type", "application/octet-stream")
+	ctx.ResponseData.WriteHeader(status)
+	ctx.ResponseData.Length = len(b)
+	_, err = ctx.ResponseData.Write(b)
+	return err
+}
+
+func (c *TenantController) CreateHttpClient() *http.Client {
+	transport := c.openshiftConfig.HttpTransport
+	if transport != nil {
+		return &http.Client{
+			Transport: transport,
+		}
+	}
+	return http.DefaultClient
+}
+
 // Setup runs the setup action.
 func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	token := goajwt.ContextJWT(ctx)
@@ -52,7 +133,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return ctx.Conflict()
 	}
 
-	openshiftUserToken, err := keycloak.OpenshiftToken(c.keycloakConfig, token.Raw)
+	openshiftUserToken, err := c.OpenshiftToken(token)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -107,7 +188,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
 
-	openshiftUserToken, err := keycloak.OpenshiftToken(c.keycloakConfig, token.Raw)
+	openshiftUserToken, err := c.OpenshiftToken(token)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -145,6 +226,18 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData, app.TenantHref()))
 	return ctx.Accepted()
+}
+
+func (c *TenantController) OpenshiftToken(token *jwt.Token) (string, error) {
+	if openshift.KubernetesMode() {
+		// We don't currently store the Kubernetes token into KeyCloak for now
+		// so lets try load the token for the ServiceAccount for the KeyCloak username
+		// or lazily create a ServiceAccount if there is none created yet
+		ttoken := &TenantToken{token: token}
+		kcUserName := ttoken.Username()
+		return openshift.GetOrCreateKubeToken(c.openshiftConfig, kcUserName)
+	}
+	return keycloak.OpenshiftToken(c.keycloakConfig, token.Raw)
 }
 
 // Show runs the setup action.
@@ -279,6 +372,17 @@ func (t TenantToken) Subject() uuid.UUID {
 		return id
 	}
 	return uuid.UUID{}
+}
+
+func (t TenantToken) Username() string {
+	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+		answer := claims["preferred_username"].(string)
+		if len(answer) == 0 {
+			answer = claims["username"].(string)
+		}
+		return answer
+	}
+	return ""
 }
 
 func (t TenantToken) Email() string {
