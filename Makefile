@@ -267,3 +267,17 @@ release: all
 .PHONY: clean
 ## Runs all clean-* targets.
 clean: $(CLEAN_TARGETS)
+
+
+bin/docker: Dockerfile.dev
+	mkdir -p bin/docker
+	cp Dockerfile.dev bin/docker/Dockerfile
+
+bin/docker/fabric8-tenant-linux: bin/docker $(SOURCES)
+	GO15VENDOREXPERIMENT=1 GOARCH=amd64 GOOS=linux go build -o bin/docker/fabric8-tenant-linux
+
+fast-docker: bin/docker/fabric8-tenant-linux
+	docker build -t fabric8/fabric8-init-tenant:latest bin/docker
+
+kube-redeploy: fast-docker
+	kubectl delete pod -l service=init-tenant
