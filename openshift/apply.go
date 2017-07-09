@@ -357,6 +357,14 @@ var sortOrder = map[string]int{
 	"RoleBindingRestriction": 2,
 	"LimitRange":             3,
 	"ResourceQuota":          4,
+	"Secret":                 5,
+	"ServiceAccount":         6,
+	"Service":                7,
+	"RoleBinding":            8,
+	"PersistentVolumeClaim":  9,
+	"ConfigMap":              10,
+	"DeploymentConfig":       11,
+	"Route":                  12,
 }
 
 // ByKind represents a list of Openshift objects sortable by Kind
