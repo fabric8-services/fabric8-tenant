@@ -10,7 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8io/fabric8-init-tenant/template"
@@ -90,7 +93,16 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	if err != nil {
 		return err
 	}
+	jenkinsT, err = Reorder(jenkinsT)
+	if err != nil {
+		return err
+	}
+
 	cheT, err := loadTemplate(config, "fabric8-online-che-"+extension)
+	if err != nil {
+		return err
+	}
+	cheT, err = Reorder(cheT)
 	if err != nil {
 		return err
 	}
@@ -353,4 +365,34 @@ func clone(maps map[string]string) map[string]string {
 		maps2[k2] = v2
 	}
 	return maps2
+}
+
+// TEMP function to reorder the content of the templates. Required to execute RoleBindingRequests before RoleBinding
+// https://github.com/fabric8io/fabric8-init-tenant/issues/122
+func Reorder(source []byte) ([]byte, error) {
+	var template map[interface{}]interface{}
+
+	err := yaml.Unmarshal(source, &template)
+	if err != nil {
+		return nil, err
+	}
+
+	if GetKind(template) == ValKindTemplate {
+		var ts = template[FieldObjects].([]interface{})
+
+		var objs []map[interface{}]interface{}
+		for _, obj := range ts {
+			objs = append(objs, obj.(map[interface{}]interface{}))
+		}
+
+		sort.Sort(ByKind(objs))
+		template[FieldObjects] = objs
+	}
+
+	body, err := yaml.Marshal(template)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+
 }
