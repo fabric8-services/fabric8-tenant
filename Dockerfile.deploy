@@ -9,11 +9,13 @@ ENV KUBECONFIG=${KUBECONFIG_DIR}/config
 ENV ALMIGHTY_USER_NAME=almighty
 RUN useradd --no-create-home -s /bin/bash ${ALMIGHTY_USER_NAME}
 
-RUN cd /tmp \
-    && curl -L https://github.com/openshift/origin/releases/download/v1.5.1/openshift-origin-client-tools-v1.5.1-7b451fc-linux-64bit.tar.gz > openshift-origin-client-tools.tar.gz \
-    && tar xvzf openshift-origin*.tar.gz \
-    && mv openshift-origin*/oc /usr/bin \
-    && rm -rfv openshift-origin*
+# Temp install custom build to get upstream k8 client patch openshift/origin#15017
+#RUN cd /tmp \
+#    && curl -L https://github.com/openshift/origin/releases/download/v1.5.1/openshift-origin-client-tools-v1.5.1-7b451fc-linux-64bit.tar.gz > openshift-origin-client-tools.tar.gz \
+#    && tar xvzf openshift-origin*.tar.gz \
+#    && mv openshift-origin*/oc /usr/bin \
+#    && rm -rfv openshift-origin*
+RUN curl -L https://github.com/aslakknutsen/origin/releases/download/pre-3.6/oc > /usr/bin/oc && chmod +x /usr/bin/oc
 
 COPY bin/fabric8-tenant ${ALMIGHTY_INSTALL_PREFIX}/bin/fabric8-tenant
 RUN mkdir ${KUBECONFIG_DIR} && chmod +777 ${KUBECONFIG_DIR}
