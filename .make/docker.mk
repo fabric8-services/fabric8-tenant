@@ -35,8 +35,8 @@ docker-image-deploy:
 .PHONY: docker-publish-deploy
 ## Tags the runnable image and pushes it to the docker hub.
 docker-publish-deploy:
-	docker tag $(DOCKER_IMAGE_DEPLOY) fabric8io/${PROJECT_NAME}:latest
-	docker push fabric8io/${PROJECT_NAME}:latest
+	docker tag $(DOCKER_IMAGE_DEPLOY) fabric8-services/${PROJECT_NAME}:latest
+	docker push fabric8-services/${PROJECT_NAME}:latest
 
 .PHONY: docker-build-dir
 ## Creates the docker build directory.

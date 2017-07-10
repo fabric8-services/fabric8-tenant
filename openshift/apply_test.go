@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/fabric8io/fabric8-init-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
