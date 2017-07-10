@@ -15,8 +15,8 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-tenant/template"
+	"github.com/fabric8-services/fabric8-wit/log"
 )
 
 const (
