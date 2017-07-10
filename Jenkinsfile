@@ -12,7 +12,7 @@ goTemplate{
         goCI{
           githubOrganisation = 'fabric8-services'
           dockerOrganisation = 'fabric8'
-          project = 'fabric8-init-tenant'
+          project = 'fabric8-tenant'
           dockerBuildOptions = '--file Dockerfile.deploy'
         }
       } else if (utils.isCD()){
