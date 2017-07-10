@@ -10,16 +10,16 @@ goTemplate{
 
       if (utils.isCI()){
         goCI{
-          githubOrganisation = 'fabric8io'
+          githubOrganisation = 'fabric8-services'
           dockerOrganisation = 'fabric8'
           project = 'fabric8-init-tenant'
           dockerBuildOptions = '--file Dockerfile.deploy'
         }
       } else if (utils.isCD()){
         def v = goRelease{
-          githubOrganisation = 'fabric8io'
+          githubOrganisation = 'fabric8-services'
           dockerOrganisation = 'fabric8'
-          project = 'fabric8-init-tenant'
+          project = 'fabric8-tenant'
           dockerBuildOptions = '--file Dockerfile.deploy'
         }
 

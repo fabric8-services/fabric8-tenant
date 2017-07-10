@@ -16,7 +16,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8io/fabric8-init-tenant/template"
+	"github.com/fabric8-services/fabric8-tenant/template"
 )
 
 const (
@@ -368,7 +368,7 @@ func clone(maps map[string]string) map[string]string {
 }
 
 // TEMP function to reorder the content of the templates. Required to execute RoleBindingRequests before RoleBinding
-// https://github.com/fabric8io/fabric8-init-tenant/issues/122
+// https://github.com/fabric8-services/fabric8-tenant/issues/122
 func Reorder(source []byte) ([]byte, error) {
 	var template map[interface{}]interface{}
 

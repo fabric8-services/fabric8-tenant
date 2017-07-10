@@ -100,7 +100,7 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: template.domain
-          image: registry.devshift.net/fabric8io/fabric8-tenant:${IMAGE_TAG}
+          image: registry.devshift.net/fabric8-service/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
           ports:

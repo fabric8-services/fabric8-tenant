@@ -1,5 +1,5 @@
-PROJECT_NAME=fabric8-init-tenant
-PACKAGE_NAME := github.com/fabric8io/fabric8-init-tenant
+PROJECT_NAME=fabric8-tenant
+PACKAGE_NAME := github.com/fabric8-services/fabric8-tenant
 TEAM_VERSION=$(shell cat TEAM_VERSION)
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp

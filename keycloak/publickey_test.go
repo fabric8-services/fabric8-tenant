@@ -3,7 +3,7 @@ package keycloak_test
 import (
 	"testing"
 
-	"github.com/fabric8io/fabric8-init-tenant/keycloak"
+	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/stretchr/testify/assert"
 )
 
