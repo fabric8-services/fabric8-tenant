@@ -210,7 +210,41 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 		}, "applied")
 
 	}
+	if KubernetesMode() {
+		exposeT, err := loadTemplate(config, "fabric8-online-expose-kubernetes.yml")
+		if err != nil {
+			return err
+		}
+		exposeVars, err := LoadExposeControllerVariables(config)
+		if err != nil {
+			return err
+		}
 
+		{
+			lvars := clone(vars)
+			for k, v := range exposeVars {
+				lvars[k] = v
+			}
+			nsname := fmt.Sprintf("%v-jenkins", name)
+			lvars[varProjectNamespace] = vars[varProjectName]
+			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				return err
+			}
+		}
+		{
+			lvars := clone(vars)
+			for k, v := range exposeVars {
+				lvars[k] = v
+			}
+			nsname := fmt.Sprintf("%v-che", name)
+			lvars[varProjectNamespace] = vars[varProjectName]
+			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				return err
+			}
+		}
+	}
 	var errors []error
 	for _, channel := range channels {
 		err := <-channel

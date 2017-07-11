@@ -1,6 +1,7 @@
 PROJECT_NAME=fabric8-tenant
 PACKAGE_NAME := github.com/fabric8-services/fabric8-tenant
 TEAM_VERSION=$(shell cat TEAM_VERSION)
+PLATFORM_VERSION=$(shell cat PLATFORM_VERSION)
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin
@@ -142,7 +143,7 @@ migration/sqlbindata.go: $(GO_BINDATA_BIN) $(wildcard migration/sql-files/*.sql)
 		migration/sql-files
 
 template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
-	TEAM_VERSION=$(TEAM_VERSION) go generate template/generate.go
+	TEAM_VERSION=$(TEAM_VERSION) PLATFORM_VERSION=$(PLATFORM_VERSION) go generate template/generate.go
 	$(GO_BINDATA_BIN) \
 		-o template/bindata.go \
 		-pkg template \
@@ -277,7 +278,7 @@ bin/docker/fabric8-tenant-linux: bin/docker $(SOURCES)
 	GO15VENDOREXPERIMENT=1 GOARCH=amd64 GOOS=linux go build -o bin/docker/fabric8-tenant-linux
 
 fast-docker: bin/docker/fabric8-tenant-linux
-	docker build -t fabric8/fabric8-init-tenant:latest bin/docker
+	docker build -t fabric8/fabric8-tenant:dev bin/docker
 
 kube-redeploy: fast-docker
 	kubectl delete pod -l service=init-tenant

@@ -123,3 +123,48 @@ func kubeTokenCallback(statusCode int, method string, request, response map[inte
 	//fmt.Printf("CreateKubeToken Got status code %s method %s request %v response %v\n", statusCode, method, request, response)
 	return method, response
 }
+
+// LoadExposeControllerVariables loads the exposecontroller template parameter values
+// from the exposecontroller ConfigMap if it can be found
+func LoadExposeControllerVariables(config Config) (map[string]string, error) {
+	answer := map[string]string{}
+	fabric8Namespace := os.Getenv("KUBERNETES_NAMESPACE")
+	if fabric8Namespace == "" {
+		fabric8Namespace = "fabric8"
+	}
+
+	configMapUrl := fmt.Sprintf("/api/v1/namespaces/%s/configmaps/exposecontroller", fabric8Namespace)
+
+	cm, err := getResource(config, configMapUrl)
+	if err != nil {
+		return answer, fmt.Errorf("Failed to load exposecontroller due to %v", err)
+	}
+	data, ok := cm["data"].(map[interface{}]interface{})
+	if ok {
+		configYaml := stringValue(data, "config.yml")
+		if len(configYaml) > 0 {
+			var configData map[string]string
+			err = yaml.Unmarshal([]byte(configYaml), &configData)
+			if err != nil {
+				return answer, fmt.Errorf("Failed to load config.yml value in exposecontroller ConfigMap in namespace %s due to %v", fabric8Namespace, err)
+			}
+			answer["APISERVER_HOSTPORT"] = configData["apiserver"]
+			answer["NODE_IP"] = configData["node-ip"]
+			answer["DOMAIN"] = configData["domain"]
+			answer["EXPOSER"] = configData["exposer"]
+		}
+	}
+	return answer, nil
+}
+
+func stringValue(data map[interface{}]interface{}, key string) string {
+	val := data[key]
+	text, ok := val.(string)
+	if ok {
+		return text
+	}
+	if val == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", val)
+}
