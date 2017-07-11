@@ -26,6 +26,7 @@ const (
 	FieldName                     = "name"
 	FieldResourceVersion          = "resourceVersion"
 	ValKindTemplate               = "Template"
+	ValKindNamespace              = "Namespace"
 	ValKindProjectRequest         = "ProjectRequest"
 	ValKindPersistenceVolumeClaim = "PersistentVolumeClaim"
 	ValKindServiceAccount         = "ServiceAccount"
@@ -40,11 +41,13 @@ orphanDependents: false`
 
 	endpoints = map[string]map[string]string{
 		"POST": {
+			"Namespace":              `/api/v1/namespaces`,
 			"Project":                `/oapi/v1/projects`,
 			"ProjectRequest":         `/oapi/v1/projectrequests`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes`,
+			"Deployment":             `/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments`,
 			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs`,
 			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`,
 			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services`,
@@ -55,10 +58,12 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`,
 		},
 		"PUT": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"Deployment":             `/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments/{{ index . "metadata" "name"}}`,
 			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
 			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
 			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
@@ -69,10 +74,12 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"PATCH": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"Deployment":             `/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments/{{ index . "metadata" "name"}}`,
 			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
 			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
 			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
@@ -83,10 +90,12 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"GET": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"Deployment":             `/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments/{{ index . "metadata" "name"}}`,
 			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
 			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
 			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
@@ -97,10 +106,12 @@ orphanDependents: false`
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
 		},
 		"DELETE": {
+			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
+			"Deployment":             `/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments/{{ index . "metadata" "name"}}`,
 			"DeploymentConfig":       `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`,
 			"PersistentVolumeClaim":  `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
 			"Service":                `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`,
@@ -353,6 +364,7 @@ func createURL(hostURL, action string, object map[interface{}]interface{}) (stri
 }
 
 var sortOrder = map[string]int{
+	"Namespace":              1,
 	"ProjectRequest":         1,
 	"RoleBindingRestriction": 2,
 	"LimitRange":             3,
