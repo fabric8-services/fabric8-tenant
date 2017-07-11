@@ -364,6 +364,7 @@ func createURL(hostURL, action string, object map[interface{}]interface{}) (stri
 }
 
 var sortOrder = map[string]int{
+	"Namespace":        	  1,
 	"ProjectRequest":         1,
 	"RoleBindingRestriction": 2,
 	"LimitRange":             3,
