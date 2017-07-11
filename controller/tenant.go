@@ -40,7 +40,6 @@ func NewTenantController(service *goa.Service, tenantService tenant.Service, key
 	}
 }
 
-
 // Setup runs the setup action.
 func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	token := goajwt.ContextJWT(ctx)
@@ -310,7 +309,6 @@ func OpenshiftToken(keycloakConfig keycloak.Config, openshiftConfig openshift.Co
 	}
 	return keycloak.OpenshiftToken(keycloakConfig, token.Raw)
 }
-
 
 type TenantToken struct {
 	token *jwt.Token

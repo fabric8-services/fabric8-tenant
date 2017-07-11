@@ -114,5 +114,3 @@ func CreateHttpClient(openshiftConfig openshift.Config) *http.Client {
 	}
 	return http.DefaultClient
 }
-
-

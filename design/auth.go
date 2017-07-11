@@ -28,7 +28,6 @@ var authAttributes = a.Type("AuthAttributes", func() {
 	})
 })
 
-
 var _ = a.Resource("auth", func() {
 	a.BasePath("/auth/realms/:realm/broker/:broker/token")
 	a.Action("authToken", func() {
