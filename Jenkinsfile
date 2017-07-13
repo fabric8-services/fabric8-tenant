@@ -45,7 +45,7 @@ goTemplate{
           sh 'chmod 600 /root/.ssh-git/ssh-key.pub'
           sh 'chmod 700 /root/.ssh-git'
 
-          git 'git@github.com:${gitRepo}'
+          git "git@github.com:${gitRepo}"
 
           sh "git config user.email fabric8cd@gmail.com"
           sh "git config user.name fabric8-cd"
