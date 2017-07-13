@@ -11,7 +11,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-const(
+const (
 	exposeAnnotation = "fabric8.io/exposeUrl"
 )
 
