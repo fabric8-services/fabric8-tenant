@@ -133,13 +133,17 @@ func main() {
 	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
+	// Mount "auth" controller
+	authCtrl := controller.NewAuthController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
+	app.MountAuthController(service, authCtrl)
+
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
 
-	http.Handle("/api/", service.Mux)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
+	http.Handle("/", service.Mux)
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {

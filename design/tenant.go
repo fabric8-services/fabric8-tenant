@@ -58,7 +58,7 @@ var tenantSingle = JSONSingle(
 	nil)
 
 var _ = a.Resource("tenant", func() {
-	a.BasePath("/tenant")
+	a.BasePath("/api/tenant")
 	a.Action("setup", func() {
 		a.Security("jwt")
 		a.Routing(

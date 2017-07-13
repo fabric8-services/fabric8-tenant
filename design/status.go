@@ -26,7 +26,7 @@ var ALMStatus = a.MediaType("application/vnd.status+json", func() {
 var _ = a.Resource("status", func() {
 
 	a.DefaultMedia(ALMStatus)
-	a.BasePath("/status")
+	a.BasePath("/api/status")
 
 	a.Action("show", func() {
 		a.Routing(

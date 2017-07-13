@@ -13,8 +13,9 @@ import (
 // WhoAmI checks with OSO who owns the current token.
 // returns the username
 func WhoAmI(config Config) (string, error) {
-	if isKubernetesMode() {
-		return "kubernetes", nil
+	if KubernetesMode() {
+		// this method should only be invoked on startup for kubernetes clusters
+		return "", nil
 	}
 	whoamiURL := config.MasterURL + "/oapi/v1/users/~"
 	user, err := get(whoamiURL, config.Token, config.HttpTransport)

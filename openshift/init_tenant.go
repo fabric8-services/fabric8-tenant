@@ -64,7 +64,12 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	masterOpts := ApplyOptions{Config: config, Callback: callback}
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Callback: callback}
 
-	userProjectT, err := loadTemplate(config, "fabric8-online-user-project.yml")
+	extension := "openshift.yml"
+	if KubernetesMode() {
+		extension = "kubernetes.yml"
+	}
+
+	userProjectT, err := loadTemplate(config, "fabric8-online-user-project-"+extension)
 	if err != nil {
 		return err
 	}
@@ -77,11 +82,6 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	userProjectCollabT, err := loadTemplate(config, "fabric8-online-user-colaborators.yml")
 	if err != nil {
 		return err
-	}
-
-	extension := "openshift.yml"
-	if isKubernetesMode() {
-		extension = "kubernetes.yml"
 	}
 
 	projectT, err := loadTemplate(config, "fabric8-online-team-"+extension)
@@ -107,28 +107,23 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 		return err
 	}
 
-	jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
-	if err != nil {
-		return err
-	}
-	cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
-	if err != nil {
-		return err
-	}
 	var channels []chan error
 	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
 	if err != nil {
 		return err
 	}
 
-	err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
-	if err != nil {
-		return err
-	}
+	// TODO have kubernetes versions of these!
+	if !KubernetesMode() {
+		err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
+		if err != nil {
+			return err
+		}
 
-	err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
-	if err != nil {
-		return err
+		err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
+		if err != nil {
+			return err
+		}
 	}
 
 	{
@@ -146,7 +141,16 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	if disableOsoQuotasFlag == "true" {
 		osoQuotas = false
 	}
-	if osoQuotas {
+	if osoQuotas && !KubernetesMode() {
+		jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
+		if err != nil {
+			return err
+		}
+		cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
+		if err != nil {
+			return err
+		}
+
 		{
 			lvars := clone(vars)
 			nsname := fmt.Sprintf("%v-jenkins", name)
@@ -206,7 +210,41 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 		}, "applied")
 
 	}
+	if KubernetesMode() {
+		exposeT, err := loadTemplate(config, "fabric8-online-expose-kubernetes.yml")
+		if err != nil {
+			return err
+		}
+		exposeVars, err := LoadExposeControllerVariables(config)
+		if err != nil {
+			return err
+		}
 
+		{
+			lvars := clone(vars)
+			for k, v := range exposeVars {
+				lvars[k] = v
+			}
+			nsname := fmt.Sprintf("%v-jenkins", name)
+			lvars[varProjectNamespace] = vars[varProjectName]
+			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				return err
+			}
+		}
+		{
+			lvars := clone(vars)
+			for k, v := range exposeVars {
+				lvars[k] = v
+			}
+			nsname := fmt.Sprintf("%v-che", name)
+			lvars[varProjectNamespace] = vars[varProjectName]
+			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				return err
+			}
+		}
+	}
 	var errors []error
 	for _, channel := range channels {
 		err := <-channel
@@ -239,11 +277,11 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		case "fabric8-online-che-quotas-oso-openshift.yml":
 			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-team-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-kubernetes.yml"
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-online-jenkins-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-kubernetes.yml"
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-online-che-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-kubernetes.yml"
+			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-k8s-template.yml"
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
@@ -322,7 +360,7 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 		hostVerify = " --insecure-skip-tls-verify=true"
 	}
 	serverFlag := "--server=" + opts.MasterURL + hostVerify
-	if isKubernetesMode() {
+	if KubernetesMode() {
 		serverFlag = "--local=true"
 	}
 
@@ -354,7 +392,7 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 	return buf.String(), nil
 }
 
-func isKubernetesMode() bool {
+func KubernetesMode() bool {
 	k8sMode := os.Getenv("F8_KUBERNETES_MODE")
 	return k8sMode == "true"
 }

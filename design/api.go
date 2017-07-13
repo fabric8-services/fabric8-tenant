@@ -11,7 +11,7 @@ var _ = a.API("tenant", func() {
 	a.Version("1.0")
 	a.Host("openshift.io")
 	a.Scheme("http")
-	a.BasePath("/api")
+	a.BasePath("/")
 	a.Consumes("application/json")
 	a.Produces("application/json")
 
