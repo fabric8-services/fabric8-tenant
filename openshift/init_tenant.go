@@ -28,6 +28,7 @@ const (
 	varProjectRequestingUser = "PROJECT_REQUESTING_USER"
 	varProjectAdminUser      = "PROJECT_ADMIN_USER"
 	varProjectNamespace      = "PROJECT_NAMESPACE"
+	varKeycloakURL           = "KEYCLOAK_URL"
 )
 
 // InitTenant initializes a new tenant in openshift
@@ -67,6 +68,12 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 	extension := "openshift.yml"
 	if KubernetesMode() {
 		extension = "kubernetes.yml"
+
+		keycloakUrl, err := FindKeyCloakURL(config)
+		if err != nil {
+			return fmt.Errorf("Could not find the KeyCloak URL: %v", err)
+		}
+		vars[varKeycloakURL] = keycloakUrl
 	}
 
 	userProjectT, err := loadTemplate(config, "fabric8-online-user-project-"+extension)

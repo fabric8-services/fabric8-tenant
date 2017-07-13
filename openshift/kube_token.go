@@ -11,6 +11,10 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+const(
+	exposeAnnotation = "fabric8.io/exposeUrl"
+)
+
 // GetOrCreateKubeToken will try to load the ServiceAccount for the given user name
 // and return its token otherwise if allowed it will lazily create a new ServiceAccount for the username
 func GetOrCreateKubeToken(config Config, openshiftUsername string) (string, error) {
@@ -171,4 +175,30 @@ func stringValue(data map[interface{}]interface{}, key string) string {
 		return ""
 	}
 	return fmt.Sprintf("%v", val)
+}
+
+func FindKeyCloakURL(config Config) (string, error) {
+	answer := ""
+	fabric8Namespace := os.Getenv("KUBERNETES_NAMESPACE")
+	if fabric8Namespace == "" {
+		fabric8Namespace = "fabric8"
+	}
+
+	configMapUrl := fmt.Sprintf("/api/v1/namespaces/%s/services/keycloak", fabric8Namespace)
+
+	cm, err := getResource(config, configMapUrl)
+	if err != nil {
+		return answer, fmt.Errorf("Failed to load keycloak service due to %v", err)
+	}
+	metadata, ok := cm["metadata"].(map[interface{}]interface{})
+	if ok {
+		annotations := metadata["annotations"].(map[interface{}]interface{})
+		if ok {
+			answer := stringValue(annotations, exposeAnnotation)
+			if len(answer) > 0 {
+				return answer, nil
+			}
+		}
+	}
+	return answer, fmt.Errorf("Could not find the annotation %s on the KeyCloak service in namespace %s", exposeAnnotation, fabric8Namespace)
 }
