@@ -154,6 +154,10 @@ func LoadExposeControllerVariables(config Config) (map[string]string, error) {
 			answer["EXPOSER"] = configData["exposer"]
 		}
 	}
+	exposer := os.Getenv("TENANT_EXPOSER")
+	if len(exposer) > 0 {
+		answer["EXPOSER"] = exposer
+	}
 	return answer, nil
 }
 
