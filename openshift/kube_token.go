@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	yaml "gopkg.in/yaml.v2"
 	"net/http"
 	"os"
 	"strings"
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -206,4 +206,3 @@ func FindServiceURL(config Config, namespace string, svcName string) (string, er
 	}
 	return answer, fmt.Errorf("Could not find the annotation %s on the %s service in namespace %s", exposeAnnotation, svcName, namespace)
 }
-

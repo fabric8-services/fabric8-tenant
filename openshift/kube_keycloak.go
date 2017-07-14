@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/bitly/go-simplejson"
+	"github.com/fabric8-services/fabric8-tenant/keycloak"
 )
 
 // EnsureKeyCloakHasJenkinsRedirectURL checks that the client has a redirect URI for the jenkins URL
@@ -89,27 +89,26 @@ func mandatorySecretProperty(data map[interface{}]interface{}, namespace string,
 	return "", fmt.Errorf("No property %s found secret %s in namespace %s", property, secretName, namespace)
 }
 
-
 func addRedirectUrl(jsonText string, url string) (string, string, error) {
 	js, err := simplejson.NewJson([]byte(jsonText))
 	if err != nil {
-		return "",  "", err
+		return "", "", err
 	}
 	obj := js.GetIndex(0)
 	if obj.Interface() == nil {
-		return "",  "", fmt.Errorf("No Client could be found from KeyCloak!")
+		return "", "", fmt.Errorf("No Client could be found from KeyCloak!")
 	}
 
 	id, err := obj.Get("id").String()
 	if err != nil {
-		return "",  "", err
+		return "", "", err
 	}
 	if len(id) == 0 {
-		return "",  "", fmt.Errorf("No id property found in the KeyCloak client JSON")
+		return "", "", fmt.Errorf("No id property found in the KeyCloak client JSON")
 	}
 	redirectUris, err := obj.Get("redirectUris").StringArray()
 	if err != nil {
-		return "",  "", err
+		return "", "", err
 	}
 	for _, text := range redirectUris {
 		if text == url {
@@ -121,7 +120,7 @@ func addRedirectUrl(jsonText string, url string) (string, string, error) {
 
 	data, err := obj.MarshalJSON()
 	if err != nil {
-		return "","", err
+		return "", "", err
 	}
 	return id, string(data), nil
 }
@@ -175,8 +174,6 @@ func GetKeyCloakAdminToken(config Config, kcConfig keycloak.Config, namespace st
 	}
 	return token, nil
 }
-
-
 
 func postJson(config Config, method string, url string, token string, json string) (string, error) {
 	req, err := http.NewRequest(method, url, strings.NewReader(json))
