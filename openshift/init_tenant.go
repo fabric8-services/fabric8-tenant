@@ -17,6 +17,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/template"
 	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-tenant/keycloak"
 )
 
 const (
@@ -35,15 +36,15 @@ const (
 // Creates the new x-test|stage|run and x-jenkins|che namespaces
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
-func InitTenant(ctx context.Context, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
-	err := do(ctx, config, callback, username, usertoken, templateVars)
+func InitTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+	err := do(ctx, kcConfig, config, callback, username, usertoken, templateVars)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func do(ctx context.Context, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
 	name := createName(username)
 
 	vars := map[string]string{
@@ -198,25 +199,6 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 		}, "applied")
 
 	}
-	{
-		lvars := clone(vars)
-		nsname := fmt.Sprintf("%v-che", name)
-		lvars[varProjectNamespace] = vars[varProjectName]
-		output, err := executeNamespaceCMD(string(cheT), lvars, masterOpts.WithNamespace(nsname))
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"output":    output,
-				"namespace": nsname,
-				"error":     err,
-			}, "failed")
-			return err
-		}
-		log.Info(ctx, map[string]interface{}{
-			"output":    output,
-			"namespace": nsname,
-		}, "applied")
-
-	}
 	if KubernetesMode() {
 		exposeT, err := loadTemplate(config, "fabric8-online-expose-kubernetes.yml")
 		if err != nil {
@@ -252,6 +234,35 @@ func do(ctx context.Context, config Config, callback Callback, username, usertok
 			}
 		}
 	}
+	{
+		lvars := clone(vars)
+		nsname := fmt.Sprintf("%v-che", name)
+		lvars[varProjectNamespace] = vars[varProjectName]
+		output, err := executeNamespaceCMD(string(cheT), lvars, masterOpts.WithNamespace(nsname))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"output":    output,
+				"namespace": nsname,
+				"error":     err,
+			}, "failed")
+			return err
+		}
+		log.Info(ctx, map[string]interface{}{
+			"output":    output,
+			"namespace": nsname,
+		}, "applied")
+
+	}
+
+	if KubernetesMode() {
+		// lets try create the KeyCloak client for the jenkins service
+		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
+		err = EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
+		if err != nil {
+			return err
+		}
+	}
+
 	var errors []error
 	for _, channel := range channels {
 		err := <-channel
