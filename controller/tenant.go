@@ -77,6 +77,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		oc := c.openshiftConfig
 		err = openshift.InitTenant(
 			ctx,
+			c.keycloakConfig,
 			oc,
 			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUser,
@@ -133,6 +134,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		}
 		err = openshift.InitTenant(
 			ctx,
+			c.keycloakConfig,
 			oc,
 			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUser,

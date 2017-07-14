@@ -52,5 +52,7 @@ import:
   subpackages:
   - go/ast/astutil
 - package: github.com/satori/go.uuid
+- package: github.com/bitly/go-simplejson
+  version: ^0.5.0
 testImport:
 - package: github.com/wadey/gocovmerge

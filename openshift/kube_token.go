@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	yaml "gopkg.in/yaml.v2"
 	"net/http"
 	"os"
 	"strings"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -177,18 +176,23 @@ func stringValue(data map[interface{}]interface{}, key string) string {
 	return fmt.Sprintf("%v", val)
 }
 
+// FindKeyCloakURL returns the external URL of keycloak
 func FindKeyCloakURL(config Config) (string, error) {
-	answer := ""
-	fabric8Namespace := os.Getenv("KUBERNETES_NAMESPACE")
-	if fabric8Namespace == "" {
-		fabric8Namespace = "fabric8"
+	namespace := os.Getenv("KUBERNETES_NAMESPACE")
+	if namespace == "" {
+		namespace = "fabric8"
 	}
+	return FindServiceURL(config, namespace, "keycloak")
+}
 
-	configMapUrl := fmt.Sprintf("/api/v1/namespaces/%s/services/keycloak", fabric8Namespace)
+// FindServiceURL returns the external URL of the service
+func FindServiceURL(config Config, namespace string, svcName string) (string, error) {
+	answer := ""
+	configMapUrl := fmt.Sprintf("/api/v1/namespaces/%s/services/%s", namespace, svcName)
 
 	cm, err := getResource(config, configMapUrl)
 	if err != nil {
-		return answer, fmt.Errorf("Failed to load keycloak service due to %v", err)
+		return answer, fmt.Errorf("Failed to load %s service in namespace %s due to %v", svcName, namespace, err)
 	}
 	metadata, ok := cm["metadata"].(map[interface{}]interface{})
 	if ok {
@@ -200,5 +204,5 @@ func FindKeyCloakURL(config Config) (string, error) {
 			}
 		}
 	}
-	return answer, fmt.Errorf("Could not find the annotation %s on the KeyCloak service in namespace %s", exposeAnnotation, fabric8Namespace)
+	return answer, fmt.Errorf("Could not find the annotation %s on the %s service in namespace %s", exposeAnnotation, svcName, namespace)
 }

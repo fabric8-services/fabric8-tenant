@@ -1,8 +1,10 @@
-hash: 1280cb388bf00ce20e6c0aef59496ae8a717e290c363d89a655c4d8c1c36641e
-updated: 2017-07-03T22:41:20.05390643+02:00
+hash: ae9ca8932ca21ba1168ab43f8af116718234f2dc0bb2c951db053f9e41ba1533
+updated: 2017-07-14T14:04:26.188183259+01:00
 imports:
 - name: github.com/armon/go-metrics
   version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
+- name: github.com/bitly/go-simplejson
+  version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/dgrijalva/jwt-go
   version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
 - name: github.com/dimfeld/httppath
@@ -14,14 +16,13 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-wit
-  version: d6b1cfbf66f5e757427b3452b7bc0bae9c565a04 
+  version: d6b1cfbf66f5e757427b3452b7bc0bae9c565a04
   subpackages:
   - configuration
   - errors
   - jsonapi
   - log
   - login/token_context
-  - login/tokencontext
   - resource
   - rest
 - name: github.com/fsnotify/fsnotify
@@ -76,7 +77,7 @@ imports:
   subpackages:
   - oid
 - name: github.com/magiconair/properties
-  version: f917359f079a3759162704eaa8caeec3d01d9f91
+  version: be5ece7dd465ab0765a9682137865547526d1dfb
 - name: github.com/manveru/faker
   version: 717f7cf83fb78669bfab612749c2e8ff63d5be11
 - name: github.com/mitchellh/mapstructure
