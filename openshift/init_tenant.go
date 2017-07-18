@@ -10,10 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
-
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/template"
@@ -37,14 +34,22 @@ const (
 // and install the required services/routes/deployment configurations to run
 // e.g. Jenkins and Che
 func InitTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
-	err := do(ctx, kcConfig, config, callback, username, usertoken, templateVars)
+	err := do(ctx, kcConfig, config, callback, username, usertoken, templateVars, false)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+func UpdateTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+	err := do(ctx, kcConfig, config, callback, username, usertoken, templateVars, true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string, update bool) error {
 	name := createName(username)
 
 	vars := map[string]string{
@@ -101,36 +106,30 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 	if err != nil {
 		return err
 	}
-	jenkinsT, err = Reorder(jenkinsT)
-	if err != nil {
-		return err
-	}
 
 	cheT, err := loadTemplate(config, "fabric8-online-che-"+extension)
 	if err != nil {
 		return err
 	}
-	cheT, err = Reorder(cheT)
-	if err != nil {
-		return err
-	}
 
-	var channels []chan error
 	err = executeNamespaceSync(string(userProjectT), vars, userOpts)
 	if err != nil {
 		return err
 	}
 
+	var channels []chan error
+	syncErrorChannel := make(chan error)
+	channels = append(channels, syncErrorChannel)
+
 	// TODO have kubernetes versions of these!
 	if !KubernetesMode() {
 		err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
 		if err != nil {
-			return err
+			syncErrorChannel <- err
 		}
-
 		err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
 		if err != nil {
-			return err
+			syncErrorChannel <- err
 		}
 	}
 
@@ -140,7 +139,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 
 		err = executeNamespaceSync(string(projectT), lvars, masterOpts.WithNamespace(name))
 		if err != nil {
-			return err
+			syncErrorChannel <- err
 		}
 	}
 	// Quotas needs to be applied before we attempt to install the resources on OSO
@@ -165,7 +164,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			lvars[varProjectNamespace] = vars[varProjectName]
 			err := executeNamespaceSync(string(jenkinsQuotasT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
-				return err
+				syncErrorChannel <- err
 			}
 		}
 		{
@@ -174,7 +173,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			lvars[varProjectNamespace] = vars[varProjectName]
 			err := executeNamespaceSync(string(cheQuotasT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
-				return err
+				syncErrorChannel <- err
 			}
 		}
 	}
@@ -183,20 +182,24 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		lvars := clone(vars)
 		nsname := fmt.Sprintf("%v-jenkins", name)
 		lvars[varProjectNamespace] = vars[varProjectName]
-		output, err := executeNamespaceCMD(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
+		if update {
+			output, err := executeNamespaceCMD(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"output":    output,
+					"namespace": nsname,
+					"error":     err,
+				}, "failed")
+
+				syncErrorChannel <- err
+			}
+			log.Info(ctx, map[string]interface{}{
 				"output":    output,
 				"namespace": nsname,
-				"error":     err,
-			}, "failed")
-
-			return err
+			}, "applied")
+		} else {
+			channels = append(channels, executeNamespaceAsync(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname)))
 		}
-		log.Info(ctx, map[string]interface{}{
-			"output":    output,
-			"namespace": nsname,
-		}, "applied")
 
 	}
 	if KubernetesMode() {
@@ -218,7 +221,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			lvars[varProjectNamespace] = vars[varProjectName]
 			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
-				return err
+				syncErrorChannel <- err
 			}
 		}
 		{
@@ -230,7 +233,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			lvars[varProjectNamespace] = vars[varProjectName]
 			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
-				return err
+				syncErrorChannel <- err
 			}
 		}
 	}
@@ -238,19 +241,23 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		lvars := clone(vars)
 		nsname := fmt.Sprintf("%v-che", name)
 		lvars[varProjectNamespace] = vars[varProjectName]
-		output, err := executeNamespaceCMD(string(cheT), lvars, masterOpts.WithNamespace(nsname))
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
+		if update {
+			output, err := executeNamespaceCMD(string(cheT), lvars, masterOpts.WithNamespace(nsname))
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"output":    output,
+					"namespace": nsname,
+					"error":     err,
+				}, "failed")
+				syncErrorChannel <- err
+			}
+			log.Info(ctx, map[string]interface{}{
 				"output":    output,
 				"namespace": nsname,
-				"error":     err,
-			}, "failed")
-			return err
+			}, "applied")
+		} else {
+			channels = append(channels, executeNamespaceAsync(string(cheT), lvars, masterOpts.WithNamespace(nsname)))
 		}
-		log.Info(ctx, map[string]interface{}{
-			"output":    output,
-			"namespace": nsname,
-		}, "applied")
 
 	}
 
@@ -259,10 +266,10 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
 		err = EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 		if err != nil {
-			return err
+			syncErrorChannel <- err
 		}
 	}
-
+	close(syncErrorChannel)
 	var errors []error
 	for _, channel := range channels {
 		err := <-channel
@@ -421,34 +428,4 @@ func clone(maps map[string]string) map[string]string {
 		maps2[k2] = v2
 	}
 	return maps2
-}
-
-// TEMP function to reorder the content of the templates. Required to execute RoleBindingRequests before RoleBinding
-// https://github.com/fabric8-services/fabric8-tenant/issues/122
-func Reorder(source []byte) ([]byte, error) {
-	var template map[interface{}]interface{}
-
-	err := yaml.Unmarshal(source, &template)
-	if err != nil {
-		return nil, err
-	}
-
-	if GetKind(template) == ValKindTemplate {
-		var ts = template[FieldObjects].([]interface{})
-
-		var objs []map[interface{}]interface{}
-		for _, obj := range ts {
-			objs = append(objs, obj.(map[interface{}]interface{}))
-		}
-
-		sort.Sort(ByKind(objs))
-		template[FieldObjects] = objs
-	}
-
-	body, err := yaml.Marshal(template)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
-
 }

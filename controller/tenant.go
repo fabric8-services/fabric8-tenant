@@ -132,7 +132,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		if openshift.KubernetesMode() {
 			oc = userConfig
 		}
-		err = openshift.InitTenant(
+		err = openshift.UpdateTenant(
 			ctx,
 			c.keycloakConfig,
 			oc,
