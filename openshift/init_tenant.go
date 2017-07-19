@@ -64,7 +64,7 @@ func RawInitTenant(ctx context.Context, kcConfig keycloak.Config, config Config,
 		if namespaceType == tenant.TypeUser {
 			go func(namespace string, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) {
 				defer wg.Done()
-				err := ApplyProcessed(Filter(objects, IsOfKind(ValKindProjectRequest)), userOpts)
+				err := ApplyProcessed(Filter(objects, IsOfKind(ValKindProjectRequest, ValKindNamespace)), userOpts)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{
 						"namespace": namespace,
@@ -78,7 +78,7 @@ func RawInitTenant(ctx context.Context, kcConfig keycloak.Config, config Config,
 						"err":       err,
 					}, "error init user project, RoleBindingRestrictions")
 				}
-				err = ApplyProcessed(Filter(objects, IsNotOfKind(ValKindProjectRequest, ValKindRoleBindingRestriction)), userOpts)
+				err = ApplyProcessed(Filter(objects, IsNotOfKind(ValKindProjectRequest, ValKindNamespace, ValKindRoleBindingRestriction)), userOpts)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{
 						"namespace": namespace,
