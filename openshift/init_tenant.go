@@ -12,8 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"sync"
+
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/template"
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/log"
 )
 
@@ -38,6 +41,65 @@ func InitTenant(ctx context.Context, kcConfig keycloak.Config, config Config, ca
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+//  kcConfig keycloak.Config only used to match signature
+func RawInitTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
+	if err != nil {
+		return err
+	}
+
+	mapped, err := MapByNamespaceAndSort(templs)
+	if err != nil {
+		return err
+	}
+	masterOpts := ApplyOptions{Config: config, Callback: callback}
+	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callback}
+	var wg sync.WaitGroup
+	wg.Add(len(mapped))
+	for key, val := range mapped {
+		namespaceType := tenant.GetNamespaceType(key)
+		if namespaceType == tenant.TypeUser {
+			go func(namespace string, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) {
+				defer wg.Done()
+				err := ApplyProcessed(Filter(objects, IsOfKind(ValKindProjectRequest)), userOpts)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"namespace": namespace,
+						"err":       err,
+					}, "error init user project, ProjectRequest")
+				}
+				err = ApplyProcessed(Filter(objects, IsOfKind(ValKindRoleBindingRestriction)), opts)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"namespace": namespace,
+						"err":       err,
+					}, "error init user project, RoleBindingRestrictions")
+				}
+				err = ApplyProcessed(Filter(objects, IsNotOfKind(ValKindProjectRequest, ValKindRoleBindingRestriction)), userOpts)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"namespace": namespace,
+						"err":       err,
+					}, "error init user project, Other")
+				}
+			}(key, val, masterOpts, userOpts)
+		} else {
+			go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
+				defer wg.Done()
+				err := ApplyProcessed(objects, opts)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"namespace": namespace,
+						"err":       err,
+					}, "error dsaas project")
+				}
+			}(key, val, masterOpts)
+		}
+	}
+	wg.Wait()
 	return nil
 }
 

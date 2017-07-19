@@ -7,9 +7,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"reflect"
-	"sort"
-
-	"time"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -30,6 +27,8 @@ const (
 	ValKindProjectRequest         = "ProjectRequest"
 	ValKindPersistenceVolumeClaim = "PersistentVolumeClaim"
 	ValKindServiceAccount         = "ServiceAccount"
+	ValKindRoleBindingRestriction = "RoleBindingRestriction"
+	ValKindRoleBinding            = "RoleBinding"
 	ValKindList                   = "List"
 )
 
@@ -172,14 +171,26 @@ func Apply(source string, opts ApplyOptions) error {
 	return nil
 }
 
+func ApplyProcessed(objects []map[interface{}]interface{}, opts ApplyOptions) error {
+
+	err := allKnownTypes(objects)
+	if err != nil {
+		return err
+	}
+
+	err = applyAll(objects, opts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
-	for index, obj := range objects {
+	for _, obj := range objects {
 		_, err := apply(obj, "POST", opts)
 		if err != nil {
 			return err
-		}
-		if index == 0 {
-			time.Sleep(time.Second * 2)
 		}
 	}
 	return nil
@@ -317,15 +328,13 @@ func ParseObjects(source string, namespace string) ([]map[interface{}]interface{
 		}
 		if namespace != "" {
 			for _, obj := range objs {
-				if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok {
+				if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok && GetKind(obj) != ValKindProjectRequest {
 					if _, ok := val[FieldNamespace]; !ok {
 						val[FieldNamespace] = namespace
 					}
 				}
 			}
 		}
-
-		sort.Sort(ByKind(objs))
 		return objs, nil
 	}
 	return []map[interface{}]interface{}{template}, nil

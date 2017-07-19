@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -75,7 +75,11 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		ctx := ctx
 		t := tenant
 		oc := c.openshiftConfig
-		err = openshift.InitTenant(
+		initFunc := openshift.InitTenant
+		if tenant.ID.String() == "b67f1cee-0a9f-40da-8e52-504c092e54e0" {
+			initFunc = openshift.RawInitTenant
+		}
+		err = initFunc(
 			ctx,
 			c.keycloakConfig,
 			oc,
@@ -246,9 +250,14 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   openshift.GetLabelVersion(request),
-					Type:      GetNamespaceType(name),
+					Type:      tenant.GetNamespaceType(name),
 					MasterURL: masterURL,
 				})
+
+				// HACK to workaround osio applying some dsaas-user permissions async
+				// Should loop on a Check if allowed type of call instead
+				time.Sleep(time.Second * 2)
+
 			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
 				name := openshift.GetName(request)
 				service.UpdateNamespace(&tenant.Namespace{
@@ -256,7 +265,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   openshift.GetLabelVersion(request),
-					Type:      GetNamespaceType(name),
+					Type:      tenant.GetNamespaceType(name),
 					MasterURL: masterURL,
 				})
 			}
@@ -278,26 +287,6 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		}, "unhandled resource response")
 		return "", nil
 	}
-}
-
-// GetNamespaceType attempts to extract the namespace type based on namespace name
-func GetNamespaceType(name string) tenant.NamespaceType {
-	if strings.HasSuffix(name, "-jenkins") {
-		return tenant.TypeJenkins
-	}
-	if strings.HasSuffix(name, "-che") {
-		return tenant.TypeChe
-	}
-	if strings.HasSuffix(name, "-test") {
-		return tenant.TypeTest
-	}
-	if strings.HasSuffix(name, "-stage") {
-		return tenant.TypeStage
-	}
-	if strings.HasSuffix(name, "-run") {
-		return tenant.TypeRun
-	}
-	return tenant.TypeUser
 }
 
 func OpenshiftToken(keycloakConfig keycloak.Config, openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
