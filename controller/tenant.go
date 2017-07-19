@@ -75,11 +75,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		ctx := ctx
 		t := tenant
 		oc := c.openshiftConfig
-		initFunc := openshift.InitTenant
-		if tenant.ID.String() == "b67f1cee-0a9f-40da-8e52-504c092e54e0" {
-			initFunc = openshift.RawInitTenant
-		}
-		err = initFunc(
+		err = openshift.RawInitTenant(
 			ctx,
 			c.keycloakConfig,
 			oc,
