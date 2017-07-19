@@ -328,7 +328,8 @@ func ParseObjects(source string, namespace string) ([]map[interface{}]interface{
 		}
 		if namespace != "" {
 			for _, obj := range objs {
-				if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok && GetKind(obj) != ValKindProjectRequest {
+				kind := GetKind(obj)
+				if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok && kind != ValKindProjectRequest && kind != ValKindNamespace {
 					if _, ok := val[FieldNamespace]; !ok {
 						val[FieldNamespace] = namespace
 					}

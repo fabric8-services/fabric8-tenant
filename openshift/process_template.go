@@ -244,8 +244,9 @@ func MapByNamespaceAndSort(objs []map[interface{}]interface{}) (map[string][]map
 	for _, obj := range objs {
 		namespace := GetNamespace(obj)
 		if namespace == "" {
-			// ProjectRequests are not bound to a Namespace, as it's a Namespace request
-			if GetKind(obj) == ValKindProjectRequest {
+			// ProjectRequests and Namespaces are not bound to a Namespace, as it's a Namespace request
+			kind := GetKind(obj)
+			if kind == ValKindProjectRequest || kind == ValKindNamespace {
 				namespace = GetName(obj)
 			} else {
 				return nil, fmt.Errorf("Object is missing namespace %v", obj)
