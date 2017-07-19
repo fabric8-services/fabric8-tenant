@@ -3,6 +3,7 @@ package tenant
 import (
 	"database/sql/driver"
 	"errors"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -77,4 +78,24 @@ type Namespace struct {
 // in the database.
 func (m Namespace) TableName() string {
 	return "namespaces"
+}
+
+// GetNamespaceType attempts to extract the namespace type based on namespace name
+func GetNamespaceType(name string) NamespaceType {
+	if strings.HasSuffix(name, "-jenkins") {
+		return TypeJenkins
+	}
+	if strings.HasSuffix(name, "-che") {
+		return TypeChe
+	}
+	if strings.HasSuffix(name, "-test") {
+		return TypeTest
+	}
+	if strings.HasSuffix(name, "-stage") {
+		return TypeStage
+	}
+	if strings.HasSuffix(name, "-run") {
+		return TypeRun
+	}
+	return TypeUser
 }
