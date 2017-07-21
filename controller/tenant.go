@@ -96,6 +96,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	return ctx.Accepted()
 }
 
+
 // Update runs the setup action.
 func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	token := goajwt.ContextJWT(ctx)
@@ -154,6 +155,10 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 }
 
 func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (string, error) {
+	return OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
+}
+
+func OpenShiftWhoAmI(token *jwt.Token, oc openshift.Config, openshiftUserToken string) (string, error) {
 	if openshift.KubernetesMode() {
 		// We don't currently store the Kubernetes token into KeyCloak for now
 		// so lets try load the token for the ServiceAccount for the KeyCloak username
@@ -165,7 +170,7 @@ func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (
 		}
 		return userName, nil
 	}
-	return openshift.WhoAmI(c.openshiftConfig.WithToken(openshiftUserToken))
+	return openshift.WhoAmI(oc.WithToken(openshiftUserToken))
 }
 
 // Show runs the setup action.

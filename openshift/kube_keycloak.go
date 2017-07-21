@@ -15,6 +15,19 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 )
 
+//  kcConfig keycloak.Config only used to match signature
+func KubeConnected(kcConfig keycloak.Config, config Config, username string) error {
+	if KubernetesMode() {
+		name := createName(username)
+		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
+		err := EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
+
+		fmt.Printf("Checking the Kubernetes Tenant is connected for %s result %v", name, err)
+		return err
+	}
+	return nil
+}
+
 // EnsureKeyCloakHasJenkinsRedirectURL checks that the client has a redirect URI for the jenkins URL
 func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config, jenkinsNS string) error {
 	fabric8Namespace := os.Getenv("KUBERNETES_NAMESPACE")

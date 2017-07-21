@@ -328,8 +328,13 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
 		err = EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 		if err != nil {
-			syncErrorChannel <- err
+			syncErrorChannel <- fmt.Errorf("Failed to register redirectUri into KeyCloak for jenkins in %s due to %v", jenkinsNS, err)
 		}
+		/*
+		} else {
+			channels = append(channels, EnsureKeyCloakHasJenkinsRedirectURLAsync(config, kcConfig, jenkinsNS))
+		}
+		*/
 	}
 	close(syncErrorChannel)
 	var errors []error
