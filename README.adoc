@@ -10,13 +10,13 @@ make clean && make && make deps && glide update && make test-unit
 
 If you run fabric8 in minikube or minishift then you can get rapid feedback of your code via the following:
 
- * run the app using the `:latest` docker image label:
+ * run the app using the `:dev` docker image label:
 
 ```
 git clone https://github.com/fabric8io/fabric8-platform.git
 cd fabric8-platform
 cd apps/init-tenant
-mvn fabric8:deploy  -Platest
+mvn fabric8:deploy  -Pdev
 ```
 
 * use the `kube-redeploy` make target whenever you want to create a new docker image and redeploy
