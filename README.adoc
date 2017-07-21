@@ -23,4 +23,8 @@ mvn fabric8:deploy  -Pdev
 ```
 make kube-redeploy
 ```
+if the docker build fails you may need to type this first to point your local shell at the docker daemon inside minishift/minikube:
+```
+eval $(minishift docker-env)
+```
 
