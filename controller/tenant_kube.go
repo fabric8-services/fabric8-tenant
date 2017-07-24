@@ -34,7 +34,6 @@ func NewTenantKubeController(service *goa.Service, tenantService tenant.Service,
 
 // KubeConnected checks that kubernetes tenant is connected with KeyCloak.
 func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeContext) error {
-	fmt.Println("\n\nKubeConnected Looking for token!")
 	token := goajwt.ContextJWT(ctx)
 	if token == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
@@ -55,16 +54,6 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 		}, "unable to authenticate user with tenant target server")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
 	}
-
-	fmt.Println("\n\nKubeConnected about to try check!")
-
-	/*
-		ttoken := &TenantToken{token: token}
-
-		tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
-		c.tenantService.UpdateTenant(tenant)
-	*/
-
 	msg, err := openshift.KubeConnected(
 		c.keycloakConfig,
 		c.openshiftConfig,

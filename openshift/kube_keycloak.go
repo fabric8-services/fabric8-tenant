@@ -20,10 +20,7 @@ func KubeConnected(kcConfig keycloak.Config, config Config, username string) (st
 	if KubernetesMode() {
 		name := createName(username)
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
-		msg, err := EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
-
-		fmt.Printf("Checking the Kubernetes Tenant is connected for %s result %v", name, err)
-		return msg, err
+		return EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 	}
 	return "not required for OpenShift", nil
 }
