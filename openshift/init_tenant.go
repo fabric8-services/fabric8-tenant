@@ -326,7 +326,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 	if KubernetesMode() {
 		// lets try create the KeyCloak client for the jenkins service
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
-		err = EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
+		_, err = EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 		if err != nil {
 			syncErrorChannel <- fmt.Errorf("Failed to register redirectUri into KeyCloak for jenkins in %s due to %v", jenkinsNS, err)
 		}

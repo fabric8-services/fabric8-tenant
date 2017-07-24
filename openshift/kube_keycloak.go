@@ -16,20 +16,20 @@ import (
 )
 
 //  kcConfig keycloak.Config only used to match signature
-func KubeConnected(kcConfig keycloak.Config, config Config, username string) error {
+func KubeConnected(kcConfig keycloak.Config, config Config, username string) (string, error) {
 	if KubernetesMode() {
 		name := createName(username)
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
-		err := EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
+		msg, err := EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 
 		fmt.Printf("Checking the Kubernetes Tenant is connected for %s result %v", name, err)
-		return err
+		return msg, err
 	}
-	return nil
+	return "not required for OpenShift", nil
 }
 
 // EnsureKeyCloakHasJenkinsRedirectURL checks that the client has a redirect URI for the jenkins URL
-func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config, jenkinsNS string) error {
+func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config, jenkinsNS string) (string, error) {
 	fabric8Namespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if fabric8Namespace == "" {
 		fabric8Namespace = "fabric8"
@@ -37,33 +37,37 @@ func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config
 
 	token, err := GetKeyCloakAdminToken(config, kcConfig, fabric8Namespace)
 	if err != nil {
-		return err
+		return "No admin token for KeyCloak", err
 	}
 	jenkinsUrl, err := FindServiceURL(config, jenkinsNS, "jenkins")
 	if err != nil {
-		return err
+		return "Waiting for external jenkins service URL", err
 	}
 	clientID := "fabric8-online-platform"
-	clientsURL := strings.TrimSuffix(kcConfig.BaseURL, "/") + "/auth/admin/realms/" + kcConfig.Realm + "/clients"
+	realm := kcConfig.Realm
+	clientsURL := strings.TrimSuffix(kcConfig.BaseURL, "/") + "/auth/admin/realms/" + realm + "/clients"
 	clientQueryURL := clientsURL + "?clientId=" + clientID
 
 	status, jsonText, err := doGet(config, clientQueryURL, token)
 	if err != nil {
-		return err
+		return fmt.Sprintf("Cannot query the keycloak realm %s for client %s", realm, clientID), err
 	}
 	if status < 200 || status >= 400 {
-		return fmt.Errorf("Failed to load KeyCloak client at %s status code %d", clientsURL, status)
+		return fmt.Sprintf("Cannot query the keycloak realm %s for client %s", realm, clientID), fmt.Errorf("Failed to load KeyCloak client at %s status code %d", clientsURL, status)
 	}
 	redirectURL := strings.TrimSuffix(jenkinsUrl, "/") + "/securityRealm/finishLogin"
 	id, jsonText, err := addRedirectUrl(jsonText, redirectURL)
 	if err != nil {
-		return err
+		return "Failed to add redirectURL for Jenkins into KeyCLoak JSON", err
 	}
 	if len(jsonText) > 0 {
 		clientURL := clientsURL + "/" + id
 		_, err = postJson(config, "PUT", clientURL, token, jsonText)
+		if err != nil {
+			return "Failed to register redirectURL for Jenkins into KeyCloak", err
+		}
 	}
-	return err
+	return "Connected", nil
 }
 
 func FindKeyCloakUserPassword(config Config, namespace string) (string, string, error) {

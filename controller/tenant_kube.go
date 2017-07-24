@@ -65,14 +65,31 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 	c.tenantService.UpdateTenant(tenant)
 	*/
 
-	err = openshift.KubeConnected(
+	msg, err := openshift.KubeConnected(
 		c.keycloakConfig,
 		c.openshiftConfig,
 		openshiftUser)
 
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		errText := fmt.Sprintf("%v", err)
+		res := &app.TenantStatusSingle{
+			Data: &app.TenantStatus{
+				Attributes: &app.TenantStatusAttributes{
+					Message: &msg,
+					Error: &errText,
+				},
+			},
+		}
+		//return ctx.Conflict(res)
+		ctx.ResponseData.Header().Set("Content-Type", "application/vnd.api+json")
+		return ctx.ResponseData.Service.Send(ctx.Context, 409, res)
 	}
-	res := &app.TenantSingle{}
+	res := &app.TenantStatusSingle{
+		Data: &app.TenantStatus{
+			Attributes: &app.TenantStatusAttributes{
+				Message: &msg,
+			},
+		},
+	}
 	return ctx.OK(res)
 }
