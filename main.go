@@ -133,6 +133,10 @@ func main() {
 	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
+	// Mount "tenantkube" controller
+	tenanKubetCtrl := controller.NewTenantKubeController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig)
+	app.MountTenantKubeController(service, tenanKubetCtrl)
+
 	// Mount "auth" controller
 	authCtrl := controller.NewAuthController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
 	app.MountAuthController(service, authCtrl)
