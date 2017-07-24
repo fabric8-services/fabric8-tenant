@@ -38,7 +38,7 @@ func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config
 	}
 	jenkinsUrl, err := FindServiceURL(config, jenkinsNS, "jenkins")
 	if err != nil {
-		return "Waiting for external jenkins service URL", err
+		return "Waiting for your external Jenkins URL to become available", err
 	}
 	clientID := "fabric8-online-platform"
 	realm := kcConfig.Realm
