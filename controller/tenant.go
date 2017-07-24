@@ -96,7 +96,6 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	return ctx.Accepted()
 }
 
-
 // Update runs the setup action.
 func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	token := goajwt.ContextJWT(ctx)

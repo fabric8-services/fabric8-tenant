@@ -48,7 +48,7 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
 	}
 
-	openshiftUser, err :=  OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
+	openshiftUser, err := OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -58,11 +58,11 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 
 	fmt.Println("\n\nKubeConnected about to try check!")
 
-/*
-	ttoken := &TenantToken{token: token}
+	/*
+		ttoken := &TenantToken{token: token}
 
-	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
-	c.tenantService.UpdateTenant(tenant)
+		tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
+		c.tenantService.UpdateTenant(tenant)
 	*/
 
 	msg, err := openshift.KubeConnected(
@@ -76,7 +76,7 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 			Data: &app.TenantStatus{
 				Attributes: &app.TenantStatusAttributes{
 					Message: &msg,
-					Error: &errText,
+					Error:   &errText,
 				},
 			},
 		}
