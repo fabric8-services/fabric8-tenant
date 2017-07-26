@@ -20,15 +20,17 @@ type TenantKubeController struct {
 	tenantService   tenant.Service
 	keycloakConfig  keycloak.Config
 	openshiftConfig openshift.Config
+	templateVars    map[string]string
 }
 
 // NewTenantKubeController creates a tenantKube controller.
-func NewTenantKubeController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config) *TenantKubeController {
+func NewTenantKubeController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *TenantKubeController {
 	return &TenantKubeController{
 		Controller:      service.NewController("TenantKubeController"),
 		tenantService:   tenantService,
 		keycloakConfig:  keycloakConfig,
 		openshiftConfig: openshiftConfig,
+		templateVars:    templateVars,
 	}
 }
 
@@ -54,10 +56,53 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 		}, "unable to authenticate user with tenant target server")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
 	}
-	msg, err := openshift.KubeConnected(
-		c.keycloakConfig,
-		c.openshiftConfig,
-		openshiftUser)
+
+	msg := ""
+	hasJenkinsNS := openshift.HasJenkinsNamespace(c.openshiftConfig, openshiftUser)
+	if !hasJenkinsNS {
+		fmt.Printf("\nNo Jenkins Namespace! So updating tenant\n")
+		ttoken := &TenantToken{token: token}
+		tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
+		exists := c.tenantService.Exists(ttoken.Subject())
+		err = c.tenantService.UpdateTenant(tenant)
+		if err == nil {
+			tenantID := ttoken.Subject()
+			tenant, err := c.tenantService.GetTenant(tenantID)
+			if err == nil {
+				if exists {
+					err = openshift.UpdateTenant(
+						ctx,
+						c.keycloakConfig,
+						c.openshiftConfig,
+						InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, tenant),
+						openshiftUser,
+						openshiftUserToken,
+						c.templateVars)
+				} else {
+					err = openshift.RawInitTenant(
+						ctx,
+						c.keycloakConfig,
+						c.openshiftConfig,
+						InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, tenant),
+						openshiftUser,
+						openshiftUserToken,
+						c.templateVars)
+				}
+			}
+		}
+		if err != nil {
+			fmt.Printf("\n failed to update tenant: %v\n", err)
+			msg = fmt.Sprintf("Failed to update tenant %v", err)
+		}
+	} else {
+		fmt.Printf("Have Jenkins namespace! So lets try check connected\n")
+	}
+	if err == nil {
+		msg, err = openshift.KubeConnected(
+			c.keycloakConfig,
+			c.openshiftConfig,
+			openshiftUser)
+	}
 
 	if err != nil {
 		errText := fmt.Sprintf("%v", err)

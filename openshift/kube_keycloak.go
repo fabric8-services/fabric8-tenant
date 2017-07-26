@@ -15,7 +15,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 )
 
-//  kcConfig keycloak.Config only used to match signature
 func KubeConnected(kcConfig keycloak.Config, config Config, username string) (string, error) {
 	if KubernetesMode() {
 		name := createName(username)
@@ -23,6 +22,20 @@ func KubeConnected(kcConfig keycloak.Config, config Config, username string) (st
 		return EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 	}
 	return "not required for OpenShift", nil
+}
+
+// HasJenkinsNamespace returns true if the tenant namespace has been created
+func HasJenkinsNamespace(config Config, username string) bool {
+	if KubernetesMode() {
+		name := createName(username)
+		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
+		namespaceURL := fmt.Sprintf("/api/v1/namespaces/%s", jenkinsNS)
+		ns, err := getResource(config, namespaceURL)
+		if ns != nil && err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // EnsureKeyCloakHasJenkinsRedirectURL checks that the client has a redirect URI for the jenkins URL
