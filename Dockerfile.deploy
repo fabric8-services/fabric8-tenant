@@ -1,13 +1,13 @@
 FROM centos:7
 MAINTAINER "Aslak Knutsen <aslak@redhat.com>"
 ENV LANG=en_US.utf8
-ENV ALMIGHTY_INSTALL_PREFIX=/usr/local/alm
-ENV KUBECONFIG_DIR=${ALMIGHTY_INSTALL_PREFIX}/.kube
+ENV F8_INSTALL_PREFIX=/usr/local/fabric8-tenant
+ENV KUBECONFIG_DIR=${F8_INSTALL_PREFIX}/.kube
 ENV KUBECONFIG=${KUBECONFIG_DIR}/config
 
-# Create a non-root user and a group with the same name: "almighty"
-ENV ALMIGHTY_USER_NAME=almighty
-RUN useradd --no-create-home -s /bin/bash ${ALMIGHTY_USER_NAME}
+# Create a non-root user and a group with the same name: "fabric8"
+ENV F8_USER_NAME=fabric8
+RUN useradd --no-create-home -s /bin/bash ${F8_USER_NAME}
 
 # Temp install custom build to get upstream k8 client patch openshift/origin#15017
 #RUN cd /tmp \
@@ -17,13 +17,13 @@ RUN useradd --no-create-home -s /bin/bash ${ALMIGHTY_USER_NAME}
 #    && rm -rfv openshift-origin*
 RUN curl -L https://github.com/aslakknutsen/origin/releases/download/pre-3.6/oc > /usr/bin/oc && chmod +x /usr/bin/oc
 
-COPY bin/fabric8-tenant ${ALMIGHTY_INSTALL_PREFIX}/bin/fabric8-tenant
+COPY bin/fabric8-tenant $F8_INSTALL_PREFIX}/bin/fabric8-tenant
 RUN mkdir ${KUBECONFIG_DIR} && chmod +777 ${KUBECONFIG_DIR}
 
 # From here onwards, any RUN, CMD, or ENTRYPOINT will be run under the following user
-USER ${ALMIGHTY_USER_NAME}
+USER ${F8_USER_NAME}
 
-WORKDIR ${ALMIGHTY_INSTALL_PREFIX}
+WORKDIR ${F8_INSTALL_PREFIX}
 ENTRYPOINT [ "bin/fabric8-tenant" ]
 
 EXPOSE 8080
