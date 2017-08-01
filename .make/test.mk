@@ -163,13 +163,13 @@ test-remote: prebuild-check clean-coverage-remote $(COV_PATH_REMOTE)
 test-remote-no-coverage: prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
-	F8_DEVELOPER_MODE_ENABLED=1 F8RESOURCE_REMOTE=1 F8RESOURCE_UNIT_TEST=0 go test -v $(TEST_PACKAGES)
+	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_REMOTE=1 F8_RESOURCE_UNIT_TEST=0 go test -v $(TEST_PACKAGES)
 
 .PHONY: test-migration
 ## Runs the migration tests and should be executed before running the integration tests
 ## in order to have a clean database
 test-migration: prebuild-check
-	F8RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test ${PACKAGE_NAME}/migration -v
+	F8_RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test ${PACKAGE_NAME}/migration -v
 
 # Downloads docker-compose to tmp/docker-compose if it does not already exist.
 define download-docker-compose

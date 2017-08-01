@@ -1,7 +1,7 @@
 FROM centos:7
 MAINTAINER "Aslak Knutsen <aslak@redhat.com>"
 ENV LANG=en_US.utf8
-ENV F8_INSTALL_PREFIX=/usr/local/fabric8-tenant
+ENV INSTALL_PREFIX=/usr/local/fabric8-tenant
 ENV KUBECONFIG_DIR=${F8_INSTALL_PREFIX}/.kube
 ENV KUBECONFIG=${KUBECONFIG_DIR}/config
 
@@ -17,13 +17,13 @@ RUN useradd --no-create-home -s /bin/bash ${F8_USER_NAME}
 #    && rm -rfv openshift-origin*
 RUN curl -L https://github.com/aslakknutsen/origin/releases/download/pre-3.6/oc > /usr/bin/oc && chmod +x /usr/bin/oc
 
-COPY bin/fabric8-tenant $F8_INSTALL_PREFIX}/bin/fabric8-tenant
+COPY bin/fabric8-tenant ${INSTALL_PREFIX}/bin/fabric8-tenant
 RUN mkdir ${KUBECONFIG_DIR} && chmod +777 ${KUBECONFIG_DIR}
 
 # From here onwards, any RUN, CMD, or ENTRYPOINT will be run under the following user
 USER ${F8_USER_NAME}
 
-WORKDIR ${F8_INSTALL_PREFIX}
+WORKDIR ${INSTALL_PREFIX}
 ENTRYPOINT [ "bin/fabric8-tenant" ]
 
 EXPOSE 8080
