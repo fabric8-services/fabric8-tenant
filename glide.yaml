@@ -19,6 +19,7 @@ import:
   - middleware
   - middleware/security/jwt
 - package: github.com/fabric8-services/fabric8-wit
+  version: 1332652f50339ee29e50a68f8db14983fb4f9a25
   subpackages:
     - log
     - errors
