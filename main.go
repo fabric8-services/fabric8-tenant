@@ -107,6 +107,9 @@ func main() {
 		panic(err)
 	}
 
+	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
+	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("github")
+
 	publicKey, err := keycloak.GetPublicKey(keycloakConfig)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

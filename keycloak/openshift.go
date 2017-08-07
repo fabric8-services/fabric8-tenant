@@ -24,7 +24,12 @@ func (c Config) RealmAuthURL() string {
 
 // BrokerTokenURL return endpoint to fetch Brokern token "{BaseURL}/auth/realms/{Realm}/broker/{Broker}/token"
 func (c Config) BrokerTokenURL() string {
-	return fmt.Sprintf("%v/auth/realms/%v/broker/%v/token", c.BaseURL, c.Realm, c.Broker)
+	return c.CustomBrokerTokenURL(c.Broker)
+}
+
+// CustomBrokerTokenURL return endpoint to fetch Brokern token "{BaseURL}/auth/realms/{Realm}/broker/{Broker}/token"
+func (c Config) CustomBrokerTokenURL(broker string) string {
+	return fmt.Sprintf("%v/auth/realms/%v/broker/%v/token", c.BaseURL, c.Realm, broker)
 }
 
 // OpenshiftToken fetches the Openshift token defined for the current user in Keycloak
