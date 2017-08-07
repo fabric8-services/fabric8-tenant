@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -28,9 +29,8 @@ func TestFoundJenkins(t *testing.T) {
 	if !ok {
 		t.Fatalf("parameters not found")
 	}
-	if len(params) != 5 {
-		t.Fatalf("unknown number of parameters. found %v expected 5", len(params))
-	}
+
+	assert.Equal(t, 5, len(params), "unknown number of parameters")
 }
 
 func TestFoundJenkinsQuotasOSO(t *testing.T) {
@@ -72,9 +72,8 @@ func TestFoundChe(t *testing.T) {
 	if !ok {
 		t.Fatalf("parameters not found")
 	}
-	if len(params) != 5 {
-		t.Fatalf("unknown number of parameters. found %v expected 5", len(params))
-	}
+
+	assert.Equal(t, 7, len(params), "unknown number of parameters")
 }
 
 func TestFoundCheQuotasOSO(t *testing.T) {
@@ -116,7 +115,5 @@ func TestFoundTeam(t *testing.T) {
 	if !ok {
 		t.Fatalf("parameters not found")
 	}
-	if len(params) != 5 {
-		t.Fatalf("unknown number of parameters. found %v expected 5", len(params))
-	}
+	assert.Equal(t, 5, len(params), "unknown number of parameters")
 }
