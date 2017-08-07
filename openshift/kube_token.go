@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	yaml "gopkg.in/yaml.v2"
 	"net/http"
 	"os"
 	"strings"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -155,6 +156,7 @@ func LoadExposeControllerVariables(config Config) (map[string]string, error) {
 			answer["NODE_IP"] = configData["node-ip"]
 			answer["DOMAIN"] = configData["domain"]
 			answer["EXPOSER"] = configData["exposer"]
+			answer["HTTP"] = configData["http"]
 		}
 	}
 	exposer := os.Getenv("TENANT_EXPOSER")
