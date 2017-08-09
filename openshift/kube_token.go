@@ -157,6 +157,7 @@ func LoadExposeControllerVariables(config Config) (map[string]string, error) {
 			answer["DOMAIN"] = configData["domain"]
 			answer["EXPOSER"] = configData["exposer"]
 			answer["HTTP"] = configData["http"]
+			answer["TLS_ACME"] = configData["tls-acme"]
 		}
 	}
 	exposer := os.Getenv("TENANT_EXPOSER")
