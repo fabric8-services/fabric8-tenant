@@ -38,6 +38,20 @@ func IsNotOfKind(kinds ...string) FilterFunc {
 	}
 }
 
+func RemoveReplicas(vs []map[interface{}]interface{}) []map[interface{}]interface{} {
+	vsf := make([]map[interface{}]interface{}, 0)
+	for _, v := range vs {
+		if GetKind(v) == ValKindDeploymentConfig {
+			if spec, specFound := v[FieldSpec].(map[interface{}]interface{}); specFound {
+				delete(spec, FieldReplicas)
+			}
+		}
+		vsf = append(vsf, v)
+	}
+	return vsf
+
+}
+
 func ProcessTemplate(template, namespace string, vars map[string]string) ([]map[interface{}]interface{}, error) {
 	pt, err := Process(template, vars)
 	if err != nil {

@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"sync"
 
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
@@ -44,8 +46,7 @@ func InitTenant(ctx context.Context, kcConfig keycloak.Config, config Config, ca
 	return nil
 }
 
-//  kcConfig keycloak.Config only used to match signature
-func RawInitTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
+func RawInitTenant(ctx context.Context, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
 	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
 	if err != nil {
 		return err
@@ -85,6 +86,28 @@ func RawInitTenant(ctx context.Context, kcConfig keycloak.Config, config Config,
 						"err":       err,
 					}, "error init user project, Other")
 				}
+				_, err = apply(
+					CreateAdminRoleBinding(namespace),
+					"DELETE",
+					opts.WithCallback(
+						func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+							log.Info(ctx, map[string]interface{}{
+								"status":    statusCode,
+								"method":    method,
+								"namespace": GetNamespace(request),
+								"name":      GetName(request),
+								"kind":      GetKind(request),
+							}, "resource requested")
+							return "", nil
+						},
+					),
+				)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"namespace": namespace,
+						"err":       err,
+					}, "error unable to delete Admin role from project")
+				}
 			}(key, val, masterOpts, userOpts)
 		} else {
 			go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
@@ -98,6 +121,51 @@ func RawInitTenant(ctx context.Context, kcConfig keycloak.Config, config Config,
 				}
 			}(key, val, masterOpts)
 		}
+	}
+	wg.Wait()
+	return nil
+}
+
+func RawUpdateTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username string, templateVars map[string]string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
+	if err != nil {
+		return err
+	}
+
+	mapped, err := MapByNamespaceAndSort(templs)
+	if err != nil {
+		return err
+	}
+	masterOpts := ApplyOptions{Config: config, Callback: callback}
+	var wg sync.WaitGroup
+	wg.Add(len(mapped))
+	for key, val := range mapped {
+		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
+			defer wg.Done()
+			output, err := executeProccessedNamespaceCMD(
+				listToTemplate(
+					//RemoveReplicas(
+					Filter(
+						objects,
+						IsNotOfKind(ValKindProjectRequest),
+					),
+					//),
+				),
+				opts.WithNamespace(namespace),
+			)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"output":    output,
+					"namespace": namespace,
+					"error":     err,
+				}, "failed")
+				return
+			}
+			log.Info(ctx, map[string]interface{}{
+				"output":    output,
+				"namespace": namespace,
+			}, "applied")
+		}(key, val, masterOpts)
 	}
 	wg.Wait()
 	return nil
@@ -444,7 +512,10 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 	if err != nil {
 		return "", err
 	}
+	return executeProccessedNamespaceCMD(t, opts)
+}
 
+func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) {
 	cmdName := "/usr/bin/sh"
 	hostVerify := ""
 	flag := os.Getenv("KEYCLOAK_SKIP_HOST_VERIFY")
@@ -495,4 +566,15 @@ func clone(maps map[string]string) map[string]string {
 		maps2[k2] = v2
 	}
 	return maps2
+}
+
+func listToTemplate(objects []map[interface{}]interface{}) string {
+	template := map[interface{}]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Template",
+		"objects":    objects,
+	}
+
+	b, _ := yaml.Marshal(template)
+	return string(b)
 }

@@ -77,7 +77,6 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		oc := c.openshiftConfig
 		err = openshift.RawInitTenant(
 			ctx,
-			c.keycloakConfig,
 			oc,
 			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUser,
@@ -132,13 +131,12 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		if openshift.KubernetesMode() {
 			oc = userConfig
 		}
-		err = openshift.UpdateTenant(
+		err = openshift.RawUpdateTenant(
 			ctx,
 			c.keycloakConfig,
 			oc,
 			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUser,
-			openshiftUserToken,
 			c.templateVars)
 
 		if err != nil {

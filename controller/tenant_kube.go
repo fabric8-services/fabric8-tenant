@@ -81,7 +81,6 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 				} else {
 					err = openshift.RawInitTenant(
 						ctx,
-						c.keycloakConfig,
 						c.openshiftConfig,
 						InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, tenant),
 						openshiftUser,
