@@ -126,7 +126,7 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, userna
 	return nil
 }
 
-func RawUpdateTenant(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username string, templateVars map[string]string) error {
+func RawUpdateTenant(ctx context.Context, config Config, callback Callback, username string, templateVars map[string]string) error {
 	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
 	if err != nil {
 		return err

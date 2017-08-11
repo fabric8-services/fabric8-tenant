@@ -133,7 +133,6 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		}
 		err = openshift.RawUpdateTenant(
 			ctx,
-			c.keycloakConfig,
 			oc,
 			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUser,
