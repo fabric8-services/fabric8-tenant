@@ -15,9 +15,11 @@ const (
 	FieldKind                     = "kind"
 	FieldAPIVersion               = "apiVersion"
 	FieldObjects                  = "objects"
+	FieldSpec                     = "spec"
 	FieldItems                    = "items"
 	FieldMetadata                 = "metadata"
 	FieldLabels                   = "labels"
+	FieldReplicas                 = "replicas"
 	FieldVersion                  = "version"
 	FieldNamespace                = "namespace"
 	FieldName                     = "name"
@@ -30,6 +32,7 @@ const (
 	ValKindRoleBindingRestriction = "RoleBindingRestriction"
 	ValKindRoleBinding            = "RoleBinding"
 	ValKindList                   = "List"
+	ValKindDeploymentConfig       = "DeploymentConfig"
 )
 
 var (
@@ -37,6 +40,11 @@ var (
 kind: DeleteOptions
 gracePeriodSeconds: 0
 orphanDependents: false`
+
+	adminRole = `apiVersion: v1
+kind: RoleBinding
+metadata:
+  name: admin`
 
 	endpoints = map[string]map[string]string{
 		"POST": {
@@ -140,6 +148,15 @@ func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 		Namespace: namespace,
 	}
 }
+
+func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
+	return ApplyOptions{
+		Config:    a.Config,
+		Callback:  callback,
+		Namespace: a.Namespace,
+	}
+}
+
 func (a *ApplyOptions) CreateHttpClient() *http.Client {
 	transport := a.HttpTransport
 	if transport != nil {
@@ -339,6 +356,18 @@ func ParseObjects(source string, namespace string) ([]map[interface{}]interface{
 		return objs, nil
 	}
 	return []map[interface{}]interface{}{template}, nil
+}
+
+func CreateAdminRoleBinding(namespace string) map[interface{}]interface{} {
+	objs, err := ParseObjects(adminRole, namespace)
+	if err == nil {
+		obj := objs[0]
+		if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok {
+			val[FieldNamespace] = namespace
+		}
+		return obj
+	}
+	return map[interface{}]interface{}{}
 }
 
 // TODO: a bit off now that there are multiple Action methods
