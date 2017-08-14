@@ -341,15 +341,21 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		if err != nil {
 			return err
 		}
-
 		{
 			lvars := clone(vars)
 			for k, v := range exposeVars {
 				lvars[k] = v
 			}
+			jenkinsVars, err := LoadJenkinsVariables()
+			if err != nil {
+				return err
+			}
+			for k, v := range jenkinsVars {
+				lvars[k] = v
+			}
 			nsname := fmt.Sprintf("%v-jenkins", name)
 			lvars[varProjectNamespace] = vars[varProjectName]
-			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
+			err = executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
 				syncErrorChannel <- err
 			}
