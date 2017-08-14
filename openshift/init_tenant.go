@@ -210,6 +210,14 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			return fmt.Errorf("Could not find the KeyCloak URL: %v", err)
 		}
 		vars[varKeycloakURL] = keycloakUrl
+
+		projectVars, err := LoadKubernetesProjectVariables()
+		if err != nil {
+			return err
+		}
+		for k, v := range projectVars {
+			vars[k] = v
+		}
 	}
 
 	userProjectT, err := loadTemplate(config, "fabric8-online-user-project-"+extension)
@@ -341,7 +349,6 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		if err != nil {
 			return err
 		}
-
 		{
 			lvars := clone(vars)
 			for k, v := range exposeVars {
@@ -349,7 +356,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			}
 			nsname := fmt.Sprintf("%v-jenkins", name)
 			lvars[varProjectNamespace] = vars[varProjectName]
-			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
+			err = executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
 				syncErrorChannel <- err
 			}

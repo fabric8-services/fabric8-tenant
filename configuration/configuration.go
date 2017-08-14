@@ -33,6 +33,8 @@ const (
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
+	varOpenshiftTeamVersion            = "openshift.team.version"
+	varOpenshiftTemplateDir            = "openshift.template.dir"
 	varOpenshiftServiceToken           = "openshift.service.token"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
@@ -229,6 +231,16 @@ func (c *Data) GetKeycloakURL() string {
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
 func (c *Data) GetOpenshiftTenantMasterURL() string {
 	return c.v.GetString(varOpenshiftTenantMasterURL)
+}
+
+// GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant namespaces
+func (c *Data) GetOpenshiftTeamVersion() string {
+	return c.v.GetString(varOpenshiftTeamVersion)
+}
+
+// GetOpenshiftTemplateDir returns the directory containing the local team YAML files
+func (c *Data) GetOpenshiftTemplateDir() string {
+	return c.v.GetString(varOpenshiftTemplateDir)
 }
 
 // GetOpenshiftServiceToken returns the token be used by matser user for tenant init
