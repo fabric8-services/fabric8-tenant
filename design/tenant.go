@@ -101,4 +101,17 @@ var _ = a.Resource("tenant", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+	a.Action("clean", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE(""),
+		)
+
+		a.Description("Clear tenant environment.")
+		a.Response(d.OK)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 })
