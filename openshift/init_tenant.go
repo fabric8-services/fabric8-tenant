@@ -516,7 +516,6 @@ func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOpti
 }
 
 func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) {
-	cmdName := "/usr/bin/sh"
 	hostVerify := ""
 	flag := os.Getenv("KEYCLOAK_SKIP_HOST_VERIFY")
 	if strings.ToLower(flag) == "true" {
@@ -528,6 +527,11 @@ func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) 
 	}
 
 	cmdArgs := []string{"-c", "oc process -f - " + serverFlag + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
+	return executeCMD(&t, cmdArgs)
+}
+
+func executeCMD(input *string, cmdArgs []string) (string, error) {
+	cmdName := "/usr/bin/sh"
 
 	var buf bytes.Buffer
 	cmd := exec.Command(cmdName, cmdArgs...)
@@ -539,11 +543,13 @@ func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) 
 		return "", err
 	}
 
-	go func() {
-		defer stdin.Close()
-		io.WriteString(stdin, t)
+	if input != nil {
+		go func() {
+			defer stdin.Close()
+			io.WriteString(stdin, *input)
 
-	}()
+		}()
+	}
 	if err := cmd.Start(); err != nil {
 		return "", err
 	}

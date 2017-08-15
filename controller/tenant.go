@@ -215,6 +215,36 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	return ctx.OK(&app.TenantSingle{Data: &response})
 }
 
+// Clean runs the setup action for the tenant namespaces.
+func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	}
+
+	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to authenticate user with keycloak")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
+	}
+
+	openshiftUser, err := c.WhoAmI(token, openshiftUserToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to authenticate user with tenant target server")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
+	}
+
+	err = openshift.CleanTenant(ctx, c.openshiftConfig, openshiftUser, c.templateVars)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.OK([]byte{})
+}
+
 // InitTenant is a Callback that assumes a new tenant is being created
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
