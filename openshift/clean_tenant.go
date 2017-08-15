@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/almighty/almighty-core/log"
+	"github.com/fabric8-services/fabric8-wit/log"
 )
 
 func CleanTenant(ctx context.Context, config Config, username string, templateVars map[string]string) error {
