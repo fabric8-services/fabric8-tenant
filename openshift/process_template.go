@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
+	"strings"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
@@ -62,7 +64,7 @@ func ProcessTemplate(template, namespace string, vars map[string]string) ([]map[
 
 func LoadProcessedTemplates(ctx context.Context, config Config, username string, templateVars map[string]string) ([]map[interface{}]interface{}, error) {
 	var objs []map[interface{}]interface{}
-	name := createName(username)
+	name := CreateName(username)
 
 	vars := map[string]string{
 		varProjectName:           name,
@@ -281,4 +283,9 @@ func MapByNamespaceAndSort(objs []map[interface{}]interface{}) (map[string][]map
 		ns[key] = val
 	}
 	return ns, nil
+}
+
+// CreateName returns a safe namespace basename based on a username
+func CreateName(username string) string {
+	return regexp.MustCompile("[^a-z0-9]").ReplaceAllString(strings.Split(username, "@")[0], "-")
 }

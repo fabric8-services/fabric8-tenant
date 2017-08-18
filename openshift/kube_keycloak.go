@@ -17,7 +17,7 @@ import (
 
 func KubeConnected(kcConfig keycloak.Config, config Config, username string) (string, error) {
 	if KubernetesMode() {
-		name := createName(username)
+		name := CreateName(username)
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
 		return EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
 	}
@@ -27,7 +27,7 @@ func KubeConnected(kcConfig keycloak.Config, config Config, username string) (st
 // HasJenkinsNamespace returns true if the tenant namespace has been created
 func HasJenkinsNamespace(config Config, username string) bool {
 	if KubernetesMode() {
-		name := createName(username)
+		name := CreateName(username)
 		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
 		namespaceURL := fmt.Sprintf("/api/v1/namespaces/%s", jenkinsNS)
 		ns, err := getResource(config, namespaceURL)
