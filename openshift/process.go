@@ -4,7 +4,7 @@ import "regexp"
 
 // Process takes a K8/Openshift Template as input and resolves the variable expresions
 func Process(source string, variables map[string]string) (string, error) {
-	reg := regexp.MustCompile(`\${([A-Z_]+)}`)
+	reg := regexp.MustCompile(`\${([A-Z_0-9]+)}`)
 	return string(reg.ReplaceAllFunc([]byte(source), func(found []byte) []byte {
 		variableName := toVariableName(string(found))
 		if variable, ok := variables[variableName]; ok {
