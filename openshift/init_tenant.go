@@ -180,7 +180,7 @@ func UpdateTenant(ctx context.Context, kcConfig keycloak.Config, config Config, 
 }
 
 func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback Callback, username, usertoken string, templateVars map[string]string, update bool) error {
-	name := createName(username)
+	name := CreateName(username)
 
 	vars := map[string]string{
 		varProjectName:           name,
@@ -470,10 +470,6 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		}
 	}
 	return template.Asset("template/" + name)
-}
-
-func createName(username string) string {
-	return strings.Replace(strings.Split(username, "@")[0], ".", "-", -1)
 }
 
 func executeNamespaceSync(template string, vars map[string]string, opts ApplyOptions) error {
