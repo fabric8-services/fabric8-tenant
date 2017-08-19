@@ -422,28 +422,33 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 // or default to the OOTB template included
 func loadTemplate(config Config, name string) ([]byte, error) {
 	teamVersion := config.TeamVersion
+	mavenRepo := os.Getenv("YAML_MVN_REPO")
+	if mavenRepo == "" {
+		mavenRepo = "http://central.maven.org/maven2"
+	}
 	logCallback := config.GetLogCallback()
 	if len(teamVersion) > 0 {
 		url := ""
 		switch name {
 		case "fabric8-online-team-openshift.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-openshift.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-jenkins-openshift.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-openshift.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-jenkins-quotas-oso-openshift.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins-quotas-oso/$TEAM_VERSION/fabric8-online-jenkins-quotas-oso-$TEAM_VERSION-openshift.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-jenkins-quotas-oso/$TEAM_VERSION/fabric8-online-jenkins-quotas-oso-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-che-openshift.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-openshift.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-che-quotas-oso-openshift.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
 		case "fabric8-online-team-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-k8s-template.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-online-jenkins-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-k8s-template.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-online-che-kubernetes.yml":
-			url = "http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-k8s-template.yml"
+			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-k8s-template.yml"
 		}
 		if len(url) > 0 {
+			url = strings.Replace(url, "$MVN_REPO", mavenRepo, -1)
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
 			logCallback(fmt.Sprintf("Loading template from URL: %s", url))
 			resp, err := http.Get(url)
