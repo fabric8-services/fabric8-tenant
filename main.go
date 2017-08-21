@@ -82,10 +82,19 @@ func main() {
 		}
 	}
 
+	if config.GetOpenshiftTeamVersion() != "" {
+		log.Logger().Infof("Team Version: %s", config.GetOpenshiftTeamVersion())
+	}
+	if config.GetOpenshiftTemplateDir() != "" {
+		log.Logger().Infof("Template Dir: %s", config.GetOpenshiftTemplateDir())
+	}
+
 	openshiftConfig := openshift.Config{
 		MasterURL:     config.GetOpenshiftTenantMasterURL(),
 		Token:         serviceToken,
 		HttpTransport: tr,
+		TeamVersion:   config.GetOpenshiftTeamVersion(),
+		TemplateDir:   config.GetOpenshiftTemplateDir(),
 	}
 
 	openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)

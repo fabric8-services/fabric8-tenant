@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	exposeAnnotation = "fabric8.io/exposeUrl"
+	exposeAnnotation          = "fabric8.io/exposeUrl"
+	externalDockerRegistryURL = "EXTERNAL_DOCKER_REGISTRY_URL"
 )
 
 // GetOrCreateKubeToken will try to load the ServiceAccount for the given user name
@@ -164,6 +165,17 @@ func LoadExposeControllerVariables(config Config) (map[string]string, error) {
 	if len(exposer) > 0 {
 		answer["EXPOSER"] = exposer
 	}
+	return answer, nil
+}
+
+// LoadKubernetesProjectVariables loads the jenkins template parameter values
+func LoadKubernetesProjectVariables() (map[string]string, error) {
+	answer := map[string]string{}
+	externalDockerRegistry := os.Getenv(externalDockerRegistryURL)
+	if externalDockerRegistryURL == "" {
+		return answer, fmt.Errorf("No value found for env var %s, this is required by tenant pipelines", externalDockerRegistryURL)
+	}
+	answer[externalDockerRegistryURL] = externalDockerRegistry
 	return answer, nil
 }
 
