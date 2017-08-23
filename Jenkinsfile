@@ -14,7 +14,12 @@ goTemplate{
           dockerOrganisation = 'fabric8'
           project = 'fabric8-tenant'
           dockerBuildOptions = '--file Dockerfile.deploy'
+          makeTarget = 'build test-unit-no-coverage-junit'
         }
+
+        sh('mv /home/jenkins/go/src/github.com/fabric8-services/fabric8-tenant/tmp/junit.xml `pwd`')
+        junit 'junit.xml'
+        
       } else if (utils.isCD()){
         def v = goRelease{
           githubOrganisation = 'fabric8-services'
