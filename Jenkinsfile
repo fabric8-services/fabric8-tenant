@@ -17,7 +17,7 @@ goTemplate{
           makeTarget = 'build test-unit-no-coverage-junit'
         }
 
-        sh('mv /home/jenkins/go/src/github.com/fabric8-services/fabric8-notification/tmp/junit.xml `pwd`')
+        sh('mv /home/jenkins/go/src/github.com/fabric8-services/fabric8-tenant/tmp/junit.xml `pwd`')
         junit 'junit.xml'
         
       } else if (utils.isCD()){
