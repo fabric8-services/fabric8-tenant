@@ -57,3 +57,4 @@ import:
   version: ^0.5.0
 testImport:
 - package: github.com/wadey/gocovmerge
+- package: github.com/jstemmer/go-junit-report
