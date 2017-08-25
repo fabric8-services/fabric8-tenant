@@ -58,7 +58,7 @@ func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config
 	clientsURL := strings.TrimSuffix(kcConfig.BaseURL, "/") + "/auth/admin/realms/" + realm + "/clients"
 	clientQueryURL := clientsURL + "?clientId=" + clientID
 
-	status, jsonText, err := doGet(config, clientQueryURL, token)
+	status, jsonText, err := GetJSON(config, clientQueryURL, token)
 	if err != nil {
 		return fmt.Sprintf("Cannot query the keycloak realm %s for client %s", realm, clientID), err
 	}
@@ -232,7 +232,7 @@ func postJson(config Config, method string, url string, token string, json strin
 	return result, nil
 }
 
-func doGet(config Config, url string, token string) (int, string, error) {
+func GetJSON(config Config, url string, token string) (int, string, error) {
 	var body []byte
 	req, err := http.NewRequest("GET", url, bytes.NewReader(body))
 	if err != nil {

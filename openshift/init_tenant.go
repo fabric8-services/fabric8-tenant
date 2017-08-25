@@ -220,32 +220,32 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		}
 	}
 
-	userProjectT, err := loadTemplate(config, "fabric8-online-user-project-"+extension)
+	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
 	if err != nil {
 		return err
 	}
 
-	userProjectRolesT, err := loadTemplate(config, "fabric8-online-user-rolebindings.yml")
+	userProjectRolesT, err := loadTemplate(config, "fabric8-tenant-user-rolebindings.yml")
 	if err != nil {
 		return err
 	}
 
-	userProjectCollabT, err := loadTemplate(config, "fabric8-online-user-colaborators.yml")
+	userProjectCollabT, err := loadTemplate(config, "fabric8-tenant-user-colaborators.yml")
 	if err != nil {
 		return err
 	}
 
-	projectT, err := loadTemplate(config, "fabric8-online-team-"+extension)
+	projectT, err := loadTemplate(config, "fabric8-tenant-team-"+extension)
 	if err != nil {
 		return err
 	}
 
-	jenkinsT, err := loadTemplate(config, "fabric8-online-jenkins-"+extension)
+	jenkinsT, err := loadTemplate(config, "fabric8-tenant-jenkins-"+extension)
 	if err != nil {
 		return err
 	}
 
-	cheT, err := loadTemplate(config, "fabric8-online-che-"+extension)
+	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+extension)
 	if err != nil {
 		return err
 	}
@@ -287,11 +287,11 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		osoQuotas = false
 	}
 	if osoQuotas && !KubernetesMode() {
-		jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
+		jenkinsQuotasT, err := loadTemplate(config, "fabric8-tenant-jenkins-quotas-oso-"+extension)
 		if err != nil {
 			return err
 		}
-		cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
+		cheQuotasT, err := loadTemplate(config, "fabric8-tenant-che-quotas-oso-"+extension)
 		if err != nil {
 			return err
 		}
@@ -341,7 +341,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 
 	}
 	if KubernetesMode() {
-		exposeT, err := loadTemplate(config, "fabric8-online-expose-kubernetes.yml")
+		exposeT, err := loadTemplate(config, "fabric8-tenant-expose-kubernetes.yml")
 		if err != nil {
 			return err
 		}
@@ -428,8 +428,13 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 // loadTemplate will load the template for a specific version from maven central or from the template directory
 // or default to the OOTB template included
 func loadTemplate(config Config, name string) ([]byte, error) {
+	cheVersion := config.CheVersion
+	jenkinsVersion := config.JenkinsVersion
 	teamVersion := config.TeamVersion
-	mavenRepo := os.Getenv("YAML_MVN_REPO")
+	mavenRepo := config.MavenRepoURL
+	if mavenRepo == "" {
+		mavenRepo = os.Getenv("YAML_MVN_REPO")
+	}
 	if mavenRepo == "" {
 		mavenRepo = "http://central.maven.org/maven2"
 	}
@@ -437,25 +442,32 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 	if len(teamVersion) > 0 {
 		url := ""
 		switch name {
-		case "fabric8-online-team-openshift.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-openshift.yml"
-		case "fabric8-online-jenkins-openshift.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-openshift.yml"
-		case "fabric8-online-jenkins-quotas-oso-openshift.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-jenkins-quotas-oso/$TEAM_VERSION/fabric8-online-jenkins-quotas-oso-$TEAM_VERSION-openshift.yml"
-		case "fabric8-online-che-openshift.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-openshift.yml"
-		case "fabric8-online-che-quotas-oso-openshift.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-che-quotas-oso/$TEAM_VERSION/fabric8-online-che-quotas-oso-$TEAM_VERSION-openshift.yml"
-		case "fabric8-online-team-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-team/$TEAM_VERSION/fabric8-online-team-$TEAM_VERSION-k8s-template.yml"
-		case "fabric8-online-jenkins-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-jenkins/$TEAM_VERSION/fabric8-online-jenkins-$TEAM_VERSION-k8s-template.yml"
-		case "fabric8-online-che-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/online/packages/fabric8-online-che/$TEAM_VERSION/fabric8-online-che-$TEAM_VERSION-k8s-template.yml"
+		// che
+		case "fabric8-tenant-che-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-openshift.yml"
+		case "fabric8-tenant-che-quotas-oso-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-quotas-oso/$CHE_VERSION/fabric8-tenant-che-quotas-oso-$CHE_VERSION-openshift.yml"
+
+		// jenkins
+		case "fabric8-tenant-jenkins-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-openshift.yml"
+		case "fabric8-tenant-jenkins-quotas-oso-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins-quotas-oso/$JENKINS_VERSION/fabric8-tenant-jenkins-quotas-oso-$JENKINS_VERSION-openshift.yml"
+
+		// team
+		case "fabric8-tenant-team-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-openshift.yml"
+		case "fabric8-tenant-team-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-k8s-template.yml"
+		case "fabric8-tenant-jenkins-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$TEAM_VERSION/fabric8-tenant-jenkins-$TEAM_VERSION-k8s-template.yml"
+		case "fabric8-tenant-che-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$TEAM_VERSION/fabric8-tenant-che-$TEAM_VERSION-k8s-template.yml"
 		}
 		if len(url) > 0 {
 			url = strings.Replace(url, "$MVN_REPO", mavenRepo, -1)
+			url = strings.Replace(url, "$CHE_VERSION", cheVersion, -1)
+			url = strings.Replace(url, "$JENKINS_VERSION", jenkinsVersion, -1)
 			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
 			logCallback(fmt.Sprintf("Loading template from URL: %s", url))
 			resp, err := http.Get(url)

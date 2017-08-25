@@ -9,9 +9,9 @@ import (
 )
 
 func TestFoundJenkins(t *testing.T) {
-	c, err := Asset("template/fabric8-online-jenkins-openshift.yml")
+	c, err := Asset("template/fabric8-tenant-jenkins-openshift.yml")
 	if err != nil {
-		t.Fatalf("Asset template/fabric8-online-jenkins-openshift.yml not found")
+		t.Fatalf("Asset template/fabric8-tenant-jenkins-openshift.yml not found")
 	}
 
 	cs := string(c)
@@ -34,9 +34,9 @@ func TestFoundJenkins(t *testing.T) {
 }
 
 func TestFoundJenkinsQuotasOSO(t *testing.T) {
-	c, err := Asset("template/fabric8-online-jenkins-quotas-oso-openshift.yml")
+	c, err := Asset("template/fabric8-tenant-jenkins-quotas-oso-openshift.yml")
 	if err != nil {
-		t.Fatalf("Asset template/fabric8-online-jenkins-quotas-oso-openshift.yml not found")
+		t.Fatalf("Asset template/fabric8-tenant-jenkins-quotas-oso-openshift.yml not found")
 	}
 
 	cs := string(c)
@@ -52,9 +52,9 @@ func TestFoundJenkinsQuotasOSO(t *testing.T) {
 }
 
 func TestFoundChe(t *testing.T) {
-	c, err := Asset("template/fabric8-online-che-openshift.yml")
+	c, err := Asset("template/fabric8-tenant-che-openshift.yml")
 	if err != nil {
-		t.Fatalf("Asset template/fabric8-online-che-openshift.yml not found")
+		t.Fatalf("Asset template/fabric8-tenant-che-openshift.yml not found")
 	}
 
 	cs := string(c)
@@ -77,9 +77,9 @@ func TestFoundChe(t *testing.T) {
 }
 
 func TestFoundCheQuotasOSO(t *testing.T) {
-	c, err := Asset("template/fabric8-online-che-quotas-oso-openshift.yml")
+	c, err := Asset("template/fabric8-tenant-che-quotas-oso-openshift.yml")
 	if err != nil {
-		t.Fatalf("Asset template/fabric8-online-che-quotas-oso-openshift.yml not found")
+		t.Fatalf("Asset template/fabric8-tenant-che-quotas-oso-openshift.yml not found")
 	}
 
 	cs := string(c)
@@ -95,9 +95,9 @@ func TestFoundCheQuotasOSO(t *testing.T) {
 }
 
 func TestFoundTeam(t *testing.T) {
-	c, err := Asset("template/fabric8-online-team-openshift.yml")
+	c, err := Asset("template/fabric8-tenant-team-openshift.yml")
 	if err != nil {
-		t.Fatalf("Asset template/fabric8-online-team-openshift.yml not found")
+		t.Fatalf("Asset template/fabric8-tenant-team-openshift.yml not found")
 	}
 
 	cs := string(c)
