@@ -16,10 +16,10 @@ kind: Template
 metadata:
   labels:
     provider: fabric8
-    project: fabric8-online-team-environments
+    project: fabric8-tenant-team-environments
     version: 1.0.58
     group: io.fabric8.online.packages
-  name: fabric8-online-team-envi
+  name: fabric8-tenant-team-envi
 objects:
 - apiVersion: v1
   kind: Project
@@ -30,7 +30,7 @@ objects:
       openshift.io/requester: Aslak-User
     labels:
       provider: fabric8
-      project: fabric8-online-team-environments
+      project: fabric8-tenant-team-environments
       version: 1.0.58
       group: io.fabric8.online.packages
     name: aslak-test
@@ -43,10 +43,10 @@ kind: Template
 metadata:
   labels:
     provider: fabric8
-    project: fabric8-online-team-environments
+    project: fabric8-tenant-team-environments
     version: 1.0.58
     group: io.fabric8.online.packages
-  name: fabric8-online-team-envi
+  name: fabric8-tenant-team-envi
 objects:
 - apiVersion: v1
   kind: Namespace
@@ -57,7 +57,7 @@ objects:
       openshift.io/requester: Aslak-User
     labels:
       provider: fabric8
-      project: fabric8-online-team-environments
+      project: fabric8-tenant-team-environments
       version: 1.0.58
       group: io.fabric8.online.packages
     name: aslak-test

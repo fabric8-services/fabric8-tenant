@@ -93,32 +93,32 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		vars[varKeycloakURL] = keycloakUrl
 	}
 
-	userProjectT, err := loadTemplate(config, "fabric8-online-user-project-"+extension)
+	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
 	if err != nil {
 		return nil, err
 	}
 
-	userProjectRolesT, err := loadTemplate(config, "fabric8-online-user-rolebindings.yml")
+	userProjectRolesT, err := loadTemplate(config, "fabric8-tenant-user-rolebindings.yml")
 	if err != nil {
 		return nil, err
 	}
 
-	userProjectCollabT, err := loadTemplate(config, "fabric8-online-user-colaborators.yml")
+	userProjectCollabT, err := loadTemplate(config, "fabric8-tenant-user-colaborators.yml")
 	if err != nil {
 		return nil, err
 	}
 
-	projectT, err := loadTemplate(config, "fabric8-online-team-"+extension)
+	projectT, err := loadTemplate(config, "fabric8-tenant-team-"+extension)
 	if err != nil {
 		return nil, err
 	}
 
-	jenkinsT, err := loadTemplate(config, "fabric8-online-jenkins-"+extension)
+	jenkinsT, err := loadTemplate(config, "fabric8-tenant-jenkins-"+extension)
 	if err != nil {
 		return nil, err
 	}
 
-	cheT, err := loadTemplate(config, "fabric8-online-che-"+extension)
+	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+extension)
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +163,11 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		osoQuotas = false
 	}
 	if osoQuotas && !KubernetesMode() {
-		jenkinsQuotasT, err := loadTemplate(config, "fabric8-online-jenkins-quotas-oso-"+extension)
+		jenkinsQuotasT, err := loadTemplate(config, "fabric8-tenant-jenkins-quotas-oso-"+extension)
 		if err != nil {
 			return nil, err
 		}
-		cheQuotasT, err := loadTemplate(config, "fabric8-online-che-quotas-oso-"+extension)
+		cheQuotasT, err := loadTemplate(config, "fabric8-tenant-che-quotas-oso-"+extension)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		objs = append(objs, processed...)
 	}
 	if KubernetesMode() {
-		exposeT, err := loadTemplate(config, "fabric8-online-expose-kubernetes.yml")
+		exposeT, err := loadTemplate(config, "fabric8-tenant-expose-kubernetes.yml")
 		if err != nil {
 			return nil, err
 		}
