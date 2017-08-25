@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -34,11 +33,7 @@ type TenantController struct {
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *TenantController {
-	usersURL := os.Getenv("F8_WIT_URL")
-	if len(usersURL) == 0 {
-		usersURL = " https://api.openshift.io/"
-	}
+func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, usersURL string) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
 		tenantService:   tenantService,

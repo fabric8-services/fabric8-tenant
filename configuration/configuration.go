@@ -42,6 +42,7 @@ const (
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
+	varWitURL                          = "wit.url"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
@@ -230,6 +231,14 @@ func (c *Data) GetKeycloakURL() string {
 	return defaultKeycloakURL
 }
 
+// GetWitURL returns WIT URL
+func (c *Data) GetWitURL() string {
+	if c.v.IsSet(varWitURL) {
+		return c.v.GetString(varWitURL)
+	}
+	return defaultWitURL
+}
+
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
 func (c *Data) GetOpenshiftTenantMasterURL() string {
 	return c.v.GetString(varOpenshiftTenantMasterURL)
@@ -319,4 +328,6 @@ const (
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
 
 	defaultLogLevel = "info"
+
+	defaultWitURL = "https://api.openshift.io/"
 )

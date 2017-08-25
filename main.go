@@ -153,7 +153,8 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
+	witURL := config.GetWitURL()
+	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars, witURL)
 	app.MountTenantController(service, tenantCtrl)
 
 	// Mount "tenantkube" controller
@@ -168,6 +169,7 @@ func main() {
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
+	log.Logger().Infoln("WIT URL:        ", witURL)
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/", service.Mux)
