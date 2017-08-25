@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"sync"
 
@@ -219,6 +219,14 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			vars[k] = v
 		}
 	}
+
+	log.Info(ctx, map[string]interface{}{
+		"username": username,
+		"cheVersion": config.CheVersion,
+		"teamVersion": config.TeamVersion,
+		"jenkinsVersion": config.JenkinsVersion,
+		"mavenRepo": config.MavenRepoURL,
+	}, "init tenant")
 
 	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
 	if err != nil {
@@ -428,9 +436,6 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 // loadTemplate will load the template for a specific version from maven central or from the template directory
 // or default to the OOTB template included
 func loadTemplate(config Config, name string) ([]byte, error) {
-	cheVersion := config.CheVersion
-	jenkinsVersion := config.JenkinsVersion
-	teamVersion := config.TeamVersion
 	mavenRepo := config.MavenRepoURL
 	if mavenRepo == "" {
 		mavenRepo = os.Getenv("YAML_MVN_REPO")
@@ -439,47 +444,45 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		mavenRepo = "http://central.maven.org/maven2"
 	}
 	logCallback := config.GetLogCallback()
-	if len(teamVersion) > 0 {
-		url := ""
+	url := ""
+	if len(config.CheVersion) > 0 {
 		switch name {
 		// che
+		case "fabric8-tenant-che-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-k8s-template.yml"
 		case "fabric8-tenant-che-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-openshift.yml"
 		case "fabric8-tenant-che-quotas-oso-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-quotas-oso/$CHE_VERSION/fabric8-tenant-che-quotas-oso-$CHE_VERSION-openshift.yml"
+		}
+		if len(url) > 0 {
+			return replaceVariablesAndLoadURL(config, url, mavenRepo)
+		}
+	}
 
-		// jenkins
+	if len(config.JenkinsVersion) > 0 {
+		switch name {
+		case "fabric8-tenant-jenkins-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-k8s-template.yml"
 		case "fabric8-tenant-jenkins-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-openshift.yml"
 		case "fabric8-tenant-jenkins-quotas-oso-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins-quotas-oso/$JENKINS_VERSION/fabric8-tenant-jenkins-quotas-oso-$JENKINS_VERSION-openshift.yml"
-
-		// team
-		case "fabric8-tenant-team-openshift.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-openshift.yml"
-		case "fabric8-tenant-team-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-k8s-template.yml"
-		case "fabric8-tenant-jenkins-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$TEAM_VERSION/fabric8-tenant-jenkins-$TEAM_VERSION-k8s-template.yml"
-		case "fabric8-tenant-che-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$TEAM_VERSION/fabric8-tenant-che-$TEAM_VERSION-k8s-template.yml"
 		}
 		if len(url) > 0 {
-			url = strings.Replace(url, "$MVN_REPO", mavenRepo, -1)
-			url = strings.Replace(url, "$CHE_VERSION", cheVersion, -1)
-			url = strings.Replace(url, "$JENKINS_VERSION", jenkinsVersion, -1)
-			url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
-			logCallback(fmt.Sprintf("Loading template from URL: %s", url))
-			resp, err := http.Get(url)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
-			}
-			defer resp.Body.Close()
-			statusCode := resp.StatusCode
-			if statusCode >= 300 {
-				return nil, fmt.Errorf("Failed to GET template from %s got status code to: %d", url, statusCode)
-			}
-			return ioutil.ReadAll(resp.Body)
+			return replaceVariablesAndLoadURL(config, url, mavenRepo)
+		}
+	}
+
+	if len(config.TeamVersion) > 0 {
+		switch name {
+		case "fabric8-tenant-team-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-k8s-template.yml"
+		case "fabric8-tenant-team-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-openshift.yml"
+		}
+		if len(url) > 0 {
+			return replaceVariablesAndLoadURL(config, url, mavenRepo)
 		}
 	}
 	dir := config.TemplateDir
@@ -494,6 +497,29 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 		}
 	}
 	return template.Asset("template/" + name)
+}
+
+func replaceVariablesAndLoadURL(config Config, urlExpression string, mavenRepo string) ([]byte, error) {
+	logCallback := config.GetLogCallback()
+	cheVersion := config.CheVersion
+	jenkinsVersion := config.JenkinsVersion
+	teamVersion := config.TeamVersion
+
+	url := strings.Replace(urlExpression, "$MVN_REPO", mavenRepo, -1)
+	url = strings.Replace(url, "$CHE_VERSION", cheVersion, -1)
+	url = strings.Replace(url, "$JENKINS_VERSION", jenkinsVersion, -1)
+	url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
+	logCallback(fmt.Sprintf("Loading template from URL: %s", url))
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
+	}
+	defer resp.Body.Close()
+	statusCode := resp.StatusCode
+	if statusCode >= 300 {
+		return nil, fmt.Errorf("Failed to GET template from %s got status code to: %d", url, statusCode)
+	}
+	return ioutil.ReadAll(resp.Body)
 }
 
 func executeNamespaceSync(template string, vars map[string]string, opts ApplyOptions) error {
