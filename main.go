@@ -82,6 +82,12 @@ func main() {
 		}
 	}
 
+	if config.GetOpenshiftCheVersion() != "" {
+		log.Logger().Infof("Che Version: %s", config.GetOpenshiftCheVersion())
+	}
+	if config.GetOpenshiftJenkinsVersion() != "" {
+		log.Logger().Infof("Jenkins Version: %s", config.GetOpenshiftJenkinsVersion())
+	}
 	if config.GetOpenshiftTeamVersion() != "" {
 		log.Logger().Infof("Team Version: %s", config.GetOpenshiftTeamVersion())
 	}
@@ -90,11 +96,13 @@ func main() {
 	}
 
 	openshiftConfig := openshift.Config{
-		MasterURL:     config.GetOpenshiftTenantMasterURL(),
-		Token:         serviceToken,
-		HttpTransport: tr,
-		TeamVersion:   config.GetOpenshiftTeamVersion(),
-		TemplateDir:   config.GetOpenshiftTemplateDir(),
+		MasterURL:      config.GetOpenshiftTenantMasterURL(),
+		Token:          serviceToken,
+		HttpTransport:  tr,
+		CheVersion:     config.GetOpenshiftCheVersion(),
+		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
+		TeamVersion:    config.GetOpenshiftTeamVersion(),
+		TemplateDir:    config.GetOpenshiftTemplateDir(),
 	}
 
 	openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)
@@ -145,7 +153,8 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
+	witURL := config.GetWitURL()
+	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars, witURL)
 	app.MountTenantController(service, tenantCtrl)
 
 	// Mount "tenantkube" controller
@@ -160,6 +169,7 @@ func main() {
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
+	log.Logger().Infoln("WIT URL:        ", witURL)
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/", service.Mux)

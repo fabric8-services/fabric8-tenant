@@ -33,6 +33,8 @@ const (
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
+	varOpenshiftCheVersion             = "openshift.che.version"
+	varOpenshiftJenkinsVersion         = "openshift.jenkins.version"
 	varOpenshiftTeamVersion            = "openshift.team.version"
 	varOpenshiftTemplateDir            = "openshift.template.dir"
 	varOpenshiftServiceToken           = "openshift.service.token"
@@ -40,6 +42,7 @@ const (
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
+	varWitURL                          = "wit.url"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
@@ -228,14 +231,32 @@ func (c *Data) GetKeycloakURL() string {
 	return defaultKeycloakURL
 }
 
+// GetWitURL returns WIT URL
+func (c *Data) GetWitURL() string {
+	if c.v.IsSet(varWitURL) {
+		return c.v.GetString(varWitURL)
+	}
+	return defaultWitURL
+}
+
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
 func (c *Data) GetOpenshiftTenantMasterURL() string {
 	return c.v.GetString(varOpenshiftTenantMasterURL)
 }
 
-// GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant namespaces
+// GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant team namespaces and roles
 func (c *Data) GetOpenshiftTeamVersion() string {
 	return c.v.GetString(varOpenshiftTeamVersion)
+}
+
+// GetOpenshiftCheVersion returns the team version of YAML files used to provision tenant che
+func (c *Data) GetOpenshiftCheVersion() string {
+	return c.v.GetString(varOpenshiftCheVersion)
+}
+
+// GetOpenshiftJenkinsVersion returns the team version of YAML files used to provision tenant jenkins
+func (c *Data) GetOpenshiftJenkinsVersion() string {
+	return c.v.GetString(varOpenshiftJenkinsVersion)
 }
 
 // GetOpenshiftTemplateDir returns the directory containing the local team YAML files
@@ -307,4 +328,6 @@ const (
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
 
 	defaultLogLevel = "info"
+
+	defaultWitURL = "https://api.openshift.io/"
 )

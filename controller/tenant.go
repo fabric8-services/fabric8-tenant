@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/bitly/go-simplejson"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
@@ -27,16 +29,18 @@ type TenantController struct {
 	keycloakConfig  keycloak.Config
 	openshiftConfig openshift.Config
 	templateVars    map[string]string
+	usersURL        string
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, usersURL string) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
 		tenantService:   tenantService,
 		keycloakConfig:  keycloakConfig,
 		openshiftConfig: openshiftConfig,
 		templateVars:    templateVars,
+		usersURL:        usersURL,
 	}
 }
 
@@ -71,10 +75,17 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 	c.tenantService.UpdateTenant(tenant)
 
+	oc, err := c.loadUserTenantConfiguration(token, c.openshiftConfig)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to load user tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
 	go func() {
 		ctx := ctx
 		t := tenant
-		oc := c.openshiftConfig
 		err = openshift.RawInitTenant(
 			ctx,
 			oc,
@@ -124,13 +135,21 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
 	}
 
+	rawOC := &c.openshiftConfig
+	if openshift.KubernetesMode() {
+		rawOC = &userConfig
+	}
+	oc, err := c.loadUserTenantConfiguration(token, *rawOC)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to load user tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
 	go func() {
 		ctx := ctx
 		t := tenant
-		oc := c.openshiftConfig
-		if openshift.KubernetesMode() {
-			oc = userConfig
-		}
 		err = openshift.RawUpdateTenant(
 			ctx,
 			oc,
@@ -148,6 +167,39 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData, app.TenantHref()))
 	return ctx.Accepted()
+}
+
+func (c *TenantController) loadUserTenantConfiguration(token *jwt.Token, config openshift.Config) (openshift.Config, error) {
+	authHeader := token.Raw
+	if len(c.usersURL) > 0 {
+		url := strings.TrimSuffix(c.usersURL, "/") + "/user"
+		status, body, err := openshift.GetJSON(config, url, authHeader)
+		if err != nil {
+			return config, err
+		}
+		if status < 200 || status > 300 {
+			return config, fmt.Errorf("Failed to GET url %s due to status code %d", url, status)
+		}
+		js, err := simplejson.NewJson([]byte(body))
+		if err != nil {
+			return config, err
+		}
+
+		tenantConfig := js.GetPath("data", "attributes", "contextInformation", "tenantConfig")
+		if tenantConfig.Interface() != nil {
+			cheVersion := getJsonStringOrBlank(tenantConfig, "cheVersion")
+			jenkinsVersion := getJsonStringOrBlank(tenantConfig, "jenkinsVersion")
+			teamVersion := getJsonStringOrBlank(tenantConfig, "teamVersion")
+			mavenRepoURL := getJsonStringOrBlank(tenantConfig, "mavenRepo")
+			return config.WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL), nil
+		}
+	}
+	return config, nil
+}
+
+func getJsonStringOrBlank(json *simplejson.Json, key string) string {
+	text, _ := json.Get(key).String()
+	return text
 }
 
 func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (string, error) {

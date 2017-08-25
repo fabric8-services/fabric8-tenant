@@ -22,7 +22,7 @@ var processTemplate = `
       serviceaccounts.openshift.io/oauth-redirectreference.jenkins: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"jenkins"}}'
     labels:
       provider: fabric8
-      project: fabric8-online-team-environments
+      project: fabric8-tenant-team-environments
       version: 1.0.58
       group: io.fabric8.online.packages
     name: ${PROJECT_NAME}
@@ -38,7 +38,7 @@ var processTemplateVariables = `
   metadata:
     labels:
       provider: fabric8
-      project: fabric8-online-team-environments
+      project: fabric8-tenant-team-environments
       version: 1.0.58
       group: io.fabric8.online.packages
     credentials.xml.tpl: |-

@@ -85,13 +85,13 @@ template/bindata.go
 bin/
 
 #Ignore dynamically downloaded templates
-template/fabric8-online-che-openshift.yml
-template/fabric8-online-che-quotas-oso-openshift.yml
-template/fabric8-online-jenkins-openshift.yml
-template/fabric8-online-jenkins-quotas-oso-openshift.yml
-template/fabric8-online-team-openshift.yml
-template/fabric8-online-che-kubernetes.yml
-template/fabric8-online-jenkins-kubernetes.yml
-template/fabric8-online-team-kubernetes.yml
-template/fabric8-online-expose-kubernetes.yml
+template/fabric8-tenant-che-openshift.yml
+template/fabric8-tenant-che-quotas-oso-openshift.yml
+template/fabric8-tenant-jenkins-openshift.yml
+template/fabric8-tenant-jenkins-quotas-oso-openshift.yml
+template/fabric8-tenant-team-openshift.yml
+template/fabric8-tenant-che-kubernetes.yml
+template/fabric8-tenant-jenkins-kubernetes.yml
+template/fabric8-tenant-team-kubernetes.yml
+template/fabric8-tenant-expose-kubernetes.yml
 

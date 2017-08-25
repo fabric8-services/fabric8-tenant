@@ -1,4 +1,12 @@
-## Service for initializing the tenant services in DSaas
+## Service for initializing and updating the tenant services in fabric8/openshift.io
+
+The YAML for the tenant services is defined in the following projects:
+
+* che : https://github.com/fabric8-services/fabric8-tenant-che
+* jenkins : https://github.com/fabric8-services/fabric8-tenant-jenkins
+* team : https://github.com/fabric8-services/fabric8-tenant-team
+
+### Testing
 
 Tips to running unit tests - this command seems to work on OS X:
 
