@@ -82,6 +82,12 @@ func main() {
 		}
 	}
 
+	if config.GetOpenshiftCheVersion() != "" {
+		log.Logger().Infof("Che Version: %s", config.GetOpenshiftCheVersion())
+	}
+	if config.GetOpenshiftJenkinsVersion() != "" {
+		log.Logger().Infof("Jenkins Version: %s", config.GetOpenshiftJenkinsVersion())
+	}
 	if config.GetOpenshiftTeamVersion() != "" {
 		log.Logger().Infof("Team Version: %s", config.GetOpenshiftTeamVersion())
 	}
@@ -90,11 +96,13 @@ func main() {
 	}
 
 	openshiftConfig := openshift.Config{
-		MasterURL:     config.GetOpenshiftTenantMasterURL(),
-		Token:         serviceToken,
-		HttpTransport: tr,
-		TeamVersion:   config.GetOpenshiftTeamVersion(),
-		TemplateDir:   config.GetOpenshiftTemplateDir(),
+		MasterURL:      config.GetOpenshiftTenantMasterURL(),
+		Token:          serviceToken,
+		HttpTransport:  tr,
+		CheVersion:     config.GetOpenshiftCheVersion(),
+		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
+		TeamVersion:    config.GetOpenshiftTeamVersion(),
+		TemplateDir:    config.GetOpenshiftTemplateDir(),
 	}
 
 	openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)
