@@ -221,11 +221,11 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 	}
 
 	log.Info(ctx, map[string]interface{}{
-		"username": username,
-		"cheVersion": config.CheVersion,
-		"teamVersion": config.TeamVersion,
+		"username":       username,
+		"cheVersion":     config.CheVersion,
+		"teamVersion":    config.TeamVersion,
 		"jenkinsVersion": config.JenkinsVersion,
-		"mavenRepo": config.MavenRepoURL,
+		"mavenRepo":      config.MavenRepoURL,
 	}, "init tenant")
 
 	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
