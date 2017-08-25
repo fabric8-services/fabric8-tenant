@@ -6,13 +6,33 @@ The YAML for the tenant services is defined in the following projects:
 * jenkins : https://github.com/fabric8-services/fabric8-tenant-jenkins
 * team : https://github.com/fabric8-services/fabric8-tenant-team
 
-### Testing
+### Testing YAML
+
+When a PR is made on one of the above YAML repos you can test in production in your tenant via the following:
+
+* http://openshift.io/ and login
+* go to your Profile page (click the top right drop down and select `Profile`)
+* add `/_tenant` to your browsers address bar - so you will be looking at a URL like https://openshift.io/my-user-name/_tenant
+* enter the PR version number (it should be reported in a comment on the PR) along with the maven repo that the PR has been pushed to
+* click `Update Profile`
+* now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] - you're tenant should now be running the PR
+
+To go back to using the default YAML:
+
+* go back to your tenant page like https://openshift.io/my-user-name/_tenant
+* click `Clear Values`
+* click `Update Profile`
+* now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] and you should be back to the default versions
+
+### Unit Testing Go
 
 Tips to running unit tests - this command seems to work on OS X:
 
 ```
 make clean && make && make deps && glide update && make test-unit
 ```
+
+
 
 ### Rapid development on Minikube / Minishift
 
