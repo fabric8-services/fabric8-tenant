@@ -16,6 +16,7 @@ const (
 	FieldAPIVersion               = "apiVersion"
 	FieldObjects                  = "objects"
 	FieldSpec                     = "spec"
+	FieldTemplate                 = "template"
 	FieldItems                    = "items"
 	FieldMetadata                 = "metadata"
 	FieldLabels                   = "labels"
@@ -313,14 +314,32 @@ func GetKind(obj map[interface{}]interface{}) string {
 }
 
 func GetLabelVersion(obj map[interface{}]interface{}) string {
+	return GetLabel(obj, FieldVersion)
+}
+
+func GetLabel(obj map[interface{}]interface{}, name string) string {
 	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
 		if labels, labelsFound := meta[FieldLabels].(map[interface{}]interface{}); labelsFound {
-			if version, versionFound := labels[FieldVersion].(string); versionFound {
+			if version, versionFound := labels[name].(string); versionFound {
 				return version
 			}
 		}
 	}
 	return ""
+}
+
+func GetSpec(obj map[interface{}]interface{}) map[interface{}]interface{} {
+	if spec, specFound := obj[FieldSpec].(map[interface{}]interface{}); specFound {
+		return spec
+	}
+	return map[interface{}]interface{}{}
+}
+
+func GetTemplate(obj map[interface{}]interface{}) map[interface{}]interface{} {
+	if template, templateFound := obj[FieldTemplate].(map[interface{}]interface{}); templateFound {
+		return template
+	}
+	return map[interface{}]interface{}{}
 }
 
 // ParseObjects return a string yaml and return a array of the objects/items from a Template/List kind
