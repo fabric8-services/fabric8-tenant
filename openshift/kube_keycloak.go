@@ -66,13 +66,15 @@ func EnsureKeyCloakHasJenkinsRedirectURL(config Config, kcConfig keycloak.Config
 		return fmt.Sprintf("Cannot query the keycloak realm %s for client %s", realm, clientID), fmt.Errorf("Failed to load KeyCloak client at %s status code %d", clientsURL, status)
 	}
 	redirectURL := strings.TrimSuffix(jenkinsUrl, "/") + "/securityRealm/finishLogin"
-	id, jsonText, err := addRedirectUrl(jsonText, redirectURL)
+	id, updatedJson, err := addRedirectUrl(jsonText, redirectURL)
 	if err != nil {
 		return "Failed to add redirectURL for Jenkins into KeyCLoak JSON", err
 	}
-	if len(jsonText) > 0 {
+	if len(updatedJson) > 0 {
+		//fmt.Printf("client JSON before update: %s\n", jsonText)
+		//fmt.Printf("client JSON after update: %s\n", updatedJson)
 		clientURL := clientsURL + "/" + id
-		_, err = postJson(config, "PUT", clientURL, token, jsonText)
+		_, err = postJson(config, "PUT", clientURL, token, updatedJson)
 		if err != nil {
 			return "Failed to register redirectURL for Jenkins into KeyCloak", err
 		}
@@ -144,6 +146,26 @@ func addRedirectUrl(jsonText string, url string) (string, string, error) {
 	}
 	redirectUris = append(redirectUris, url)
 	obj.Set("redirectUris", redirectUris)
+
+	// lets set the auth flags which seem to get removed for some reason
+	// no idea why mind you! but lets make sure these values are populated!
+	// for background see: https://github.com/fabric8-services/fabric8-auth/issues/91
+	authScopes := []map[string]interface{}{
+		{
+			"name": "read:space",
+		},
+		{
+			"name": "admin:space",
+		},
+	}
+	authorizationSettings := map[string]interface{}{
+		"allowRemoteResourceManagement": true,
+		"policyEnforcementMode":         "ENFORCING",
+		"scopes":                        authScopes,
+	}
+
+	obj.Set("authorizationServicesEnabled", true)
+	obj.Set("authorizationSettings", authorizationSettings)
 
 	data, err := obj.MarshalJSON()
 	if err != nil {
