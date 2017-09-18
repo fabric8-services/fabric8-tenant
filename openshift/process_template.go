@@ -91,6 +91,14 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 			return nil, fmt.Errorf("Could not find the KeyCloak URL: %v", err)
 		}
 		vars[varKeycloakURL] = keycloakUrl
+
+		projectVars, err := LoadKubernetesProjectVariables()
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range projectVars {
+			vars[k] = v
+		}
 	}
 
 	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
