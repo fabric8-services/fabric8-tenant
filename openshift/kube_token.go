@@ -14,6 +14,8 @@ import (
 const (
 	exposeAnnotation          = "fabric8.io/exposeUrl"
 	externalDockerRegistryURL = "EXTERNAL_DOCKER_REGISTRY_URL"
+	fabric8DockerRegistryHost = "FABRIC8_DOCKER_REGISTRY_SERVICE_HOST"
+	fabric8DockerRegistryPort = "FABRIC8_DOCKER_REGISTRY_SERVICE_PORT"
 )
 
 // GetOrCreateKubeToken will try to load the ServiceAccount for the given user name
@@ -171,11 +173,17 @@ func LoadExposeControllerVariables(config Config) (map[string]string, error) {
 // LoadKubernetesProjectVariables loads the jenkins template parameter values
 func LoadKubernetesProjectVariables() (map[string]string, error) {
 	answer := map[string]string{}
-	externalDockerRegistry := os.Getenv(externalDockerRegistryURL)
-	if externalDockerRegistryURL == "" {
-		return answer, fmt.Errorf("No value found for env var %s, this is required by tenant pipelines", externalDockerRegistryURL)
+	dockerRegistry := os.Getenv(externalDockerRegistryURL)
+	if dockerRegistry == "" {
+		host := os.Getenv(fabric8DockerRegistryHost)
+		port := os.Getenv(fabric8DockerRegistryPort)
+		if host != "" && port != "" {
+			dockerRegistry = host + ":" + port
+		} else {
+			return answer, fmt.Errorf("No internal or external docker registry found, required by tenant pipelines")
+		}
 	}
-	answer[externalDockerRegistryURL] = externalDockerRegistry
+	answer[externalDockerRegistryURL] = dockerRegistry
 	return answer, nil
 }
 
