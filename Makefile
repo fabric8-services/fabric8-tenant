@@ -3,7 +3,7 @@ PACKAGE_NAME := github.com/fabric8-services/fabric8-tenant
 CHE_VERSION=$(shell cat CHE_VERSION)
 JENKINS_VERSION=$(shell cat JENKINS_VERSION)
 TEAM_VERSION=$(shell cat TEAM_VERSION)
-PLATFORM_VERSION=$(shell cat PLATFORM_VERSION)
+EXPOSCONTROLLER_VERSION=$(shell cat EXPOSCONTROLLER_VERSION)
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin
@@ -145,7 +145,7 @@ migration/sqlbindata.go: $(GO_BINDATA_BIN) $(wildcard migration/sql-files/*.sql)
 		migration/sql-files
 
 template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
-	CHE_VERSION=$(CHE_VERSION) JENKINS_VERSION=$(JENKINS_VERSION) TEAM_VERSION=$(TEAM_VERSION) PLATFORM_VERSION=$(PLATFORM_VERSION) go generate template/generate.go
+	CHE_VERSION=$(CHE_VERSION) JENKINS_VERSION=$(JENKINS_VERSION) TEAM_VERSION=$(TEAM_VERSION) EXPOSCONTROLLER_VERSION=$(EXPOSCONTROLLER_VERSION) go generate template/generate.go
 	$(GO_BINDATA_BIN) \
 		-o template/bindata.go \
 		-pkg template \
