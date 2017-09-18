@@ -9,6 +9,6 @@
 //go:generate sh -c "curl http://central.maven.org/maven2/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-openshift.yml > fabric8-tenant-team-openshift.yml"
 //go:generate sh -c "curl http://central.maven.org/maven2/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-k8s-template.yml > fabric8-tenant-team-kubernetes.yml"
 
-//go:generate sh -c "curl http://central.maven.org/maven2/io/fabric8/platform/apps/exposecontroller/$PLATFORM_VERSION/exposecontroller-$PLATFORM_VERSION-k8s-template.yml > fabric8-tenant-expose-kubernetes.yml"
+//go:generate sh -c "curl http://central.maven.org/maven2/io/fabric8/apps/exposecontroller-app/$EXPOSCONTROLLER_VERSION/exposecontroller-app-$EXPOSCONTROLLER_VERSION-k8s-template.yml > fabric8-tenant-expose-kubernetes.yml"
 
 package template
