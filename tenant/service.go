@@ -9,6 +9,7 @@ type Service interface {
 	Exists(tenantID uuid.UUID) bool
 	GetTenant(tenantID uuid.UUID) (*Tenant, error)
 	GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error)
+	GetAllNamespaces() ([]*Namespace, error)
 	UpdateTenant(tenant *Tenant) error
 	UpdateNamespace(namespace *Namespace) error
 }
@@ -53,6 +54,15 @@ func (s DBService) UpdateNamespace(namespace *Namespace) error {
 func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	var t []*Namespace
 	err := s.db.Table(Namespace{}.TableName()).Where("tenant_id = ?", tenantID).Find(&t).Error
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func (s DBService) GetAllNamespaces() ([]*Namespace, error) {
+	var t []*Namespace
+	err := s.db.Table(Namespace{}.TableName()).Find(&t).Error
 	if err != nil {
 		return nil, err
 	}

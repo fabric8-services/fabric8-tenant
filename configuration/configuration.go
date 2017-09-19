@@ -49,6 +49,7 @@ const (
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
+	varACLListNamespaces               = "acl.list.namespaces"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -121,6 +122,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
 	c.v.SetDefault(varAuthURL, defaultAuthURL)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
+	c.v.SetDefault(varACLListNamespaces, "")
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
@@ -300,6 +302,11 @@ func (c *Data) UseOpenshiftCurrentCluster() bool {
 // APIServerInsecureSkipTLSVerify returns if the server's certificate should be checked for validity. This will make your HTTPS connections insecure.
 func (c *Data) APIServerInsecureSkipTLSVerify() bool {
 	return c.v.GetBool(varAPIServerInsecureSkipTLSVerify)
+}
+
+// ACLListTenants returns the users allowed to list all namespaces
+func (c *Data) ACLListNamespaces() string {
+	return c.v.GetString(varACLListNamespaces)
 }
 
 // GetLogLevel returns the loggging level (as set via config file or environment variable)
