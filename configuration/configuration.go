@@ -29,6 +29,8 @@ const (
 	varPostgresConnectionMaxOpen       = "postgres.connection.maxopen"
 	varHTTPAddress                     = "http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
+	varKeycloakAuthServerURL           = "keycloak.auth.server.url"
+	varKeycloakClientID                = "keycloak.client.id"
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
@@ -317,9 +319,11 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 	}
 
 	return map[string]string{
-		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
-		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
-		"DOMAIN":                    c.v.GetString(varTemplateDomain),
+		"RECOMMENDER_EXTERNAL_NAME":      c.v.GetString(varTemplateRecommenderExternalName),
+		"RECOMMENDER_API_TOKEN":          base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
+		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.v.GetString(varKeycloakAuthServerURL),
+		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
+		"CHE_KEYCLOAK_CLIENT__ID":        c.v.GetString(varKeycloakClientID),
 	}, nil
 }
 
