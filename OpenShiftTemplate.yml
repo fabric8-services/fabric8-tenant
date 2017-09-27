@@ -75,6 +75,11 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: keycloak.url
+          - name: F8_WIT_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: wit.url
           - name: F8_OPENSHIFT_TENANT_MASTERURL
             valueFrom:
               configMapKeyRef:
