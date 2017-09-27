@@ -329,5 +329,5 @@ const (
 
 	defaultLogLevel = "info"
 
-	defaultWitURL = "https://api.openshift.io/api/"
+	defaultWitURL = "https://api.prod-preview.openshift.io/api/"
 )
