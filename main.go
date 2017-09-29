@@ -11,7 +11,6 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -27,6 +26,7 @@ import (
 	"github.com/goadesign/goa/middleware/gzip"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 
 	goalogrus "github.com/goadesign/goa/logging/logrus"
 	"github.com/spf13/viper"
