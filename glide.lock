@@ -1,5 +1,5 @@
-hash: 8b24609580b84e8c73f0576d3121ee083a2e330a28c3a7e338a077ae78bf3fb5
-updated: 2017-08-23T12:41:26.376382803+02:00
+hash: 5156b9784e7cdc7cf1dc7f4e469f9a0a4d84af808015943a129a3547d55d7c18
+updated: 2017-09-29T14:41:01.953014194+02:00
 imports:
 - name: github.com/armon/go-metrics
   version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
@@ -31,7 +31,7 @@ imports:
 - name: github.com/fzipp/gocyclo
   version: 6acd4345c835499920e8426c7e4e8d7a34f1bb83
 - name: github.com/goadesign/goa
-  version: 58f3177f36f2c50ee6119da92795e48bac6d6243
+  version: 5646a430cdeb66983d5ace3384e0a667c185abc7
   vcs: git
   subpackages:
   - client
@@ -92,6 +92,8 @@ imports:
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/sirupsen/logrus
+  version: c078b1e43f58d563c74cebe63c85789e76ddb627
+- name: github.com/Sirupsen/logrus
   version: c078b1e43f58d563c74cebe63c85789e76ddb627
 - name: github.com/spf13/afero
   version: 2f30b2a92c0e5700bcfe4715891adb1f2a7a406d
