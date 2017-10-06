@@ -21,14 +21,13 @@ goTemplate{
         junit 'junit.xml'
         
       } else if (utils.isCD()){
-        def v = goRelease{
+        releaseVersion = goRelease{
           githubOrganisation = 'fabric8-services'
           dockerOrganisation = 'fabric8'
           project = 'fabric8-tenant'
           dockerBuildOptions = '--file Dockerfile.deploy'
         }
 
-        releaseVersion = readFile('TEAM_VERSION').trim()
         initServiceGitHash = sh(script: 'git rev-parse HEAD', returnStdout: true).toString().trim()
 
         pushPomPropertyChangePR{
@@ -36,7 +35,7 @@ goTemplate{
             projects = [
                     'fabric8io/fabric8-platform'
             ]
-            version = v
+            version = releaseVersion
             containerName = 'go'
         }
       }
