@@ -3,6 +3,15 @@
 def utils = new io.fabric8.Utils()
 def initServiceGitHash
 def releaseVersion
+
+// wait until the slower ci centos build has finished, then we know the image is in the devtools registry
+node {
+  checkout scm
+  if (utils.isCD()){
+    waitForCentosCIJob()
+  }
+}
+
 goTemplate{
   dockerNode{
     ws {
@@ -21,14 +30,13 @@ goTemplate{
         junit 'junit.xml'
         
       } else if (utils.isCD()){
-        def v = goRelease{
+        releaseVersion = goRelease{
           githubOrganisation = 'fabric8-services'
           dockerOrganisation = 'fabric8'
           project = 'fabric8-tenant'
           dockerBuildOptions = '--file Dockerfile.deploy'
         }
 
-        releaseVersion = readFile('TEAM_VERSION').trim()
         initServiceGitHash = sh(script: 'git rev-parse HEAD', returnStdout: true).toString().trim()
 
         pushPomPropertyChangePR{
@@ -36,7 +44,7 @@ goTemplate{
             projects = [
                     'fabric8io/fabric8-platform'
             ]
-            version = v
+            version = releaseVersion
             containerName = 'go'
         }
       }
@@ -69,6 +77,46 @@ goTemplate{
           flow.mergePR(gitRepo, prId)
         }
       }
+    }
+  }
+}
+
+def waitForCentosCIJob(){
+  retry(5){
+    // skip the merge commit and get the git sha for the actual change
+    def commit = sh(script: "git --no-pager log -1 --no-merges  --pretty=format:\"%H\"", returnStdout: true).toString().trim()
+    echo "Check CI centos has finished it's build for commit ${commit}"
+    def jobListUrl = new URL("https://ci.centos.org/view/Devtools/job/devtools-fabric8-tenant-build-master/api/json?tree=builds[id,changeSet[items[commitId]]]")
+    def rs = restGetURL{
+      url = jobListUrl
+    }
+    def buildNumber
+    for (build in rs.builds){
+      if (build.changeSet){
+        for (item in build.changeSet.items){
+          if (commit == item.commitId){
+            echo "matched commit ${commit}"
+            buildNumber = build.id
+            break
+          }
+        }
+      }
+      if (buildNumber){
+        break
+      }
+    }
+    if (!buildNumber){
+        error "no CI centos build found yet for commit ${commit}"
+        sleep 60
+    }
+
+    waitUntil {
+      def buildUrl = new URL("https://ci.centos.org/view/Devtools/job/devtools-fabric8-tenant-build-master/${buildNumber}/api/json")
+      def build = restGetURL{
+        url = buildUrl
+      }
+      echo "CI centos build ${buildNumber} is ${build.result}"
+      build.result == 'SUCCESS'
     }
   }
 }
