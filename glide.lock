@@ -1,8 +1,8 @@
-hash: 8b24609580b84e8c73f0576d3121ee083a2e330a28c3a7e338a077ae78bf3fb5
-updated: 2017-08-23T12:41:26.376382803+02:00
+hash: 67844d63b9e8a6d1523382d66614f2b0b4edd249e278ec06f1c28f848367689f
+updated: 2017-10-13T03:38:16.496607021+02:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
+  version: 9a4b6e10bed6220a1665955aa2b75afc91eb10b3
 - name: github.com/bitly/go-simplejson
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/dgrijalva/jwt-go
@@ -16,7 +16,7 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-wit
-  version: 58db841e76891f1251bdec86908c61360f11d375
+  version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
   subpackages:
   - configuration
   - errors
@@ -31,7 +31,7 @@ imports:
 - name: github.com/fzipp/gocyclo
   version: 6acd4345c835499920e8426c7e4e8d7a34f1bb83
 - name: github.com/goadesign/goa
-  version: 58f3177f36f2c50ee6119da92795e48bac6d6243
+  version: 5646a430cdeb66983d5ace3384e0a667c185abc7
   vcs: git
   subpackages:
   - client
@@ -54,6 +54,12 @@ imports:
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
   subpackages:
   - golint
+- name: github.com/hashicorp/go-immutable-radix
+  version: 8aac2701530899b64bdea735a1de8da899815220
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
 - name: github.com/hashicorp/hcl
   version: 37ab263305aaeb501a60eb16863e808d426e37f2
   subpackages:
@@ -91,7 +97,7 @@ imports:
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
-- name: github.com/Sirupsen/logrus
+- name: github.com/sirupsen/logrus
   version: c078b1e43f58d563c74cebe63c85789e76ddb627
 - name: github.com/spf13/afero
   version: 2f30b2a92c0e5700bcfe4715891adb1f2a7a406d

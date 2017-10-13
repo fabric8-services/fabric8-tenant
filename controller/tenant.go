@@ -102,7 +102,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		}
 	}()
 
-	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData, app.TenantHref()))
+	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 
@@ -165,7 +165,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		}
 	}()
 
-	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData, app.TenantHref()))
+	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 

@@ -3,7 +3,7 @@ import:
 - package: github.com/dgrijalva/jwt-go
   version: ^3.0.0
 - package: github.com/goadesign/goa
-  version: ^1.1.0
+  version: ^1.3.0
   vcs: git
   subpackages:
   - client
@@ -19,7 +19,7 @@ import:
   - middleware
   - middleware/security/jwt
 - package: github.com/fabric8-services/fabric8-wit
-  version: 58db841e76891f1251bdec86908c61360f11d375
+  version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
   subpackages:
     - log
     - errors
@@ -36,7 +36,7 @@ import:
   subpackages:
   - golint
 - package: github.com/fzipp/gocyclo
-- package: github.com/Sirupsen/logrus
+- package: github.com/sirupsen/logrus
 - package: github.com/lib/pq
 - package: github.com/stretchr/testify
   subpackages:
