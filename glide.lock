@@ -1,8 +1,8 @@
-hash: 5156b9784e7cdc7cf1dc7f4e469f9a0a4d84af808015943a129a3547d55d7c18
-updated: 2017-09-29T14:41:01.953014194+02:00
+hash: 67844d63b9e8a6d1523382d66614f2b0b4edd249e278ec06f1c28f848367689f
+updated: 2017-10-13T03:38:16.496607021+02:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
+  version: 9a4b6e10bed6220a1665955aa2b75afc91eb10b3
 - name: github.com/bitly/go-simplejson
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/dgrijalva/jwt-go
@@ -16,7 +16,7 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-wit
-  version: 58db841e76891f1251bdec86908c61360f11d375
+  version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
   subpackages:
   - configuration
   - errors
@@ -54,6 +54,12 @@ imports:
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
   subpackages:
   - golint
+- name: github.com/hashicorp/go-immutable-radix
+  version: 8aac2701530899b64bdea735a1de8da899815220
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
 - name: github.com/hashicorp/hcl
   version: 37ab263305aaeb501a60eb16863e808d426e37f2
   subpackages:
