@@ -29,6 +29,8 @@ const (
 	varPostgresConnectionMaxOpen       = "postgres.connection.maxopen"
 	varHTTPAddress                     = "http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
+	varKeycloakAuthServerURL           = "keycloak.auth.server.url"
+	varKeycloakClientID                = "keycloak.client.id"
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
@@ -205,7 +207,23 @@ func (c *Data) IsDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
 }
 
-// GetKeycloakRealm returns the keyclaok realm name
+// GetKeycloakAuthServerURL returns the keycloak auth server URL (mostly for Che)
+func (c *Data) GetKeycloakAuthServerURL() string {
+	if c.v.IsSet(varKeycloakAuthServerURL) {
+		return c.v.GetString(varKeycloakAuthServerURL)
+	}
+	return ""
+}
+
+// GetKeycloakClientID returns the keycloak client id (mostly for Che)
+func (c *Data) GetKeycloakClientID() string {
+	if c.v.IsSet(varKeycloakClientID) {
+		return c.v.GetString(varKeycloakClientID)
+	}
+	return ""
+}
+
+// GetKeycloakRealm returns the keycloak realm name
 func (c *Data) GetKeycloakRealm() string {
 	if c.v.IsSet(varKeycloakRealm) {
 		return c.v.GetString(varKeycloakRealm)
@@ -216,7 +234,7 @@ func (c *Data) GetKeycloakRealm() string {
 	return defaultKeycloakRealm
 }
 
-// GetKeycloakOpenshiftBroker returns the keyclaok broker name for openshift
+// GetKeycloakOpenshiftBroker returns the keycloak broker name for openshift
 func (c *Data) GetKeycloakOpenshiftBroker() string {
 	return c.v.GetString(varKeycloakOpenshiftBroker)
 }
@@ -320,6 +338,9 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
 		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
 		"DOMAIN":                    c.v.GetString(varTemplateDomain),
+		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakAuthServerURL(),
+		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
+		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),
 	}, nil
 }
 
