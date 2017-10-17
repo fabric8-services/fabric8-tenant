@@ -97,6 +97,7 @@ func main() {
 
 	openshiftConfig := openshift.Config{
 		MasterURL:      config.GetOpenshiftTenantMasterURL(),
+		ConsoleURL:     config.GetConsoleURL(),
 		Token:          serviceToken,
 		HttpTransport:  tr,
 		CheVersion:     config.GetOpenshiftCheVersion(),

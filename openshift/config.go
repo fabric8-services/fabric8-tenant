@@ -12,6 +12,7 @@ type Config struct {
 	HttpTransport  *http.Transport
 	TemplateDir    string
 	MavenRepoURL   string
+	ConsoleURL     string
 	TeamVersion    string
 	CheVersion     string
 	JenkinsVersion string

@@ -32,6 +32,7 @@ const (
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
+	varConsoleURL                      = "console.url"
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
 	varOpenshiftCheVersion             = "openshift.che.version"
 	varOpenshiftJenkinsVersion         = "openshift.jenkins.version"
@@ -229,6 +230,14 @@ func (c *Data) GetKeycloakURL() string {
 		return devModeKeycloakURL
 	}
 	return defaultKeycloakURL
+}
+
+// GetConsoleURL returns the fabric8-ui Console URL
+func (c *Data) GetConsoleURL() string {
+	if c.v.IsSet(varConsoleURL) {
+		return c.v.GetString(varConsoleURL)
+	}
+	return ""
 }
 
 // GetWitURL returns WIT URL
