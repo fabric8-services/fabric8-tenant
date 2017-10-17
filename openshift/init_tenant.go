@@ -32,7 +32,6 @@ const (
 	varProjectAdminUser      = "PROJECT_ADMIN_USER"
 	varProjectNamespace      = "PROJECT_NAMESPACE"
 	varKeycloakURL           = "KEYCLOAK_URL"
-	varFabric8ConsoleURL     = "FABRIC8_CONSOLE_URL"
 )
 
 // InitTenant initializes a new tenant in openshift
@@ -220,7 +219,6 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 			vars[k] = v
 		}
 	}
-	vars[varFabric8ConsoleURL] = config.ConsoleURL
 
 	log.Info(ctx, map[string]interface{}{
 		"username":       username,

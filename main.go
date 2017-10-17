@@ -125,6 +125,8 @@ func main() {
 		panic(err)
 	}
 
+	templateVars["KEYCLOAK_URL"] = ""
+	templateVars["FABRIC8_CONSOLE_URL"] = openshiftConfig.ConsoleURL
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
 	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("github")
 
