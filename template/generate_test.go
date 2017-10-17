@@ -34,7 +34,7 @@ func TestFoundJenkins(t *testing.T) {
 		t.Fatalf("parameters not found")
 	}
 
-	assert.Equal(t, 5, len(params), "unknown number of parameters")
+	assert.Equal(t, 6, len(params), "unknown number of parameters")
 }
 
 func TestFoundJenkinsQuotasOSO(t *testing.T) {
@@ -120,7 +120,7 @@ func TestFoundTeam(t *testing.T) {
 		t.Fatalf("parameters not found")
 	}
 	// 1 parameter not used in Openshift templates but bleed through from k8
-	assert.Equal(t, 6, len(params), "unknown number of parameters")
+	assert.Equal(t, 8, len(params), "unknown number of parameters")
 }
 
 func TestStatusAPIJenkins(t *testing.T) {
