@@ -26,6 +26,16 @@ imports:
   - login/token_context
   - resource
   - rest
+- name: github.com/fabric8-services/fabric8-auth
+  version: 26e19df61b885a92774632f23bb5590c5f768a31
+  subpackages:
+  - configuration
+  - design
+  - errors
+  - log
+  - login/tokencontext
+  - rest
+  - token
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo

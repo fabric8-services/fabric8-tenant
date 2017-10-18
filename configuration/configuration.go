@@ -34,6 +34,7 @@ const (
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
+	varAuthURL                         = "auth.url"
 	varConsoleURL                      = "console.url"
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
 	varOpenshiftCheVersion             = "openshift.che.version"
@@ -119,6 +120,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakOpenshiftBroker, defaultKeycloakOpenshiftBroker)
 	c.v.SetDefault(varOpenshiftUseCurrentCluster, false)
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
+	c.v.SetDefault(varAuthURL, "https://auth.prod-preview.openshift.io")
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
@@ -264,6 +266,11 @@ func (c *Data) GetWitURL() string {
 		return c.v.GetString(varWitURL)
 	}
 	return defaultWitURL
+}
+
+// GetAuthURL returns Auth service URL
+func (c *Data) GetAuthURL() string {
+	return c.v.GetString(varAuthURL)
 }
 
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
