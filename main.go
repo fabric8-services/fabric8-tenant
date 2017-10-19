@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
@@ -28,6 +29,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 
+	"fmt"
 	goalogrus "github.com/goadesign/goa/logging/logrus"
 	"github.com/spf13/viper"
 )
@@ -128,7 +130,7 @@ func main() {
 	templateVars["KEYCLOAK_URL"] = ""
 	templateVars["FABRIC8_CONSOLE_URL"] = openshiftConfig.ConsoleURL
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
-	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("github")
+	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), auth.RetrieveTokenPath())
 
 	publicKey, err := keycloak.GetPublicKey(keycloakConfig)
 	if err != nil {
