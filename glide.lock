@@ -1,6 +1,8 @@
 hash: 67844d63b9e8a6d1523382d66614f2b0b4edd249e278ec06f1c28f848367689f
 updated: 2017-10-13T03:38:16.496607021+02:00
 imports:
+- name: github.com/ajg/form
+  version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
 - name: github.com/armon/go-metrics
   version: 9a4b6e10bed6220a1665955aa2b75afc91eb10b3
 - name: github.com/bitly/go-simplejson
@@ -59,6 +61,7 @@ imports:
   - middleware
   - middleware/gzip
   - middleware/security/jwt
+  - encoding/form
   - uuid
 - name: github.com/golang/lint
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
