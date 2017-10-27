@@ -396,6 +396,7 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 		Attributes: &app.TenantAttributes{
 			CreatedAt:  &tenant.CreatedAt,
 			Email:      &tenant.Email,
+			Profile:    &tenant.Profile,
 			Namespaces: []*app.NamespaceAttributes{},
 		},
 	}
