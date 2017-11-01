@@ -1,5 +1,5 @@
-hash: 67844d63b9e8a6d1523382d66614f2b0b4edd249e278ec06f1c28f848367689f
-updated: 2017-10-13T03:38:16.496607021+02:00
+hash: 842ca86e131882249c01711429a4771047b7bbabc76ad4b0d58c98c100860553
+updated: 2017-11-01T21:13:24.270339554+01:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -8,7 +8,7 @@ imports:
 - name: github.com/bitly/go-simplejson
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/dgrijalva/jwt-go
-  version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
+  version: dbeaa9332f19a944acb5736b4456cfcc02140e29
 - name: github.com/dimfeld/httppath
   version: c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc
 - name: github.com/dimfeld/httptreemux
@@ -17,6 +17,16 @@ imports:
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
   subpackages:
   - go-bindata-assetfs
+- name: github.com/fabric8-services/fabric8-auth
+  version: 26e19df61b885a92774632f23bb5590c5f768a31
+  subpackages:
+  - configuration
+  - design
+  - errors
+  - log
+  - login/tokencontext
+  - rest
+  - token
 - name: github.com/fabric8-services/fabric8-wit
   version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
   subpackages:
@@ -28,16 +38,6 @@ imports:
   - login/token_context
   - resource
   - rest
-- name: github.com/fabric8-services/fabric8-auth
-  version: 26e19df61b885a92774632f23bb5590c5f768a31
-  subpackages:
-  - configuration
-  - design
-  - errors
-  - log
-  - login/tokencontext
-  - rest
-  - token
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo
@@ -51,6 +51,7 @@ imports:
   - design
   - design/apidsl
   - dslengine
+  - encoding/form
   - goagen
   - goagen/codegen
   - goagen/gen_app
@@ -61,7 +62,6 @@ imports:
   - middleware
   - middleware/gzip
   - middleware/security/jwt
-  - encoding/form
   - uuid
 - name: github.com/golang/lint
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
@@ -133,6 +133,11 @@ imports:
   - require
 - name: github.com/zach-klippenstein/goregen
   version: 795b5e3961ea1912fde60af417ad85e86acc0d6a
+- name: golang.org/x/crypto
+  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  subpackages:
+  - ed25519
+  - ed25519/internal/edwards25519
 - name: golang.org/x/net
   version: b1a2d6e8c8b5fc8f601ead62536f02a8e1b6217d
   subpackages:
@@ -151,6 +156,11 @@ imports:
   version: a888bfdffa4526cc6987572bca9a2c6b7758290f
   subpackages:
   - go/ast/astutil
+- name: gopkg.in/square/go-jose.v2
+  version: f8f38de21b4dcd69d0413faf231983f5fd6634b1
+  subpackages:
+  - cipher
+  - json
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports:

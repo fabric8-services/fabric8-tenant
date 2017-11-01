@@ -8,13 +8,8 @@ import (
 )
 
 // ignore for now, require vcr recording
-func rTestPublicKey(t *testing.T) {
-
-	keycloakConfig := keycloak.Config{
-		BaseURL: "https://sso.prod-preview.openshift.io",
-		Realm:   "fabric8",
-	}
-	u, err := keycloak.GetPublicKey(keycloakConfig)
+func TestPublicKeys(t *testing.T) {
+	u, err := keycloak.GetPublicKeys("https://auth.prod-preview.openshift.io")
 	assert.NoError(t, err)
-	assert.NotEqual(t, "", u)
+	assert.Equal(t, 2, len(u))
 }
