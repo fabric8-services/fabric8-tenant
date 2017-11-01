@@ -7,7 +7,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
-// IsSpecificServiceAccount checks if the request is done by a a given
+// IsSpecificServiceAccount checks if the request is done by a given
 // Service account based on the JWT Token provided in context
 func IsSpecificServiceAccount(ctx context.Context, name string) bool {
 	accountname, ok := extractServiceAccountName(ctx)
@@ -17,7 +17,7 @@ func IsSpecificServiceAccount(ctx context.Context, name string) bool {
 	return accountname == name
 }
 
-// IsServiceAccount checks if the request is done by a a given
+// IsServiceAccount checks if the request is done by a
 // Service account based on the JWT Token provided in context
 func IsServiceAccount(ctx context.Context) bool {
 	_, ok := extractServiceAccountName(ctx)
