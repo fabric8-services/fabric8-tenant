@@ -35,7 +35,7 @@ func TestServiceAccount(t *testing.T) {
 
 			assert.False(t, keycloak.IsServiceAccount(ctx))
 		})
-		t.Run("Nill token", func(t *testing.T) {
+		t.Run("Nil token", func(t *testing.T) {
 			ctx := goajwt.WithJWT(context.Background(), nil)
 
 			assert.False(t, keycloak.IsServiceAccount(ctx))
@@ -66,7 +66,7 @@ func TestServiceAccount(t *testing.T) {
 
 			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
 		})
-		t.Run("Nill token", func(t *testing.T) {
+		t.Run("Nil token", func(t *testing.T) {
 			ctx := goajwt.WithJWT(context.Background(), nil)
 
 			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
