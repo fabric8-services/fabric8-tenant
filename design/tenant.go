@@ -8,7 +8,7 @@ import (
 var tenant = a.Type("Tenant", func() {
 	a.Description(`JSONAPI for the tenant object. See also http://jsonapi.org/format/#document-resource-object`)
 	a.Attribute("type", d.String, func() {
-		a.Enum("tenant")
+		a.Enum("tenants")
 	})
 	a.Attribute("id", d.UUID, "ID of tenant", func() {
 		a.Example("40bbdd3d-8b5d-4fd6-ac90-7236b669af04")
