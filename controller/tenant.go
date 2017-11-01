@@ -240,31 +240,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	response := app.Tenant{
-		ID:   &tenantID,
-		Type: "tenants",
-		Attributes: &app.TenantAttributes{
-			CreatedAt:  &tenant.CreatedAt,
-			Email:      &tenant.Email,
-			Namespaces: []*app.NamespaceAttributes{},
-		},
-	}
-	for _, ns := range namespaces {
-		tenantType := string(ns.Type)
-		response.Attributes.Namespaces = append(
-			response.Attributes.Namespaces,
-			&app.NamespaceAttributes{
-				CreatedAt:  &ns.CreatedAt,
-				UpdatedAt:  &ns.UpdatedAt,
-				ClusterURL: &ns.MasterURL,
-				Name:       &ns.Name,
-				Type:       &tenantType,
-				Version:    &ns.Version,
-				State:      &ns.State,
-			})
-	}
-
-	return ctx.OK(&app.TenantSingle{Data: &response})
+	return ctx.OK(convertTenant(tenant, namespaces))
 }
 
 // Clean runs the setup action for the tenant namespaces.
@@ -411,4 +387,31 @@ func (t TenantToken) Email() string {
 		return claims["email"].(string)
 	}
 	return ""
+}
+
+func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.TenantSingle {
+	response := app.Tenant{
+		ID:   &tenant.ID,
+		Type: "tenants",
+		Attributes: &app.TenantAttributes{
+			CreatedAt:  &tenant.CreatedAt,
+			Email:      &tenant.Email,
+			Namespaces: []*app.NamespaceAttributes{},
+		},
+	}
+	for _, ns := range namespaces {
+		tenantType := string(ns.Type)
+		response.Attributes.Namespaces = append(
+			response.Attributes.Namespaces,
+			&app.NamespaceAttributes{
+				CreatedAt:  &ns.CreatedAt,
+				UpdatedAt:  &ns.UpdatedAt,
+				ClusterURL: &ns.MasterURL,
+				Name:       &ns.Name,
+				Type:       &tenantType,
+				Version:    &ns.Version,
+				State:      &ns.State,
+			})
+	}
+	return &app.TenantSingle{Data: &response}
 }
