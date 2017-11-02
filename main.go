@@ -161,15 +161,20 @@ func main() {
 
 	// Mount "tenant" controller
 	witURL := config.GetWitURL()
-	tenantCtrl := controller.NewTenantController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars, witURL)
+	tenantService := tenant.NewDBService(db)
+
+	tenantCtrl := controller.NewTenantController(service, tenantService, keycloakConfig, openshiftConfig, templateVars, witURL)
 	app.MountTenantController(service, tenantCtrl)
 
+	tenantsCtrl := controller.NewTenantsController(service, tenantService)
+	app.MountTenantsController(service, tenantsCtrl)
+
 	// Mount "tenantkube" controller
-	tenanKubetCtrl := controller.NewTenantKubeController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
+	tenanKubetCtrl := controller.NewTenantKubeController(service, tenantService, keycloakConfig, openshiftConfig, templateVars)
 	app.MountTenantKubeController(service, tenanKubetCtrl)
 
 	// Mount "auth" controller
-	authCtrl := controller.NewAuthController(service, tenant.NewDBService(db), keycloakConfig, openshiftConfig, templateVars)
+	authCtrl := controller.NewAuthController(service, tenantService, keycloakConfig, openshiftConfig, templateVars)
 	app.MountAuthController(service, authCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
