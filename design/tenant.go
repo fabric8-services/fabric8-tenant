@@ -8,7 +8,7 @@ import (
 var tenant = a.Type("Tenant", func() {
 	a.Description(`JSONAPI for the tenant object. See also http://jsonapi.org/format/#document-resource-object`)
 	a.Attribute("type", d.String, func() {
-		a.Enum("tenant")
+		a.Enum("tenants")
 	})
 	a.Attribute("id", d.UUID, "ID of tenant", func() {
 		a.Example("40bbdd3d-8b5d-4fd6-ac90-7236b669af04")
@@ -109,6 +109,25 @@ var _ = a.Resource("tenant", func() {
 
 		a.Description("Clear tenant environment.")
 		a.Response(d.OK)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+})
+
+var _ = a.Resource("tenants", func() {
+	a.BasePath("/api/tenants")
+	a.Action("show", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:tenantID"),
+		)
+		a.Params(func() {
+			a.Param("tenantID", d.UUID, "ID of the tenant to show")
+		})
+		a.Description("Show a single tenant environment.")
+		a.Response(d.OK, tenantSingle)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)

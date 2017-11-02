@@ -2,9 +2,12 @@ package keycloak
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"strings"
 	"unsafe"
 
 	yaml "gopkg.in/yaml.v2"
@@ -83,4 +86,19 @@ func get(url, token string) (*usertoken, error) {
 		return nil, err
 	}
 	return &u, nil
+}
+
+func createHttpClient() *http.Client {
+	// when running on minishift there is usually no certs on the HTTPS endpoint for KeyCloak
+	// so lets allow host verification to be disabled
+	flag := os.Getenv("KEYCLOAK_SKIP_HOST_VERIFY")
+	if strings.ToLower(flag) == "true" {
+		return &http.Client{
+			Transport: &http.Transport{
+				// we need to disable TLS verify on minishift
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		}
+	}
+	return http.DefaultClient
 }

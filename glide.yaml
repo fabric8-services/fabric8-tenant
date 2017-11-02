@@ -30,6 +30,9 @@ import:
   version: 26e19df61b885a92774632f23bb5590c5f768a31
   subpackages:
   - design
+  - token
+- package: gopkg.in/square/go-jose.v2
+  version: ^2.1.2  
 - package: github.com/dimfeld/httptreemux
   version: ^3.1.0
 - package: github.com/jinzhu/gorm

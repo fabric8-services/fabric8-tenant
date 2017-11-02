@@ -30,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"fmt"
+
 	goalogrus "github.com/goadesign/goa/logging/logrus"
 	"github.com/spf13/viper"
 )
@@ -132,11 +133,12 @@ func main() {
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
 	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), auth.RetrieveTokenPath())
 
-	publicKey, err := keycloak.GetPublicKey(keycloakConfig)
+	publicKeys, err := keycloak.GetPublicKeys(config.GetAuthURL())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to parse public token")
+			"err":    err,
+			"target": config.GetAuthURL(),
+		}, "failed to fetch public keys from token service")
 	}
 
 	// Create service
@@ -149,9 +151,9 @@ func main() {
 	service.Use(jsonapi.ErrorHandler(service, true))
 	service.Use(middleware.Recover())
 
-	service.Use(witmiddleware.TokenContext(publicKey, nil, app.NewJWTSecurity()))
+	service.Use(witmiddleware.TokenContext(publicKeys, nil, app.NewJWTSecurity()))
 	service.Use(log.LogRequest(config.IsDeveloperModeEnabled()))
-	app.UseJWTMiddleware(service, goajwt.New(publicKey, nil, app.NewJWTSecurity()))
+	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
