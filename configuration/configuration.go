@@ -352,7 +352,7 @@ const (
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
 
-	defaultAuthURL                  = "https://auth.prod-preview.openshift.io"
+	defaultAuthURL                  = "https://sso.prod-preview.openshift.io/auth"
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
 
 	defaultLogLevel = "info"
