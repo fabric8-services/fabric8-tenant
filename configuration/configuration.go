@@ -334,7 +334,7 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
 		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
 		"DOMAIN":                    c.v.GetString(varTemplateDomain),
-		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL(),
+		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),
 	}, nil
