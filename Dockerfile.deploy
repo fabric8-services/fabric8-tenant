@@ -18,10 +18,21 @@ RUN cd /tmp \
 COPY bin/fabric8-tenant ${INSTALL_PREFIX}/bin/fabric8-tenant
 RUN mkdir ${KUBECONFIG_DIR} && chmod +777 ${KUBECONFIG_DIR}
 
+# Install little pcp pmcd server for metrics collection
+# would prefer only pmcd, and not the /bin/pm*tools etc.
+COPY pcp.repo /etc/yum.repos.d/pcp.repo
+RUN yum install -y pcp pcp-pmda-prometheus && yum clean all && \
+    mkdir -p /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
+    chown -R ${F8_USER_NAME} /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
+    chmod -R ug+rw /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp
+COPY ./tenant+pmcd.sh /tenant+pmcd.sh
+EXPOSE 44321
+            
+
 # From here onwards, any RUN, CMD, or ENTRYPOINT will be run under the following user
 USER ${F8_USER_NAME}
 
 WORKDIR ${INSTALL_PREFIX}
-ENTRYPOINT [ "bin/fabric8-tenant" ]
+ENTRYPOINT [ "/tenant+pmcd.sh" ]
 
 EXPOSE 8080
