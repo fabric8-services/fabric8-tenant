@@ -29,7 +29,6 @@ const (
 	varPostgresConnectionMaxOpen       = "postgres.connection.maxopen"
 	varHTTPAddress                     = "http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
-	varKeycloakAuthServerURL           = "keycloak.auth.server.url"
 	varKeycloakClientID                = "keycloak.client.id"
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
@@ -120,7 +119,8 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakOpenshiftBroker, defaultKeycloakOpenshiftBroker)
 	c.v.SetDefault(varOpenshiftUseCurrentCluster, false)
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
-	c.v.SetDefault(varAuthURL, "https://auth.prod-preview.openshift.io")
+	c.v.SetDefault(varAuthURL, defaultAuthURL)
+	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
@@ -209,20 +209,9 @@ func (c *Data) IsDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
 }
 
-// GetKeycloakAuthServerURL returns the keycloak auth server URL (mostly for Che)
-func (c *Data) GetKeycloakAuthServerURL() string {
-	if c.v.IsSet(varKeycloakAuthServerURL) {
-		return c.v.GetString(varKeycloakAuthServerURL)
-	}
-	return ""
-}
-
 // GetKeycloakClientID returns the keycloak client id (mostly for Che)
 func (c *Data) GetKeycloakClientID() string {
-	if c.v.IsSet(varKeycloakClientID) {
-		return c.v.GetString(varKeycloakClientID)
-	}
-	return ""
+	return c.v.GetString(varKeycloakClientID)
 }
 
 // GetKeycloakRealm returns the keycloak realm name
@@ -345,7 +334,7 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
 		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
 		"DOMAIN":                    c.v.GetString(varTemplateDomain),
-		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakAuthServerURL(),
+		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),
 	}, nil
@@ -356,12 +345,14 @@ const (
 
 	defaultKeycloakURL             = "https://sso.prod-preview.openshift.io"
 	defaultKeycloakRealm           = "fabric8"
+	defaultKeycloakClientID        = "openshiftio-public"
 	defaultKeycloakOpenshiftBroker = "openshift-v3"
 
 	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
 
+	defaultAuthURL                  = "https://auth.prod-preview.openshift.io"
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
 
 	defaultLogLevel = "info"
