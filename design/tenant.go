@@ -26,6 +26,9 @@ var tenantAttributes = a.Type("TenantAttributes", func() {
 	a.Attribute("created-at", d.DateTime, "When the tenant was created", func() {
 		a.Example("2016-11-29T23:18:14Z")
 	})
+	a.Attribute("profile", d.String, "User profile type", func() {
+		a.Example("Paid")
+	})
 	a.Attribute("namespaces", a.ArrayOf(namespaceAttributes), "The tenant namespaces", func() {
 	})
 })

@@ -52,6 +52,7 @@ type Tenant struct {
 	UpdatedAt time.Time
 	DeletedAt *time.Time
 	Email     string
+	Profile   string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
