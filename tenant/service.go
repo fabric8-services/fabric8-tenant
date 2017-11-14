@@ -40,6 +40,9 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 }
 
 func (s DBService) UpdateTenant(tenant *Tenant) error {
+	if tenant.Profile == "" {
+		tenant.Profile = "free"
+	}
 	return s.db.Save(tenant).Error
 }
 
