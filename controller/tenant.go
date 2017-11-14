@@ -73,7 +73,13 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
-	c.tenantService.UpdateTenant(tenant)
+	err = c.tenantService.UpdateTenant(tenant)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to store tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
 	oc, err := c.loadUserTenantConfiguration(token, c.openshiftConfig)
 	if err != nil {
