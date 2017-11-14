@@ -173,6 +173,10 @@ func main() {
 	tenanKubetCtrl := controller.NewTenantKubeController(service, tenantService, keycloakConfig, openshiftConfig, templateVars)
 	app.MountTenantKubeController(service, tenanKubetCtrl)
 
+	// // Mount "tenantall" controller
+	tenantAllKubeCtrl := controller.NewListNamespacesController(service, tenantService, keycloakConfig, openshiftConfig, templateVars, config.ACLListNamespaces())
+	app.MountListNamespacesController(service, tenantAllKubeCtrl)
+
 	// Mount "auth" controller
 	authCtrl := controller.NewAuthController(service, tenantService, keycloakConfig, openshiftConfig, templateVars)
 	app.MountAuthController(service, authCtrl)
