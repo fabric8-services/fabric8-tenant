@@ -20,6 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/toggles"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
@@ -97,6 +98,8 @@ func main() {
 	if config.GetOpenshiftTemplateDir() != "" {
 		log.Logger().Infof("Template Dir: %s", config.GetOpenshiftTemplateDir())
 	}
+
+	toggles.Init("f8tenant", config.GetTogglesURL())
 
 	openshiftConfig := openshift.Config{
 		MasterURL:      config.GetOpenshiftTenantMasterURL(),

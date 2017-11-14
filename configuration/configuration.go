@@ -34,6 +34,7 @@ const (
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
 	varAuthURL                         = "auth.url"
+	varTogglesURL                      = "toggles.url"
 	varConsoleURL                      = "console.url"
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
 	varOpenshiftCheVersion             = "openshift.che.version"
@@ -121,6 +122,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
 	c.v.SetDefault(varAuthURL, defaultAuthURL)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
+	c.v.SetDefault(varTogglesURL, defaultTogglesURL)
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
@@ -262,6 +264,11 @@ func (c *Data) GetAuthURL() string {
 	return c.v.GetString(varAuthURL)
 }
 
+// GetTogglesURL returns Toggle service URL
+func (c *Data) GetTogglesURL() string {
+	return c.v.GetString(varTogglesURL)
+}
+
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
 func (c *Data) GetOpenshiftTenantMasterURL() string {
 	return c.v.GetString(varOpenshiftTenantMasterURL)
@@ -357,5 +364,6 @@ const (
 
 	defaultLogLevel = "info"
 
-	defaultWitURL = "https://api.prod-preview.openshift.io/api/"
+	defaultWitURL     = "https://api.prod-preview.openshift.io/api/"
+	defaultTogglesURL = "http://f8toggles"
 )

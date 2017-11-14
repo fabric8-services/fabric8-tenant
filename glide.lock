@@ -1,5 +1,5 @@
-hash: 842ca86e131882249c01711429a4771047b7bbabc76ad4b0d58c98c100860553
-updated: 2017-11-01T21:13:24.270339554+01:00
+hash: 11d7ed58d948b60118aa58f7e7d2d71d8f2d231f507c2d3d3d318bf6dcbab9c7
+updated: 2017-11-12T00:05:38.194370944+01:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -131,6 +131,8 @@ imports:
   subpackages:
   - assert
   - require
+- name: github.com/Unleash/unleash-client-go
+  version: 5e8fdebb43e3dd7a8d25c4614925122b06c2ede3
 - name: github.com/zach-klippenstein/goregen
   version: 795b5e3961ea1912fde60af417ad85e86acc0d6a
 - name: golang.org/x/crypto
