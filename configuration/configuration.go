@@ -365,5 +365,5 @@ const (
 	defaultLogLevel = "info"
 
 	defaultWitURL     = "https://api.prod-preview.openshift.io/api/"
-	defaultTogglesURL = "http://f8toggles"
+	defaultTogglesURL = "http://f8toggles/api"
 )
