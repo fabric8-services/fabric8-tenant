@@ -447,6 +447,11 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 	url := ""
 	if len(config.CheVersion) > 0 {
 		switch name {
+		// che-mt
+		case "fabric8-tenant-che-mt-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-mt/$CHE_VERSION/fabric8-tenant-che-mt-$CHE_VERSION-k8s-template.yml"
+		case "fabric8-tenant-che-mt-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-mt/$CHE_VERSION/fabric8-tenant-che-mt-$CHE_VERSION-openshift.yml"
 		// che
 		case "fabric8-tenant-che-kubernetes.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-k8s-template.yml"

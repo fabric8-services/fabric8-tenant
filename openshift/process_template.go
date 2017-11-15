@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/fabric8-services/fabric8-tenant/toggles"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
@@ -126,7 +128,12 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		return nil, err
 	}
 
-	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+extension)
+	cheType := ""
+	if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
+		cheType = "mt-"
+	}
+
+	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+cheType+extension)
 	if err != nil {
 		return nil, err
 	}
