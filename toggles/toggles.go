@@ -12,6 +12,8 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
+var ready = false
+
 // Init toggle client lib
 func Init(serviceName, hostURL string) {
 	unleash.Initialize(
@@ -39,6 +41,9 @@ func WithContext(ctx context.Context) unleash.FeatureOption {
 
 // IsEnabled wraps unleash for a simpler API
 func IsEnabled(ctx context.Context, feature string, fallback bool) bool {
+	if !ready {
+		return fallback
+	}
 	return unleash.IsEnabled(feature, WithContext(ctx), unleash.WithFallback(fallback))
 }
 
@@ -60,6 +65,7 @@ func (l listener) OnWarning(warning error) {
 
 // OnReady prints to the console when the repository is ready.
 func (l listener) OnReady() {
+	ready = true
 	log.Info(nil, map[string]interface{}{}, "toggles ready")
 }
 
