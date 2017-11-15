@@ -20,8 +20,8 @@ func Init(serviceName, hostURL string) {
 		unleash.WithAppName(serviceName),
 		unleash.WithInstanceId(os.Getenv("HOSTNAME")),
 		unleash.WithUrl(hostURL),
-		unleash.WithMetricsInterval(5*time.Minute),
-		unleash.WithRefreshInterval(1*time.Minute),
+		unleash.WithMetricsInterval(1*time.Minute),
+		unleash.WithRefreshInterval(10*time.Second),
 		unleash.WithListener(&listener{}),
 	)
 }
