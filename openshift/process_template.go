@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fabric8-services/fabric8-tenant/toggles"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
@@ -130,6 +131,10 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 
 	cheType := ""
 	if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
+		token := goajwt.ContextJWT(ctx)
+		if token != nil {
+			vars["OSIO_TOKEN"] = token.Raw
+		}
 		cheType = "mt-"
 	}
 
