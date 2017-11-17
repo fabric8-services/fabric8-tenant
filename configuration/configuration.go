@@ -46,6 +46,7 @@ const (
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
+	varTemplateCheMultiTenantServer    = "template.che.multitenant.server"
 	varWitURL                          = "wit.url"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
@@ -123,12 +124,12 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varAuthURL, defaultAuthURL)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varTogglesURL, defaultTogglesURL)
+	c.v.SetDefault(varTemplateCheMultiTenantServer, defaultCheMultiTenantServer)
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
-	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
 
 }
@@ -344,6 +345,8 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),
+		"CHE_MULTITENANT_SERVER":         c.v.GetString(varTemplateCheMultiTenantServer),
+		"OSIO_TOKEN":                     "", // set per request
 	}, nil
 }
 
@@ -361,6 +364,7 @@ const (
 
 	defaultAuthURL                  = "https://auth.prod-preview.openshift.io"
 	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
+	defaultCheMultiTenantServer     = "https://che.prod-preview.openshift.io"
 
 	defaultLogLevel = "info"
 
