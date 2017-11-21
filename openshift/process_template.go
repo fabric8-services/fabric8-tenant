@@ -11,7 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	jwt "github.com/dgrijalva/jwt-go"
-    "github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-wit/log"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
