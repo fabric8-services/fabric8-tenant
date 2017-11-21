@@ -73,7 +73,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
-	err = c.tenantService.UpdateTenant(tenant)
+	err = c.tenantService.CreateOrUpdateTenant(tenant)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -306,7 +306,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		} else if statusCode == http.StatusCreated {
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				name := openshift.GetName(request)
-				service.UpdateNamespace(&tenant.Namespace{
+				service.CreateOrUpdateNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
@@ -321,7 +321,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 
 			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
 				name := openshift.GetName(request)
-				service.UpdateNamespace(&tenant.Namespace{
+				service.CreateOrUpdateNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",

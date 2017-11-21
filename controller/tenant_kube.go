@@ -64,7 +64,7 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 		ttoken := &TenantToken{token: token}
 		tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 		exists := c.tenantService.Exists(ttoken.Subject())
-		err = c.tenantService.UpdateTenant(tenant)
+		err = c.tenantService.CreateOrUpdateTenant(tenant)
 		if err == nil {
 			tenantID := ttoken.Subject()
 			tenant, err := c.tenantService.GetTenant(tenantID)
