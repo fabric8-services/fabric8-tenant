@@ -10,7 +10,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/fabric8-services/fabric8-wit/log"
+	jwt "github.com/dgrijalva/jwt-go"
+    "github.com/fabric8-services/fabric8-wit/log"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
@@ -136,7 +137,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		if token != nil {
 			vars["OSIO_TOKEN"] = token.Raw
 			id := token.Claims.(jwt.MapClaims)["sub"]
-			if token != nil {
+			if id != nil {
 				vars["IDENTITY_ID"] = id
 			}
 		}
