@@ -138,7 +138,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 			vars["OSIO_TOKEN"] = token.Raw
 			id := token.Claims.(jwt.MapClaims)["sub"]
 			if id != nil {
-				vars["IDENTITY_ID"] = id
+				vars["IDENTITY_ID"] = id.(string)
 			}
 		}
 		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
