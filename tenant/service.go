@@ -9,8 +9,8 @@ type Service interface {
 	Exists(tenantID uuid.UUID) bool
 	GetTenant(tenantID uuid.UUID) (*Tenant, error)
 	GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error)
-	UpdateTenant(tenant *Tenant) error
-	UpdateNamespace(namespace *Namespace) error
+	CreateOrUpdateTenant(tenant *Tenant) error
+	CreateOrUpdateNamespace(namespace *Namespace) error
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -39,14 +39,14 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 	return &t, nil
 }
 
-func (s DBService) UpdateTenant(tenant *Tenant) error {
+func (s DBService) CreateOrUpdateTenant(tenant *Tenant) error {
 	if tenant.Profile == "" {
 		tenant.Profile = "free"
 	}
 	return s.db.Save(tenant).Error
 }
 
-func (s DBService) UpdateNamespace(namespace *Namespace) error {
+func (s DBService) CreateOrUpdateNamespace(namespace *Namespace) error {
 	if namespace.ID == uuid.Nil {
 		namespace.ID = uuid.NewV4()
 	}

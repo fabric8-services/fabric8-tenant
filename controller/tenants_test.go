@@ -28,7 +28,7 @@ func TestTenants(t *testing.T) {
 		test.ShowTenantsUnauthorized(t, context.Background(), svc, ctrl, tenantID)
 	})
 	t.Run("Unauhorized - no SA token", func(t *testing.T) {
-		test.ShowTenantsUnauthorized(t, createInValidSAContext(), svc, ctrl, tenantID)
+		test.ShowTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, tenantID)
 	})
 	t.Run("Not found", func(t *testing.T) {
 		test.ShowTenantsNotFound(t, createValidSAContext(), svc, ctrl, uuid.NewV4())
@@ -42,7 +42,7 @@ func createValidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func createInValidSAContext() context.Context {
+func createInvalidSAContext() context.Context {
 	claims := jwt.MapClaims{}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 	return goajwt.WithJWT(context.Background(), token)
@@ -87,10 +87,10 @@ func (s ctrlTestService) GetNamespaces(tenantID uuid.UUID) ([]*tenant.Namespace,
 	}, nil
 }
 
-func (s ctrlTestService) UpdateTenant(tenant *tenant.Tenant) error {
+func (s ctrlTestService) CreateOrUpdateTenant(tenant *tenant.Tenant) error {
 	return nil
 }
 
-func (s ctrlTestService) UpdateNamespace(namespace *tenant.Namespace) error {
+func (s ctrlTestService) CreateOrUpdateNamespace(namespace *tenant.Namespace) error {
 	return nil
 }
