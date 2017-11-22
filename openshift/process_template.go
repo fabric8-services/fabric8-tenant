@@ -8,10 +8,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-tenant/toggles"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-wit/log"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
