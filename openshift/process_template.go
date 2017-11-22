@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-wit/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/pkg/errors"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
