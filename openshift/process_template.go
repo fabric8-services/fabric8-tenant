@@ -137,9 +137,10 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		if token != nil {
 			vars["OSIO_TOKEN"] = token.Raw
 			id := token.Claims.(jwt.MapClaims)["sub"]
-			if id != nil {
-				vars["IDENTITY_ID"] = id.(string)
+			if id == nil {
+				return nil, errors.New("Missing sub in JWT token")
 			}
+			vars["IDENTITY_ID"] = id.(string)
 		}
 		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
 		cheType = "mt-"
