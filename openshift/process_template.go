@@ -8,8 +8,11 @@ import (
 	"sort"
 	"strings"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
+	"github.com/fabric8-services/fabric8-wit/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/pkg/errors"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
@@ -134,7 +137,13 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		token := goajwt.ContextJWT(ctx)
 		if token != nil {
 			vars["OSIO_TOKEN"] = token.Raw
+			id := token.Claims.(jwt.MapClaims)["sub"]
+			if id == nil {
+				return nil, errors.New("Missing sub in JWT token")
+			}
+			vars["IDENTITY_ID"] = id.(string)
 		}
+		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
 		cheType = "mt-"
 	}
 
