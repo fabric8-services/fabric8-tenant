@@ -1,16 +1,21 @@
 package tenant
 
 import (
+	"fmt"
+
+	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/jinzhu/gorm"
+	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
 type Service interface {
 	Exists(tenantID uuid.UUID) bool
 	GetTenant(tenantID uuid.UUID) (*Tenant, error)
+	LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error)
 	GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error)
-	CreateOrUpdateTenant(tenant *Tenant) error
-	CreateOrUpdateNamespace(namespace *Namespace) error
+	SaveTenant(tenant *Tenant) error
+	SaveNamespace(namespace *Namespace) error
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -39,14 +44,28 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 	return &t, nil
 }
 
-func (s DBService) CreateOrUpdateTenant(tenant *Tenant) error {
+func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
+	// select t.id from tenant t, namespaces n where t.id = n.tenant_id and n.master_url = ? and n.name = ?
+	query := fmt.Sprintf("select t.* from %[1]s t, %[2]s n where t.id = n.tenant_id and n.master_url = ? and n.name = ?", Tenant{}.TableName(), Namespace{}.TableName())
+	var result Tenant
+	err := s.db.Raw(query, masterURL, namespace).Scan(&result).Error
+	if err == gorm.ErrRecordNotFound {
+		// no match
+		return nil, errors.NewNotFoundError("tenant", "")
+	} else if err != nil {
+		return nil, errs.Wrapf(err, "unable to lookup tenant by namespace")
+	}
+	return &result, nil
+}
+
+func (s DBService) SaveTenant(tenant *Tenant) error {
 	if tenant.Profile == "" {
 		tenant.Profile = "free"
 	}
 	return s.db.Save(tenant).Error
 }
 
-func (s DBService) CreateOrUpdateNamespace(namespace *Namespace) error {
+func (s DBService) SaveNamespace(namespace *Namespace) error {
 	if namespace.ID == uuid.Nil {
 		namespace.ID = uuid.NewV4()
 	}
