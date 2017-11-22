@@ -347,6 +347,8 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),
 		"CHE_MULTITENANT_SERVER":         c.v.GetString(varTemplateCheMultiTenantServer),
 		"OSIO_TOKEN":                     "", // set per request
+		"IDENTITY_ID":                    "", // set per request
+		"REQUEST_ID":                     "", // set per request
 	}, nil
 }
 
