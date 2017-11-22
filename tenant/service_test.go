@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
-	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
+	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +44,7 @@ func (s *TenantServiceTestSuite) TestCreateTenant() {
 		svc := tenant.NewDBService(s.DB)
 		tenant := &tenant.Tenant{
 			Email:   "joe@foo.com",
-			Profile: "unknown",
+			Profile: "free",
 		}
 		// when
 		err := svc.SaveTenant(tenant)
@@ -68,9 +68,10 @@ func (s *TenantServiceTestSuite) TestCreateTenant() {
 }
 
 func (s *TenantServiceTestSuite) TestUpdateTenant() {
+
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(s.T(), s.DB, testfixture.Tenants(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1))
 		svc := tenant.NewDBService(s.DB)
 		tenant := fxt.Tenants[0]
 		// when
@@ -82,7 +83,7 @@ func (s *TenantServiceTestSuite) TestUpdateTenant() {
 
 	s.T().Run("ko - invalid profile", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(s.T(), s.DB, testfixture.Tenants(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1))
 		svc := tenant.NewDBService(s.DB)
 		tenant := fxt.Tenants[0]
 		// when
@@ -96,7 +97,7 @@ func (s *TenantServiceTestSuite) TestUpdateTenant() {
 func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(s.T(), s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		svc := tenant.NewDBService(s.DB)
 		ns := fxt.Namespaces[0]
 		// when

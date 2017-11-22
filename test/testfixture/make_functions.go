@@ -37,7 +37,7 @@ func makeNamespaces(fxt *TestFixture) error {
 	tenantService := tenant.NewDBService(fxt.db)
 	for i := range fxt.Namespaces {
 		fxt.Namespaces[i] = &tenant.Namespace{
-			Type:      tenant.TypeUser,
+			Type:      tenant.TypeChe,
 			Name:      createRandomNamespaceName(),
 			MasterURL: "some.cluster.url",
 		}
