@@ -39,6 +39,34 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+	result := &app.TenantSingle{Data: convertTenant(tenant, namespaces)}
+	return ctx.OK(result)
+}
 
-	return ctx.OK(convertTenant(tenant, namespaces))
+// Search runs the search action.
+func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
+	if !keycloak.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
+	}
+
+	tenant, err := c.tenantService.LookupTenantByClusterAndNamespace(ctx.MasterURL, ctx.Namespace)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	namespaces, err := c.tenantService.GetNamespaces(tenant.ID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	result := app.TenantList{
+		Data: []*app.Tenant{
+			convertTenant(tenant, namespaces),
+		},
+		// skipping the paging links for now
+		Meta: &app.TenantListMeta{
+			TotalCount: 1,
+		},
+	}
+	return ctx.OK(&result)
 }

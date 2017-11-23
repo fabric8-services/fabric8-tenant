@@ -73,7 +73,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
-	err = c.tenantService.CreateOrUpdateTenant(tenant)
+	err = c.tenantService.SaveTenant(tenant)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -245,12 +245,13 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
-	return ctx.OK(convertTenant(tenant, namespaces))
+	result := &app.TenantSingle{Data: convertTenant(tenant, namespaces)}
+	return ctx.OK(result)
 }
 
 // Clean runs the setup action for the tenant namespaces.
 func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
+
 	token := goajwt.ContextJWT(ctx)
 	if token == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
@@ -276,6 +277,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+	// TODO (xcoulon): respond with `204 No Content` instead ?
 	return ctx.OK([]byte{})
 }
 
@@ -306,7 +308,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		} else if statusCode == http.StatusCreated {
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				name := openshift.GetName(request)
-				service.CreateOrUpdateNamespace(&tenant.Namespace{
+				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
@@ -321,7 +323,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 
 			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
 				name := openshift.GetName(request)
-				service.CreateOrUpdateNamespace(&tenant.Namespace{
+				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
@@ -395,8 +397,8 @@ func (t TenantToken) Email() string {
 	return ""
 }
 
-func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.TenantSingle {
-	response := app.Tenant{
+func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.Tenant {
+	result := app.Tenant{
 		ID:   &tenant.ID,
 		Type: "tenants",
 		Attributes: &app.TenantAttributes{
@@ -408,8 +410,8 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 	}
 	for _, ns := range namespaces {
 		tenantType := string(ns.Type)
-		response.Attributes.Namespaces = append(
-			response.Attributes.Namespaces,
+		result.Attributes.Namespaces = append(
+			result.Attributes.Namespaces,
 			&app.NamespaceAttributes{
 				CreatedAt:  &ns.CreatedAt,
 				UpdatedAt:  &ns.UpdatedAt,
@@ -420,5 +422,5 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 				State:      &ns.State,
 			})
 	}
-	return &app.TenantSingle{Data: &response}
+	return &result
 }
