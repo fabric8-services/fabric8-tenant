@@ -165,6 +165,10 @@ imports:
   - json
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+- name: github.com/openshift/origin
+  version: 7ed6862914ef20e22280c51199be5071e354999f
+  subpackages:
+  - pkg/template/generator
 testImports:
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9

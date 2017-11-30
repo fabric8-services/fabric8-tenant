@@ -64,7 +64,9 @@ import:
 - package: github.com/bitly/go-simplejson
   version: ^0.5.0
 - package: github.com/google/go-querystring
-- package: github.com/openshift/origin/pkg/template/generator
+- package: github.com/openshift/origin
+  subpackages:
+  - pkg/template/generator
 testImport:
 - package: github.com/wadey/gocovmerge
 - package: github.com/jstemmer/go-junit-report
