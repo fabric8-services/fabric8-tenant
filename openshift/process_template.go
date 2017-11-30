@@ -3,15 +3,20 @@ package openshift
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-wit/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/openshift/origin/pkg/template/generator"
 	"github.com/pkg/errors"
 )
 
@@ -144,6 +149,14 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 			vars["IDENTITY_ID"] = id.(string)
 		}
 		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
+		unixNano := time.Now().UnixNano()
+		theGenerator := generator.NewExpressionValueGenerator(rand.New(rand.NewSource(unixNano)))
+		jobId, err := theGenerator.GenerateValue("[a-z0-9]{12}")
+		if err == nil {
+			vars["JOB_ID"] = jobId
+		} else {
+			vars["JOB_ID"] = strconv.FormatInt(unixNano)
+		}
 		cheType = "mt-"
 	}
 
