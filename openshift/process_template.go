@@ -3,9 +3,7 @@ package openshift
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
