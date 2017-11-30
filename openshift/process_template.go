@@ -153,7 +153,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		theGenerator := generator.NewExpressionValueGenerator(rand.New(rand.NewSource(unixNano)))
 		jobId, err := theGenerator.GenerateValue("[a-z0-9]{12}")
 		if err == nil {
-			vars["JOB_ID"] = jobId
+			vars["JOB_ID"] = jobId.(string)
 		} else {
 			vars["JOB_ID"] = strconv.FormatInt(unixNano, 10)
 		}
