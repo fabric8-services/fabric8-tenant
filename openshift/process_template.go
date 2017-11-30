@@ -147,7 +147,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		}
 		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
 		unixNano := time.Now().UnixNano()
-        vars["JOB_ID"] = strconv.FormatInt(unixNano / 1000000, 10)
+		vars["JOB_ID"] = strconv.FormatInt(unixNano / 1000000, 10)
 		cheType = "mt-"
 	}
 
