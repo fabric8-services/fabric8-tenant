@@ -155,7 +155,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		if err == nil {
 			vars["JOB_ID"] = jobId
 		} else {
-			vars["JOB_ID"] = strconv.FormatInt(unixNano)
+			vars["JOB_ID"] = strconv.FormatInt(unixNano, 10)
 		}
 		cheType = "mt-"
 	}
