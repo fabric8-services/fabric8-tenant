@@ -6,7 +6,9 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
@@ -144,6 +146,8 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 			vars["IDENTITY_ID"] = id.(string)
 		}
 		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
+		unixNano := time.Now().UnixNano()
+		vars["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
 		cheType = "mt-"
 	}
 

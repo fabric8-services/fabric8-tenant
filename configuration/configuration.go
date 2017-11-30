@@ -349,6 +349,7 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"OSIO_TOKEN":                     "", // set per request
 		"IDENTITY_ID":                    "", // set per request
 		"REQUEST_ID":                     "", // set per request
+		"JOB_ID":                         "", // set per request
 	}, nil
 }
 
