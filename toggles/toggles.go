@@ -26,10 +26,15 @@ func Init(serviceName, hostURL string) {
 	)
 }
 
-// WithContext creates a Token based contex
+// WithContext creates a Token based context
 func WithContext(ctx context.Context) unleash.FeatureOption {
-	uctx := ucontext.Context{}
 	token := goajwt.ContextJWT(ctx)
+	return WithToken(token)
+}
+
+// WithToken creates a Token based context
+func WithToken(token *jwt.Token) unleash.FeatureOption {
+	uctx := ucontext.Context{}
 	if token != nil {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			uctx.UserId = claims["sub"].(string)

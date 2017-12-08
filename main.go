@@ -163,10 +163,16 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	witURL := config.GetWitURL()
+	authURL := config.GetAuthURL()
 	tenantService := tenant.NewDBService(db)
+	toggleClient, err := toggles.NewClient("f8tenant", config.GetTogglesURL())
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create toogle client")
+	}
 
-	tenantCtrl := controller.NewTenantController(service, tenantService, keycloakConfig, openshiftConfig, templateVars, witURL)
+	tenantCtrl := controller.NewTenantController(service, tenantService, http.DefaultClient, toggleClient, keycloakConfig, openshiftConfig, templateVars, authURL)
 	app.MountTenantController(service, tenantCtrl)
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService)
@@ -184,7 +190,7 @@ func main() {
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
-	log.Logger().Infoln("WIT URL:        ", witURL)
+	log.Logger().Infoln("Auth URL:        ", authURL)
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/", service.Mux)

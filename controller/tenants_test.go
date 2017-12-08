@@ -21,16 +21,16 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TenantControllerTestSuite struct {
+type TenantsControllerTestSuite struct {
 	gormsupport.DBTestSuite
 }
 
-func TestTenantController(t *testing.T) {
+func TestTenantsController(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TenantsControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-func (s *TenantControllerTestSuite) TestShowTenants() {
+func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
@@ -68,7 +68,7 @@ func (s *TenantControllerTestSuite) TestShowTenants() {
 	})
 }
 
-func (s *TenantControllerTestSuite) TestSearchTenants() {
+func (s *TenantsControllerTestSuite) TestSearchTenants() {
 	// given
 	svc := goa.New("Tenants-service")
 

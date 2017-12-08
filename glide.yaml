@@ -64,6 +64,7 @@ import:
 - package: github.com/bitly/go-simplejson
   version: ^0.5.0
 - package: github.com/google/go-querystring
+- package: github.com/dnaeon/go-vcr
 testImport:
 - package: github.com/wadey/gocovmerge
 - package: github.com/jstemmer/go-junit-report

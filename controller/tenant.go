@@ -4,43 +4,53 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
+	"net/url"
+	"reflect"
 	"time"
 
 	"github.com/bitly/go-simplejson"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-wit/goasupport"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
+	goaclient "github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
+	httpClient      *http.Client
 	tenantService   tenant.Service
 	keycloakConfig  keycloak.Config
 	openshiftConfig openshift.Config
 	templateVars    map[string]string
-	usersURL        string
+	authURL         string
+	toggleClient    toggles.Client
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, usersURL string) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, httpClient *http.Client, toggleClient *toggles.Client, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, authURL string) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
+		httpClient:      httpClient,
 		tenantService:   tenantService,
+		toggleClient:    *toggleClient,
 		keycloakConfig:  keycloakConfig,
 		openshiftConfig: openshiftConfig,
 		templateVars:    templateVars,
-		usersURL:        usersURL,
+		authURL:         authURL,
 	}
 }
 
@@ -81,7 +91,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	oc, err := c.loadUserTenantConfiguration(token, c.openshiftConfig)
+	oc, err := c.loadUserTenantConfiguration(ctx, c.openshiftConfig)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -145,7 +155,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if openshift.KubernetesMode() {
 		rawOC = &userConfig
 	}
-	oc, err := c.loadUserTenantConfiguration(token, *rawOC)
+	oc, err := c.loadUserTenantConfiguration(ctx, *rawOC)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -175,22 +185,30 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-func (c *TenantController) loadUserTenantConfiguration(token *jwt.Token, config openshift.Config) (openshift.Config, error) {
-	authHeader := token.Raw
-	if len(c.usersURL) > 0 {
-		url := strings.TrimSuffix(c.usersURL, "/") + "/user"
-		status, body, err := openshift.GetJSON(config, url, authHeader)
+// loadUserTenantConfiguration loads the tenant configuration for `auth`,
+// allowing for config overrides based on the content of his profile (in auth) if the user is allowed
+func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, config openshift.Config) (openshift.Config, error) {
+	token := goajwt.ContextJWT(ctx)
+	// use the toggle service to verify that the user is allowed to change is profile based on the settings passed in the URL
+	if len(c.authURL) > 0 && c.toggleClient.IsEnabled(token, toggles.UserUpdateTenantFeature, false) {
+		log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "retrieving user's profile...")
+		authClient, err := newAuthClient(ctx, c.httpClient, c.authURL)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable to parse auth URL")
+			return config, err
+		}
+		resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
+			return config, errs.Wrapf(err, "failed to GET url %s due to error", auth.ShowUserPath())
+		}
+		if resp.StatusCode < 200 || resp.StatusCode > 300 {
+			return config, fmt.Errorf("failed to GET url %s due to status code %d", resp.Request.URL, resp.StatusCode)
+		}
+		js, err := simplejson.NewFromReader(resp.Body)
 		if err != nil {
 			return config, err
 		}
-		if status < 200 || status > 300 {
-			return config, fmt.Errorf("Failed to GET url %s due to status code %d", url, status)
-		}
-		js, err := simplejson.NewJson([]byte(body))
-		if err != nil {
-			return config, err
-		}
-
 		tenantConfig := js.GetPath("data", "attributes", "contextInformation", "tenantConfig")
 		if tenantConfig.Interface() != nil {
 			cheVersion := getJsonStringOrBlank(tenantConfig, "cheVersion")
@@ -423,4 +441,17 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 			})
 	}
 	return &result
+}
+
+// NewAuthClient initializes a new client to the `auth` service
+func newAuthClient(ctx context.Context, httpClient *http.Client, authURL string) (*auth.Client, error) {
+	u, err := url.Parse(authURL)
+	if err != nil {
+		return nil, err
+	}
+	c := auth.New(goaclient.HTTPClientDoer(httpClient))
+	c.Host = u.Host
+	c.Scheme = u.Scheme
+	c.SetJWTSigner(goasupport.NewForwardSigner(ctx))
+	return c, nil
 }
