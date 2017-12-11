@@ -198,6 +198,8 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 			return config, err
 		}
 		resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
+		defer resp.Body.Close()
+
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
 			return config, errs.Wrapf(err, "failed to GET url %s due to error", auth.ShowUserPath())
@@ -205,6 +207,7 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 		if resp.StatusCode < 200 || resp.StatusCode > 300 {
 			return config, fmt.Errorf("failed to GET url %s due to status code %d", resp.Request.URL, resp.StatusCode)
 		}
+
 		js, err := simplejson.NewFromReader(resp.Body)
 		if err != nil {
 			return config, err
