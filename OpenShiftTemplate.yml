@@ -11,7 +11,7 @@ objects:
       app: f8tenant
     name: f8tenant
   spec:
-    replicas: 1
+    replicas: 2
     selector:
       app: f8tenant
       deploymentconfig: f8tenant
@@ -110,6 +110,11 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: template.domain
+          - name: F8_TEMPLATE_CHE_MULTITENANT_SERVER
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: template.che.multitenant.server
           image: registry.devshift.net/fabric8-services/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant

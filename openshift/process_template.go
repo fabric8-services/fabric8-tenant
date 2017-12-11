@@ -6,7 +6,15 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-tenant/toggles"
+	"github.com/fabric8-services/fabric8-wit/log"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/pkg/errors"
 )
 
 type FilterFunc func(map[interface{}]interface{}) bool
@@ -126,7 +134,24 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		return nil, err
 	}
 
-	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+extension)
+	cheType := ""
+	if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
+		token := goajwt.ContextJWT(ctx)
+		if token != nil {
+			vars["OSIO_TOKEN"] = token.Raw
+			id := token.Claims.(jwt.MapClaims)["sub"]
+			if id == nil {
+				return nil, errors.New("Missing sub in JWT token")
+			}
+			vars["IDENTITY_ID"] = id.(string)
+		}
+		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
+		unixNano := time.Now().UnixNano()
+		vars["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
+		cheType = "mt-"
+	}
+
+	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+cheType+extension)
 	if err != nil {
 		return nil, err
 	}

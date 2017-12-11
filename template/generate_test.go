@@ -80,6 +80,31 @@ func TestFoundChe(t *testing.T) {
 	assert.Equal(t, 10, len(params), "unknown number of parameters")
 }
 
+func TestFoundCheMultiTenant(t *testing.T) {
+	c, err := template.Asset("template/fabric8-tenant-che-mt-openshift.yml")
+	if err != nil {
+		t.Fatalf("Asset template/fabric8-tenant-che-mt-openshift.yml not found")
+	}
+
+	cs := string(c)
+	if !strings.Contains(cs, "claim-che-workspace") {
+		t.Fatalf("Word claim-che-workspace not found in the template")
+	}
+
+	var template map[interface{}]interface{}
+	err = yaml.Unmarshal(c, &template)
+	if err != nil {
+		t.Fatalf("Could not parse template as yaml")
+	}
+
+	params, ok := template["parameters"].([]interface{})
+	if !ok {
+		t.Fatalf("parameters not found")
+	}
+
+	assert.Equal(t, 6, len(params), "unknown number of parameters")
+}
+
 func TestFoundCheQuotasOSO(t *testing.T) {
 	c, err := template.Asset("template/fabric8-tenant-che-quotas-oso-openshift.yml")
 	if err != nil {
