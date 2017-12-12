@@ -198,7 +198,6 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 			return config, err
 		}
 		resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
-		defer resp.Body.Close()
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
@@ -209,6 +208,7 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 		}
 
 		js, err := simplejson.NewFromReader(resp.Body)
+		defer resp.Body.Close()
 		if err != nil {
 			return config, err
 		}
