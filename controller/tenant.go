@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -198,17 +199,20 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 			return config, err
 		}
 		resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
-
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
 			return config, errs.Wrapf(err, "failed to GET url %s due to error", auth.ShowUserPath())
 		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to read auth response")
+			return config, errs.Wrapf(err, "failed to read auth response due to error", auth.ShowUserPath())
+		}
 		if resp.StatusCode < 200 || resp.StatusCode > 300 {
 			return config, fmt.Errorf("failed to GET url %s due to status code %d", resp.Request.URL, resp.StatusCode)
 		}
-
-		js, err := simplejson.NewFromReader(resp.Body)
-		defer resp.Body.Close()
+		js, err := simplejson.NewJson(body)
 		if err != nil {
 			return config, err
 		}
