@@ -64,6 +64,7 @@ metadata:
 			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps`,
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`,
+			"Job":                    `/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs`,
 		},
 		"PUT": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
@@ -80,6 +81,7 @@ metadata:
 			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+			"Job":                    `/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs/{{ index . "metadata" "name"}}`,
 		},
 		"PATCH": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
@@ -96,6 +98,7 @@ metadata:
 			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+			"Job":                    `/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs/{{ index . "metadata" "name"}}`,
 		},
 		"GET": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
@@ -112,6 +115,7 @@ metadata:
 			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+			"Job":                    `/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs/{{ index . "metadata" "name"}}`,
 		},
 		"DELETE": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
@@ -128,6 +132,7 @@ metadata:
 			"ConfigMap":              `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`,
 			"ResourceQuota":          `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`,
 			"LimitRange":             `/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`,
+			"Job":                    `/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs/{{ index . "metadata" "name"}}`,
 		},
 	}
 )
@@ -225,7 +230,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		body = []byte(deleteOptions)
 	}
 
-	url, err := createURL(opts.MasterURL, action, object)
+	url, err := CreateURL(opts.MasterURL, action, object)
 	if url == "" {
 		return nil, nil
 	}
@@ -403,7 +408,7 @@ func allKnownTypes(objects []map[interface{}]interface{}) error {
 	return nil
 }
 
-func createURL(hostURL, action string, object map[interface{}]interface{}) (string, error) {
+func CreateURL(hostURL, action string, object map[interface{}]interface{}) (string, error) {
 	urlTemplate, found := endpoints[action][GetKind(object)]
 	if !found {
 		return "", nil
@@ -435,6 +440,7 @@ var sortOrder = map[string]int{
 	"ConfigMap":              10,
 	"DeploymentConfig":       11,
 	"Route":                  12,
+	"Job":                    13,
 }
 
 // ByKind represents a list of Openshift objects sortable by Kind
