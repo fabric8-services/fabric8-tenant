@@ -132,6 +132,12 @@ func (c *Data) setConfigDefaults() {
 
 	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
 
+	//-----
+	// Auth
+	// ----
+	c.v.SetDefault(varAuthGrantType, "client_credentials")
+	c.v.SetDefault(varAuthClientID, "c211f1bd-17a7-4f8c-9f80-0917d167889d")
+	c.v.SetDefault(varClientSecret, "tenantsecretNew")
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -242,6 +248,18 @@ func (c *Data) GetKeycloakURL() string {
 		return devModeKeycloakURL
 	}
 	return defaultKeycloakURL
+}
+
+func (c *Data) GetAuthGrantType() string {
+	return c.v.GetString(varAuthGrantType)
+}
+
+func (c *Data) GetAuthClientID() string {
+	return c.v.GetString(varAuthClientID)
+}
+
+func (c *Data) GetClientSecret() string {
+	return c.v.GetString(varClientSecret)
 }
 
 // GetConsoleURL returns the fabric8-ui Console URL
@@ -373,4 +391,8 @@ const (
 
 	defaultWitURL     = "https://api.prod-preview.openshift.io/api/"
 	defaultTogglesURL = "http://f8toggles/api"
+
+	varAuthGrantType = "AUTH_GRANT_TYPE"
+	varAuthClientID  = "AUTH_CLIENT_ID"
+	varClientSecret  = "AUTH_CLIENT_SECRET"
 )
