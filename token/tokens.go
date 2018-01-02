@@ -16,6 +16,49 @@ type authAccessToken struct {
 	AccessToken string `json:"access_token,omitempty"`
 }
 
+type ClusterTokenService interface {
+	Get(config *configuration.Data) error
+}
+
+type ClusterTokenClient struct {
+	AuthServiceAccountToken string
+}
+
+func (c *ClusterTokenClient) Get(config *configuration.Data) error {
+	payload := strings.NewReader("grant_type=" + config.GetAuthGrantType() + "&client_id=" +
+		config.GetAuthClientID() + "&client_secret=" + config.GetClientSecret())
+
+	req, err := http.NewRequest("POST", config.GetAuthURL()+"/api/token", payload)
+	if err != nil {
+		return errors.Wrapf(err, "error creating request object")
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return errors.Wrapf(err, "error while doing the request")
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return errors.Wrapf(err, "error reading response")
+	}
+
+	if err := validateError(res.StatusCode, body); err != nil {
+		return errors.Wrapf(err, "error from server %q", config.GetAuthURL())
+	}
+
+	var response authAccessToken
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return errors.Wrapf(err, "error unmarshalling the response")
+	}
+
+	c.AuthServiceAccountToken = strings.TrimSpace(response.AccessToken)
+	return nil
+}
+
 type authEerror struct {
 	Code   string `json:"code,omitempty"`
 	Detail string `json:"detail,omitempty"`
@@ -27,70 +70,47 @@ type errorResponse struct {
 	Errors []authEerror `json:"errors,omitempty"`
 }
 
-type TokenGetter interface {
-	GetAuthAccessToken(config *configuration.Data) (string, error)
-	GetOpenShiftToken(config *configuration.Data, cluster string) (string, error)
-}
-
-type TokenClient struct{}
-
-func (c *TokenClient) GetAuthAccessToken(config *configuration.Data) (string, error) {
-	payload := strings.NewReader("grant_type=" + config.GetAuthGrantType() + "&client_id=" +
-		config.GetAuthClientID() + "&client_secret=" + config.GetClientSecret())
-
-	req, err := http.NewRequest("POST", config.GetAuthURL()+"/api/token", payload)
-	if err != nil {
-		return "", errors.Wrapf(err, "error creating request object")
-	}
-
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", errors.Wrapf(err, "error while doing the request")
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", errors.Wrapf(err, "error reading response")
-	}
-
-	if res.StatusCode != 200 {
+func validateError(status int, body []byte) error {
+	if status != http.StatusOK {
 		var e errorResponse
-		json.Unmarshal(body, &e)
+		err := json.Unmarshal(body, &e)
+		if err != nil {
+			return errors.Wrapf(err, "could not unmarshal the response")
+		}
 
 		var output string
 		for _, error := range e.Errors {
 			output += fmt.Sprintf("%s: %s %s, %s\n", error.Title, error.Status, error.Code, error.Detail)
 		}
-		return "", fmt.Errorf("error from server %s: %s", config.GetAuthURL(), output)
+		return fmt.Errorf("%s", output)
 	}
-
-	var response authAccessToken
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", errors.Wrapf(err, "error unmarshalling the response")
-	}
-
-	return strings.TrimSpace(response.AccessToken), nil
+	return nil
 }
 
-func (c *TokenClient) GetOpenShiftToken(config *configuration.Data, cluster string) (string, error) {
+type OpenShiftTokenService interface {
+	Get(config *configuration.Data, accessToken string, cluster string) error
+}
 
-	token, err := c.GetAuthAccessToken(config)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to get access token")
-	}
+type OpenShiftTokenClient struct {
+	OpenShiftToken string
+}
+
+func (z *OpenShiftTokenClient) Get(config *configuration.Data, accessToken string, cluster string) error {
 	// auth can return empty token so validate against that
-	if token == "" {
-		return "", fmt.Errorf("failed to get access token")
+	if accessToken == "" {
+		return fmt.Errorf("access token can't be empty")
+	}
+
+	// check if the cluster is empty
+	if cluster == "" {
+		return fmt.Errorf("cluster URL can't be empty")
 	}
 
 	// a normal query will look like following
 	// http://auth-fabric8.192.168.42.181.nip.io/api/token?for=https://api.starter-us-east-2a.openshift.com
 	u, err := url.Parse(config.GetAuthURL())
 	if err != nil {
-		return "", errors.Wrapf(err, "error parsing auth url")
+		return errors.Wrapf(err, "error parsing auth url")
 	}
 	u.Path = "/api/token"
 	q := u.Query()
@@ -99,27 +119,32 @@ func (c *TokenClient) GetOpenShiftToken(config *configuration.Data, cluster stri
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return "", errors.Wrapf(err, "error creating request object")
+		return errors.Wrapf(err, "error creating request object")
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Authorization", "Bearer "+accessToken)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", errors.Wrapf(err, "error while doing the request")
+		return errors.Wrapf(err, "error while doing the request")
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return "", errors.Wrapf(err, "error reading response")
+		return errors.Wrapf(err, "error reading response")
+	}
+
+	if err := validateError(res.StatusCode, body); err != nil {
+		return errors.Wrapf(err, "error from server %q", config.GetAuthURL())
 	}
 
 	var response authAccessToken
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return "", errors.Wrapf(err, "error unmarshalling the response")
+		return errors.Wrapf(err, "error unmarshalling the response")
 	}
+	z.OpenShiftToken = strings.TrimSpace(response.AccessToken)
 
-	return strings.TrimSpace(response.AccessToken), nil
+	return nil
 }
