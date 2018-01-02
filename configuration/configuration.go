@@ -51,6 +51,10 @@ const (
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
+
+	varAuthGrantType = "AUTH_GRANT_TYPE"
+	varAuthClientID  = "AUTH_CLIENT_ID"
+	varClientSecret  = "AUTH_CLIENT_SECRET"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -283,6 +287,10 @@ func (c *Data) GetAuthURL() string {
 	return c.v.GetString(varAuthURL)
 }
 
+func (c *Data) SetAuthURL(value string) {
+	c.v.Set(varAuthURL, value)
+}
+
 // GetTogglesURL returns Toggle service URL
 func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)
@@ -391,8 +399,4 @@ const (
 
 	defaultWitURL     = "https://api.prod-preview.openshift.io/api/"
 	defaultTogglesURL = "http://f8toggles/api"
-
-	varAuthGrantType = "AUTH_GRANT_TYPE"
-	varAuthClientID  = "AUTH_CLIENT_ID"
-	varClientSecret  = "AUTH_CLIENT_SECRET"
 )

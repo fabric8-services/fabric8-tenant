@@ -1,13 +1,12 @@
-package osioauth
+package token
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
-
 	"net/url"
+	"strings"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
@@ -28,12 +27,14 @@ type errorResponse struct {
 	Errors []authEerror `json:"errors,omitempty"`
 }
 
-func GetAuthAccessToken() (string, error) {
-	config, err := configuration.GetData()
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to setup the configuration")
-	}
+type TokenGetter interface {
+	GetAuthAccessToken(config *configuration.Data) (string, error)
+	GetOpenShiftToken(config *configuration.Data, cluster string) (string, error)
+}
 
+type TokenClient struct{}
+
+func (c *TokenClient) GetAuthAccessToken(config *configuration.Data) (string, error) {
 	payload := strings.NewReader("grant_type=" + config.GetAuthGrantType() + "&client_id=" +
 		config.GetAuthClientID() + "&client_secret=" + config.GetClientSecret())
 
@@ -71,21 +72,16 @@ func GetAuthAccessToken() (string, error) {
 		return "", errors.Wrapf(err, "error unmarshalling the response")
 	}
 
-	//os.Setenv("F8_AUTH_GRANT_TYPE", "barfooo")
 	return strings.TrimSpace(response.AccessToken), nil
 }
 
-func GetOpenShiftToken(cluster string) (string, error) {
+func (c *TokenClient) GetOpenShiftToken(config *configuration.Data, cluster string) (string, error) {
 
-	config, err := configuration.GetData()
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to setup the configuration")
-	}
-
-	token, err := GetAuthAccessToken()
+	token, err := c.GetAuthAccessToken(config)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get access token")
 	}
+	// auth can return empty token so validate against that
 	if token == "" {
 		return "", fmt.Errorf("failed to get access token")
 	}

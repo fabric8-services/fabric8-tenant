@@ -1,4 +1,4 @@
-package osioauth
+package token
 
 import (
 	"os"

@@ -1,14 +1,12 @@
-package osioauth
+package token
 
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"path/filepath"
-
 	"io/ioutil"
-
+	"net/http"
 	"net/url"
+	"path/filepath"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
@@ -27,8 +25,6 @@ func GetUserCluster(userID string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to setup the configuration")
 	}
-
-	//url := filepath.Join(config.GetAuthURL()+"/api/users", userID)
 
 	u, err := url.Parse(config.GetAuthURL())
 	if err != nil {
