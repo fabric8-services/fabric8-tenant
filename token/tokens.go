@@ -12,10 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type authAccessToken struct {
-	AccessToken string `json:"access_token,omitempty"`
-}
-
 type ClusterTokenService interface {
 	Get(config *configuration.Data) error
 }
@@ -49,28 +45,26 @@ func (c *ClusterTokenClient) Get(config *configuration.Data) error {
 		return errors.Wrapf(err, "error from server %q", config.GetAuthURL())
 	}
 
-	var response authAccessToken
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return errors.Wrapf(err, "error unmarshalling the response")
+	// parse the token from the output
+	if c.AuthServiceAccountToken, err = parseToken(body); err != nil {
+		return err
 	}
 
-	c.AuthServiceAccountToken = strings.TrimSpace(response.AccessToken)
 	return nil
 }
 
-type authEerror struct {
-	Code   string `json:"code,omitempty"`
-	Detail string `json:"detail,omitempty"`
-	Status string `json:"status,omitempty"`
-	Title  string `json:"title,omitempty"`
-}
-
-type errorResponse struct {
-	Errors []authEerror `json:"errors,omitempty"`
-}
-
 func validateError(status int, body []byte) error {
+	type authEerror struct {
+		Code   string `json:"code,omitempty"`
+		Detail string `json:"detail,omitempty"`
+		Status string `json:"status,omitempty"`
+		Title  string `json:"title,omitempty"`
+	}
+
+	type errorResponse struct {
+		Errors []authEerror `json:"errors,omitempty"`
+	}
+
 	if status != http.StatusOK {
 		var e errorResponse
 		err := json.Unmarshal(body, &e)
@@ -139,12 +133,24 @@ func (z *OpenShiftTokenClient) Get(config *configuration.Data, accessToken strin
 		return errors.Wrapf(err, "error from server %q", config.GetAuthURL())
 	}
 
-	var response authAccessToken
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return errors.Wrapf(err, "error unmarshalling the response")
+	// parse the token from the output
+	if z.OpenShiftToken, err = parseToken(body); err != nil {
+		return err
 	}
-	z.OpenShiftToken = strings.TrimSpace(response.AccessToken)
 
 	return nil
+}
+
+func parseToken(data []byte) (string, error) {
+	// this struct is defined to obtain the accesstoken from the output
+	type authAccessToken struct {
+		AccessToken string `json:"access_token,omitempty"`
+	}
+
+	var r authAccessToken
+	err := json.Unmarshal(data, &r)
+	if err != nil {
+		return "", errors.Wrapf(err, "error unmarshalling the response")
+	}
+	return strings.TrimSpace(r.AccessToken), nil
 }

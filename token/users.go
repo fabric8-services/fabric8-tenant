@@ -2,7 +2,6 @@ package token
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -49,15 +48,8 @@ func GetUserCluster(userID string) (string, error) {
 		return "", errors.Wrapf(err, "error reading response")
 	}
 
-	if res.StatusCode != 200 {
-		var e errorResponse
-		json.Unmarshal(body, &e)
-
-		var output string
-		for _, error := range e.Errors {
-			output += fmt.Sprintf("%s: %s %s, %s\n", error.Title, error.Status, error.Code, error.Detail)
-		}
-		return "", fmt.Errorf("error from server %s: %s", config.GetAuthURL(), output)
+	if err := validateError(res.StatusCode, body); err != nil {
+		return "", errors.Wrapf(err, "error from server %q", config.GetAuthURL())
 	}
 
 	var response userData

@@ -38,11 +38,6 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			wantErr: true,
 			status:  http.StatusNotFound,
 		},
-		{
-			name:    "make code fail on parsing output",
-			wantErr: true,
-			output:  "foobar",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -189,12 +184,6 @@ func TestOpenShiftTokenClient_Get(t *testing.T) {
 			status:  http.StatusNotFound,
 		},
 		{
-			name:    "make code fail on parsing output",
-			args:    args{accessToken: accessToken, cluster: cluster},
-			wantErr: true,
-			output:  "foobar",
-		},
-		{
 			name:    "valid output",
 			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: false,
@@ -240,6 +229,53 @@ func TestOpenShiftTokenClient_Get(t *testing.T) {
 			got := z.OpenShiftToken
 			if got != want {
 				t.Errorf("OpenShiftTokenClient.Get() = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func Test_parseToken(t *testing.T) {
+	want := "fake_token"
+	output := `
+		{
+			"access_token": "` + want + `",
+			"token_type": "bearer"
+		}`
+
+	tests := []struct {
+		name    string
+		data    []byte
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "bad respose so should not parse the output",
+			wantErr: true,
+		},
+		{
+			name:    "bad respose so should not parse the output",
+			wantErr: true,
+			data:    []byte("foobar"),
+		},
+		{
+			name:    "should parse the output to extract token",
+			wantErr: false,
+			data:    []byte(output),
+			want:    want,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseToken(tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseToken() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			} else if tt.wantErr && err != nil {
+				t.Logf("parseToken() failed with error = %v", err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("parseToken() = %v, want %v", got, tt.want)
 			}
 		})
 	}
