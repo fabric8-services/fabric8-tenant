@@ -19,13 +19,17 @@ type userData struct {
 	}
 }
 
-func GetUserCluster(userID string) (string, error) {
-	config, err := configuration.GetData()
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to setup the configuration")
-	}
+type UserProfileService interface {
+	GetUserCluster(userID string) (string, error)
+}
 
-	u, err := url.Parse(config.GetAuthURL())
+type UserController struct {
+	Config       *configuration.Data
+	ClusterToken ClusterTokenService
+}
+
+func (uc *UserController) GetUserCluster(userID string) (string, error) {
+	u, err := url.Parse(uc.Config.GetAuthURL())
 	if err != nil {
 		return "", errors.Wrapf(err, "error parsing auth url")
 	}
@@ -49,7 +53,7 @@ func GetUserCluster(userID string) (string, error) {
 	}
 
 	if err := validateError(res.StatusCode, body); err != nil {
-		return "", errors.Wrapf(err, "error from server %q", config.GetAuthURL())
+		return "", errors.Wrapf(err, "error from server %q", uc.Config.GetAuthURL())
 	}
 
 	var response userData

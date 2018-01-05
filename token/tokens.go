@@ -13,18 +13,19 @@ import (
 )
 
 type ClusterTokenService interface {
-	Get(config *configuration.Data) error
+	Get() error
 }
 
 type ClusterTokenClient struct {
+	Config                  *configuration.Data
 	AuthServiceAccountToken string
 }
 
-func (c *ClusterTokenClient) Get(config *configuration.Data) error {
-	payload := strings.NewReader("grant_type=" + config.GetAuthGrantType() + "&client_id=" +
-		config.GetAuthClientID() + "&client_secret=" + config.GetClientSecret())
+func (c *ClusterTokenClient) Get() error {
+	payload := strings.NewReader("grant_type=" + c.Config.GetAuthGrantType() + "&client_id=" +
+		c.Config.GetAuthClientID() + "&client_secret=" + c.Config.GetClientSecret())
 
-	req, err := http.NewRequest("POST", config.GetAuthURL()+"/api/token", payload)
+	req, err := http.NewRequest("POST", c.Config.GetAuthURL()+"/api/token", payload)
 	if err != nil {
 		return errors.Wrapf(err, "error creating request object")
 	}
@@ -42,7 +43,7 @@ func (c *ClusterTokenClient) Get(config *configuration.Data) error {
 	}
 
 	if err := validateError(res.StatusCode, body); err != nil {
-		return errors.Wrapf(err, "error from server %q", config.GetAuthURL())
+		return errors.Wrapf(err, "error from server %q", c.Config.GetAuthURL())
 	}
 
 	// parse the token from the output
@@ -82,16 +83,18 @@ func validateError(status int, body []byte) error {
 }
 
 type OpenShiftTokenService interface {
-	Get(config *configuration.Data, accessToken string, cluster string) error
+	Get(cluster string) error
 }
 
 type OpenShiftTokenClient struct {
+	Config         *configuration.Data
+	AccessToken    string
 	OpenShiftToken string
 }
 
-func (z *OpenShiftTokenClient) Get(config *configuration.Data, accessToken string, cluster string) error {
+func (c *OpenShiftTokenClient) Get(cluster string) error {
 	// auth can return empty token so validate against that
-	if accessToken == "" {
+	if c.AccessToken == "" {
 		return fmt.Errorf("access token can't be empty")
 	}
 
@@ -102,7 +105,7 @@ func (z *OpenShiftTokenClient) Get(config *configuration.Data, accessToken strin
 
 	// a normal query will look like following
 	// http://auth-fabric8.192.168.42.181.nip.io/api/token?for=https://api.starter-us-east-2a.openshift.com
-	u, err := url.Parse(config.GetAuthURL())
+	u, err := url.Parse(c.Config.GetAuthURL())
 	if err != nil {
 		return errors.Wrapf(err, "error parsing auth url")
 	}
@@ -116,7 +119,7 @@ func (z *OpenShiftTokenClient) Get(config *configuration.Data, accessToken strin
 		return errors.Wrapf(err, "error creating request object")
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+accessToken)
+	req.Header.Add("Authorization", "Bearer "+c.AccessToken)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -130,11 +133,11 @@ func (z *OpenShiftTokenClient) Get(config *configuration.Data, accessToken strin
 	}
 
 	if err := validateError(res.StatusCode, body); err != nil {
-		return errors.Wrapf(err, "error from server %q", config.GetAuthURL())
+		return errors.Wrapf(err, "error from server %q", c.Config.GetAuthURL())
 	}
 
 	// parse the token from the output
-	if z.OpenShiftToken, err = parseToken(body); err != nil {
+	if c.OpenShiftToken, err = parseToken(body); err != nil {
 		return err
 	}
 
