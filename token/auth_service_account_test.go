@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 )
 
-func TestClusterTokenClient_Get(t *testing.T) {
+func TestServiceAccountTokenClient_Get(t *testing.T) {
 
 	want := "fake_token"
 	output := `
@@ -73,19 +73,19 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			// set the URL given by the temporary server
 			config.SetAuthURL(tt.URL)
 
-			c := &ClusterTokenClient{}
+			c := &ServiceAccountTokenClient{}
 			c.Config = config
 			err = c.Get()
 			got := c.AuthServiceAccountToken
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ClusterTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ServiceAccountTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			} else if err != nil && tt.wantErr {
-				t.Logf("ClusterTokenClient.Get() failed with = %v", err)
+				t.Logf("ServiceAccountTokenClient.Get() failed with = %v", err)
 				return
 			}
 			if got != want {
-				t.Errorf("ClusterTokenClient.Get() = %v, want %v", got, want)
+				t.Errorf("ServiceAccountTokenClient.Get() = %v, want %v", got, want)
 			}
 		})
 	}

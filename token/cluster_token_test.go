@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 )
 
-func TestOpenShiftTokenClient_Get(t *testing.T) {
+func TestClusterTokenClient_Get(t *testing.T) {
 	want := "fake_token"
 	output := `
 		{
@@ -19,7 +19,7 @@ func TestOpenShiftTokenClient_Get(t *testing.T) {
 	cluster := "fake_cluster"
 
 	type fields struct {
-		OpenShiftToken string
+		ClusterToken string
 	}
 	type args struct {
 		accessToken string
@@ -97,18 +97,18 @@ func TestOpenShiftTokenClient_Get(t *testing.T) {
 			// set the URL given by the temporary server
 			config.SetAuthURL(tt.URL)
 
-			c := &OpenShiftTokenClient{}
+			c := &ClusterTokenClient{}
 			c.Config = config
 			c.AccessToken = tt.args.accessToken
 			got, err := c.Get(tt.args.cluster)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("OpenShiftTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ClusterTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err != nil && tt.wantErr {
-				t.Logf("OpenShiftTokenClient.Get() failed with = %v", err)
+				t.Logf("ClusterTokenClient.Get() failed with = %v", err)
 				return
 			}
 			if got != want {
-				t.Errorf("OpenShiftTokenClient.Get() = %v, want %v", got, want)
+				t.Errorf("ClusterTokenClient.Get() = %v, want %v", got, want)
 			}
 		})
 	}

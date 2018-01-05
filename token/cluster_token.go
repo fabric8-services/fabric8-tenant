@@ -10,16 +10,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-type OpenShiftTokenService interface {
+type ClusterTokenService interface {
 	Get(cluster string) (string, error)
 }
 
-type OpenShiftTokenClient struct {
+type ClusterTokenClient struct {
 	Config      *configuration.Data
 	AccessToken string
 }
 
-func (c *OpenShiftTokenClient) Get(cluster string) (string, error) {
+func (c *ClusterTokenClient) Get(cluster string) (string, error) {
 	// auth can return empty token so validate against that
 	if c.AccessToken == "" {
 		return "", fmt.Errorf("access token can't be empty")

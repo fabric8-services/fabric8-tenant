@@ -9,16 +9,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ClusterTokenService interface {
+type ServiceAccountTokenService interface {
 	Get() error
 }
 
-type ClusterTokenClient struct {
+type ServiceAccountTokenClient struct {
 	Config                  *configuration.Data
 	AuthServiceAccountToken string
 }
 
-func (c *ClusterTokenClient) Get() error {
+func (c *ServiceAccountTokenClient) Get() error {
 	payload := strings.NewReader("grant_type=" + c.Config.GetAuthGrantType() + "&client_id=" +
 		c.Config.GetAuthClientID() + "&client_secret=" + c.Config.GetClientSecret())
 

@@ -20,13 +20,8 @@ func TestUserController_GetUserCluster(t *testing.T) {
 	  }
 	}`
 
-	type fields struct {
-		ClusterToken ClusterTokenService
-	}
-
 	tests := []struct {
 		name    string
-		fields  fields
 		userID  string
 		want    string
 		wantErr bool

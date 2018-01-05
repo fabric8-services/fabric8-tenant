@@ -24,8 +24,8 @@ type UserProfileService interface {
 }
 
 type UserController struct {
-	Config       *configuration.Data
-	ClusterToken ClusterTokenService
+	Config                     *configuration.Data
+	serviceAccountTokenService ServiceAccountTokenService
 }
 
 func (uc *UserController) GetUserCluster(userID string) (string, error) {
