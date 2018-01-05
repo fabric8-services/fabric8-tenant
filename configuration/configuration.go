@@ -52,9 +52,8 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 
-	varAuthGrantType = "AUTH_GRANT_TYPE"
-	varAuthClientID  = "AUTH_CLIENT_ID"
-	varClientSecret  = "AUTH_CLIENT_SECRET"
+	varAuthClientID = "service.account.id"
+	varClientSecret = "service.account.secret"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -139,7 +138,6 @@ func (c *Data) setConfigDefaults() {
 	//-----
 	// Auth
 	// ----
-	c.v.SetDefault(varAuthGrantType, "client_credentials")
 	c.v.SetDefault(varAuthClientID, "c211f1bd-17a7-4f8c-9f80-0917d167889d")
 	c.v.SetDefault(varClientSecret, "tenantsecretNew")
 }
@@ -255,7 +253,7 @@ func (c *Data) GetKeycloakURL() string {
 }
 
 func (c *Data) GetAuthGrantType() string {
-	return c.v.GetString(varAuthGrantType)
+	return "client_credentials"
 }
 
 func (c *Data) GetAuthClientID() string {
