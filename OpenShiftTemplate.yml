@@ -115,6 +115,16 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: template.che.multitenant.server
+          - name: F8_SERVICE_ACCOUNT_ID
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: service.account.id
+          - name: F8_SERVICE_ACCOUNT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: service.account.secret
           image: registry.devshift.net/fabric8-services/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
