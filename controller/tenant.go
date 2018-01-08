@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,16 +11,19 @@ import (
 	"github.com/bitly/go-simplejson"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // TenantController implements the status resource.
@@ -33,15 +37,71 @@ type TenantController struct {
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, usersURL string) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, templateVars map[string]string, usersURL string) *TenantController {
 	return &TenantController{
-		Controller:      service.NewController("TenantController"),
-		tenantService:   tenantService,
-		keycloakConfig:  keycloakConfig,
-		openshiftConfig: openshiftConfig,
-		templateVars:    templateVars,
-		usersURL:        usersURL,
+		Controller:     service.NewController("TenantController"),
+		tenantService:  tenantService,
+		keycloakConfig: keycloakConfig,
+		templateVars:   templateVars,
+		usersURL:       usersURL,
 	}
+}
+
+func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, userid string) (openshift.Config, error) {
+	config, err := configuration.GetData()
+	if err != nil {
+		return openshift.Config{}, err
+	}
+
+	// fetch the user cluster information
+	uc := token.UserController{Config: config}
+	usercluster, err := uc.GetUserCluster(userid)
+	if err != nil {
+		return openshift.Config{}, err
+	}
+
+	// fetch that cluster's token
+	sa := token.ServiceAccountTokenClient{Config: config}
+	if err := sa.Get(); err != nil {
+		return openshift.Config{}, err
+	}
+
+	ctc := token.ClusterTokenClient{
+		Config:      config,
+		AccessToken: sa.AuthServiceAccountToken,
+	}
+	clusterToken, err := ctc.Get(usercluster)
+	if err != nil {
+		return openshift.Config{}, err
+	}
+
+	var tr *http.Transport
+	if config.APIServerInsecureSkipTLSVerify() {
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
+	openshiftConfig := openshift.Config{
+		MasterURL:      usercluster,
+		ConsoleURL:     config.GetConsoleURL(), // something to do with cluster console url
+		Token:          clusterToken,           // cluster token returned by auth service.
+		HttpTransport:  tr,
+		CheVersion:     config.GetOpenshiftCheVersion(),
+		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
+		TeamVersion:    config.GetOpenshiftTeamVersion(),
+		TemplateDir:    config.GetOpenshiftTemplateDir(),
+	}
+
+	openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)
+	if err != nil {
+		logrus.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "unknown master user based on service token")
+	}
+	openshiftConfig.MasterUser = openshiftMasterUser
+
+	return openshiftConfig, nil
 }
 
 // Setup runs the setup action.
@@ -54,6 +114,14 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	exists := c.tenantService.Exists(ttoken.Subject())
 	if exists {
 		return ctx.Conflict()
+	}
+
+	// TODO populate this username from somewhere
+	userid := ttoken.Subject().String()
+	var err error
+	c.openshiftConfig, err = c.setupOpenShiftConfig(ctx, userid)
+	if err != nil {
+		return err
 	}
 
 	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)

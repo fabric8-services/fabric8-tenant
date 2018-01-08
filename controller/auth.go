@@ -26,13 +26,12 @@ type AuthController struct {
 }
 
 // NewAuthController creates a auth controller.
-func NewAuthController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *AuthController {
+func NewAuthController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, templateVars map[string]string) *AuthController {
 	return &AuthController{
-		Controller:      service.NewController("AuthController"),
-		tenantService:   tenantService,
-		keycloakConfig:  keycloakConfig,
-		openshiftConfig: openshiftConfig,
-		templateVars:    templateVars,
+		Controller:     service.NewController("AuthController"),
+		tenantService:  tenantService,
+		keycloakConfig: keycloakConfig,
+		templateVars:   templateVars,
 	}
 }
 
