@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -17,18 +19,16 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
+	goalogrus "github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-
-	"fmt"
-
-	goalogrus "github.com/goadesign/goa/logging/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -112,6 +112,22 @@ func main() {
 	service.Use(log.LogRequest(config.IsDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
+	// create user profile client to get the user's cluster
+	userProfileClient := &token.UserProfileClient{Config: config}
+
+	// fetch service account token for tenant service
+	sa := token.ServiceAccountTokenClient{Config: config}
+	if err := sa.Get(context.Background()); err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to fetch service account token")
+	}
+
+	clusterTokenClient := &token.ClusterTokenClient{
+		Config:      config,
+		AccessToken: sa.AuthServiceAccountToken,
+	}
+
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
@@ -120,7 +136,8 @@ func main() {
 	witURL := config.GetWitURL()
 	tenantService := tenant.NewDBService(db)
 
-	tenantCtrl := controller.NewTenantController(service, tenantService, keycloakConfig, templateVars, witURL)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userProfileClient, clusterTokenClient,
+		keycloakConfig, templateVars, witURL)
 	app.MountTenantController(service, tenantCtrl)
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService)

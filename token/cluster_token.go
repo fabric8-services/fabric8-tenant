@@ -51,6 +51,9 @@ func (c *ClusterTokenClient) Get(ctx context.Context, cluster string) (string, e
 
 	var openShiftToken string
 	if *token.AccessToken != "" {
+		// TODO: (surajssd) Decrypt the token with the key that is available
+		// TODO: in secret
+		// TODO: https://github.com/fabric8-services/fabric8-auth/issues/233
 		openShiftToken = *token.AccessToken
 	}
 

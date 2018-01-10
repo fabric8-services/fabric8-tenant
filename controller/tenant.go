@@ -29,21 +29,33 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService   tenant.Service
-	keycloakConfig  keycloak.Config
-	openshiftConfig openshift.Config
-	templateVars    map[string]string
-	usersURL        string
+	tenantService       tenant.Service
+	userProfileService  token.UserProfileService
+	clusterTokenService token.ClusterTokenService
+	keycloakConfig      keycloak.Config
+	openshiftConfig     openshift.Config
+	templateVars        map[string]string
+	usersURL            string
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, templateVars map[string]string, usersURL string) *TenantController {
+func NewTenantController(
+	service *goa.Service,
+	tenantService tenant.Service,
+	userProfileService token.UserProfileService,
+	clusterTokenService token.ClusterTokenService,
+	keycloakConfig keycloak.Config,
+	templateVars map[string]string,
+	usersURL string) *TenantController {
+
 	return &TenantController{
-		Controller:     service.NewController("TenantController"),
-		tenantService:  tenantService,
-		keycloakConfig: keycloakConfig,
-		templateVars:   templateVars,
-		usersURL:       usersURL,
+		Controller:          service.NewController("TenantController"),
+		tenantService:       tenantService,
+		userProfileService:  userProfileService,
+		clusterTokenService: clusterTokenService,
+		keycloakConfig:      keycloakConfig,
+		templateVars:        templateVars,
+		usersURL:            usersURL,
 	}
 }
 
@@ -54,23 +66,12 @@ func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, use
 	}
 
 	// fetch the user cluster information
-	uc := token.UserProfileClient{Config: config}
-	userCluster, err := uc.GetUserCluster(ctx, userid)
+	userCluster, err := c.userProfileService.GetUserCluster(ctx, userid)
 	if err != nil {
 		return openshift.Config{}, err
 	}
 
-	// fetch that cluster's token
-	sa := token.ServiceAccountTokenClient{Config: config}
-	if err := sa.Get(ctx); err != nil {
-		return openshift.Config{}, err
-	}
-
-	ctc := token.ClusterTokenClient{
-		Config:      config,
-		AccessToken: sa.AuthServiceAccountToken,
-	}
-	clusterToken, err := ctc.Get(ctx, userCluster)
+	clusterToken, err := c.clusterTokenService.Get(ctx, userCluster)
 	if err != nil {
 		return openshift.Config{}, err
 	}
