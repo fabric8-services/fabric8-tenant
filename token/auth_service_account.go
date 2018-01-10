@@ -73,6 +73,8 @@ func CreateClient(config *configuration.Data) (*auth.Client, error) {
 	return c, nil
 }
 
+// validateError function when given client and response checks if the
+// response has any errors by also looking at the status code
 func validateError(c *auth.Client, res *http.Response) error {
 
 	if res.StatusCode == http.StatusNotFound {

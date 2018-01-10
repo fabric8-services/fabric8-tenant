@@ -59,18 +59,21 @@ func NewTenantController(
 	}
 }
 
+// setupOpenShiftConfig builds openshift config for every user request depending on the userid
 func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, userid string) (openshift.Config, error) {
+	// create config based off of viper configuration
 	config, err := configuration.GetData()
 	if err != nil {
 		return openshift.Config{}, err
 	}
 
-	// fetch the user cluster information
+	// fetch the cluster url that user belongs to
 	userCluster, err := c.userProfileService.GetUserCluster(ctx, userid)
 	if err != nil {
 		return openshift.Config{}, err
 	}
 
+	// fetch ClusterToken of the cluster that user belongs to
 	clusterToken, err := c.clusterTokenService.Get(ctx, userCluster)
 	if err != nil {
 		return openshift.Config{}, err
@@ -117,6 +120,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return ctx.Conflict()
 	}
 
+	// get the user id of the user doing request
 	userid := ttoken.Subject().String()
 	var err error
 	c.openshiftConfig, err = c.setupOpenShiftConfig(ctx, userid)

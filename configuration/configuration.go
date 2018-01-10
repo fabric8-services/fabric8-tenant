@@ -252,14 +252,20 @@ func (c *Data) GetKeycloakURL() string {
 	return defaultKeycloakURL
 }
 
+// GetAuthGrantType returns the fabric8-auth Grant type used while retrieving
+// user account token
 func (c *Data) GetAuthGrantType() string {
 	return "client_credentials"
 }
 
+// GetAuthClientID returns the tenant's client id used while
+// communicating with fabric8-auth
 func (c *Data) GetAuthClientID() string {
 	return c.v.GetString(varAuthClientID)
 }
 
+// GetClientSecret returns the secret which will be used in
+// conjunction with the tenant client id
 func (c *Data) GetClientSecret() string {
 	return c.v.GetString(varClientSecret)
 }
