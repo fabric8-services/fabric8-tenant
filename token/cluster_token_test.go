@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -96,7 +97,7 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			}
 
 			// set the URL given by the temporary server
-			config.SetAuthURL(tt.URL)
+			os.Setenv("F8_AUTH_URL", tt.URL)
 
 			c := &ClusterTokenClient{}
 			c.Config = config

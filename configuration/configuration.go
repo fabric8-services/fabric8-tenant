@@ -285,10 +285,6 @@ func (c *Data) GetAuthURL() string {
 	return c.v.GetString(varAuthURL)
 }
 
-func (c *Data) SetAuthURL(value string) {
-	c.v.Set(varAuthURL, value)
-}
-
 // GetTogglesURL returns Toggle service URL
 func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)

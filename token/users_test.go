@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -91,7 +92,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			}
 
 			// set the URL given by the temporary server
-			config.SetAuthURL(tt.URL)
+			os.Setenv("F8_AUTH_URL", tt.URL)
 
 			uc := &UserProfileClient{
 				Config: config,

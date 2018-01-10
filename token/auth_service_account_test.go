@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"os"
+
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 )
 
@@ -77,7 +79,7 @@ func TestServiceAccountTokenClient_Get(t *testing.T) {
 			}
 
 			// set the URL given by the temporary server
-			config.SetAuthURL(tt.URL)
+			os.Setenv("F8_AUTH_URL", tt.URL)
 
 			c := &ServiceAccountTokenClient{
 				Config: config,
