@@ -1,17 +1,16 @@
 package token
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/url"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
 )
 
 type ClusterTokenService interface {
-	Get(cluster string) (string, error)
+	Get(ctx context.Context, cluster string) (string, error)
 }
 
 type ClusterTokenClient struct {
@@ -19,7 +18,7 @@ type ClusterTokenClient struct {
 	AccessToken string
 }
 
-func (c *ClusterTokenClient) Get(cluster string) (string, error) {
+func (c *ClusterTokenClient) Get(ctx context.Context, cluster string) (string, error) {
 	// auth can return empty token so validate against that
 	if c.AccessToken == "" {
 		return "", fmt.Errorf("access token can't be empty")
@@ -30,43 +29,29 @@ func (c *ClusterTokenClient) Get(cluster string) (string, error) {
 		return "", fmt.Errorf("auth service returned an empty cluster url")
 	}
 
-	// a normal query will look like following
-	// http://auth-fabric8.192.168.42.181.nip.io/api/token?for=https://api.starter-us-east-2a.openshift.com
-	u, err := url.Parse(c.Config.GetAuthURL())
+	authclient, err := CreateClient(c.Config)
 	if err != nil {
-		return "", errors.Wrapf(err, "error parsing auth url")
+		return "", err
 	}
-	u.Path = "/api/token"
-	q := u.Query()
-	q.Set("for", cluster)
-	u.RawQuery = q.Encode()
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return "", errors.Wrapf(err, "error creating request object")
-	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+c.AccessToken)
-
-	res, err := http.DefaultClient.Do(req)
+	path := auth.RetrieveTokenPath()
+	res, err := authclient.RetrieveToken(ctx, path, cluster, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "error while doing the request")
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", errors.Wrapf(err, "error reading response")
-	}
+	token, err := authclient.DecodeOauthToken(res)
+	validationerror := validateError(authclient, res)
 
-	if err := validateError(res.StatusCode, body); err != nil {
+	if validationerror != nil {
+		return "", errors.Wrapf(validationerror, "error from server %q", c.Config.GetAuthURL())
+	} else if err != nil {
 		return "", errors.Wrapf(err, "error from server %q", c.Config.GetAuthURL())
 	}
 
-	openShiftToken, err := parseToken(body)
-	// parse the token from the output
-	if err != nil {
-		return "", err
+	var openShiftToken string
+	if *token.AccessToken != "" {
+		openShiftToken = *token.AccessToken
 	}
 
 	return openShiftToken, nil

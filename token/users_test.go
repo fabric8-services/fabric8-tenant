@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 )
 
-func TestUserController_GetUserCluster(t *testing.T) {
+func TestUserProfileClient_GetUserCluster(t *testing.T) {
 	want := "https://fake-cluster.com"
 	wantOutput := `
 	{
@@ -45,11 +46,13 @@ func TestUserController_GetUserCluster(t *testing.T) {
 			name:    "bad status code",
 			wantErr: true,
 			status:  http.StatusNotFound,
+			userID:  "fake-userid",
 		},
 		{
 			name:    "make code fail on parsing output",
 			wantErr: true,
 			output:  "foobar",
+			userID:  "fake-userid",
 		},
 	}
 
@@ -90,18 +93,18 @@ func TestUserController_GetUserCluster(t *testing.T) {
 			// set the URL given by the temporary server
 			config.SetAuthURL(tt.URL)
 
-			uc := &UserController{
+			uc := &UserProfileClient{
 				Config: config,
 			}
-			got, err := uc.GetUserCluster(tt.userID)
+			got, err := uc.GetUserCluster(context.Background(), tt.userID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("UserController.GetUserCluster() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("UserProfileClient.GetUserCluster() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			} else if err != nil && tt.wantErr {
-				t.Logf("UserController.GetUserCluster() failed with error = %v", err)
+				t.Logf("UserProfileClient.GetUserCluster() failed with error = %v", err)
 			}
 			if got != tt.want {
-				t.Errorf("UserController.GetUserCluster() = %v, want %v", got, tt.want)
+				t.Errorf("UserProfileClient.GetUserCluster() = %v, want %v", got, tt.want)
 			}
 		})
 	}

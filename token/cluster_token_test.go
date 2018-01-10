@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -100,7 +101,7 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			c := &ClusterTokenClient{}
 			c.Config = config
 			c.AccessToken = tt.args.accessToken
-			got, err := c.Get(tt.args.cluster)
+			got, err := c.Get(context.Background(), tt.args.cluster)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ClusterTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err != nil && tt.wantErr {

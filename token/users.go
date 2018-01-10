@@ -1,66 +1,44 @@
 package token
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"path/filepath"
+	"context"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
 )
 
-type userData struct {
-	Data struct {
-		Attributes struct {
-			Cluster string `json:"cluster,omitempty"`
-		}
-	}
-}
-
 type UserProfileService interface {
-	GetUserCluster(userID string) (string, error)
+	GetUserCluster(ctx context.Context, userID string) (string, error)
 }
 
-type UserController struct {
-	Config                     *configuration.Data
-	serviceAccountTokenService ServiceAccountTokenService
+type UserProfileClient struct {
+	Config *configuration.Data
 }
 
-func (uc *UserController) GetUserCluster(userID string) (string, error) {
-	u, err := url.Parse(uc.Config.GetAuthURL())
-	if err != nil {
-		return "", errors.Wrapf(err, "error parsing auth url")
-	}
-	u.Path = filepath.Join("/api/users", userID)
+func (uc *UserProfileClient) GetUserCluster(ctx context.Context, userID string) (string, error) {
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	authclient, err := CreateClient(uc.Config)
 	if err != nil {
-		return "", errors.Wrapf(err, "error creating request object")
+		return "", err
 	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	res, err := http.DefaultClient.Do(req)
+	path := auth.ShowUsersPath(userID)
+	res, err := authclient.ShowUsers(ctx, path, nil, nil)
+
 	if err != nil {
 		return "", errors.Wrapf(err, "error while doing the request")
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", errors.Wrapf(err, "error reading response")
-	}
+	user, err := authclient.DecodeUser(res)
+	validationerror := validateError(authclient, res)
 
-	if err := validateError(res.StatusCode, body); err != nil {
+	if validationerror != nil {
+		return "", errors.Wrapf(validationerror, "error from server %q", uc.Config.GetAuthURL())
+	} else if err != nil {
 		return "", errors.Wrapf(err, "error from server %q", uc.Config.GetAuthURL())
 	}
 
-	var response userData
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", errors.Wrapf(err, "error unmarshalling the response")
-	}
-
-	return response.Data.Attributes.Cluster, nil
+	return *user.Data.Attributes.Cluster, nil
 }

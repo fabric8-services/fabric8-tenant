@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,6 +44,11 @@ func TestServiceAccountTokenClient_Get(t *testing.T) {
 			wantErr: true,
 			output:  "foobar",
 		},
+		{
+			name:    "empty token from the server",
+			wantErr: true,
+			output:  `{"access_token": "","token_type": "bearer"}`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -73,9 +79,10 @@ func TestServiceAccountTokenClient_Get(t *testing.T) {
 			// set the URL given by the temporary server
 			config.SetAuthURL(tt.URL)
 
-			c := &ServiceAccountTokenClient{}
-			c.Config = config
-			err = c.Get()
+			c := &ServiceAccountTokenClient{
+				Config: config,
+			}
+			err = c.Get(context.Background())
 			got := c.AuthServiceAccountToken
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ServiceAccountTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)

@@ -116,7 +116,6 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return ctx.Conflict()
 	}
 
-	// TODO populate this username from somewhere
 	userid := ttoken.Subject().String()
 	var err error
 	c.openshiftConfig, err = c.setupOpenShiftConfig(ctx, userid)
