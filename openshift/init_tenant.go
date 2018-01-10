@@ -143,6 +143,7 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, user
 		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
 			defer wg.Done()
 			output, err := executeProccessedNamespaceCMD(
+				ctx,
 				listToTemplate(
 					//RemoveReplicas(
 					Filter(
@@ -329,7 +330,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		nsname := fmt.Sprintf("%v-jenkins", name)
 		lvars[varProjectNamespace] = vars[varProjectName]
 		if update {
-			output, err := executeNamespaceCMD(string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
+			output, err := executeNamespaceCMD(ctx, string(jenkinsT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"output":    output,
@@ -387,7 +388,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		nsname := fmt.Sprintf("%v-che", name)
 		lvars[varProjectNamespace] = vars[varProjectName]
 		if update {
-			output, err := executeNamespaceCMD(string(cheT), lvars, masterOpts.WithNamespace(nsname))
+			output, err := executeNamespaceCMD(ctx, string(cheT), lvars, masterOpts.WithNamespace(nsname))
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"output":    output,
@@ -558,15 +559,15 @@ func executeNamespaceAsync(template string, vars map[string]string, opts ApplyOp
 	return ch
 }
 
-func executeNamespaceCMD(template string, vars map[string]string, opts ApplyOptions) (string, error) {
+func executeNamespaceCMD(ctx context.Context, template string, vars map[string]string, opts ApplyOptions) (string, error) {
 	t, err := Process(template, vars)
 	if err != nil {
 		return "", err
 	}
-	return executeProccessedNamespaceCMD(t, opts)
+	return executeProccessedNamespaceCMD(ctx, t, opts)
 }
 
-func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) {
+func executeProccessedNamespaceCMD(ctx context.Context, t string, opts ApplyOptions) (string, error) {
 	hostVerify := ""
 	flag := os.Getenv("KEYCLOAK_SKIP_HOST_VERIFY")
 	if strings.ToLower(flag) == "true" {
@@ -575,6 +576,13 @@ func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) 
 	serverFlag := "--server=" + opts.MasterURL + hostVerify
 	if KubernetesMode() {
 		serverFlag = "--local=true"
+	}
+	ns := opts.Namespace
+	if strings.Contains(ns, "aslak") || strings.Contains(ns, "ibuziuk") {
+		log.Info(ctx, map[string]interface{}{
+			"template":  t,
+			"namespace": ns,
+		}, "applying template")
 	}
 
 	cmdArgs := []string{"-c", "oc process -f - " + serverFlag + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
