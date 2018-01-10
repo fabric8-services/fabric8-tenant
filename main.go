@@ -60,13 +60,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	//var tr *http.Transport
-	//if config.APIServerInsecureSkipTLSVerify() {
-	//	tr = &http.Transport{
-	//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	//	}
-	//}
-
 	if config.GetOpenshiftCheVersion() != "" {
 		log.Logger().Infof("Che Version: %s", config.GetOpenshiftCheVersion())
 	}
@@ -82,25 +75,6 @@ func main() {
 
 	toggles.Init("f8tenant", config.GetTogglesURL())
 
-	//openshiftConfig := openshift.Config{
-	//	MasterURL:      config.GetOpenshiftTenantMasterURL(),
-	//	ConsoleURL:     config.GetConsoleURL(),
-	//	Token:          serviceToken,
-	//	HttpTransport:  tr,
-	//	CheVersion:     config.GetOpenshiftCheVersion(),
-	//	JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
-	//	TeamVersion:    config.GetOpenshiftTeamVersion(),
-	//	TemplateDir:    config.GetOpenshiftTemplateDir(),
-	//}
-
-	//openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)
-	//if err != nil {
-	//	logrus.Panic(nil, map[string]interface{}{
-	//		"err": err,
-	//	}, "unknown master user based on service token")
-	//}
-	//openshiftConfig.MasterUser = openshiftMasterUser
-
 	keycloakConfig := keycloak.Config{
 		BaseURL: config.GetKeycloakURL(),
 		Realm:   config.GetKeycloakRealm(),
@@ -113,7 +87,6 @@ func main() {
 	}
 
 	templateVars["KEYCLOAK_URL"] = ""
-	//templateVars["FABRIC8_CONSOLE_URL"] = openshiftConfig.ConsoleURL
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
 	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), auth.RetrieveTokenPath())
 

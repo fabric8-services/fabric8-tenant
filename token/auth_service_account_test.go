@@ -4,9 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
 	"os"
+	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 )

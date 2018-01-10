@@ -54,15 +54,15 @@ func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, use
 	}
 
 	// fetch the user cluster information
-	uc := token.UserController{Config: config}
-	usercluster, err := uc.GetUserCluster(userid)
+	uc := token.UserProfileClient{Config: config}
+	userCluster, err := uc.GetUserCluster(ctx, userid)
 	if err != nil {
 		return openshift.Config{}, err
 	}
 
 	// fetch that cluster's token
 	sa := token.ServiceAccountTokenClient{Config: config}
-	if err := sa.Get(); err != nil {
+	if err := sa.Get(ctx); err != nil {
 		return openshift.Config{}, err
 	}
 
@@ -70,7 +70,7 @@ func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, use
 		Config:      config,
 		AccessToken: sa.AuthServiceAccountToken,
 	}
-	clusterToken, err := ctc.Get(usercluster)
+	clusterToken, err := ctc.Get(ctx, userCluster)
 	if err != nil {
 		return openshift.Config{}, err
 	}
@@ -83,9 +83,9 @@ func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, use
 	}
 
 	openshiftConfig := openshift.Config{
-		MasterURL:      usercluster,
-		ConsoleURL:     config.GetConsoleURL(), // something to do with cluster console url
-		Token:          clusterToken,           // cluster token returned by auth service.
+		MasterURL:      userCluster,
+		ConsoleURL:     config.GetConsoleURL(),
+		Token:          clusterToken,
 		HttpTransport:  tr,
 		CheVersion:     config.GetOpenshiftCheVersion(),
 		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
