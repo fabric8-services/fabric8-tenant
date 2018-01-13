@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -176,30 +175,30 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 }
 
 func (c *TenantController) loadUserTenantConfiguration(token *jwt.Token, config openshift.Config) (openshift.Config, error) {
-	authHeader := token.Raw
-	if len(c.usersURL) > 0 {
-		url := strings.TrimSuffix(c.usersURL, "/") + "/user"
-		status, body, err := openshift.GetJSON(config, url, authHeader)
-		if err != nil {
-			return config, err
-		}
-		if status < 200 || status > 300 {
-			return config, fmt.Errorf("Failed to GET url %s due to status code %d", url, status)
-		}
-		js, err := simplejson.NewJson([]byte(body))
-		if err != nil {
-			return config, err
-		}
+	// authHeader := token.Raw
+	// if len(c.usersURL) > 0 {
+	// 	url := strings.TrimSuffix(c.usersURL, "/") + "/user"
+	// 	status, body, err := openshift.GetJSON(config, url, authHeader)
+	// 	if err != nil {
+	// 		return config, err
+	// 	}
+	// 	if status < 200 || status > 300 {
+	// 		return config, fmt.Errorf("Failed to GET url %s due to status code %d", url, status)
+	// 	}
+	// 	js, err := simplejson.NewJson([]byte(body))
+	// 	if err != nil {
+	// 		return config, err
+	// 	}
 
-		tenantConfig := js.GetPath("data", "attributes", "contextInformation", "tenantConfig")
-		if tenantConfig.Interface() != nil {
-			cheVersion := getJsonStringOrBlank(tenantConfig, "cheVersion")
-			jenkinsVersion := getJsonStringOrBlank(tenantConfig, "jenkinsVersion")
-			teamVersion := getJsonStringOrBlank(tenantConfig, "teamVersion")
-			mavenRepoURL := getJsonStringOrBlank(tenantConfig, "mavenRepo")
-			return config.WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL), nil
-		}
-	}
+	// 	tenantConfig := js.GetPath("data", "attributes", "contextInformation", "tenantConfig")
+	// 	if tenantConfig.Interface() != nil {
+	// 		cheVersion := getJsonStringOrBlank(tenantConfig, "cheVersion")
+	// 		jenkinsVersion := getJsonStringOrBlank(tenantConfig, "jenkinsVersion")
+	// 		teamVersion := getJsonStringOrBlank(tenantConfig, "teamVersion")
+	// 		mavenRepoURL := getJsonStringOrBlank(tenantConfig, "mavenRepo")
+	// 		return config.WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL), nil
+	// 	}
+	// }
 	return config, nil
 }
 
