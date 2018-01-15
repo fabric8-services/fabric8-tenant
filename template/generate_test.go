@@ -36,6 +36,9 @@ func TestFoundJenkins(t *testing.T) {
 
 	assert.Equal(t, 6, len(params), "unknown number of parameters")
 }
+func TestFoundJenkinsKnownTypes(t *testing.T) {
+	verifyKindMapping(t, "template/fabric8-tenant-jenkins-openshift.yml")
+}
 
 func TestFoundJenkinsQuotasOSO(t *testing.T) {
 	c, err := template.Asset("template/fabric8-tenant-jenkins-quotas-oso-openshift.yml")
@@ -53,6 +56,9 @@ func TestFoundJenkinsQuotasOSO(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not parse resource as yaml")
 	}
+}
+func TestFoundJenkinsQuotasOSOKnownTypes(t *testing.T) {
+	verifyKindMapping(t, "template/fabric8-tenant-jenkins-quotas-oso-openshift.yml")
 }
 
 func TestFoundChe(t *testing.T) {
@@ -80,6 +86,10 @@ func TestFoundChe(t *testing.T) {
 	assert.Equal(t, 10, len(params), "unknown number of parameters")
 }
 
+func TestFoundCheKnownTypes(t *testing.T) {
+	verifyKindMapping(t, "template/fabric8-tenant-che-openshift.yml")
+}
+
 func TestFoundCheMultiTenant(t *testing.T) {
 	c, err := template.Asset("template/fabric8-tenant-che-mt-openshift.yml")
 	if err != nil {
@@ -105,6 +115,10 @@ func TestFoundCheMultiTenant(t *testing.T) {
 	assert.Equal(t, 6, len(params), "unknown number of parameters")
 }
 
+func TestFoundCheMultiTenantKnownTypes(t *testing.T) {
+	verifyKindMapping(t, "template/fabric8-tenant-che-mt-openshift.yml")
+}
+
 func TestFoundCheQuotasOSO(t *testing.T) {
 	c, err := template.Asset("template/fabric8-tenant-che-quotas-oso-openshift.yml")
 	if err != nil {
@@ -121,6 +135,10 @@ func TestFoundCheQuotasOSO(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not parse resource as yaml")
 	}
+}
+
+func TestFoundCheQuotasOSOKnownTypes(t *testing.T) {
+	verifyKindMapping(t, "template/fabric8-tenant-che-quotas-oso-openshift.yml")
 }
 
 func TestFoundTeam(t *testing.T) {
@@ -146,6 +164,10 @@ func TestFoundTeam(t *testing.T) {
 	}
 	// 1 parameter not used in Openshift templates but bleed through from k8
 	assert.Equal(t, 8, len(params), "unknown number of parameters")
+}
+
+func TestFoundTeamKnownTypes(t *testing.T) {
+	verifyKindMapping(t, "template/fabric8-tenant-team-openshift.yml")
 }
 
 func TestStatusAPIJenkins(t *testing.T) {
@@ -205,5 +227,44 @@ func withNamespaceLike(name string) func(map[interface{}]interface{}) error {
 			return nil
 		}
 		return fmt.Errorf("No namespace match for %v found", name)
+	}
+}
+
+func verifyKindMapping(t *testing.T, templateName string) {
+	c, err := template.Asset(templateName)
+	if err != nil {
+		t.Fatalf("Asset " + templateName + " not found")
+	}
+	templ, err := openshift.ProcessTemplate(string(c), "test", map[string]string{})
+	if err != nil {
+		t.Error(err)
+	}
+	for _, object := range templ {
+		var url string
+		var err error
+		url, err = openshift.CreateURL("http://localhost:8080", "POST", object)
+		if err != nil || url == "" {
+			t.Error(err, "POST not found for "+openshift.GetKind(object))
+		}
+		if openshift.GetKind(object) == "ProjectRequest" { // ProjectRequests only support GET
+			continue
+		}
+
+		url, err = openshift.CreateURL("http://localhost:8080", "GET", object)
+		if err != nil || url == "" {
+			t.Error(err, "GET not found for "+openshift.GetKind(object))
+		}
+		url, err = openshift.CreateURL("http://localhost:8080", "PUT", object)
+		if err != nil || url == "" {
+			t.Error(err, "PUT not found for "+openshift.GetKind(object))
+		}
+		url, err = openshift.CreateURL("http://localhost:8080", "PATCH", object)
+		if err != nil || url == "" {
+			t.Error(err, "PATCH not found for "+openshift.GetKind(object))
+		}
+		url, err = openshift.CreateURL("http://localhost:8080", "DELETE", object)
+		if err != nil || url == "" {
+			t.Error(err, "DELETE not found for "+openshift.GetKind(object))
+		}
 	}
 }
