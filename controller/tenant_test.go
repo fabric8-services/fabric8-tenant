@@ -33,30 +33,28 @@ func TestTenantController(t *testing.T) {
 
 func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 
-	// given
-	svc := goa.New("Tenants-service")
-	inputOpenShiftConfig := openshift.Config{
-		CheVersion:     "che-version",
-		JenkinsVersion: "jenkins-version",
-		MavenRepoURL:   "maven-url",
-		TeamVersion:    "team-version",
-	}
-	authURL := "http://auth-test"
-	templateVars := make(map[string]string)
-	tenantService := mockTenantService{ID: uuid.NewV4()}
-	r, err := recorder.New("../test/data/auth/auth_get_user")
-	require.Nil(s.T(), err)
-	r.SetMatcher(jwtMatcher())
-	defer r.Stop()
-	mockHTTPClient := &http.Client{
-		Transport: r.Transport,
-	}
-	ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
-
 	s.T().Run("override disabled", func(t *testing.T) {
 
 		t.Run("external user with config", func(t *testing.T) {
 			// given
+			svc := goa.New("Tenants-service")
+			inputOpenShiftConfig := openshift.Config{
+				CheVersion:     "che-version",
+				JenkinsVersion: "jenkins-version",
+				MavenRepoURL:   "maven-url",
+				TeamVersion:    "team-version",
+			}
+			authURL := "http://auth-test"
+			templateVars := make(map[string]string)
+			tenantService := mockTenantService{ID: uuid.NewV4()}
+			r, err := recorder.New("../test/data/auth/auth_get_user")
+			require.Nil(s.T(), err)
+			r.SetMatcher(jwtMatcher())
+			defer r.Stop()
+			mockHTTPClient := &http.Client{
+				Transport: r.Transport,
+			}
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			ctx := createValidContext(s.T(), "external_user_with_config")
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
@@ -67,6 +65,24 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 
 		t.Run("external user without config", func(t *testing.T) {
 			// given
+			svc := goa.New("Tenants-service")
+			inputOpenShiftConfig := openshift.Config{
+				CheVersion:     "che-version",
+				JenkinsVersion: "jenkins-version",
+				MavenRepoURL:   "maven-url",
+				TeamVersion:    "team-version",
+			}
+			authURL := "http://auth-test"
+			templateVars := make(map[string]string)
+			tenantService := mockTenantService{ID: uuid.NewV4()}
+			r, err := recorder.New("../test/data/auth/auth_get_user")
+			require.Nil(s.T(), err)
+			r.SetMatcher(jwtMatcher())
+			defer r.Stop()
+			mockHTTPClient := &http.Client{
+				Transport: r.Transport,
+			}
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			ctx := createValidContext(s.T(), "external_user_without_config")
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
@@ -80,6 +96,24 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 
 		t.Run("internal user with config", func(t *testing.T) {
 			// given
+			svc := goa.New("Tenants-service")
+			inputOpenShiftConfig := openshift.Config{
+				CheVersion:     "che-version",
+				JenkinsVersion: "jenkins-version",
+				MavenRepoURL:   "maven-url",
+				TeamVersion:    "team-version",
+			}
+			authURL := "http://auth-test"
+			templateVars := make(map[string]string)
+			tenantService := mockTenantService{ID: uuid.NewV4()}
+			r, err := recorder.New("../test/data/auth/auth_get_user")
+			require.Nil(s.T(), err)
+			r.SetMatcher(jwtMatcher())
+			defer r.Stop()
+			mockHTTPClient := &http.Client{
+				Transport: r.Transport,
+			}
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			ctx := createValidContext(s.T(), "internal_user_with_config")
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
@@ -96,6 +130,24 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 
 		t.Run("internal user without config", func(t *testing.T) {
 			// given
+			svc := goa.New("Tenants-service")
+			inputOpenShiftConfig := openshift.Config{
+				CheVersion:     "che-version",
+				JenkinsVersion: "jenkins-version",
+				MavenRepoURL:   "maven-url",
+				TeamVersion:    "team-version",
+			}
+			authURL := "http://auth-test"
+			templateVars := make(map[string]string)
+			tenantService := mockTenantService{ID: uuid.NewV4()}
+			r, err := recorder.New("../test/data/auth/auth_get_user")
+			require.Nil(s.T(), err)
+			r.SetMatcher(jwtMatcher())
+			defer r.Stop()
+			mockHTTPClient := &http.Client{
+				Transport: r.Transport,
+			}
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			ctx := createValidContext(s.T(), "internal_user_without_config")
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
