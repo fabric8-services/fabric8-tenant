@@ -1,5 +1,5 @@
-hash: c13145cebe7a75f609d38507336154c056b589f166d0a56f79786424e289373b
-updated: 2018-01-15T17:54:21.154326332+01:00
+hash: 53a4be18320fbb006aa2a57986954133ce3b23530175f00c56345e4ae4a22cb6
+updated: 2018-01-16T15:43:47.65835094+01:00
 imports:
 - name: github.com/ajg/form
   version: 523a5da1a92f01b01f840b61689c0340a0243532
@@ -13,12 +13,14 @@ imports:
   - spew
 - name: github.com/dgrijalva/jwt-go
   version: dbeaa9332f19a944acb5736b4456cfcc02140e29
+  subpackages:
+  - request
 - name: github.com/dimfeld/httppath
   version: ee938bf735983d53694d79138ad9820efff94c92
 - name: github.com/dimfeld/httptreemux
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/dnaeon/go-vcr
-  version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
+  version: 87d4990451a858cc210399285be976e63bc3c364
   subpackages:
   - cassette
   - recorder

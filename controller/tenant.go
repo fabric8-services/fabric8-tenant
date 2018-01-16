@@ -484,7 +484,7 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 
 // NewAuthClient initializes a new client to the `auth` service
 func newAuthClient(ctx context.Context, httpClient *http.Client, authURL string) (*auth.Client, error) {
-	log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "initializing a new auth client...")
+	log.Info(ctx, map[string]interface{}{"auth_url": authURL, "http_client_transport": reflect.TypeOf(httpClient.Transport)}, "initializing a new auth client...")
 	u, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err

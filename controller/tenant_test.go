@@ -101,22 +101,13 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 
 func newTenantController(t *testing.T, defaultConfig openshift.Config) *TenantController {
 	svc := goa.New("Tenants-service")
-	authURL := "http://auth-test"
+	authURL := "http://auth-tests"
 	templateVars := make(map[string]string)
 	tenantService := mockTenantService{ID: uuid.NewV4()}
 	r, err := recorder.New("../test/data/auth/auth_get_user")
 	require.Nil(t, err)
-	r.SetMatcher(jwtMatcher())
 	defer r.Stop()
-	mockHTTPClient := &http.Client{
-		Transport: r.Transport,
-	}
-	return NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, defaultConfig, templateVars, authURL)
-}
-
-func jwtMatcher() cassette.Matcher {
-	log.Println("Using a custom cassette matcher...")
-	return func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
+	r.SetMatcher(func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
 		if httpRequest.URL != nil && httpRequest.URL.String() != cassetteRequest.URL {
 			log.Printf("Request URL does not match with cassette: %s vs %s\n", httpRequest.URL.String(), cassetteRequest.URL)
 			return false
@@ -140,7 +131,11 @@ func jwtMatcher() cassette.Matcher {
 		}
 		log.Printf("Request token does not match with cassette")
 		return false
+	})
+	mockHTTPClient := &http.Client{
+		Transport: r,
 	}
+	return NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, defaultConfig, templateVars, authURL)
 }
 
 func createValidContext(t *testing.T, userID string) context.Context {
