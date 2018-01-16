@@ -1,5 +1,5 @@
-hash: 29486f485171540e24b622bb43e66938668a8c94838dcc57e213b1b0a984b62f
-updated: 2017-12-07T12:23:55.520076316+01:00
+hash: c13145cebe7a75f609d38507336154c056b589f166d0a56f79786424e289373b
+updated: 2018-01-15T17:54:21.154326332+01:00
 imports:
 - name: github.com/ajg/form
   version: 523a5da1a92f01b01f840b61689c0340a0243532
@@ -19,14 +19,16 @@ imports:
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/dnaeon/go-vcr
   version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
+  subpackages:
+  - cassette
+  - recorder
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-auth
-  version: 26e19df61b885a92774632f23bb5590c5f768a31
+  version: 388679243bf1a62bfaf943210bd5d0e0db48ebe5
   subpackages:
-  - configuration
   - design
   - errors
   - log
@@ -46,7 +48,7 @@ imports:
   - resource
   - rest
 - name: github.com/fsnotify/fsnotify
-  version: 629574ca2a5df945712d3079857300b5e4da0236
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/fzipp/gocyclo
   version: 6acd4345c835499920e8426c7e4e8d7a34f1bb83
 - name: github.com/goadesign/goa
@@ -106,7 +108,7 @@ imports:
   subpackages:
   - oid
 - name: github.com/magiconair/properties
-  version: be5ece7dd465ab0765a9682137865547526d1dfb
+  version: d419a98cdbed11a922bf76f257b7c4be79b50e73
 - name: github.com/manveru/faker
   version: 9fbc68a78c4dbc7914e1a23f88f126bea4383b97
 - name: github.com/mitchellh/mapstructure
@@ -140,7 +142,7 @@ imports:
 - name: github.com/spf13/viper
   version: 4dddf7c62e16bce5807744018f5b753bfe21bbd2
 - name: github.com/stretchr/testify
-  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
   subpackages:
   - assert
   - require

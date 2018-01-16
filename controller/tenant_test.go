@@ -2,15 +2,18 @@ package controller
 
 import (
 	"context"
+	"crypto/rsa"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	jwtrequest "github.com/dgrijalva/jwt-go/request"
+	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/dnaeon/go-vcr/recorder"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	testtoggles "github.com/fabric8-services/fabric8-tenant/test/toggles"
-	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	uuid "github.com/satori/go.uuid"
@@ -38,27 +41,23 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 		MavenRepoURL:   "maven-url",
 		TeamVersion:    "team-version",
 	}
-	tenantID := uuid.NewV4()
-	tenantService := mockTenantService{ID: tenantID}
-	ctx := createValidUserContext(tenantID.String())
+	authURL := "http://auth-test"
+	templateVars := make(map[string]string)
+	tenantService := mockTenantService{ID: uuid.NewV4()}
+	r, err := recorder.New("../test/data/auth/auth_get_user")
+	require.Nil(s.T(), err)
+	r.SetMatcher(jwtMatcher())
+	defer r.Stop()
 
 	s.T().Run("override disabled", func(t *testing.T) {
 
-		// given
-		userUpdateTenantFeature := testtoggles.NewMockFeature(toggles.UserUpdateTenantFeature, false)
-		toggleClient := toggles.NewCustomClient(testtoggles.NewMockUnleashClient(*userUpdateTenantFeature), true)
-		// ensure that the "override config" feature is disabled for the user
-		require.False(t, toggleClient.IsEnabled(goajwt.ContextJWT(ctx), toggles.UserUpdateTenantFeature, false))
-
-		t.Run("user has config in profile", func(t *testing.T) {
+		t.Run("external user with config", func(t *testing.T) {
 			// given
-			r, err := recorder.New("../test/data/tenant/auth_get_user.withconfig")
-			require.Nil(t, err)
-			defer r.Stop()
+			ctx := createValidContext(s.T(), "external_user_with_config")
 			mockHTTPClient := &http.Client{
 				Transport: r.Transport,
 			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, toggleClient, keycloak.Config{}, inputOpenShiftConfig, map[string]string{}, "http://auth")
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -66,15 +65,13 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 			assert.Equal(t, inputOpenShiftConfig, resultConfig)
 		})
 
-		t.Run("user has no config in profile", func(t *testing.T) {
+		t.Run("external user without config", func(t *testing.T) {
 			// given
-			r, err := recorder.New("../test/data/tenant/auth_get_user.withoutconfig")
-			require.Nil(t, err)
-			defer r.Stop()
+			ctx := createValidContext(s.T(), "external_user_without_config")
 			mockHTTPClient := &http.Client{
 				Transport: r.Transport,
 			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, toggleClient, keycloak.Config{}, inputOpenShiftConfig, map[string]string{}, "http://auth")
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -84,21 +81,14 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 	})
 
 	s.T().Run("override enabled", func(t *testing.T) {
-		// given
-		userUpdateTenantFeature := testtoggles.NewMockFeature(toggles.UserUpdateTenantFeature, true)
-		toggleClient := toggles.NewCustomClient(testtoggles.NewMockUnleashClient(*userUpdateTenantFeature), true)
-		// ensure that the "override config" feature is enabled for the user
-		require.True(t, toggleClient.IsEnabled(goajwt.ContextJWT(ctx), toggles.UserUpdateTenantFeature, false))
 
-		t.Run("user has config in profile", func(t *testing.T) {
+		t.Run("internal user with config", func(t *testing.T) {
 			// given
-			r, err := recorder.New("../test/data/tenant/auth_get_user.withconfig")
-			require.Nil(t, err)
-			defer r.Stop()
+			ctx := createValidContext(s.T(), "internal_user_with_config")
 			mockHTTPClient := &http.Client{
 				Transport: r.Transport,
 			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, toggleClient, keycloak.Config{}, inputOpenShiftConfig, map[string]string{}, "http://auth")
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -112,15 +102,13 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 			assert.Equal(t, expectedOpenshiftConfig, resultConfig)
 		})
 
-		t.Run("user has no config in profile", func(t *testing.T) {
+		t.Run("internal user without config", func(t *testing.T) {
 			// given
-			r, err := recorder.New("../test/data/tenant/auth_get_user.withoutconfig")
-			require.Nil(t, err)
-			defer r.Stop()
+			ctx := createValidContext(s.T(), "internal_user_without_config")
 			mockHTTPClient := &http.Client{
 				Transport: r.Transport,
 			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, toggleClient, keycloak.Config{}, inputOpenShiftConfig, map[string]string{}, "http://auth")
+			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -131,10 +119,48 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 
 }
 
-func createValidUserContext(userID string) context.Context {
+func jwtMatcher() cassette.Matcher {
+	return func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
+		// look-up the JWT's "sub" claim and compare with the request
+		token, err := jwtrequest.ParseFromRequest(httpRequest, jwtrequest.AuthorizationHeaderExtractor, func(*jwt.Token) (interface{}, error) {
+			return PublicKey()
+		})
+		if err != nil {
+			log.Panic(nil, map[string]interface{}{"error": err.Error()}, "failed to parse token from request")
+		}
+		claims := token.Claims.(jwt.MapClaims)
+		if sub, found := cassetteRequest.Headers["sub"]; found {
+			return sub[0] == claims["sub"]
+		}
+		return false
+	}
+}
+
+func createValidContext(t *testing.T, userID string) context.Context {
 	claims := jwt.MapClaims{}
 	claims["sub"] = userID
-	claims["session_state"] = "foo_session_id"
 	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+	// use the test private key to sign the token
+	key, err := PrivateKey()
+	require.NoError(t, err)
+	signed, err := token.SignedString(key)
+	require.NoError(t, err)
+	token.Raw = signed
 	return goajwt.WithJWT(context.Background(), token)
+}
+
+func PrivateKey() (*rsa.PrivateKey, error) {
+	rsaPrivateKey, err := ioutil.ReadFile("../test/private_key.pem")
+	if err != nil {
+		return nil, err
+	}
+	return jwt.ParseRSAPrivateKeyFromPEM(rsaPrivateKey)
+}
+
+func PublicKey() (*rsa.PublicKey, error) {
+	rsaPublicKey, err := ioutil.ReadFile("../test/public_key.pem")
+	if err != nil {
+		return nil, err
+	}
+	return jwt.ParseRSAPublicKeyFromPEM(rsaPublicKey)
 }

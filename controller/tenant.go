@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -17,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/goasupport"
 	"github.com/fabric8-services/fabric8-wit/log"
@@ -38,16 +36,14 @@ type TenantController struct {
 	openshiftConfig openshift.Config
 	templateVars    map[string]string
 	authURL         string
-	toggleClient    toggles.Client
 }
 
 // NewTenantController creates a status controller.
-func NewTenantController(service *goa.Service, tenantService tenant.Service, httpClient *http.Client, toggleClient *toggles.Client, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, authURL string) *TenantController {
+func NewTenantController(service *goa.Service, tenantService tenant.Service, httpClient *http.Client, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string, authURL string) *TenantController {
 	return &TenantController{
 		Controller:      service.NewController("TenantController"),
 		httpClient:      httpClient,
 		tenantService:   tenantService,
-		toggleClient:    *toggleClient,
 		keycloakConfig:  keycloakConfig,
 		openshiftConfig: openshiftConfig,
 		templateVars:    templateVars,
@@ -189,41 +185,67 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 // loadUserTenantConfiguration loads the tenant configuration for `auth`,
 // allowing for config overrides based on the content of his profile (in auth) if the user is allowed
 func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, config openshift.Config) (openshift.Config, error) {
-	token := goajwt.ContextJWT(ctx)
-	// use the toggle service to verify that the user is allowed to change is profile based on the settings passed in the URL
-	if len(c.authURL) > 0 && c.toggleClient.IsEnabled(token, toggles.UserUpdateTenantFeature, false) {
-		log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "retrieving user's profile...")
-		authClient, err := newAuthClient(ctx, c.httpClient, c.authURL)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable to parse auth URL")
-			return config, err
+	// restrict access to users with a `featureLevel` set to `internal`
+	log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "retrieving user's profile...")
+	authClient, err := newAuthClient(ctx, c.httpClient, c.authURL)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable to parse auth URL")
+		return config, err
+	}
+	resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
+		return config, errs.Wrapf(err, "failed to GET url %s due to error", auth.ShowUserPath())
+	}
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to read auth response")
+		return config, errs.Wrapf(err, "failed to read auth response due to error", auth.ShowUserPath())
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 300 {
+		return config, fmt.Errorf("failed to GET url %s due to status code %d", resp.Request.URL, resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	user, err := authClient.DecodeUser(resp)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "failed to decode user")
+		return config, errs.Wrapf(err, "failed to decode user")
+	}
+	if user.Data.Attributes.FeatureLevel != nil && *user.Data.Attributes.FeatureLevel == "internal" {
+		log.Debug(ctx,
+			map[string]interface{}{
+				"auth_url":      auth.ShowUserPath(),
+				"user_name":     *user.Data.Attributes.Username,
+				"feature_level": *user.Data.Attributes.FeatureLevel},
+			"user is allowed to update tenant config")
+		if tenantConfig, exists := user.Data.Attributes.ContextInformation["tenantConfig"]; exists {
+			if tenantConfigMap, ok := tenantConfig.(map[string]interface{}); ok {
+				var cheVersion, jenkinsVersion, teamVersion, mavenRepoURL *string
+				if v, ok := tenantConfigMap["cheVersion"].(string); ok {
+					cheVersion = &v
+				}
+				if v, ok := tenantConfigMap["jenkinsVersion"].(string); ok {
+					jenkinsVersion = &v
+				}
+				if v, ok := tenantConfigMap["teamVersion"].(string); ok {
+					teamVersion = &v
+				}
+				if v, ok := tenantConfigMap["mavenRepo"].(string); ok {
+					mavenRepoURL = &v
+				}
+				return config.WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL), nil
+			}
 		}
-		resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
-			return config, errs.Wrapf(err, "failed to GET url %s due to error", auth.ShowUserPath())
+	} else {
+		curentFeatureLevel := "undefined"
+		if user.Data.Attributes.FeatureLevel != nil {
+			curentFeatureLevel = *user.Data.Attributes.FeatureLevel
 		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to read auth response")
-			return config, errs.Wrapf(err, "failed to read auth response due to error", auth.ShowUserPath())
-		}
-		if resp.StatusCode < 200 || resp.StatusCode > 300 {
-			return config, fmt.Errorf("failed to GET url %s due to status code %d", resp.Request.URL, resp.StatusCode)
-		}
-		js, err := simplejson.NewJson(body)
-		if err != nil {
-			return config, err
-		}
-		tenantConfig := js.GetPath("data", "attributes", "contextInformation", "tenantConfig")
-		if tenantConfig.Interface() != nil {
-			cheVersion := getJsonStringOrBlank(tenantConfig, "cheVersion")
-			jenkinsVersion := getJsonStringOrBlank(tenantConfig, "jenkinsVersion")
-			teamVersion := getJsonStringOrBlank(tenantConfig, "teamVersion")
-			mavenRepoURL := getJsonStringOrBlank(tenantConfig, "mavenRepo")
-			return config.WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL), nil
-		}
+		log.Error(ctx,
+			map[string]interface{}{
+				"auth_url":      auth.ShowUserPath(),
+				"user_name":     *user.Data.Attributes.Username,
+				"feature_level": curentFeatureLevel},
+			"user is not allowed to update tenant config")
 	}
 	return config, nil
 }

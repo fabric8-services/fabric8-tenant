@@ -25,24 +25,22 @@ func (c Config) WithToken(token string) Config {
 	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token, HttpTransport: c.HttpTransport, TemplateDir: c.TemplateDir, MavenRepoURL: c.MavenRepoURL, TeamVersion: c.TeamVersion}
 }
 
-func (c Config) WithUserSettings(cheVersion string, jenkinsVersion string, teamVersion string, mavenRepoURL string) Config {
-	if len(cheVersion) > 0 || len(jenkinsVersion) > 0 || len(teamVersion) > 0 || len(mavenRepoURL) > 0 {
-		copy := c
-		if cheVersion != "" {
-			copy.CheVersion = cheVersion
-		}
-		if jenkinsVersion != "" {
-			copy.JenkinsVersion = jenkinsVersion
-		}
-		if teamVersion != "" {
-			copy.TeamVersion = teamVersion
-		}
-		if mavenRepoURL != "" {
-			copy.MavenRepoURL = mavenRepoURL
-		}
-		return copy
+// WithUserSettings overrides the user settings with the given values (if not nil).
+func (c Config) WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL *string) Config {
+	copy := c
+	if cheVersion != nil {
+		copy.CheVersion = *cheVersion
 	}
-	return c
+	if jenkinsVersion != nil {
+		copy.JenkinsVersion = *jenkinsVersion
+	}
+	if teamVersion != nil {
+		copy.TeamVersion = *teamVersion
+	}
+	if mavenRepoURL != nil {
+		copy.MavenRepoURL = *mavenRepoURL
+	}
+	return copy
 }
 
 func (c Config) GetLogCallback() LogCallback {

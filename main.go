@@ -165,14 +165,8 @@ func main() {
 	// Mount "tenant" controller
 	authURL := config.GetAuthURL()
 	tenantService := tenant.NewDBService(db)
-	toggleClient, err := toggles.NewClient("f8tenant", config.GetTogglesURL())
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create toogle client")
-	}
 
-	tenantCtrl := controller.NewTenantController(service, tenantService, http.DefaultClient, toggleClient, keycloakConfig, openshiftConfig, templateVars, authURL)
+	tenantCtrl := controller.NewTenantController(service, tenantService, http.DefaultClient, keycloakConfig, openshiftConfig, templateVars, authURL)
 	app.MountTenantController(service, tenantCtrl)
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService)
