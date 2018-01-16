@@ -108,6 +108,7 @@ func newTenantController(t *testing.T, defaultConfig openshift.Config) *TenantCo
 	require.Nil(t, err)
 	defer r.Stop()
 	r.SetMatcher(func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
+		log.Println("comparing http request with cassette request....")
 		if httpRequest.URL != nil && httpRequest.URL.String() != cassetteRequest.URL {
 			log.Printf("Request URL does not match with cassette: %s vs %s\n", httpRequest.URL.String(), cassetteRequest.URL)
 			return false
