@@ -108,7 +108,17 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 }
 
 func jwtMatcher() cassette.Matcher {
+	log.Println("Using a custom cassette matcher...")
 	return func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
+		if httpRequest.URL != nil && httpRequest.URL.String() != cassetteRequest.URL {
+			log.Printf("Request URL does not match with cassette: %s vs %s\n", httpRequest.URL.String(), cassetteRequest.URL)
+			return false
+		}
+		if httpRequest.Method != cassetteRequest.Method {
+			log.Printf("Request Method does not match with cassette: %s vs %s\n", httpRequest.Method, cassetteRequest.Method)
+			return false
+		}
+
 		// look-up the JWT's "sub" claim and compare with the request
 		token, err := jwtrequest.ParseFromRequest(httpRequest, jwtrequest.AuthorizationHeaderExtractor, func(*jwt.Token) (interface{}, error) {
 			return PublicKey()
@@ -121,7 +131,7 @@ func jwtMatcher() cassette.Matcher {
 			log.Printf("Comparing subs: %s vs %s\n", sub[0], claims["sub"])
 			return sub[0] == claims["sub"]
 		}
-		log.Printf("Request does not match with cassette")
+		log.Printf("Request token does not match with cassette")
 		return false
 	}
 }
