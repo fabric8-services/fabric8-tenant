@@ -48,16 +48,16 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 	require.Nil(s.T(), err)
 	r.SetMatcher(jwtMatcher())
 	defer r.Stop()
+	mockHTTPClient := &http.Client{
+		Transport: r.Transport,
+	}
+	ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 
 	s.T().Run("override disabled", func(t *testing.T) {
 
 		t.Run("external user with config", func(t *testing.T) {
 			// given
 			ctx := createValidContext(s.T(), "external_user_with_config")
-			mockHTTPClient := &http.Client{
-				Transport: r.Transport,
-			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -68,10 +68,6 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 		t.Run("external user without config", func(t *testing.T) {
 			// given
 			ctx := createValidContext(s.T(), "external_user_without_config")
-			mockHTTPClient := &http.Client{
-				Transport: r.Transport,
-			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -85,10 +81,6 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 		t.Run("internal user with config", func(t *testing.T) {
 			// given
 			ctx := createValidContext(s.T(), "internal_user_with_config")
-			mockHTTPClient := &http.Client{
-				Transport: r.Transport,
-			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then
@@ -105,10 +97,6 @@ func (s *TenantControllerTestSuite) TestLoadTenantConfiguration() {
 		t.Run("internal user without config", func(t *testing.T) {
 			// given
 			ctx := createValidContext(s.T(), "internal_user_without_config")
-			mockHTTPClient := &http.Client{
-				Transport: r.Transport,
-			}
-			ctrl := NewTenantController(svc, tenantService, mockHTTPClient, keycloak.Config{}, inputOpenShiftConfig, templateVars, authURL)
 			// when
 			resultConfig, err := ctrl.loadUserTenantConfiguration(ctx, inputOpenShiftConfig)
 			// then

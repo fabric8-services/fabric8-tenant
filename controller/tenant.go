@@ -195,14 +195,14 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 	resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
-		return config, errs.Wrapf(err, "failed to GET url %s due to error", auth.ShowUserPath())
+		return config, errs.Wrapf(err, "failed to GET %s due to error", auth.ShowUserPath())
 	}
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to read auth response")
 		return config, errs.Wrapf(err, "failed to read auth response due to error", auth.ShowUserPath())
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 300 {
-		return config, fmt.Errorf("failed to GET url %s due to status code %d", resp.Request.URL, resp.StatusCode)
+		return config, fmt.Errorf("failed to GET %s due to status code %d", resp.Request.URL, resp.StatusCode)
 	}
 	defer resp.Body.Close()
 	user, err := authClient.DecodeUser(resp)
