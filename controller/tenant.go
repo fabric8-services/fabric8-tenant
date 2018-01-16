@@ -186,7 +186,6 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 // allowing for config overrides based on the content of his profile (in auth) if the user is allowed
 func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, config openshift.Config) (openshift.Config, error) {
 	// restrict access to users with a `featureLevel` set to `internal`
-	log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "retrieving user's profile...")
 	user, err := c.getCurrentUser(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable get current user")
@@ -234,6 +233,7 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 }
 
 func (c *TenantController) getCurrentUser(ctx context.Context) (*auth.User, error) {
+	log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "retrieving user's profile...")
 	authClient, err := newAuthClient(ctx, c.httpClient, c.authURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable to parse auth URL")
@@ -484,6 +484,7 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 
 // NewAuthClient initializes a new client to the `auth` service
 func newAuthClient(ctx context.Context, httpClient *http.Client, authURL string) (*auth.Client, error) {
+	log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "initializing a new auth client...")
 	u, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err
