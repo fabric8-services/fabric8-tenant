@@ -104,7 +104,7 @@ func newTenantController(t *testing.T, defaultConfig openshift.Config) *TenantCo
 	authURL := "http://auth-tests"
 	templateVars := make(map[string]string)
 	tenantService := mockTenantService{ID: uuid.NewV4()}
-	r, err := recorder.New("../test/data/auth/auth_get_user")
+	r, err := recorder.New("../test/data/auth_client/auth_get_user")
 	require.Nil(t, err)
 	defer r.Stop()
 	r.SetMatcher(func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
