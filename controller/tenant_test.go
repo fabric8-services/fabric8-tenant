@@ -118,8 +118,10 @@ func jwtMatcher() cassette.Matcher {
 		}
 		claims := token.Claims.(jwt.MapClaims)
 		if sub, found := cassetteRequest.Headers["sub"]; found {
+			log.Printf("Comparing subs: %s vs %s\n", sub[0], claims["sub"])
 			return sub[0] == claims["sub"]
 		}
+		log.Printf("Request does not match with cassette")
 		return false
 	}
 }
