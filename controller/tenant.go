@@ -187,29 +187,12 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, config openshift.Config) (openshift.Config, error) {
 	// restrict access to users with a `featureLevel` set to `internal`
 	log.Info(ctx, map[string]interface{}{"auth_url": c.authURL, "http_client_transport": reflect.TypeOf(c.httpClient.Transport)}, "retrieving user's profile...")
-	authClient, err := newAuthClient(ctx, c.httpClient, c.authURL)
+	user, err := c.getCurrentUser(ctx)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable to parse auth URL")
+		log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable get current user")
 		return config, err
 	}
-	resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
-		return config, errs.Wrapf(err, "failed to GET %s due to error", auth.ShowUserPath())
-	}
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to read auth response")
-		return config, errs.Wrapf(err, "failed to read auth response due to error", auth.ShowUserPath())
-	}
-	if resp.StatusCode < 200 || resp.StatusCode > 300 {
-		return config, fmt.Errorf("failed to GET %s due to status code %d", resp.Request.URL, resp.StatusCode)
-	}
-	defer resp.Body.Close()
-	user, err := authClient.DecodeUser(resp)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "failed to decode user")
-		return config, errs.Wrapf(err, "failed to decode user")
-	}
+
 	if user.Data.Attributes.FeatureLevel != nil && *user.Data.Attributes.FeatureLevel == "internal" {
 		log.Debug(ctx,
 			map[string]interface{}{
@@ -248,6 +231,33 @@ func (c *TenantController) loadUserTenantConfiguration(ctx context.Context, conf
 			"user is not allowed to update tenant config")
 	}
 	return config, nil
+}
+
+func (c *TenantController) getCurrentUser(ctx context.Context) (*auth.User, error) {
+	authClient, err := newAuthClient(ctx, c.httpClient, c.authURL)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": c.authURL}, "unable to parse auth URL")
+		return nil, err
+	}
+	resp, err := authClient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to get user info")
+		return nil, errs.Wrapf(err, "failed to GET %s due to error", auth.ShowUserPath())
+	}
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "unable to read auth response")
+		return nil, errs.Wrapf(err, "failed to read auth response due to error", auth.ShowUserPath())
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 300 {
+		return nil, fmt.Errorf("failed to GET %s due to status code %d", resp.Request.URL, resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	user, err := authClient.DecodeUser(resp)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"auth_url": auth.ShowUserPath()}, "failed to decode user")
+		return nil, errs.Wrapf(err, "failed to decode user")
+	}
+	return user, nil
 }
 
 func getJsonStringOrBlank(json *simplejson.Json, key string) string {
