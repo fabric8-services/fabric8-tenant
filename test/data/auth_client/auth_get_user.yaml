@@ -1,0 +1,177 @@
+---
+version: 1
+interactions:
+- request:
+    method: GET
+    url: http://auth-tests/api/user
+    headers:
+      sub: ["internal_user_with_config"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK 
+    code: 200
+    body: '{"data": {
+        "attributes": {
+            "bio": "",
+            "cluster": "https://api.starter-us-east-2.openshift.com",
+            "company": "",
+            "contextInformation": {
+                "recentContexts": [{
+                    "space": null,
+                    "user": "7cbbca62-289a-42db-af59-ebe50d1b8a98"
+                }],
+                "tenantConfig": {
+                    "cheVersion": "another-che-version",
+                    "jenkinsVersion": "another-jenkins-version",
+                    "mavenRepo": "another-maven-url",
+                    "teamVersion": "another-team-version"
+                }
+            },
+            "created-at": "2017-12-07T11:31:49.125136Z",
+            "email": "developer@redhat",
+            "fullName": "developer developer",
+            "identityID": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "imageURL": "https://www.gravatar.com/avatar/c2642d0b7dd3d68b1cfbc5cbc9476b9a.jpg",
+            "providerType": "kc",
+            "registrationCompleted": true,
+            "updated-at": "2017-12-07T11:34:01.147795Z",
+            "url": "",
+            "userID": "2893ac62-889a-4e38-801d-0b83ce547d06",
+            "username": "developer",
+            "featureLevel": "internal"
+        },
+        "id": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+        "links": {
+            "related": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "self": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98"
+        },
+        "type": "identities"
+    }
+}'
+- request:
+    method: GET
+    url: http://auth-tests/api/user
+    headers:
+      sub: ["external_user_with_config"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{"data": {
+        "attributes": {
+            "bio": "",
+            "cluster": "https://api.starter-us-east-2.openshift.com",
+            "company": "",
+            "contextInformation": {
+                "recentContexts": [{
+                    "space": null,
+                    "user": "7cbbca62-289a-42db-af59-ebe50d1b8a98"
+                }],
+                "tenantConfig": {
+                    "cheVersion": "another-che-version",
+                    "jenkinsVersion": "another-jenkins-version",
+                    "mavenRepo": "another-maven-url",
+                    "teamVersion": "another-team-version"
+                }
+            },
+            "created-at": "2017-12-07T11:31:49.125136Z",
+            "email": "developer@redhat",
+            "fullName": "developer developer",
+            "identityID": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "imageURL": "https://www.gravatar.com/avatar/c2642d0b7dd3d68b1cfbc5cbc9476b9a.jpg",
+            "providerType": "kc",
+            "registrationCompleted": true,
+            "updated-at": "2017-12-07T11:34:01.147795Z",
+            "url": "",
+            "userID": "2893ac62-889a-4e38-801d-0b83ce547d06",
+            "username": "developer",
+            "featureLevel": "beta"
+        },
+        "id": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+        "links": {
+            "related": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "self": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98"
+        },
+        "type": "identities"
+    }
+}'
+- request:
+    method: GET
+    url: http://auth-tests/api/user
+    headers:
+      sub: ["internal_user_without_config"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+    "data": {
+        "attributes": {
+            "bio": "",
+            "cluster": "https://api.starter-us-east-2.openshift.com",
+            "company": "",
+            "contextInformation": {
+                "recentContexts": [{
+                    "space": null,
+                    "user": "7cbbca62-289a-42db-af59-ebe50d1b8a98"
+                }]
+            },
+            "created-at": "2017-12-07T11:31:49.125136Z",
+            "email": "developer@redhat",
+            "fullName": "developer developer",
+            "identityID": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "imageURL": "https://www.gravatar.com/avatar/c2642d0b7dd3d68b1cfbc5cbc9476b9a.jpg",
+            "providerType": "kc",
+            "registrationCompleted": true,
+            "updated-at": "2017-12-07T11:34:01.147795Z",
+            "url": "",
+            "userID": "2893ac62-889a-4e38-801d-0b83ce547d06",
+            "username": "developer",
+            "featureLevel": "internal"
+        },
+        "id": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+        "links": {
+            "related": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "self": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98"
+        },
+        "type": "identities"
+    }
+}'
+- request:
+    method: GET
+    url: http://auth-tests/api/user
+    headers:
+      sub: ["external_user_without_config"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+    "data": {
+        "attributes": {
+            "bio": "",
+            "cluster": "https://api.starter-us-east-2.openshift.com",
+            "company": "",
+            "contextInformation": {
+                "recentContexts": [{
+                    "space": null,
+                    "user": "7cbbca62-289a-42db-af59-ebe50d1b8a98"
+                }]
+            },
+            "created-at": "2017-12-07T11:31:49.125136Z",
+            "email": "developer@redhat",
+            "fullName": "developer developer",
+            "identityID": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "imageURL": "https://www.gravatar.com/avatar/c2642d0b7dd3d68b1cfbc5cbc9476b9a.jpg",
+            "providerType": "kc",
+            "registrationCompleted": true,
+            "updated-at": "2017-12-07T11:34:01.147795Z",
+            "url": "",
+            "userID": "2893ac62-889a-4e38-801d-0b83ce547d06",
+            "username": "developer",
+            "featureLevel": "beta"
+        },
+        "id": "7cbbca62-289a-42db-af59-ebe50d1b8a98",
+        "links": {
+            "related": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98",
+            "self": "http://192.168.64.12:31000/api/users/7cbbca62-289a-42db-af59-ebe50d1b8a98"
+        },
+        "type": "identities"
+    }
+}'

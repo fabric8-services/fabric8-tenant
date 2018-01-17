@@ -163,10 +163,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	witURL := config.GetWitURL()
+	authURL := config.GetAuthURL()
 	tenantService := tenant.NewDBService(db)
 
-	tenantCtrl := controller.NewTenantController(service, tenantService, keycloakConfig, openshiftConfig, templateVars, witURL)
+	tenantCtrl := controller.NewTenantController(service, tenantService, http.DefaultClient, keycloakConfig, openshiftConfig, templateVars, authURL)
 	app.MountTenantController(service, tenantCtrl)
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService)
@@ -184,7 +184,7 @@ func main() {
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
-	log.Logger().Infoln("WIT URL:        ", witURL)
+	log.Logger().Infoln("Auth URL:        ", authURL)
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/", service.Mux)
