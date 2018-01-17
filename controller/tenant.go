@@ -29,13 +29,13 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService       tenant.Service
-	userProfileService  token.UserProfileService
-	clusterTokenService token.ClusterTokenService
-	keycloakConfig      keycloak.Config
-	openshiftConfig     openshift.Config
-	templateVars        map[string]string
-	usersURL            string
+	tenantService      tenant.Service
+	userProfileService token.UserProfileService
+	tokenManager       token.Manager
+	keycloakConfig     keycloak.Config
+	openshiftConfig    openshift.Config
+	templateVars       map[string]string
+	usersURL           string
 }
 
 // NewTenantController creates a status controller.
@@ -43,19 +43,19 @@ func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
 	userProfileService token.UserProfileService,
-	clusterTokenService token.ClusterTokenService,
+	tokenManager token.Manager,
 	keycloakConfig keycloak.Config,
 	templateVars map[string]string,
 	usersURL string) *TenantController {
 
 	return &TenantController{
-		Controller:          service.NewController("TenantController"),
-		tenantService:       tenantService,
-		userProfileService:  userProfileService,
-		clusterTokenService: clusterTokenService,
-		keycloakConfig:      keycloakConfig,
-		templateVars:        templateVars,
-		usersURL:            usersURL,
+		Controller:         service.NewController("TenantController"),
+		tenantService:      tenantService,
+		userProfileService: userProfileService,
+		tokenManager:       tokenManager,
+		keycloakConfig:     keycloakConfig,
+		templateVars:       templateVars,
+		usersURL:           usersURL,
 	}
 }
 
@@ -74,7 +74,7 @@ func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, use
 	}
 
 	// fetch ClusterToken of the cluster that user belongs to
-	clusterToken, err := c.clusterTokenService.Get(ctx, userCluster)
+	clusterToken, err := c.tokenManager.Cluster(ctx, userCluster)
 	if err != nil {
 		return openshift.Config{}, err
 	}

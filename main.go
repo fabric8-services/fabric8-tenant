@@ -116,17 +116,18 @@ func main() {
 	userProfileClient := &token.UserProfileClient{Config: config}
 
 	// fetch service account token for tenant service
-	sa := token.ServiceAccountTokenClient{Config: config}
-	if err := sa.Get(context.Background()); err != nil {
+	sa := token.NewAuthServiceTokenClient(config)
+	saToken, err := sa.Get(context.Background())
+	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to fetch service account token")
 	}
 
-	clusterTokenClient := &token.ClusterTokenClient{
-		Config:      config,
-		AccessToken: sa.AuthServiceAccountToken,
-	}
+	tm := token.NewAuthServiceManager(
+		token.NewAuthServiceResolver(config),
+		saToken,
+		config.GetTokenKey())
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
@@ -136,7 +137,7 @@ func main() {
 	witURL := config.GetWitURL()
 	tenantService := tenant.NewDBService(db)
 
-	tenantCtrl := controller.NewTenantController(service, tenantService, userProfileClient, clusterTokenClient,
+	tenantCtrl := controller.NewTenantController(service, tenantService, userProfileClient, tm,
 		keycloakConfig, templateVars, witURL)
 	app.MountTenantController(service, tenantCtrl)
 

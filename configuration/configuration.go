@@ -33,7 +33,6 @@ const (
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
-	varAuthURL                         = "auth.url"
 	varTogglesURL                      = "toggles.url"
 	varConsoleURL                      = "console.url"
 	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
@@ -52,8 +51,10 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 
+	varAuthURL      = "auth.url"
 	varAuthClientID = "service.account.id"
 	varClientSecret = "service.account.secret"
+	varAuthTokenKey = "auth.token.key"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -268,6 +269,12 @@ func (c *Data) GetAuthClientID() string {
 // conjunction with the tenant client id
 func (c *Data) GetClientSecret() string {
 	return c.v.GetString(varClientSecret)
+}
+
+// GetTokenKey returns the encryption key/passphrase which will be used
+// to decrypt the cluster tokens stored in auth token mgm
+func (c *Data) GetTokenKey() string {
+	return c.v.GetString(varAuthTokenKey)
 }
 
 // GetConsoleURL returns the fabric8-ui Console URL

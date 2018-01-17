@@ -7,41 +7,55 @@ import (
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
 type ServiceAccountTokenService interface {
-	Get(ctx context.Context) error
+	Get(ctx context.Context) (string, error)
 }
 
-type ServiceAccountTokenClient struct {
-	Config                  *configuration.Data
-	AuthServiceAccountToken string
+type AuthClientConfig interface {
+	GetAuthURL() string
 }
 
-func (c *ServiceAccountTokenClient) Get(ctx context.Context) error {
+type ServiceAccountTokenServiceCOnfig interface {
+	AuthClientConfig
 
-	authclient, err := CreateClient(c.Config)
+	GetAuthClientID() string
+	GetClientSecret() string
+	GetAuthGrantType() string
+}
+
+func NewAuthServiceTokenClient(config ServiceAccountTokenServiceCOnfig) ServiceAccountTokenService {
+	return &serviceAccountTokenClient{config: config}
+}
+
+type serviceAccountTokenClient struct {
+	config ServiceAccountTokenServiceCOnfig
+}
+
+func (c *serviceAccountTokenClient) Get(ctx context.Context) (string, error) {
+
+	authclient, err := CreateClient(c.config)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	path := auth.ExchangeTokenPath()
 	payload := &auth.TokenExchange{
-		ClientID: c.Config.GetAuthClientID(),
+		ClientID: c.config.GetAuthClientID(),
 		ClientSecret: func() *string {
-			sec := c.Config.GetClientSecret()
+			sec := c.config.GetClientSecret()
 			return &sec
 		}(),
-		GrantType: c.Config.GetAuthGrantType(),
+		GrantType: c.config.GetAuthGrantType(),
 	}
 	contentType := "application/x-www-form-urlencoded"
 
 	res, err := authclient.ExchangeToken(ctx, path, payload, contentType)
 	if err != nil {
-		return errors.Wrapf(err, "error while doing the request")
+		return "", errors.Wrapf(err, "error while doing the request")
 	}
 	defer res.Body.Close()
 
@@ -49,20 +63,20 @@ func (c *ServiceAccountTokenClient) Get(ctx context.Context) error {
 	validationerror := validateError(authclient, res)
 
 	if validationerror != nil {
-		return errors.Wrapf(validationerror, "error from server %q", c.Config.GetAuthURL())
+		return "", errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
 	} else if err != nil {
-		return errors.Wrapf(err, "error from server %q", c.Config.GetAuthURL())
+		return "", errors.Wrapf(err, "error from server %q", c.config.GetAuthURL())
 	}
 
-	if *token.AccessToken != "" {
-		c.AuthServiceAccountToken = *token.AccessToken
-		return nil
+	if token.AccessToken == nil || *token.AccessToken == "" {
+		return "", fmt.Errorf("received empty token from server %q", c.config.GetAuthURL())
 	}
 
-	return fmt.Errorf("received empty token from server %q", c.Config.GetAuthURL())
+	return *token.AccessToken, nil
+
 }
 
-func CreateClient(config *configuration.Data) (*auth.Client, error) {
+func CreateClient(config AuthClientConfig) (*auth.Client, error) {
 	u, err := url.Parse(config.GetAuthURL())
 	if err != nil {
 		return nil, err

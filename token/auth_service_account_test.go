@@ -20,7 +20,6 @@ func TestServiceAccountTokenClient_Get(t *testing.T) {
 			"access_token": "` + want + `",
 			"token_type": "bearer"
 		}`
-
 	tests := []struct {
 		name    string
 		wantErr bool
@@ -48,7 +47,12 @@ func TestServiceAccountTokenClient_Get(t *testing.T) {
 			output:  "foobar",
 		},
 		{
-			name:    "empty token from the server",
+			name:    "missing token from server",
+			wantErr: true,
+			output:  `{"token_type": "bearer"}`,
+		},
+		{
+			name:    "empty token from server",
 			wantErr: true,
 			output:  `{"access_token": "","token_type": "bearer"}`,
 		},
@@ -82,11 +86,9 @@ func TestServiceAccountTokenClient_Get(t *testing.T) {
 			// set the URL given by the temporary server
 			os.Setenv("F8_AUTH_URL", tt.URL)
 
-			c := &ServiceAccountTokenClient{
-				Config: config,
-			}
-			err = c.Get(context.Background())
-			got := c.AuthServiceAccountToken
+			c := NewAuthServiceTokenClient(config)
+
+			got, err := c.Get(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ServiceAccountTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return

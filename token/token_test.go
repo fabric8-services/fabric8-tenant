@@ -1,13 +1,15 @@
-package token
+package token_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/token"
 )
 
 func TestClusterTokenClient_Get(t *testing.T) {
@@ -35,6 +37,7 @@ func TestClusterTokenClient_Get(t *testing.T) {
 		URL     string
 		status  int
 		output  string
+		decoder token.Decode
 	}{
 		{
 			name:    "access token empty",
@@ -68,6 +71,12 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: false,
 		},
+		{
+			name:    "invalid encrypted token",
+			args:    args{accessToken: accessToken, cluster: cluster},
+			wantErr: true,
+			decoder: func(data string) (string, error) { return "", fmt.Errorf("Could not decrypt") },
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -99,10 +108,12 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			// set the URL given by the temporary server
 			os.Setenv("F8_AUTH_URL", tt.URL)
 
-			c := &ClusterTokenClient{}
-			c.Config = config
-			c.AccessToken = tt.args.accessToken
-			got, err := c.Get(context.Background(), tt.args.cluster)
+			resolver := token.NewAuthServiceResolver(config)
+
+			if tt.decoder == nil {
+				tt.decoder = token.PlainTextToken
+			}
+			got, err := resolver(context.Background(), tt.args.cluster, tt.args.accessToken, tt.decoder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ClusterTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err != nil && tt.wantErr {

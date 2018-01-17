@@ -125,6 +125,11 @@ objects:
               secretKeyRef:
                 name: f8tenant
                 key: service.account.secret
+          - name: F8_AUTH_TOKEN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: auth.token.key
           image: registry.devshift.net/fabric8-services/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
