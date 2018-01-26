@@ -2,18 +2,22 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
+
 	_ "github.com/lib/pq"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/controller"
+
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/migration"
@@ -112,9 +116,6 @@ func main() {
 	service.Use(log.LogRequest(config.IsDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
-	// create user profile client to get the user's cluster
-	userProfileClient := &token.UserProfileClient{Config: config}
-
 	// fetch service account token for tenant service
 	sa := token.NewAuthServiceTokenClient(config)
 	saToken, err := sa.Get(context.Background())
@@ -129,34 +130,53 @@ func main() {
 		saToken,
 		config.GetTokenKey())
 
+	// create user profile client to get the user's cluster
+	userService := token.NewAuthUserServiceClient(config)
+
+	var tr *http.Transport
+	if config.APIServerInsecureSkipTLSVerify() {
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
+	osTemplate := openshift.Config{
+		ConsoleURL:     config.GetConsoleURL(),
+		HttpTransport:  tr,
+		CheVersion:     config.GetOpenshiftCheVersion(),
+		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
+		TeamVersion:    config.GetOpenshiftTeamVersion(),
+		TemplateDir:    config.GetOpenshiftTemplateDir(),
+	}
+
+	tenantService := tenant.NewDBService(db)
+
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	witURL := config.GetWitURL()
-	tenantService := tenant.NewDBService(db)
-
-	tenantCtrl := controller.NewTenantController(service, tenantService, userProfileClient, tm,
-		keycloakConfig, templateVars, witURL)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userService, tm, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService)
 	app.MountTenantsController(service, tenantsCtrl)
 
-	// Mount "tenantkube" controller
-	tenanKubetCtrl := controller.NewTenantKubeController(service, tenantService, keycloakConfig, templateVars)
-	app.MountTenantKubeController(service, tenanKubetCtrl)
+	if openshift.KubernetesMode() {
+		// Mount "tenantkube" controller
+		tenanKubetCtrl := controller.NewTenantKubeController(service, tenantService, keycloakConfig, templateVars)
+		app.MountTenantKubeController(service, tenanKubetCtrl)
 
-	// Mount "auth" controller
-	authCtrl := controller.NewAuthController(service, tenantService, keycloakConfig, templateVars)
-	app.MountAuthController(service, authCtrl)
+		// Mount "auth" controller
+		authCtrl := controller.NewAuthController(service, tenantService, keycloakConfig, templateVars)
+		app.MountAuthController(service, authCtrl)
+	}
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
-	log.Logger().Infoln("WIT URL:        ", witURL)
+	log.Logger().Infoln("Auth URL:       ", config.GetAuthURL())
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/", service.Mux)

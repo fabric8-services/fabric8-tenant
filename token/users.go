@@ -4,41 +4,50 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
+	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
-type UserProfileService interface {
-	GetUserCluster(ctx context.Context, userID string) (string, error)
+type UserService interface {
+	CurrentUser(ctx context.Context, token string) (*auth.UserDataAttributes, error)
 }
 
-type UserProfileClient struct {
-	Config *configuration.Data
+func NewAuthUserServiceClient(config AuthClientConfig) UserService {
+	return &userProfileClient{config: config}
 }
 
-func (uc *UserProfileClient) GetUserCluster(ctx context.Context, userID string) (string, error) {
+type userProfileClient struct {
+	config AuthClientConfig
+}
 
-	authclient, err := CreateClient(uc.Config)
+func (uc *userProfileClient) CurrentUser(ctx context.Context, token string) (*auth.UserDataAttributes, error) {
+
+	authclient, err := CreateClient(uc.config)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+	authclient.SetJWTSigner(
+		&goaclient.JWTSigner{
+			TokenSource: &goaclient.StaticTokenSource{
+				StaticToken: &goaclient.StaticToken{
+					Value: token,
+					Type:  "Bearer"}}})
 
-	path := auth.ShowUsersPath(userID)
-	res, err := authclient.ShowUsers(ctx, path, nil, nil)
+	res, err := authclient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
 
 	if err != nil {
-		return "", errors.Wrapf(err, "error while doing the request")
+		return nil, errors.Wrapf(err, "error while doing the request")
 	}
 	defer res.Body.Close()
 
-	user, err := authclient.DecodeUser(res)
 	validationerror := validateError(authclient, res)
-
 	if validationerror != nil {
-		return "", errors.Wrapf(validationerror, "error from server %q", uc.Config.GetAuthURL())
-	} else if err != nil {
-		return "", errors.Wrapf(err, "error from server %q", uc.Config.GetAuthURL())
+		return nil, errors.Wrapf(validationerror, "error from server %q", uc.config.GetAuthURL())
+	}
+	user, err := authclient.DecodeUser(res)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error from server %q", uc.config.GetAuthURL())
 	}
 
-	return *user.Data.Attributes.Cluster, nil
+	return user.Data.Attributes, nil
 }

@@ -3,6 +3,7 @@ package token
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -19,7 +20,7 @@ type AuthClientConfig interface {
 	GetAuthURL() string
 }
 
-type ServiceAccountTokenServiceCOnfig interface {
+type ServiceAccountTokenServiceConfig interface {
 	AuthClientConfig
 
 	GetAuthClientID() string
@@ -27,12 +28,12 @@ type ServiceAccountTokenServiceCOnfig interface {
 	GetAuthGrantType() string
 }
 
-func NewAuthServiceTokenClient(config ServiceAccountTokenServiceCOnfig) ServiceAccountTokenService {
+func NewAuthServiceTokenClient(config ServiceAccountTokenServiceConfig) ServiceAccountTokenService {
 	return &serviceAccountTokenClient{config: config}
 }
 
 type serviceAccountTokenClient struct {
-	config ServiceAccountTokenServiceCOnfig
+	config ServiceAccountTokenServiceConfig
 }
 
 func (c *serviceAccountTokenClient) Get(ctx context.Context) (string, error) {
@@ -57,14 +58,17 @@ func (c *serviceAccountTokenClient) Get(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "error while doing the request")
 	}
-	defer res.Body.Close()
+	defer func() {
+		ioutil.ReadAll(res.Body)
+		res.Body.Close()
+	}()
 
-	token, err := authclient.DecodeOauthToken(res)
 	validationerror := validateError(authclient, res)
-
 	if validationerror != nil {
 		return "", errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
-	} else if err != nil {
+	}
+	token, err := authclient.DecodeOauthToken(res)
+	if err != nil {
 		return "", errors.Wrapf(err, "error from server %q", c.config.GetAuthURL())
 	}
 

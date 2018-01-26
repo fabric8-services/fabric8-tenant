@@ -14,10 +14,12 @@ import (
 
 func TestClusterTokenClient_Get(t *testing.T) {
 	want := "fake_token"
+	fake_user := "fake_user"
 	output := `
 		{
 			"access_token": "` + want + `",
-			"token_type": "bearer"
+			"token_type": "bearer",
+			"username": "` + fake_user + `"
 		}`
 	accessToken := "fake_accesstoken"
 	cluster := "fake_cluster"
@@ -100,28 +102,28 @@ func TestClusterTokenClient_Get(t *testing.T) {
 				tt.URL = ts.URL
 			}
 
+			// set the URL given by the temporary server
+			os.Setenv("F8_AUTH_URL", tt.URL)
+
 			config, err := configuration.GetData()
 			if err != nil {
 				t.Fatalf("could not retrieve configuration: %v", err)
 			}
-
-			// set the URL given by the temporary server
-			os.Setenv("F8_AUTH_URL", tt.URL)
 
 			resolver := token.NewAuthServiceResolver(config)
 
 			if tt.decoder == nil {
 				tt.decoder = token.PlainTextToken
 			}
-			got, err := resolver(context.Background(), tt.args.cluster, tt.args.accessToken, tt.decoder)
+			_, got, err := resolver(context.Background(), tt.args.cluster, tt.args.accessToken, tt.decoder)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ClusterTokenClient.Get() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Resolver() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err != nil && tt.wantErr {
-				t.Logf("ClusterTokenClient.Get() failed with = %v", err)
+				t.Logf("Resolver() failed with = %v", err)
 				return
 			}
 			if got != want {
-				t.Errorf("ClusterTokenClient.Get() = %v, want %v", got, want)
+				t.Errorf("Resolver() = %v, want %v", got, want)
 			}
 		})
 	}

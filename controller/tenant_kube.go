@@ -40,7 +40,7 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 
-	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
+	openshiftUserToken, err := OpenshiftToken(c.openshiftConfig, token)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,

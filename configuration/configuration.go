@@ -46,7 +46,6 @@ const (
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
 	varTemplateCheMultiTenantServer    = "template.che.multitenant.server"
-	varWitURL                          = "wit.url"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
@@ -283,14 +282,6 @@ func (c *Data) GetConsoleURL() string {
 		return c.v.GetString(varConsoleURL)
 	}
 	return ""
-}
-
-// GetWitURL returns WIT URL
-func (c *Data) GetWitURL() string {
-	if c.v.IsSet(varWitURL) {
-		return c.v.GetString(varWitURL)
-	}
-	return defaultWitURL
 }
 
 // GetAuthURL returns Auth service URL

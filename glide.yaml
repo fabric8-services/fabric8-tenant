@@ -46,6 +46,7 @@ import:
 - package: github.com/fzipp/gocyclo
 - package: github.com/sirupsen/logrus
 - package: github.com/lib/pq
+- package: golang.org/x/crypto/openpgp
 - package: github.com/stretchr/testify
   subpackages:
   - assert

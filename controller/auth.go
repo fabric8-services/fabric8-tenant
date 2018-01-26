@@ -53,7 +53,7 @@ func (c *AuthController) AuthToken(ctx *app.AuthTokenAuthContext) error {
 	if openshift.KubernetesMode() && realm == "fabric8" && broker == "openshift-v3" {
 		// For Kubernetes lets serve the tokens from Kubernetes
 		// for the KeyCloak username's associated ServiceAccount
-		openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
+		openshiftUserToken, err := OpenshiftToken(c.openshiftConfig, token)
 		if len(openshiftUserToken) == 0 {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}

@@ -2,18 +2,14 @@ package controller
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/bitly/go-simplejson"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/token"
@@ -23,126 +19,72 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	uuid "github.com/satori/go.uuid"
-	"github.com/sirupsen/logrus"
 )
 
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService      tenant.Service
-	userProfileService token.UserProfileService
-	tokenManager       token.Manager
-	keycloakConfig     keycloak.Config
-	openshiftConfig    openshift.Config
-	templateVars       map[string]string
-	usersURL           string
+	tenantService            tenant.Service
+	userService              token.UserService
+	tokenManager             token.Manager
+	defaultOpenshiftTemplate openshift.Config
+	templateVars             map[string]string
 }
 
 // NewTenantController creates a status controller.
 func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
-	userProfileService token.UserProfileService,
+	userService token.UserService,
 	tokenManager token.Manager,
-	keycloakConfig keycloak.Config,
-	templateVars map[string]string,
-	usersURL string) *TenantController {
+	defaultOpenshiftTemplate openshift.Config,
+	templateVars map[string]string) *TenantController {
 
 	return &TenantController{
-		Controller:         service.NewController("TenantController"),
-		tenantService:      tenantService,
-		userProfileService: userProfileService,
-		tokenManager:       tokenManager,
-		keycloakConfig:     keycloakConfig,
-		templateVars:       templateVars,
-		usersURL:           usersURL,
+		Controller:               service.NewController("TenantController"),
+		tenantService:            tenantService,
+		userService:              userService,
+		tokenManager:             tokenManager,
+		defaultOpenshiftTemplate: defaultOpenshiftTemplate,
+		templateVars:             templateVars,
 	}
-}
-
-// setupOpenShiftConfig builds openshift config for every user request depending on the userid
-func (c *TenantController) setupOpenShiftConfig(ctx *app.SetupTenantContext, userid string) (openshift.Config, error) {
-	// create config based off of viper configuration
-	config, err := configuration.GetData()
-	if err != nil {
-		return openshift.Config{}, err
-	}
-
-	// fetch the cluster url that user belongs to
-	userCluster, err := c.userProfileService.GetUserCluster(ctx, userid)
-	if err != nil {
-		return openshift.Config{}, err
-	}
-
-	// fetch ClusterToken of the cluster that user belongs to
-	clusterToken, err := c.tokenManager.Cluster(ctx, userCluster)
-	if err != nil {
-		return openshift.Config{}, err
-	}
-
-	var tr *http.Transport
-	if config.APIServerInsecureSkipTLSVerify() {
-		tr = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-	}
-
-	openshiftConfig := openshift.Config{
-		MasterURL:      userCluster,
-		ConsoleURL:     config.GetConsoleURL(),
-		Token:          clusterToken,
-		HttpTransport:  tr,
-		CheVersion:     config.GetOpenshiftCheVersion(),
-		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
-		TeamVersion:    config.GetOpenshiftTeamVersion(),
-		TemplateDir:    config.GetOpenshiftTemplateDir(),
-	}
-
-	openshiftMasterUser, err := openshift.WhoAmI(openshiftConfig)
-	if err != nil {
-		logrus.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "unknown master user based on service token")
-	}
-	openshiftConfig.MasterUser = openshiftMasterUser
-
-	return openshiftConfig, nil
 }
 
 // Setup runs the setup action.
 func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
-	token := goajwt.ContextJWT(ctx)
-	if token == nil {
+	userToken := goajwt.ContextJWT(ctx)
+	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: token}
+	ttoken := &TenantToken{token: userToken}
 	exists := c.tenantService.Exists(ttoken.Subject())
 	if exists {
 		return ctx.Conflict()
 	}
 
-	// get the user id of the user doing request
-	userid := ttoken.Subject().String()
-	var err error
-	c.openshiftConfig, err = c.setupOpenShiftConfig(ctx, userid)
+	// fetch the cluster the user belongs to
+	user, err := c.userService.CurrentUser(ctx, userToken.Raw)
 	if err != nil {
-		return err
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
+	// fetch the users cluster token
+	openshiftUsername, openshiftUserToken, err := c.tokenManager.Tenant(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to authenticate user with keycloak")
+		}, "unable to fetch tenant token from auth")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
 	}
 
-	openshiftUser, err := c.WhoAmI(token, openshiftUserToken)
+	// create openshift config
+	openshiftConfig, err := usersOpenshiftConfig(ctx, user, c.defaultOpenshiftTemplate, c.tokenManager)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to authenticate user with tenant target server")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
+
+	// setup possible version overides
+	openshiftConfig = overrideTemplateVersions(user, openshiftConfig)
 
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 	err = c.tenantService.SaveTenant(tenant)
@@ -153,29 +95,21 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	oc, err := c.loadUserTenantConfiguration(token, c.openshiftConfig)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to load user tenant configuration")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
 	go func() {
 		ctx := ctx
 		t := tenant
 		err = openshift.RawInitTenant(
 			ctx,
-			oc,
-			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
-			openshiftUser,
+			openshiftConfig,
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			openshiftUsername,
 			openshiftUserToken,
 			c.templateVars)
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":     err,
-				"os_user": openshiftUser,
+				"os_user": openshiftUsername,
 			}, "unable initialize tenant")
 		}
 	}()
@@ -186,59 +120,54 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 
 // Update runs the setup action.
 func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
-	token := goajwt.ContextJWT(ctx)
-	if token == nil {
+	userToken := goajwt.ContextJWT(ctx)
+	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: token}
+	ttoken := &TenantToken{token: userToken}
 	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
 
-	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
+	// fetch the cluster the user belongs to
+	user, err := c.userService.CurrentUser(ctx, userToken.Raw)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to authenticate user with keycloak")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	userConfig := c.openshiftConfig.WithToken(openshiftUserToken)
-	openshiftUser, err := c.WhoAmI(token, openshiftUserToken)
+	// fetch the users cluster token
+	openshiftUsername, _, err := c.tokenManager.Tenant(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to authenticate user with tenant target server")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
+		}, "unable to fetch tenant token from auth")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("No token found"))
 	}
 
-	rawOC := &c.openshiftConfig
-	if openshift.KubernetesMode() {
-		rawOC = &userConfig
-	}
-	oc, err := c.loadUserTenantConfiguration(token, *rawOC)
+	// create openshift config
+	openshiftConfig, err := usersOpenshiftConfig(ctx, user, c.defaultOpenshiftTemplate, c.tokenManager)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to load user tenant configuration")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
+
+	// setup possible version overides
+	openshiftConfig = overrideTemplateVersions(user, openshiftConfig)
 
 	go func() {
 		ctx := ctx
 		t := tenant
 		err = openshift.RawUpdateTenant(
 			ctx,
-			oc,
-			InitTenant(ctx, c.openshiftConfig.MasterURL, c.tenantService, t),
-			openshiftUser,
+			openshiftConfig,
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			openshiftUsername,
 			c.templateVars)
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":     err,
-				"os_user": openshiftUser,
+				"os_user": openshiftUsername,
 			}, "unable initialize tenant")
 		}
 	}()
@@ -247,41 +176,104 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-func (c *TenantController) loadUserTenantConfiguration(token *jwt.Token, config openshift.Config) (openshift.Config, error) {
-	authHeader := token.Raw
-	if len(c.usersURL) > 0 {
-		url := strings.TrimSuffix(c.usersURL, "/") + "/user"
-		status, body, err := openshift.GetJSON(config, url, authHeader)
-		if err != nil {
-			return config, err
-		}
-		if status < 200 || status > 300 {
-			return config, fmt.Errorf("Failed to GET url %s due to status code %d", url, status)
-		}
-		js, err := simplejson.NewJson([]byte(body))
-		if err != nil {
-			return config, err
-		}
+// Clean runs the setup action for the tenant namespaces.
+func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
+	userToken := goajwt.ContextJWT(ctx)
+	if userToken == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	}
 
-		tenantConfig := js.GetPath("data", "attributes", "contextInformation", "tenantConfig")
-		if tenantConfig.Interface() != nil {
-			cheVersion := getJsonStringOrBlank(tenantConfig, "cheVersion")
-			jenkinsVersion := getJsonStringOrBlank(tenantConfig, "jenkinsVersion")
-			teamVersion := getJsonStringOrBlank(tenantConfig, "teamVersion")
-			mavenRepoURL := getJsonStringOrBlank(tenantConfig, "mavenRepo")
-			return config.WithUserSettings(cheVersion, jenkinsVersion, teamVersion, mavenRepoURL), nil
+	// fetch the cluster the user belongs to
+	user, err := c.userService.CurrentUser(ctx, userToken.Raw)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	// fetch the users cluster token
+	openshiftUsername, _, err := c.tokenManager.Tenant(ctx, *user.Cluster, userToken.Raw)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to fetch tenant token from auth")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("No token found"))
+	}
+
+	// create openshift config
+	openshiftConfig, err := usersOpenshiftConfig(ctx, user, c.defaultOpenshiftTemplate, c.tokenManager)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
+	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	// TODO (xcoulon): respond with `204 No Content` instead ?
+	return ctx.OK([]byte{})
+}
+
+// Show runs the setup action.
+func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	}
+
+	ttoken := &TenantToken{token: token}
+	tenantID := ttoken.Subject()
+	tenant, err := c.tenantService.GetTenant(tenantID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", tenantID.String()))
+	}
+
+	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	result := &app.TenantSingle{Data: convertTenant(tenant, namespaces)}
+	return ctx.OK(result)
+}
+
+// usersOpenshiftConfig builds openshift config for every user request depending on the user profile
+func usersOpenshiftConfig(ctx context.Context, user *auth.UserDataAttributes, osTemplate openshift.Config, tokenManager token.Manager) (openshift.Config, error) {
+
+	// fetch ClusterToken of the cluster that user belongs to
+	clusterUser, clusterToken, err := tokenManager.Cluster(ctx, *user.Cluster)
+	if err != nil {
+		return openshift.Config{}, err
+	}
+
+	return osTemplate.WithMasterUser(clusterUser).WithToken(clusterToken).WithMasterURL(*user.Cluster), nil
+}
+
+func overrideTemplateVersions(user *auth.UserDataAttributes, config openshift.Config) openshift.Config {
+	userContext := user.ContextInformation
+	if tc, found := userContext["tenantConfig"]; found {
+		if tenantConfig, ok := tc.(map[string]interface{}); ok {
+			find := func(key, defaultValue string) string {
+				if rawValue, found := tenantConfig[key]; found {
+					if value, ok := rawValue.(string); ok {
+						return value
+					}
+				}
+				return defaultValue
+			}
+
+			return config.WithUserSettings(
+				find("cheVersion", config.CheVersion),
+				find("jenkinsVersion", config.JenkinsVersion),
+				find("teamVersion", config.TeamVersion),
+				find("mavenRepo", config.MavenRepoURL),
+			)
 		}
 	}
-	return config, nil
+	return config
 }
 
-func getJsonStringOrBlank(json *simplejson.Json, key string) string {
-	text, _ := json.Get(key).String()
-	return text
-}
-
+//TODO: Remove WhoAmI
 func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (string, error) {
-	return OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
+	//return OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
+	return "", nil
 }
 
 func OpenShiftWhoAmI(token *jwt.Token, oc openshift.Config, openshiftUserToken string) (string, error) {
@@ -297,60 +289,6 @@ func OpenShiftWhoAmI(token *jwt.Token, oc openshift.Config, openshiftUserToken s
 		return userName, nil
 	}
 	return openshift.WhoAmI(oc.WithToken(openshiftUserToken))
-}
-
-// Show runs the setup action.
-func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
-	token := goajwt.ContextJWT(ctx)
-	if token == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	}
-
-	ttoken := &TenantToken{token: token}
-	tenantID := ttoken.Subject()
-	tenant, err := c.tenantService.GetTenant(tenantID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	namespaces, err := c.tenantService.GetNamespaces(tenantID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	result := &app.TenantSingle{Data: convertTenant(tenant, namespaces)}
-	return ctx.OK(result)
-}
-
-// Clean runs the setup action for the tenant namespaces.
-func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
-
-	token := goajwt.ContextJWT(ctx)
-	if token == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	}
-
-	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to authenticate user with keycloak")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
-	}
-
-	openshiftUser, err := c.WhoAmI(token, openshiftUserToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to authenticate user with tenant target server")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unknown/unauthorized openshift user"))
-	}
-
-	err = openshift.CleanTenant(ctx, c.openshiftConfig, openshiftUser, c.templateVars)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	// TODO (xcoulon): respond with `204 No Content` instead ?
-	return ctx.OK([]byte{})
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created
@@ -424,7 +362,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 	}
 }
 
-func OpenshiftToken(keycloakConfig keycloak.Config, openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
+func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
 	if openshift.KubernetesMode() {
 		// We don't currently store the Kubernetes token into KeyCloak for now
 		// so lets try load the token for the ServiceAccount for the KeyCloak username
@@ -433,7 +371,7 @@ func OpenshiftToken(keycloakConfig keycloak.Config, openshiftConfig openshift.Co
 		kcUserName := ttoken.Username()
 		return openshift.GetOrCreateKubeToken(openshiftConfig, kcUserName)
 	}
-	return keycloak.OpenshiftToken(keycloakConfig, token.Raw)
+	return "", nil
 }
 
 type TenantToken struct {
