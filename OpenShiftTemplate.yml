@@ -80,21 +80,6 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: auth.url
-          - name: F8_WIT_URL
-            valueFrom:
-              configMapKeyRef:
-                name: f8tenant
-                key: wit.url
-          - name: F8_OPENSHIFT_TENANT_MASTERURL
-            valueFrom:
-              configMapKeyRef:
-                name: f8tenant
-                key: openshift.tenant.masterurl
-          - name: F8_OPENSHIFT_SERVICE_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: openshift-online-tokens
-                key: dsaas-service-token
           - name: F8_TEMPLATE_RECOMMENDER_EXTERNAL_NAME
             valueFrom:
               configMapKeyRef:
@@ -125,6 +110,11 @@ objects:
               secretKeyRef:
                 name: f8tenant
                 key: service.account.secret
+          - name: F8_AUTH_TOKEN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: auth.token.key
           image: registry.devshift.net/fabric8-services/fabric8-tenant:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant

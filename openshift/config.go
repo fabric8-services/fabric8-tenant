@@ -22,7 +22,8 @@ type Config struct {
 type LogCallback func(message string)
 
 func (c Config) WithToken(token string) Config {
-	return Config{MasterURL: c.MasterURL, MasterUser: c.MasterUser, Token: token, HttpTransport: c.HttpTransport, TemplateDir: c.TemplateDir, MavenRepoURL: c.MavenRepoURL, TeamVersion: c.TeamVersion}
+	c.Token = token
+	return c
 }
 
 func (c Config) WithUserSettings(cheVersion string, jenkinsVersion string, teamVersion string, mavenRepoURL string) Config {
@@ -42,6 +43,16 @@ func (c Config) WithUserSettings(cheVersion string, jenkinsVersion string, teamV
 		}
 		return copy
 	}
+	return c
+}
+
+func (c Config) WithMasterUser(masterUser string) Config {
+	c.MasterUser = masterUser
+	return c
+}
+
+func (c Config) WithMasterURL(masterURL string) Config {
+	c.MasterURL = masterURL
 	return c
 }
 

@@ -24,13 +24,12 @@ type TenantKubeController struct {
 }
 
 // NewTenantKubeController creates a tenantKube controller.
-func NewTenantKubeController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, openshiftConfig openshift.Config, templateVars map[string]string) *TenantKubeController {
+func NewTenantKubeController(service *goa.Service, tenantService tenant.Service, keycloakConfig keycloak.Config, templateVars map[string]string) *TenantKubeController {
 	return &TenantKubeController{
-		Controller:      service.NewController("TenantKubeController"),
-		tenantService:   tenantService,
-		keycloakConfig:  keycloakConfig,
-		openshiftConfig: openshiftConfig,
-		templateVars:    templateVars,
+		Controller:     service.NewController("TenantKubeController"),
+		tenantService:  tenantService,
+		keycloakConfig: keycloakConfig,
+		templateVars:   templateVars,
 	}
 }
 
@@ -41,7 +40,7 @@ func (c *TenantKubeController) KubeConnected(ctx *app.KubeConnectedTenantKubeCon
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 
-	openshiftUserToken, err := OpenshiftToken(c.keycloakConfig, c.openshiftConfig, token)
+	openshiftUserToken, err := OpenshiftToken(c.openshiftConfig, token)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,

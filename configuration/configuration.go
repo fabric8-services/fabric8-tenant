@@ -33,24 +33,25 @@ const (
 	varKeycloakRealm                   = "keycloak.realm"
 	varKeycloakOpenshiftBroker         = "keycloak.openshift.broker"
 	varKeycloakURL                     = "keycloak.url"
-	varAuthURL                         = "auth.url"
 	varTogglesURL                      = "toggles.url"
 	varConsoleURL                      = "console.url"
-	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
 	varOpenshiftCheVersion             = "openshift.che.version"
 	varOpenshiftJenkinsVersion         = "openshift.jenkins.version"
 	varOpenshiftTeamVersion            = "openshift.team.version"
 	varOpenshiftTemplateDir            = "openshift.template.dir"
-	varOpenshiftServiceToken           = "openshift.service.token"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
 	varTemplateCheMultiTenantServer    = "template.che.multitenant.server"
-	varWitURL                          = "wit.url"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
+
+	varAuthURL      = "auth.url"
+	varAuthClientID = "service.account.id"
+	varClientSecret = "service.account.secret"
+	varAuthTokenKey = "auth.token.key"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -130,8 +131,11 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varDeveloperModeEnabled, false)
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
-	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
-
+	//-----
+	// Auth
+	// ----
+	c.v.SetDefault(varAuthClientID, "c211f1bd-17a7-4f8c-9f80-0917d167889d")
+	c.v.SetDefault(varClientSecret, "tenantsecretNew")
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -244,20 +248,36 @@ func (c *Data) GetKeycloakURL() string {
 	return defaultKeycloakURL
 }
 
+// GetAuthGrantType returns the fabric8-auth Grant type used while retrieving
+// user account token
+func (c *Data) GetAuthGrantType() string {
+	return "client_credentials"
+}
+
+// GetAuthClientID returns the tenant's client id used while
+// communicating with fabric8-auth
+func (c *Data) GetAuthClientID() string {
+	return c.v.GetString(varAuthClientID)
+}
+
+// GetClientSecret returns the secret which will be used in
+// conjunction with the tenant client id
+func (c *Data) GetClientSecret() string {
+	return c.v.GetString(varClientSecret)
+}
+
+// GetTokenKey returns the encryption key/passphrase which will be used
+// to decrypt the cluster tokens stored in auth token mgm
+func (c *Data) GetTokenKey() string {
+	return c.v.GetString(varAuthTokenKey)
+}
+
 // GetConsoleURL returns the fabric8-ui Console URL
 func (c *Data) GetConsoleURL() string {
 	if c.v.IsSet(varConsoleURL) {
 		return c.v.GetString(varConsoleURL)
 	}
 	return ""
-}
-
-// GetWitURL returns WIT URL
-func (c *Data) GetWitURL() string {
-	if c.v.IsSet(varWitURL) {
-		return c.v.GetString(varWitURL)
-	}
-	return defaultWitURL
 }
 
 // GetAuthURL returns Auth service URL
@@ -268,11 +288,6 @@ func (c *Data) GetAuthURL() string {
 // GetTogglesURL returns Toggle service URL
 func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)
-}
-
-// GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
-func (c *Data) GetOpenshiftTenantMasterURL() string {
-	return c.v.GetString(varOpenshiftTenantMasterURL)
 }
 
 // GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant team namespaces and roles
@@ -293,11 +308,6 @@ func (c *Data) GetOpenshiftJenkinsVersion() string {
 // GetOpenshiftTemplateDir returns the directory containing the local team YAML files
 func (c *Data) GetOpenshiftTemplateDir() string {
 	return c.v.GetString(varOpenshiftTemplateDir)
-}
-
-// GetOpenshiftServiceToken returns the token be used by matser user for tenant init
-func (c *Data) GetOpenshiftServiceToken() string {
-	return c.v.GetString(varOpenshiftServiceToken)
 }
 
 // UseOpenshiftCurrentCluster returns if we should use the current cluster to provision tenant service
@@ -365,9 +375,8 @@ const (
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
 
-	defaultAuthURL                  = "https://auth.prod-preview.openshift.io"
-	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
-	defaultCheMultiTenantServer     = "https://che.prod-preview.openshift.io"
+	defaultAuthURL              = "https://auth.prod-preview.openshift.io"
+	defaultCheMultiTenantServer = "https://che.prod-preview.openshift.io"
 
 	defaultLogLevel = "info"
 

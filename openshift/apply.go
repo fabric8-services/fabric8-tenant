@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"reflect"
+	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -234,6 +236,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	if url == "" {
 		return nil, nil
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +263,10 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+	}()
 
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
@@ -423,6 +429,10 @@ func CreateURL(hostURL, action string, object map[interface{}]interface{}) (stri
 		return "", err
 	}
 	str := buf.String()
+	if strings.HasSuffix(hostURL, "/") {
+		hostURL = hostURL[0 : len(hostURL)-1]
+	}
+
 	return hostURL + str, nil
 }
 

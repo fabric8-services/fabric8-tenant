@@ -96,10 +96,14 @@ func (s NilService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	return nil, nil
 }
 
-func (s NilService) UpdateTenant(tenant *Tenant) error {
+func (s NilService) SaveTenant(tenant *Tenant) error {
 	return nil
 }
 
-func (s NilService) UpdateNamespace(namespace *Namespace) error {
+func (s NilService) SaveNamespace(namespace *Namespace) error {
 	return nil
+}
+
+func (s NilService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
+	return nil, nil
 }
