@@ -35,12 +35,10 @@ const (
 	varKeycloakURL                     = "keycloak.url"
 	varTogglesURL                      = "toggles.url"
 	varConsoleURL                      = "console.url"
-	varOpenshiftTenantMasterURL        = "openshift.tenant.masterurl"
 	varOpenshiftCheVersion             = "openshift.che.version"
 	varOpenshiftJenkinsVersion         = "openshift.jenkins.version"
 	varOpenshiftTeamVersion            = "openshift.team.version"
 	varOpenshiftTemplateDir            = "openshift.template.dir"
-	varOpenshiftServiceToken           = "openshift.service.token"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
@@ -132,8 +130,6 @@ func (c *Data) setConfigDefaults() {
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
-
-	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
 
 	//-----
 	// Auth
@@ -294,11 +290,6 @@ func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)
 }
 
-// GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
-func (c *Data) GetOpenshiftTenantMasterURL() string {
-	return c.v.GetString(varOpenshiftTenantMasterURL)
-}
-
 // GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant team namespaces and roles
 func (c *Data) GetOpenshiftTeamVersion() string {
 	return c.v.GetString(varOpenshiftTeamVersion)
@@ -317,11 +308,6 @@ func (c *Data) GetOpenshiftJenkinsVersion() string {
 // GetOpenshiftTemplateDir returns the directory containing the local team YAML files
 func (c *Data) GetOpenshiftTemplateDir() string {
 	return c.v.GetString(varOpenshiftTemplateDir)
-}
-
-// GetOpenshiftServiceToken returns the token be used by matser user for tenant init
-func (c *Data) GetOpenshiftServiceToken() string {
-	return c.v.GetString(varOpenshiftServiceToken)
 }
 
 // UseOpenshiftCurrentCluster returns if we should use the current cluster to provision tenant service
@@ -389,9 +375,8 @@ const (
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
 
-	defaultAuthURL                  = "https://auth.prod-preview.openshift.io"
-	defaultOpenshiftTenantMasterURL = "https://api.free-int.openshift.com"
-	defaultCheMultiTenantServer     = "https://che.prod-preview.openshift.io"
+	defaultAuthURL              = "https://auth.prod-preview.openshift.io"
+	defaultCheMultiTenantServer = "https://che.prod-preview.openshift.io"
 
 	defaultLogLevel = "info"
 
