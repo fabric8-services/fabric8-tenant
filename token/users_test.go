@@ -10,10 +10,12 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	uuid "github.com/satori/go.uuid"
 )
 
 func TestUserProfileClient_GetUserCluster(t *testing.T) {
 	want := "https://fake-cluster.com"
+	token := "random"
 	wantOutput := `
 	{
 	  "data": {
@@ -25,7 +27,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		token   string
+		user    uuid.UUID
 		want    string
 		wantErr bool
 		URL     string
@@ -36,25 +38,25 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			name:    "normal input to see if cluster is parsed",
 			want:    want,
 			wantErr: false,
-			token:   "fake-token",
+			user:    uuid.NewV4(),
 		},
 		{
 			name:    "misformed URL",
 			URL:     "google.com",
-			token:   "fake-token",
+			user:    uuid.NewV4(),
 			wantErr: true,
 		},
 		{
 			name:    "bad status code",
 			wantErr: true,
 			status:  http.StatusNotFound,
-			token:   "fake-token",
+			user:    uuid.NewV4(),
 		},
 		{
 			name:    "make code fail on parsing output",
 			wantErr: true,
 			output:  "foobar",
-			token:   "fake-token",
+			user:    uuid.NewV4(),
 		},
 	}
 
@@ -64,7 +66,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 				if r.Method != "GET" {
 					t.Fatalf("Expected 'GET' request, got %q", r.Method)
 				}
-				path := filepath.Join("/api/user")
+				path := filepath.Join("/api/users/" + tt.user.String())
 				if r.URL.EscapedPath() != path {
 					t.Errorf("Expected request to %q, got %q", path, r.URL.EscapedPath())
 				}
@@ -72,7 +74,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 				if r.Header.Get("Authorization") == "" {
 					t.Errorf("Expected request to contain Authorization header")
 				}
-				if !strings.Contains(r.Header.Get("Authorization"), tt.token) {
+				if !strings.Contains(r.Header.Get("Authorization"), token) {
 					t.Errorf("Expected request to contain token in Authorization header")
 				}
 
@@ -102,8 +104,8 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			// set the URL given by the temporary server
 			os.Setenv("F8_AUTH_URL", tt.URL)
 
-			uc := NewAuthUserServiceClient(config)
-			got, err := uc.CurrentUser(context.Background(), tt.token)
+			uc := NewAuthUserServiceClient(config, token)
+			got, err := uc.Get(context.Background(), tt.user)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UserProfileClient.GetUserCluster() error = %v, wantErr %v", err, tt.wantErr)
 				return

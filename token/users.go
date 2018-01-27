@@ -2,38 +2,37 @@ package token
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 )
 
 type UserService interface {
-	CurrentUser(ctx context.Context, token string) (*auth.UserDataAttributes, error)
+	Get(ctx context.Context, id uuid.UUID) (*auth.UserDataAttributes, error)
 }
 
-func NewAuthUserServiceClient(config AuthClientConfig) UserService {
-	return &userProfileClient{config: config}
+func NewAuthUserServiceClient(config AuthClientConfig, serviceToken string) UserService {
+	return &userProfileClient{config: config, serviceToken: serviceToken}
 }
 
-type userProfileClient struct {
-	config AuthClientConfig
-}
+func (uc *userProfileClient) Get(ctx context.Context, id uuid.UUID) (*auth.UserDataAttributes, error) {
 
-func (uc *userProfileClient) CurrentUser(ctx context.Context, token string) (*auth.UserDataAttributes, error) {
-
-	authclient, err := CreateClient(uc.config)
+	authclient, err := CreateCustomClient(uc.config, AuthDoer(goaclient.HTTPClientDoer(http.DefaultClient), uc.serviceToken))
 	if err != nil {
 		return nil, err
 	}
+	// /api/users not defined as @Secure in design so no invocation of the signer is generated in the client
 	authclient.SetJWTSigner(
 		&goaclient.JWTSigner{
 			TokenSource: &goaclient.StaticTokenSource{
 				StaticToken: &goaclient.StaticToken{
-					Value: token,
+					Value: uc.serviceToken,
 					Type:  "Bearer"}}})
 
-	res, err := authclient.ShowUser(ctx, auth.ShowUserPath(), nil, nil)
+	res, err := authclient.ShowUsers(ctx, auth.ShowUsersPath(id.String()), nil, nil)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
@@ -50,4 +49,24 @@ func (uc *userProfileClient) CurrentUser(ctx context.Context, token string) (*au
 	}
 
 	return user.Data.Attributes, nil
+}
+
+type userProfileClient struct {
+	config       AuthClientConfig
+	serviceToken string
+}
+
+type authType struct {
+	target goaclient.Doer
+	token  string
+}
+
+func (a *authType) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Bearer "+a.token)
+	return a.target.Do(ctx, req)
+}
+
+// AuthDoer adds Authorization to all Requests, un related to goa design
+func AuthDoer(doer goaclient.Doer, token string) goaclient.Doer {
+	return &authType{target: doer, token: token}
 }

@@ -131,7 +131,7 @@ func main() {
 		config.GetTokenKey())
 
 	// create user profile client to get the user's cluster
-	userService := token.NewAuthUserServiceClient(config)
+	userService := token.NewAuthUserServiceClient(config, saToken)
 
 	var tr *http.Transport
 	if config.APIServerInsecureSkipTLSVerify() {
