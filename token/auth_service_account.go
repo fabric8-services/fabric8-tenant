@@ -91,6 +91,17 @@ func CreateClient(config AuthClientConfig) (*auth.Client, error) {
 	return c, nil
 }
 
+func CreateCustomClient(config AuthClientConfig, custom goaclient.Doer) (*auth.Client, error) {
+	u, err := url.Parse(config.GetAuthURL())
+	if err != nil {
+		return nil, err
+	}
+	c := auth.New(custom)
+	c.Host = u.Host
+	c.Scheme = u.Scheme
+	return c, nil
+}
+
 // validateError function when given client and response checks if the
 // response has any errors by also looking at the status code
 func validateError(c *auth.Client, res *http.Response) error {

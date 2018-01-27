@@ -63,7 +63,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.CurrentUser(ctx, userToken.Raw)
+	user, err := c.userService.Get(ctx, ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -131,7 +131,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.CurrentUser(ctx, userToken.Raw)
+	user, err := c.userService.Get(ctx, ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -182,9 +182,10 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
+	ttoken := &TenantToken{token: userToken}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.CurrentUser(ctx, userToken.Raw)
+	user, err := c.userService.Get(ctx, ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
