@@ -11,6 +11,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/prometheus/client_golang/prometheus"
 
 	_ "github.com/lib/pq"
 
@@ -180,6 +181,23 @@ func main() {
 
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.Handle("/", service.Mux)
+
+	// Start/mount metrics http
+	if config.GetHTTPAddress() == config.GetMetricsHTTPAddress() {
+		http.Handle("/metrics", prometheus.Handler())
+	} else {
+		go func(metricAddress string) {
+			mx := http.NewServeMux()
+			mx.Handle("/metrics", prometheus.Handler())
+			if err := http.ListenAndServe(metricAddress, mx); err != nil {
+				log.Error(nil, map[string]interface{}{
+					"addr": metricAddress,
+					"err":  err,
+				}, "unable to connect to metrics server")
+				service.LogError("startup", "err", err)
+			}
+		}(config.GetMetricsHTTPAddress())
+	}
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
