@@ -28,6 +28,7 @@ const (
 	varPostgresConnectionMaxIdle       = "postgres.connection.maxidle"
 	varPostgresConnectionMaxOpen       = "postgres.connection.maxopen"
 	varHTTPAddress                     = "http.address"
+	varMetricsHTTPAddress              = "metrics.http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
 	varKeycloakClientID                = "keycloak.client.id"
 	varKeycloakRealm                   = "keycloak.realm"
@@ -115,6 +116,7 @@ func (c *Data) setConfigDefaults() {
 	// HTTP
 	//-----
 	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8080")
+	c.v.SetDefault(varMetricsHTTPAddress, "0.0.0.0:8080")
 
 	//-----
 	// Misc
@@ -208,6 +210,12 @@ func (c *Data) GetPostgresConfigString() string {
 // that the alm server binds to (e.g. "0.0.0.0:8080")
 func (c *Data) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
+}
+
+// GetMetricsHTTPAddress returns the address the /metrics endpoing will be mounted.
+// By default GetMetricsHTTPAddress is the same as GetHTTPAddress
+func (c *Data) GetMetricsHTTPAddress() string {
+	return c.v.GetString(varMetricsHTTPAddress)
 }
 
 // IsDeveloperModeEnabled returns if development related features (as set via default, config file, or environment variable),
