@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
@@ -30,13 +31,24 @@ func TestTenantController(t *testing.T) {
 	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
+var clusterResolver = func(ctx context.Context, target string) (token.Cluster, error) {
+	return token.Cluster{
+		APIURL:     "https://api.example.com",
+		ConsoleURL: "https://console.example.com/console",
+		MetricsURL: "https://metrics.example.com",
+		AppDNS:     "apps.example.com",
+		User:       "service-account",
+		Token:      "XX",
+	}, nil
+}
+
 func (s *TenantControllerTestSuite) TestShowTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
 		tenantID := uuid.NewV4()
 		svc := goa.New("Tenants-service")
-		ctrl := NewTenantsController(svc, mockTenantService{ID: tenantID})
+		ctrl := NewTenantsController(svc, mockTenantService{ID: tenantID}, clusterResolver)
 		// when
 		_, tenant := test.ShowTenantsOK(t, createValidSAContext(), svc, ctrl, tenantID)
 		// then
@@ -49,7 +61,7 @@ func (s *TenantControllerTestSuite) TestShowTenants() {
 		// given
 		tenantID := uuid.NewV4()
 		svc := goa.New("Tenants-service")
-		ctrl := NewTenantsController(svc, mockTenantService{ID: tenantID})
+		ctrl := NewTenantsController(svc, mockTenantService{ID: tenantID}, clusterResolver)
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
 			// when/then
@@ -74,7 +86,7 @@ func (s *TenantControllerTestSuite) TestSearchTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		ctrl := NewTenantsController(svc, tenant.NewDBService(s.DB))
+		ctrl := NewTenantsController(svc, tenant.NewDBService(s.DB), clusterResolver)
 		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
 		// when
 		_, tenant := test.SearchTenantsOK(t, createValidSAContext(), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
@@ -85,7 +97,7 @@ func (s *TenantControllerTestSuite) TestSearchTenants() {
 	})
 
 	s.T().Run("Failures", func(t *testing.T) {
-		ctrl := NewTenantsController(svc, mockTenantService{})
+		ctrl := NewTenantsController(svc, mockTenantService{}, clusterResolver)
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
 			test.SearchTenantsUnauthorized(t, context.Background(), svc, ctrl, "foo", "bar")

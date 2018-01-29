@@ -26,7 +26,8 @@ type TenantController struct {
 	*goa.Controller
 	tenantService            tenant.Service
 	userService              token.UserService
-	tokenManager             token.Manager
+	tenantResovler           token.TenantResolver
+	clusterResovler          token.ClusterResolver
 	defaultOpenshiftTemplate openshift.Config
 	templateVars             map[string]string
 }
@@ -36,7 +37,8 @@ func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
 	userService token.UserService,
-	tokenManager token.Manager,
+	tenantResovler token.TenantResolver,
+	clusterResolver token.ClusterResolver,
 	defaultOpenshiftTemplate openshift.Config,
 	templateVars map[string]string) *TenantController {
 
@@ -44,7 +46,8 @@ func NewTenantController(
 		Controller:               service.NewController("TenantController"),
 		tenantService:            tenantService,
 		userService:              userService,
-		tokenManager:             tokenManager,
+		tenantResovler:           tenantResovler,
+		clusterResovler:          clusterResolver,
 		defaultOpenshiftTemplate: defaultOpenshiftTemplate,
 		templateVars:             templateVars,
 	}
@@ -68,8 +71,16 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	if user.Cluster == nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id": user.IdentityID,
+		}, "no cluster defined for tenant")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
+
+	}
+
 	// fetch the users cluster token
-	openshiftUsername, openshiftUserToken, err := c.tokenManager.Tenant(ctx, *user.Cluster, userToken.Raw)
+	openshiftUsername, openshiftUserToken, err := c.tenantResovler(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -77,14 +88,21 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not authorization against keycloak"))
 	}
 
-	// create openshift config
-	openshiftConfig, err := usersOpenshiftConfig(ctx, user, c.defaultOpenshiftTemplate, c.tokenManager)
+	// fetch the cluster info
+	cluster, err := c.clusterResovler(ctx, *user.Cluster)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":    err,
+			"cluser": *user.Cluster,
+		}, "unable to fetch tenant token from auth")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	// setup possible version overides
-	openshiftConfig = overrideTemplateVersions(user, openshiftConfig)
+	// create openshift config
+	openshiftConfig, err := usersOpenshiftConfig(c.defaultOpenshiftTemplate, user, cluster)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 	err = c.tenantService.SaveTenant(tenant)
@@ -136,8 +154,16 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	if user.Cluster == nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id": user.IdentityID,
+		}, "no cluster defined for tenant")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
+
+	}
+
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.tokenManager.Tenant(ctx, *user.Cluster, userToken.Raw)
+	openshiftUsername, _, err := c.tenantResovler(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -145,14 +171,20 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("No token found"))
 	}
 
-	// create openshift config
-	openshiftConfig, err := usersOpenshiftConfig(ctx, user, c.defaultOpenshiftTemplate, c.tokenManager)
+	cluster, err := c.clusterResovler(ctx, *user.Cluster)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":    err,
+			"cluser": *user.Cluster,
+		}, "unable to fetch tenant token from auth")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	// setup possible version overides
-	openshiftConfig = overrideTemplateVersions(user, openshiftConfig)
+	// create openshift config
+	openshiftConfig, err := usersOpenshiftConfig(c.defaultOpenshiftTemplate, user, cluster)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
 	go func() {
 		ctx := ctx
@@ -191,7 +223,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.tokenManager.Tenant(ctx, *user.Cluster, userToken.Raw)
+	openshiftUsername, _, err := c.tenantResovler(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -199,8 +231,17 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("No token found"))
 	}
 
+	cluster, err := c.clusterResovler(ctx, *user.Cluster)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"cluster_url": *user.Cluster,
+		}, "unable to resolve cluster")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("No token found"))
+	}
+
 	// create openshift config
-	openshiftConfig, err := usersOpenshiftConfig(ctx, user, c.defaultOpenshiftTemplate, c.tokenManager)
+	openshiftConfig, err := usersOpenshiftConfig(c.defaultOpenshiftTemplate, user, cluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
@@ -231,20 +272,16 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	result := &app.TenantSingle{Data: convertTenant(tenant, namespaces)}
+
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterResovler)}
 	return ctx.OK(result)
 }
 
 // usersOpenshiftConfig builds openshift config for every user request depending on the user profile
-func usersOpenshiftConfig(ctx context.Context, user *auth.UserDataAttributes, osTemplate openshift.Config, tokenManager token.Manager) (openshift.Config, error) {
-
-	// fetch ClusterToken of the cluster that user belongs to
-	clusterUser, clusterToken, err := tokenManager.Cluster(ctx, *user.Cluster)
-	if err != nil {
-		return openshift.Config{}, err
-	}
-
-	return osTemplate.WithMasterUser(clusterUser).WithToken(clusterToken).WithMasterURL(*user.Cluster), nil
+func usersOpenshiftConfig(osTemplate openshift.Config, user *auth.UserDataAttributes, cluster token.Cluster) (openshift.Config, error) {
+	return overrideTemplateVersions(
+		user,
+		osTemplate.WithMasterUser(cluster.User).WithToken(cluster.Token).WithMasterURL(cluster.APIURL)), nil
 }
 
 func overrideTemplateVersions(user *auth.UserDataAttributes, config openshift.Config) openshift.Config {
@@ -408,7 +445,7 @@ func (t TenantToken) Email() string {
 	return ""
 }
 
-func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.Tenant {
+func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, cluster token.ClusterResolver) *app.Tenant {
 	result := app.Tenant{
 		ID:   &tenant.ID,
 		Type: "tenants",
@@ -420,17 +457,28 @@ func convertTenant(tenant *tenant.Tenant, namespaces []*tenant.Namespace) *app.T
 		},
 	}
 	for _, ns := range namespaces {
+		c, err := cluster(ctx, ns.MasterURL)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"cluster_url": ns.MasterURL,
+			}, "unable to resolve cluster")
+			c = token.Cluster{}
+		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(
 			result.Attributes.Namespaces,
 			&app.NamespaceAttributes{
-				CreatedAt:  &ns.CreatedAt,
-				UpdatedAt:  &ns.UpdatedAt,
-				ClusterURL: &ns.MasterURL,
-				Name:       &ns.Name,
-				Type:       &tenantType,
-				Version:    &ns.Version,
-				State:      &ns.State,
+				CreatedAt:         &ns.CreatedAt,
+				UpdatedAt:         &ns.UpdatedAt,
+				ClusterURL:        &ns.MasterURL,
+				ClusterAppDomain:  &c.AppDNS,
+				ClusterConsoleURL: &c.ConsoleURL,
+				ClusterMetricsURL: &c.MetricsURL,
+				Name:              &ns.Name,
+				Type:              &tenantType,
+				Version:           &ns.Version,
+				State:             &ns.State,
 			})
 	}
 	return &result
