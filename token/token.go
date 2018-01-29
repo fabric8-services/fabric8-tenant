@@ -13,41 +13,13 @@ import (
 // Resolver resolves a Token for a given user/service
 type Resolver func(ctx context.Context, target, token string, decode Decode) (user, accessToken string, err error)
 
-// Manager is an interface to split Cluster token lookup vs User token lookup.
-// Primarly to 'hide' Service token from normal Controller usage
-type Manager interface {
-	// Cluster returns the Cluster level user and token for the given target
-	Cluster(ctx context.Context, target string) (string, string, error)
-	// Tenant returns the user and token for the given target
-	Tenant(ctx context.Context, target, token string) (string, string, error)
-}
+// TenantResolver resolves tenant tokens based on tenants auth
+type TenantResolver func(ctx context.Context, target, token string) (user, accessToken string, err error)
 
 // NewAuthServiceResolver creates a Resolver that rely on the Auth service to retrieve tokens
 func NewAuthServiceResolver(config AuthClientConfig) Resolver {
 	c := tokenClient{config: config}
 	return c.Get
-}
-
-func NewAuthServiceManager(resolver Resolver, serviceToken, passphrase string) Manager {
-	return &tokenManager{
-		resolver:     resolver,
-		serviceToken: serviceToken,
-		passphrase:   passphrase,
-	}
-}
-
-type tokenManager struct {
-	resolver     Resolver
-	serviceToken string
-	passphrase   string
-}
-
-func (t *tokenManager) Cluster(ctx context.Context, target string) (string, string, error) {
-	return t.resolver(ctx, target, t.serviceToken, NewGPGDecypter(t.passphrase))
-}
-
-func (t *tokenManager) Tenant(ctx context.Context, target, token string) (string, string, error) {
-	return t.resolver(ctx, target, token, PlainTextToken)
 }
 
 type tokenClient struct {

@@ -5,6 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/goadesign/goa"
 )
@@ -12,14 +13,16 @@ import (
 // TenantsController implements the tenants resource.
 type TenantsController struct {
 	*goa.Controller
-	tenantService tenant.Service
+	tenantService   tenant.Service
+	clusterResolver token.ClusterResolver
 }
 
 // NewTenantsController creates a tenants controller.
-func NewTenantsController(service *goa.Service, tenantService tenant.Service) *TenantsController {
+func NewTenantsController(service *goa.Service, tenantService tenant.Service, clusterResolver token.ClusterResolver) *TenantsController {
 	return &TenantsController{
-		Controller:    service.NewController("TenantsController"),
-		tenantService: tenantService,
+		Controller:      service.NewController("TenantsController"),
+		tenantService:   tenantService,
+		clusterResolver: clusterResolver,
 	}
 }
 
@@ -39,7 +42,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	result := &app.TenantSingle{Data: convertTenant(tenant, namespaces)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterResolver)}
 	return ctx.OK(result)
 }
 
@@ -61,7 +64,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 	result := app.TenantList{
 		Data: []*app.Tenant{
-			convertTenant(tenant, namespaces),
+			convertTenant(ctx, tenant, namespaces, c.clusterResolver),
 		},
 		// skipping the paging links for now
 		Meta: &app.TenantListMeta{

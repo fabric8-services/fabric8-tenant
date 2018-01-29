@@ -126,10 +126,24 @@ func main() {
 		}, "failed to fetch service account token")
 	}
 
-	tm := token.NewAuthServiceManager(
-		token.NewAuthServiceResolver(config),
+	tokenResolver := token.NewAuthServiceResolver(config)
+	cc := token.NewAuthClusterClient(
+		config,
 		saToken,
-		config.GetTokenKey())
+		tokenResolver,
+		token.NewGPGDecypter(config.GetTokenKey()),
+	)
+	clusters, err := cc.Get(context.Background())
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "unable to resolve clusters")
+	}
+
+	c := token.NewCachedClusterResolver(clusters)
+	t := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
+		return tokenResolver(ctx, target, userToken, token.PlainTextToken)
+	}
 
 	// create user profile client to get the user's cluster
 	userService := token.NewAuthUserServiceClient(config, saToken)
@@ -157,10 +171,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, tm, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userService, t, c, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, c)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	if openshift.KubernetesMode() {
