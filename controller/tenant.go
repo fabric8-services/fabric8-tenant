@@ -285,6 +285,9 @@ func usersOpenshiftConfig(osTemplate openshift.Config, user *auth.UserDataAttrib
 }
 
 func overrideTemplateVersions(user *auth.UserDataAttributes, config openshift.Config) openshift.Config {
+	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
+		return config
+	}
 	userContext := user.ContextInformation
 	if tc, found := userContext["tenantConfig"]; found {
 		if tenantConfig, ok := tc.(map[string]interface{}); ok {
