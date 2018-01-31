@@ -9,24 +9,69 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/token"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClusterCache(t *testing.T) {
-	target := "A"
 
-	c := token.NewCachedClusterResolver([]*token.Cluster{
-		{APIURL: "X"},
-		{APIURL: target},
+	t.Run("cluster - end slash", func(t *testing.T) {
+		target := "A"
+
+		c := token.NewCachedClusterResolver([]*token.Cluster{
+			{APIURL: "X"},
+			{APIURL: target + "/"},
+		})
+
+		found, err := c(context.Background(), target)
+		if err != nil {
+			t.Error(err)
+		}
+		assert.Contains(t, found.APIURL, target)
 	})
+	t.Run("cluster - no end slash", func(t *testing.T) {
+		target := "A"
 
-	found, err := c(context.Background(), target+"/")
-	if err != nil {
-		t.Error(err)
-	}
-	if found.APIURL != target {
-		t.Errorf("found wrong cluster %v, expected %v", found.APIURL, target)
-	}
+		c := token.NewCachedClusterResolver([]*token.Cluster{
+			{APIURL: "X"},
+			{APIURL: target},
+		})
+
+		found, err := c(context.Background(), target+"/")
+		if err != nil {
+			t.Error(err)
+		}
+		assert.Contains(t, found.APIURL, target)
+	})
+	t.Run("both slash", func(t *testing.T) {
+		target := "A"
+
+		c := token.NewCachedClusterResolver([]*token.Cluster{
+			{APIURL: "X"},
+			{APIURL: target + "/"},
+		})
+
+		found, err := c(context.Background(), target+"/")
+		if err != nil {
+			t.Error(err)
+		}
+		assert.Contains(t, found.APIURL, target)
+	})
+	t.Run("no slash", func(t *testing.T) {
+		target := "A"
+
+		c := token.NewCachedClusterResolver([]*token.Cluster{
+			{APIURL: "X"},
+			{APIURL: target + "/"},
+		})
+
+		found, err := c(context.Background(), target+"/")
+		if err != nil {
+			t.Error(err)
+		}
+		assert.Contains(t, found.APIURL, target)
+	})
 }
+
 func TestClusterResolver(t *testing.T) {
 	tests := []struct {
 		name   string
