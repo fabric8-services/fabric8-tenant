@@ -9,22 +9,17 @@ import (
 	"os"
 	"time"
 
-	"github.com/fabric8-services/fabric8-tenant/controller"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/prometheus/client_golang/prometheus"
-
-	_ "github.com/lib/pq"
-
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-
+	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/migration"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
-	"github.com/fabric8-services/fabric8-tenant/token"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
@@ -33,6 +28,8 @@ import (
 	"github.com/goadesign/goa/middleware/gzip"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
+	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -93,7 +90,7 @@ func main() {
 
 	templateVars["KEYCLOAK_URL"] = ""
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
-	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), auth.RetrieveTokenPath())
+	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
 	publicKeys, err := keycloak.GetPublicKeys(config.GetAuthURL())
 	if err != nil {
@@ -118,35 +115,35 @@ func main() {
 	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
 	// fetch service account token for tenant service
-	sa := token.NewAuthServiceTokenClient(config)
-	saToken, err := sa.Get(context.Background())
+	saTokenService := auth.NewServiceAccountTokenService(config)
+	saToken, err := saTokenService.GetOAuthToken(context.Background())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to fetch service account token")
 	}
 
-	tokenResolver := token.NewAuthServiceResolver(config)
-	cc := token.NewAuthClusterClient(
+	tokenResolver := auth.NewTokenResolver(config)
+	clusterService := auth.NewClusterService(
 		config,
-		saToken,
+		*saToken,
 		tokenResolver,
-		token.NewGPGDecypter(config.GetTokenKey()),
+		auth.NewGPGDecypter(config.GetTokenKey()),
 	)
-	clusters, err := cc.Get(context.Background())
+	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
 		}, "unable to resolve clusters")
 	}
 
-	c := token.NewCachedClusterResolver(clusters)
-	t := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
-		return tokenResolver(ctx, target, userToken, token.PlainTextToken)
+	clusterResolver := auth.NewCachedClusterResolver(clusters)
+	tenantResolver := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
+		return tokenResolver(ctx, target, userToken, auth.PlainTextToken)
 	}
 
 	// create user profile client to get the user's cluster
-	userService := token.NewAuthUserServiceClient(config, saToken)
+	userService := auth.NewUserService(config, *saToken)
 
 	var tr *http.Transport
 	if config.APIServerInsecureSkipTLSVerify() {
@@ -171,10 +168,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, t, c, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userService, tenantResolver, clusterResolver, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, c)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterResolver)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

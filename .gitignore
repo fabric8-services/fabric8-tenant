@@ -80,7 +80,7 @@ swagger/
 tool/cli/
 migration/sqlbindata.go
 template/bindata.go
-auth
+auth/client
 
 # Ignore artifacts directory
 bin/

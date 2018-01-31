@@ -1,4 +1,4 @@
-package token_test
+package auth_test
 
 import (
 	"context"
@@ -7,9 +7,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClusterCache(t *testing.T) {
@@ -17,7 +18,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("cluster - end slash", func(t *testing.T) {
 		target := "A"
 
-		c := token.NewCachedClusterResolver([]*token.Cluster{
+		c := auth.NewCachedClusterResolver([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
@@ -31,7 +32,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("cluster - no end slash", func(t *testing.T) {
 		target := "A"
 
-		c := token.NewCachedClusterResolver([]*token.Cluster{
+		c := auth.NewCachedClusterResolver([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target},
 		})
@@ -45,7 +46,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("both slash", func(t *testing.T) {
 		target := "A"
 
-		c := token.NewCachedClusterResolver([]*token.Cluster{
+		c := auth.NewCachedClusterResolver([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
@@ -59,7 +60,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("no slash", func(t *testing.T) {
 		target := "A"
 
-		c := token.NewCachedClusterResolver([]*token.Cluster{
+		c := auth.NewCachedClusterResolver([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
@@ -104,18 +105,15 @@ func TestClusterResolver(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tr := func(ctx context.Context, target, token string, decode token.Decode) (user, accessToken string, err error) {
-				return "", "", nil
+			tr := func(ctx context.Context, target, token *string, decode auth.Decode) (user, accessToken *string, err error) {
+				foo := "foo"
+				bar := "bar"
+				return &foo, &bar, nil
 			}
-
-			cresolver := token.NewAuthClusterClient(config, "aa", tr, token.PlainTextToken)
-			clusters, err := cresolver.Get(context.Background())
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(clusters) != tt.count {
-				t.Errorf("Wrong number of clusters, got %v but expected %v", len(clusters), tt.count)
-			}
+			cresolver := auth.NewClusterService(config, "aa", tr, auth.PlainTextToken)
+			clusters, err := cresolver.GetClusters(context.Background())
+			require.NoError(t, err)
+			assert.Len(t, clusters, tt.count)
 		})
 	}
 }

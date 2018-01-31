@@ -9,10 +9,10 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
@@ -25,9 +25,9 @@ import (
 type TenantController struct {
 	*goa.Controller
 	tenantService            tenant.Service
-	userService              token.UserService
-	tenantResovler           token.TenantResolver
-	clusterResovler          token.ClusterResolver
+	userService              auth.UserService
+	tenantResolver           auth.TenantResolver
+	clusterResovler          auth.ClusterResolver
 	defaultOpenshiftTemplate openshift.Config
 	templateVars             map[string]string
 }
@@ -36,9 +36,9 @@ type TenantController struct {
 func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
-	userService token.UserService,
-	tenantResovler token.TenantResolver,
-	clusterResolver token.ClusterResolver,
+	userService auth.UserService,
+	tenantResolver auth.TenantResolver,
+	clusterResolver auth.ClusterResolver,
 	defaultOpenshiftTemplate openshift.Config,
 	templateVars map[string]string) *TenantController {
 
@@ -46,7 +46,7 @@ func NewTenantController(
 		Controller:               service.NewController("TenantController"),
 		tenantService:            tenantService,
 		userService:              userService,
-		tenantResovler:           tenantResovler,
+		tenantResolver:           tenantResolver,
 		clusterResovler:          clusterResolver,
 		defaultOpenshiftTemplate: defaultOpenshiftTemplate,
 		templateVars:             templateVars,
@@ -66,7 +66,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.Get(ctx, ttoken.Subject())
+	user, err := c.userService.GetUser(ctx, ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -77,7 +77,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, openshiftUserToken, err := c.tenantResovler(ctx, *user.Cluster, userToken.Raw)
+	openshiftUsername, openshiftUserToken, err := c.tenantResolver(ctx, user.Cluster, &userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -118,8 +118,8 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			ctx,
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			openshiftUsername,
-			openshiftUserToken,
+			*openshiftUsername,
+			*openshiftUserToken,
 			c.templateVars)
 
 		if err != nil {
@@ -147,7 +147,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.Get(ctx, ttoken.Subject())
+	user, err := c.userService.GetUser(ctx, ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -158,7 +158,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.tenantResovler(ctx, *user.Cluster, userToken.Raw)
+	openshiftUsername, _, err := c.tenantResolver(ctx, user.Cluster, &userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -189,7 +189,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			ctx,
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			openshiftUsername,
+			*openshiftUsername,
 			c.templateVars)
 
 		if err != nil {
@@ -213,13 +213,13 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	ttoken := &TenantToken{token: userToken}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.Get(ctx, ttoken.Subject())
+	user, err := c.userService.GetUser(ctx, ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.tenantResovler(ctx, *user.Cluster, userToken.Raw)
+	openshiftUsername, _, err := c.tenantResolver(ctx, user.Cluster, &userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -243,7 +243,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars)
+	err = openshift.CleanTenant(ctx, openshiftConfig, *openshiftUsername, c.templateVars)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -275,13 +275,13 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 }
 
 // usersOpenshiftConfig builds openshift config for every user request depending on the user profile
-func usersOpenshiftConfig(osTemplate openshift.Config, user *auth.UserDataAttributes, cluster token.Cluster) (openshift.Config, error) {
+func usersOpenshiftConfig(osTemplate openshift.Config, user *authclient.UserDataAttributes, cluster auth.Cluster) (openshift.Config, error) {
 	return overrideTemplateVersions(
 		user,
 		osTemplate.WithMasterUser(cluster.User).WithToken(cluster.Token).WithMasterURL(cluster.APIURL)), nil
 }
 
-func overrideTemplateVersions(user *auth.UserDataAttributes, config openshift.Config) openshift.Config {
+func overrideTemplateVersions(user *authclient.UserDataAttributes, config openshift.Config) openshift.Config {
 	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
 		return config
 	}
@@ -426,7 +426,7 @@ func (t TenantToken) Email() string {
 	return ""
 }
 
-func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, cluster token.ClusterResolver) *app.Tenant {
+func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, cluster auth.ClusterResolver) *app.Tenant {
 	result := app.Tenant{
 		ID:   &tenant.ID,
 		Type: "tenants",
@@ -444,7 +444,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				"err":         err,
 				"cluster_url": ns.MasterURL,
 			}, "unable to resolve cluster")
-			c = token.Cluster{}
+			c = auth.Cluster{}
 		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(

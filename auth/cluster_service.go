@@ -1,4 +1,4 @@
-package token
+package auth
 
 import (
 	"context"
@@ -6,13 +6,15 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
+// ClusterResolver a cluster resolver
 type ClusterResolver func(ctx context.Context, target string) (Cluster, error)
 
+// Cluster a cluster
 type Cluster struct {
 	APIURL     string
 	ConsoleURL string
@@ -23,6 +25,7 @@ type Cluster struct {
 	Token string
 }
 
+// NewCachedClusterResolver returns a new ClusterResolved
 func NewCachedClusterResolver(clusters []*Cluster) ClusterResolver {
 	return func(ctx context.Context, target string) (Cluster, error) {
 		for _, cluster := range clusters {
@@ -41,35 +44,36 @@ func cleanURL(url string) string {
 	return url
 }
 
-type ClusterClient interface {
-	Get(context.Context) ([]*Cluster, error)
+// ClusterService the interface for the cluster service
+type ClusterService interface {
+	GetClusters(context.Context) ([]*Cluster, error)
 }
 
-// NewAuthClusterClient creates a Resolver that rely on the Auth service to retrieve tokens
-func NewAuthClusterClient(config AuthClientConfig, serviceToken string, token Resolver, decode Decode) ClusterClient {
-	return &clusterClient{config: config, serviceToken: serviceToken, token: token, decode: decode}
+// NewClusterService creates a Resolver that rely on the Auth service to retrieve tokens
+func NewClusterService(config ClientConfig, serviceToken string, token TokenResolver, decode Decode) ClusterService {
+	return &clusterService{config: config, serviceToken: serviceToken, token: token, decode: decode}
 }
 
-type clusterClient struct {
-	config       AuthClientConfig
+type clusterService struct {
+	config       ClientConfig
 	serviceToken string
-	token        Resolver
+	token        TokenResolver
 	decode       Decode
 }
 
-func (c *clusterClient) Get(ctx context.Context) ([]*Cluster, error) {
-	authclient, err := CreateClient(c.config)
+func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
+	client, err := NewClient(s.config)
 	if err != nil {
 		return nil, err
 	}
-	authclient.SetJWTSigner(
+	client.SetJWTSigner(
 		&goaclient.JWTSigner{
 			TokenSource: &goaclient.StaticTokenSource{
 				StaticToken: &goaclient.StaticToken{
-					Value: c.serviceToken,
+					Value: s.serviceToken,
 					Type:  "Bearer"}}})
 
-	res, err := authclient.ShowClusters(ctx, auth.ShowClustersPath())
+	res, err := client.ShowClusters(ctx, authclient.ShowClustersPath())
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
 	}
@@ -78,20 +82,19 @@ func (c *clusterClient) Get(ctx context.Context) ([]*Cluster, error) {
 		res.Body.Close()
 	}()
 
-	validationerror := validateError(authclient, res)
+	validationerror := validateError(client, res)
 	if validationerror != nil {
-		return nil, errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
+		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
 	}
 
-	clusters, err := authclient.DecodeClusterList(res)
+	clusters, err := client.DecodeClusterList(res)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error from server %q", c.config.GetAuthURL())
+		return nil, errors.Wrapf(err, "error from server %q", s.config.GetAuthURL())
 	}
 
 	var cls []*Cluster
 	for _, cluster := range clusters.Data {
-
-		cuser, ctoken, err := c.token(ctx, cluster.APIURL, c.serviceToken, c.decode)
+		clusterUser, clusterToken, err := s.token(ctx, &cluster.APIURL, &s.serviceToken, s.decode)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
@@ -100,10 +103,9 @@ func (c *clusterClient) Get(ctx context.Context) ([]*Cluster, error) {
 			AppDNS:     cluster.AppDNS,
 			ConsoleURL: cluster.ConsoleURL,
 			MetricsURL: cluster.MetricsURL,
-			User:       cuser,
-			Token:      ctoken,
+			User:       *clusterUser,
+			Token:      *clusterToken,
 		})
 	}
-
 	return cls, nil
 }

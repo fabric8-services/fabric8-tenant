@@ -4,14 +4,14 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	authclient "github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	authtoken "github.com/fabric8-services/fabric8-auth/token"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 )
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service
 func GetPublicKeys(authServiceBase string) ([]*rsa.PublicKey, error) {
-	keysEndpoint := fmt.Sprintf("%s%s", authServiceBase, auth.KeysTokenPath())
-	keys, err := authclient.FetchKeys(keysEndpoint)
+	keysEndpoint := fmt.Sprintf("%s%s", authServiceBase, authclient.KeysTokenPath())
+	keys, err := authtoken.FetchKeys(keysEndpoint)
 	if err != nil {
 		return nil, err
 	}

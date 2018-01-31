@@ -1,4 +1,4 @@
-package token
+package auth
 
 import (
 	"bytes"
@@ -9,17 +9,18 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-type Decode func(data string) (string, error)
+// Decode a function to decode a given value
+type Decode func(data string) (*string, error)
 
 // PlainTextToken is a Decode function that can be used to fetch tokens that are not encrypted.
 // Simply return the same token back
-func PlainTextToken(token string) (string, error) {
-	return token, nil
+func PlainTextToken(token string) (*string, error) {
+	return &token, nil
 }
 
 // NewGPGDecypter takes a passphrase and returns a GPG based Decypter decode function
 func NewGPGDecypter(passphrase string) Decode {
-	return func(body string) (string, error) {
+	return func(body string) (*string, error) {
 		return gpgDecyptToken(body, passphrase)
 	}
 }
@@ -27,10 +28,10 @@ func NewGPGDecypter(passphrase string) Decode {
 // GPGDecyptToken decrypts a Base64 encoded GPG un armored encrypted string
 // using provided passphrase.
 // echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64 -w0
-func gpgDecyptToken(base64Body, passphrase string) (string, error) {
+func gpgDecyptToken(base64Body, passphrase string) (*string, error) {
 	decodedEnc, err := base64.StdEncoding.DecodeString(base64Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	decbuf := bytes.NewBuffer(decodedEnc)
 	firstCall := true
@@ -43,11 +44,12 @@ func gpgDecyptToken(base64Body, passphrase string) (string, error) {
 
 	}, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	bytes, err := ioutil.ReadAll(md.UnverifiedBody)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(bytes), nil
+	result := string(bytes)
+	return &result, nil
 }

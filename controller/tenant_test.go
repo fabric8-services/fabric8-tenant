@@ -3,7 +3,7 @@ package controller
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +22,7 @@ func TestTenantOverride(t *testing.T) {
 
 		t.Run("external user with config", func(t *testing.T) {
 			// given
-			user := &auth.UserDataAttributes{
+			user := &authclient.UserDataAttributes{
 				ContextInformation: map[string]interface{}{
 					"tenantConfig": map[string]interface{}{
 						"cheVersion":     "another-che-version",
@@ -41,7 +41,7 @@ func TestTenantOverride(t *testing.T) {
 
 		t.Run("external user without config", func(t *testing.T) {
 			// given
-			user := &auth.UserDataAttributes{}
+			user := &authclient.UserDataAttributes{}
 			// when
 			resultConfig := overrideTemplateVersions(user, openshiftConfig)
 			// then
@@ -53,7 +53,7 @@ func TestTenantOverride(t *testing.T) {
 
 		t.Run("internal user with config", func(t *testing.T) {
 			// given
-			user := &auth.UserDataAttributes{
+			user := &authclient.UserDataAttributes{
 				ContextInformation: map[string]interface{}{
 					"tenantConfig": map[string]interface{}{
 						"cheVersion":     "another-che-version",
@@ -78,7 +78,7 @@ func TestTenantOverride(t *testing.T) {
 
 		t.Run("internal user without config", func(t *testing.T) {
 			// given
-			user := &auth.UserDataAttributes{
+			user := &authclient.UserDataAttributes{
 				FeatureLevel: &internalFeatureLevel,
 			}
 			// when
