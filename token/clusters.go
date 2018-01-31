@@ -26,13 +26,19 @@ type Cluster struct {
 func NewCachedClusterResolver(clusters []*Cluster) ClusterResolver {
 	return func(ctx context.Context, target string) (Cluster, error) {
 		for _, cluster := range clusters {
-			// TODO: Should do something sensible when comparing URLs to avoid issues with ending / or not etc
-			if strings.HasPrefix(target, cluster.APIURL) {
+			if cleanURL(target) == cleanURL(cluster.APIURL) {
 				return *cluster, nil
 			}
 		}
 		return Cluster{}, fmt.Errorf("unable to resovle cluster")
 	}
+}
+
+func cleanURL(url string) string {
+	if !strings.HasSuffix(url, "/") {
+		return url + "/"
+	}
+	return url
 }
 
 type ClusterClient interface {
