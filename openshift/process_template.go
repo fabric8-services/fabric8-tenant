@@ -115,7 +115,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		return nil, err
 	}
 
-	cheType := ""
+	cheType := "che"
 	if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
 		token := goajwt.ContextJWT(ctx)
 		if token != nil {
@@ -129,10 +129,10 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		vars["REQUEST_ID"] = log.ExtractRequestID(ctx)
 		unixNano := time.Now().UnixNano()
 		vars["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
-		cheType = "mt-"
+		cheType = "che-mt"
 	}
 
-	cheT, err := loadTemplate(config, fmt.Sprintf("fabric8-tenant-che-%s-openshift.yml", cheType))
+	cheT, err := loadTemplate(config, fmt.Sprintf("fabric8-tenant-%s-openshift.yml", cheType))
 	if err != nil {
 		return nil, err
 	}

@@ -192,13 +192,13 @@ func templates(t *testing.T) []map[interface{}]interface{} {
 	return templs
 }
 
-func contain(templtes []map[interface{}]interface{}, kind string, checks ...func(map[interface{}]interface{}) error) error {
+func contain(templates []map[interface{}]interface{}, kind string, checks ...func(map[interface{}]interface{}) error) error {
 	var err error
-	for _, temp := range templtes {
-		if openshift.GetKind(temp) == kind {
+	for _, tmpl := range templates {
+		if openshift.GetKind(tmpl) == kind {
 			err = nil
 			for _, check := range checks {
-				if e := check(temp); e != nil {
+				if e := check(tmpl); e != nil {
 					err = e
 				}
 			}
