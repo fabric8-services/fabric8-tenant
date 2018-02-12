@@ -90,26 +90,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		}
 	}
 
-	extension := "openshift.yml"
-	if KubernetesMode() {
-		extension = "kubernetes.yml"
-
-		keycloakUrl, err := FindKeyCloakURL(config)
-		if err != nil {
-			return nil, fmt.Errorf("Could not find the KeyCloak URL: %v", err)
-		}
-		vars[varKeycloakURL] = keycloakUrl
-
-		projectVars, err := LoadKubernetesProjectVariables()
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range projectVars {
-			vars[k] = v
-		}
-	}
-
-	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
+	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-openshift.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +105,12 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		return nil, err
 	}
 
-	projectT, err := loadTemplate(config, "fabric8-tenant-team-"+extension)
+	projectT, err := loadTemplate(config, "fabric8-tenant-team-openshift.yml")
 	if err != nil {
 		return nil, err
 	}
 
-	jenkinsT, err := loadTemplate(config, "fabric8-tenant-jenkins-"+extension)
+	jenkinsT, err := loadTemplate(config, "fabric8-tenant-jenkins-openshift.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +132,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 		cheType = "mt-"
 	}
 
-	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+cheType+extension)
+	cheT, err := loadTemplate(config, fmt.Sprintf("fabric8-tenant-che-%s-openshift.yml", cheType))
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +143,7 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 	}
 	objs = append(objs, processed...)
 
-	// TODO have kubernetes versions of these!
-	if !KubernetesMode() {
-
+	{
 		processed, err = ProcessTemplate(string(userProjectCollabT), name, vars)
 		if err != nil {
 			return nil, err
@@ -195,12 +174,12 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 	if disableOsoQuotasFlag == "true" {
 		osoQuotas = false
 	}
-	if osoQuotas && !KubernetesMode() {
-		jenkinsQuotasT, err := loadTemplate(config, "fabric8-tenant-jenkins-quotas-oso-"+extension)
+	if osoQuotas {
+		jenkinsQuotasT, err := loadTemplate(config, "fabric8-tenant-jenkins-quotas-oso-openshift.yml")
 		if err != nil {
 			return nil, err
 		}
-		cheQuotasT, err := loadTemplate(config, "fabric8-tenant-che-quotas-oso-"+extension)
+		cheQuotasT, err := loadTemplate(config, "fabric8-tenant-che-quotas-oso-openshift.yml")
 		if err != nil {
 			return nil, err
 		}
@@ -236,43 +215,6 @@ func LoadProcessedTemplates(ctx context.Context, config Config, username string,
 			return nil, err
 		}
 		objs = append(objs, processed...)
-	}
-	if KubernetesMode() {
-		exposeT, err := loadTemplate(config, "fabric8-tenant-expose-kubernetes.yml")
-		if err != nil {
-			return nil, err
-		}
-		exposeVars, err := LoadExposeControllerVariables(config)
-		if err != nil {
-			return nil, err
-		}
-
-		{
-			lvars := clone(vars)
-			for k, v := range exposeVars {
-				lvars[k] = v
-			}
-			nsname := fmt.Sprintf("%v-jenkins", name)
-			lvars[varProjectNamespace] = vars[varProjectName]
-			processed, err = ProcessTemplate(string(exposeT), nsname, lvars)
-			if err != nil {
-				return nil, err
-			}
-			objs = append(objs, processed...)
-		}
-		{
-			lvars := clone(vars)
-			for k, v := range exposeVars {
-				lvars[k] = v
-			}
-			nsname := fmt.Sprintf("%v-che", name)
-			lvars[varProjectNamespace] = vars[varProjectName]
-			processed, err = ProcessTemplate(string(exposeT), nsname, lvars)
-			if err != nil {
-				return nil, err
-			}
-			objs = append(objs, processed...)
-		}
 	}
 	{
 		lvars := clone(vars)

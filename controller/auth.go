@@ -50,27 +50,6 @@ func (c *AuthController) AuthToken(ctx *app.AuthTokenAuthContext) error {
 	if len(broker) == 0 {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("broker", "missing!"))
 	}
-	if openshift.KubernetesMode() && realm == "fabric8" && broker == "openshift-v3" {
-		// For Kubernetes lets serve the tokens from Kubernetes
-		// for the KeyCloak username's associated ServiceAccount
-		openshiftUserToken, err := OpenshiftToken(c.openshiftConfig, token)
-		if len(openshiftUserToken) == 0 {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-		}
-		/*
-			result := []byte("access_token=" + openshiftUserToken + "&scope=full&token_type=bearer")
-			contentType := "application/octet-stream"
-		*/
-		result := []byte(`{"access_token":"` + openshiftUserToken + `","expires_in":31536000,"scope":"user:full","token_type":"Bearer"}`)
-		contentType := "application/octet-stream"
-
-		ctx.ResponseData.Header().Set("Content-Type", contentType)
-		ctx.ResponseData.WriteHeader(200)
-		ctx.ResponseData.Length = len(result)
-		_, err = ctx.ResponseData.Write(result)
-		return err
-	}
-
 	// delegate to the underlying KeyCloak server
 	var body []byte
 	fullUrl := strings.TrimSuffix(c.keycloakConfig.BaseURL, "/") + ctx.Request.RequestURI

@@ -201,25 +201,6 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 	masterOpts := ApplyOptions{Config: config, Callback: callback}
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Namespace: name, Callback: callback}
 
-	extension := "openshift.yml"
-	if KubernetesMode() {
-		extension = "kubernetes.yml"
-
-		keycloakUrl, err := FindKeyCloakURL(config)
-		if err != nil {
-			return fmt.Errorf("Could not find the KeyCloak URL: %v", err)
-		}
-		vars[varKeycloakURL] = keycloakUrl
-
-		projectVars, err := LoadKubernetesProjectVariables()
-		if err != nil {
-			return err
-		}
-		for k, v := range projectVars {
-			vars[k] = v
-		}
-	}
-
 	log.Info(ctx, map[string]interface{}{
 		"username":       username,
 		"cheVersion":     config.CheVersion,
@@ -228,7 +209,7 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		"mavenRepo":      config.MavenRepoURL,
 	}, "init tenant")
 
-	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-"+extension)
+	userProjectT, err := loadTemplate(config, "fabric8-tenant-user-project-openshift.yml")
 	if err != nil {
 		return err
 	}
@@ -243,17 +224,17 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		return err
 	}
 
-	projectT, err := loadTemplate(config, "fabric8-tenant-team-"+extension)
+	projectT, err := loadTemplate(config, "fabric8-tenant-team-openshift.yml")
 	if err != nil {
 		return err
 	}
 
-	jenkinsT, err := loadTemplate(config, "fabric8-tenant-jenkins-"+extension)
+	jenkinsT, err := loadTemplate(config, "fabric8-tenant-jenkins-openshift.yml")
 	if err != nil {
 		return err
 	}
 
-	cheT, err := loadTemplate(config, "fabric8-tenant-che-"+extension)
+	cheT, err := loadTemplate(config, "fabric8-tenant-che-openshift.yml")
 	if err != nil {
 		return err
 	}
@@ -267,26 +248,21 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 	syncErrorChannel := make(chan error)
 	channels = append(channels, syncErrorChannel)
 
-	// TODO have kubernetes versions of these!
-	if !KubernetesMode() {
-		err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
-		if err != nil {
-			syncErrorChannel <- err
-		}
-		err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
-		if err != nil {
-			syncErrorChannel <- err
-		}
+	err = executeNamespaceSync(string(userProjectCollabT), vars, masterOpts.WithNamespace(name))
+	if err != nil {
+		syncErrorChannel <- err
+	}
+	err = executeNamespaceSync(string(userProjectRolesT), vars, userOpts.WithNamespace(name))
+	if err != nil {
+		syncErrorChannel <- err
 	}
 
-	{
-		lvars := clone(vars)
-		lvars[varProjectDisplayName] = lvars[varProjectName]
+	lvars := clone(vars)
+	lvars[varProjectDisplayName] = lvars[varProjectName]
 
-		err = executeNamespaceSync(string(projectT), lvars, masterOpts.WithNamespace(name))
-		if err != nil {
-			syncErrorChannel <- err
-		}
+	err = executeNamespaceSync(string(projectT), lvars, masterOpts.WithNamespace(name))
+	if err != nil {
+		syncErrorChannel <- err
 	}
 	// Quotas needs to be applied before we attempt to install the resources on OSO
 	osoQuotas := true
@@ -294,12 +270,12 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 	if disableOsoQuotasFlag == "true" {
 		osoQuotas = false
 	}
-	if osoQuotas && !KubernetesMode() {
-		jenkinsQuotasT, err := loadTemplate(config, "fabric8-tenant-jenkins-quotas-oso-"+extension)
+	if osoQuotas {
+		jenkinsQuotasT, err := loadTemplate(config, "fabric8-tenant-jenkins-quotas-oso-openshift.yml")
 		if err != nil {
 			return err
 		}
-		cheQuotasT, err := loadTemplate(config, "fabric8-tenant-che-quotas-oso-"+extension)
+		cheQuotasT, err := loadTemplate(config, "fabric8-tenant-che-quotas-oso-openshift.yml")
 		if err != nil {
 			return err
 		}
@@ -348,40 +324,6 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 		}
 
 	}
-	if KubernetesMode() {
-		exposeT, err := loadTemplate(config, "fabric8-tenant-expose-kubernetes.yml")
-		if err != nil {
-			return err
-		}
-		exposeVars, err := LoadExposeControllerVariables(config)
-		if err != nil {
-			return err
-		}
-		{
-			lvars := clone(vars)
-			for k, v := range exposeVars {
-				lvars[k] = v
-			}
-			nsname := fmt.Sprintf("%v-jenkins", name)
-			lvars[varProjectNamespace] = vars[varProjectName]
-			err = executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
-			if err != nil {
-				syncErrorChannel <- err
-			}
-		}
-		{
-			lvars := clone(vars)
-			for k, v := range exposeVars {
-				lvars[k] = v
-			}
-			nsname := fmt.Sprintf("%v-che", name)
-			lvars[varProjectNamespace] = vars[varProjectName]
-			err := executeNamespaceSync(string(exposeT), lvars, masterOpts.WithNamespace(nsname))
-			if err != nil {
-				syncErrorChannel <- err
-			}
-		}
-	}
 	{
 		lvars := clone(vars)
 		nsname := fmt.Sprintf("%v-che", name)
@@ -406,19 +348,6 @@ func do(ctx context.Context, kcConfig keycloak.Config, config Config, callback C
 
 	}
 
-	if KubernetesMode() {
-		// lets try create the KeyCloak client for the jenkins service
-		jenkinsNS := fmt.Sprintf("%v-jenkins", name)
-		_, err = EnsureKeyCloakHasJenkinsRedirectURL(config, kcConfig, jenkinsNS)
-		if err != nil {
-			syncErrorChannel <- fmt.Errorf("Failed to register redirectUri into KeyCloak for jenkins in %s due to %v", jenkinsNS, err)
-		}
-		/*
-			} else {
-				channels = append(channels, EnsureKeyCloakHasJenkinsRedirectURLAsync(config, kcConfig, jenkinsNS))
-			}
-		*/
-	}
 	close(syncErrorChannel)
 	var errors []error
 	for _, channel := range channels {
@@ -573,10 +502,6 @@ func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) 
 		hostVerify = " --insecure-skip-tls-verify=true"
 	}
 	serverFlag := "--server=" + opts.MasterURL + hostVerify
-	if KubernetesMode() {
-		serverFlag = "--local=true"
-	}
-
 	cmdArgs := []string{"-c", "oc process -f - " + serverFlag + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
 	return executeCMD(&t, cmdArgs)
 }
@@ -610,11 +535,6 @@ func executeCMD(input *string, cmdArgs []string) (string, error) {
 	}
 
 	return buf.String(), nil
-}
-
-func KubernetesMode() bool {
-	k8sMode := os.Getenv("F8_KUBERNETES_MODE")
-	return k8sMode == "true"
 }
 
 func clone(maps map[string]string) map[string]string {

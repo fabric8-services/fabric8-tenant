@@ -177,16 +177,6 @@ func main() {
 	tenantsCtrl := controller.NewTenantsController(service, tenantService, c)
 	app.MountTenantsController(service, tenantsCtrl)
 
-	if openshift.KubernetesMode() {
-		// Mount "tenantkube" controller
-		tenanKubetCtrl := controller.NewTenantKubeController(service, tenantService, keycloakConfig, templateVars)
-		app.MountTenantKubeController(service, tenanKubetCtrl)
-
-		// Mount "auth" controller
-		authCtrl := controller.NewAuthController(service, tenantService, keycloakConfig, templateVars)
-		app.MountAuthController(service, authCtrl)
-	}
-
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
