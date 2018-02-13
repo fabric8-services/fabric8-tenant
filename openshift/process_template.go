@@ -1,9 +1,15 @@
 package openshift
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,6 +17,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-tenant/template"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-wit/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -263,4 +270,147 @@ func MapByNamespaceAndSort(objs []map[interface{}]interface{}) (map[string][]map
 // CreateName returns a safe namespace basename based on a username
 func CreateName(username string) string {
 	return regexp.MustCompile("[^a-z0-9]").ReplaceAllString(strings.Split(username, "@")[0], "-")
+}
+
+// loadTemplate will load the template for a specific version from maven central or from the template directory
+// or default to the OOTB template included
+func loadTemplate(config Config, name string) ([]byte, error) {
+	mavenRepo := config.MavenRepoURL
+	if mavenRepo == "" {
+		mavenRepo = os.Getenv("YAML_MVN_REPO")
+	}
+	if mavenRepo == "" {
+		mavenRepo = "http://central.maven.org/maven2"
+	}
+	logCallback := config.GetLogCallback()
+	url := ""
+	if len(config.CheVersion) > 0 {
+		switch name {
+		// che-mt
+		case "fabric8-tenant-che-mt-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-mt/$CHE_VERSION/fabric8-tenant-che-mt-$CHE_VERSION-k8s-template.yml"
+		case "fabric8-tenant-che-mt-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-mt/$CHE_VERSION/fabric8-tenant-che-mt-$CHE_VERSION-openshift.yml"
+		// che
+		case "fabric8-tenant-che-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-k8s-template.yml"
+		case "fabric8-tenant-che-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-openshift.yml"
+		case "fabric8-tenant-che-quotas-oso-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-quotas-oso/$CHE_VERSION/fabric8-tenant-che-quotas-oso-$CHE_VERSION-openshift.yml"
+		}
+		if len(url) > 0 {
+			return replaceVariablesAndLoadURL(config, url, mavenRepo)
+		}
+	}
+
+	if len(config.JenkinsVersion) > 0 {
+		switch name {
+		case "fabric8-tenant-jenkins-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-k8s-template.yml"
+		case "fabric8-tenant-jenkins-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-openshift.yml"
+		case "fabric8-tenant-jenkins-quotas-oso-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins-quotas-oso/$JENKINS_VERSION/fabric8-tenant-jenkins-quotas-oso-$JENKINS_VERSION-openshift.yml"
+		}
+		if len(url) > 0 {
+			return replaceVariablesAndLoadURL(config, url, mavenRepo)
+		}
+	}
+
+	if len(config.TeamVersion) > 0 {
+		switch name {
+		case "fabric8-tenant-team-kubernetes.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-k8s-template.yml"
+		case "fabric8-tenant-team-openshift.yml":
+			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-openshift.yml"
+		}
+		if len(url) > 0 {
+			return replaceVariablesAndLoadURL(config, url, mavenRepo)
+		}
+	}
+	dir := config.TemplateDir
+	if len(dir) > 0 {
+		fullName := filepath.Join(dir, name)
+		d, err := os.Stat(fullName)
+		if err == nil {
+			if m := d.Mode(); m.IsRegular() {
+				logCallback(fmt.Sprintf("Loading template from file: %s", fullName))
+				return ioutil.ReadFile(fullName)
+			}
+		}
+	}
+	return template.Asset("template/" + name)
+}
+func replaceVariablesAndLoadURL(config Config, urlExpression string, mavenRepo string) ([]byte, error) {
+	logCallback := config.GetLogCallback()
+	cheVersion := config.CheVersion
+	jenkinsVersion := config.JenkinsVersion
+	teamVersion := config.TeamVersion
+
+	url := strings.Replace(urlExpression, "$MVN_REPO", mavenRepo, -1)
+	url = strings.Replace(url, "$CHE_VERSION", cheVersion, -1)
+	url = strings.Replace(url, "$JENKINS_VERSION", jenkinsVersion, -1)
+	url = strings.Replace(url, "$TEAM_VERSION", teamVersion, -1)
+	logCallback(fmt.Sprintf("Loading template from URL: %s", url))
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load template from %s due to: %v", url, err)
+	}
+	defer resp.Body.Close()
+	statusCode := resp.StatusCode
+	if statusCode >= 300 {
+		return nil, fmt.Errorf("Failed to GET template from %s got status code to: %d", url, statusCode)
+	}
+	return ioutil.ReadAll(resp.Body)
+}
+
+func executeProccessedNamespaceCMD(t string, opts ApplyOptions) (string, error) {
+	hostVerify := ""
+	flag := os.Getenv("KEYCLOAK_SKIP_HOST_VERIFY")
+	if strings.ToLower(flag) == "true" {
+		hostVerify = " --insecure-skip-tls-verify=true"
+	}
+	serverFlag := "--server=" + opts.MasterURL + hostVerify
+	cmdArgs := []string{"-c", "oc process -f - " + serverFlag + " --token=" + opts.Token + " --namespace=" + opts.Namespace + " | oc apply -f -  --overwrite=true --force=true --server=" + opts.MasterURL + hostVerify + " --token=" + opts.Token + " --namespace=" + opts.Namespace}
+	return executeCMD(&t, cmdArgs)
+}
+
+func executeCMD(input *string, cmdArgs []string) (string, error) {
+	cmdName := "/usr/bin/sh"
+
+	var buf bytes.Buffer
+	cmd := exec.Command(cmdName, cmdArgs...)
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return "", err
+	}
+
+	if input != nil {
+		go func() {
+			defer stdin.Close()
+			io.WriteString(stdin, *input)
+
+		}()
+	}
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return buf.String(), err
+	}
+
+	return buf.String(), nil
+}
+
+func clone(maps map[string]string) map[string]string {
+	maps2 := make(map[string]string)
+	for k2, v2 := range maps {
+		maps2[k2] = v2
+	}
+	return maps2
 }
