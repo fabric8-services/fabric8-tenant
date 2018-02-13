@@ -287,13 +287,9 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 	if len(config.CheVersion) > 0 {
 		switch name {
 		// che-mt
-		case "fabric8-tenant-che-mt-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-mt/$CHE_VERSION/fabric8-tenant-che-mt-$CHE_VERSION-k8s-template.yml"
 		case "fabric8-tenant-che-mt-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che-mt/$CHE_VERSION/fabric8-tenant-che-mt-$CHE_VERSION-openshift.yml"
 		// che
-		case "fabric8-tenant-che-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-k8s-template.yml"
 		case "fabric8-tenant-che-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-che/$CHE_VERSION/fabric8-tenant-che-$CHE_VERSION-openshift.yml"
 		case "fabric8-tenant-che-quotas-oso-openshift.yml":
@@ -306,8 +302,6 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 
 	if len(config.JenkinsVersion) > 0 {
 		switch name {
-		case "fabric8-tenant-jenkins-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-k8s-template.yml"
 		case "fabric8-tenant-jenkins-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-jenkins/$JENKINS_VERSION/fabric8-tenant-jenkins-$JENKINS_VERSION-openshift.yml"
 		case "fabric8-tenant-jenkins-quotas-oso-openshift.yml":
@@ -320,8 +314,6 @@ func loadTemplate(config Config, name string) ([]byte, error) {
 
 	if len(config.TeamVersion) > 0 {
 		switch name {
-		case "fabric8-tenant-team-kubernetes.yml":
-			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-k8s-template.yml"
 		case "fabric8-tenant-team-openshift.yml":
 			url = "$MVN_REPO/io/fabric8/tenant/packages/fabric8-tenant-team/$TEAM_VERSION/fabric8-tenant-team-$TEAM_VERSION-openshift.yml"
 		}
