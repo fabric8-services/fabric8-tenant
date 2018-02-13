@@ -315,17 +315,6 @@ func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (
 }
 
 func OpenShiftWhoAmI(token *jwt.Token, oc openshift.Config, openshiftUserToken string) (string, error) {
-	if openshift.KubernetesMode() {
-		// We don't currently store the Kubernetes token into KeyCloak for now
-		// so lets try load the token for the ServiceAccount for the KeyCloak username
-		// or lazily create a ServiceAccount if there is none created yet
-		ttoken := &TenantToken{token: token}
-		userName := ttoken.Username()
-		if len(userName) == 0 {
-			return "", fmt.Errorf("No username or preferred_username associated with the JWT token!")
-		}
-		return userName, nil
-	}
 	return openshift.WhoAmI(oc.WithToken(openshiftUserToken))
 }
 
@@ -401,14 +390,6 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 }
 
 func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
-	if openshift.KubernetesMode() {
-		// We don't currently store the Kubernetes token into KeyCloak for now
-		// so lets try load the token for the ServiceAccount for the KeyCloak username
-		// or lazily create a ServiceAccount if there is none created yet
-		ttoken := &TenantToken{token: token}
-		kcUserName := ttoken.Username()
-		return openshift.GetOrCreateKubeToken(openshiftConfig, kcUserName)
-	}
 	return "", nil
 }
 
