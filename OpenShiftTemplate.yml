@@ -100,6 +100,11 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: template.che.multitenant.server
+          - name: F8_TEMPLATE_JENKINS_ROOT_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: template.jenkins.root.url
           - name: F8_SERVICE_ACCOUNT_ID
             valueFrom:
               secretKeyRef:
