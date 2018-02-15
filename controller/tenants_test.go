@@ -32,7 +32,7 @@ func TestTenantController(t *testing.T) {
 	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-var clusterResolver = func(ctx context.Context, target string) (auth.Cluster, error) {
+var resolveCluster = func(ctx context.Context, target string) (auth.Cluster, error) {
 	return auth.Cluster{
 		APIURL:     "https://api.example.com",
 		ConsoleURL: "https://console.example.com/console",
@@ -49,7 +49,7 @@ func (s *TenantControllerTestSuite) TestShowTenants() {
 		// given
 		tenantID := uuid.NewV4()
 		svc := goa.New("Tenants-service")
-		ctrl := controller.NewTenantsController(svc, mockTenantService{ID: tenantID}, clusterResolver)
+		ctrl := controller.NewTenantsController(svc, mockTenantService{ID: tenantID}, resolveCluster)
 		// when
 		_, tenant := test.ShowTenantsOK(t, createValidSAContext(), svc, ctrl, tenantID)
 		// then
@@ -62,7 +62,7 @@ func (s *TenantControllerTestSuite) TestShowTenants() {
 		// given
 		tenantID := uuid.NewV4()
 		svc := goa.New("Tenants-service")
-		ctrl := controller.NewTenantsController(svc, mockTenantService{ID: tenantID}, clusterResolver)
+		ctrl := controller.NewTenantsController(svc, mockTenantService{ID: tenantID}, resolveCluster)
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
 			// when/then
@@ -87,7 +87,7 @@ func (s *TenantControllerTestSuite) TestSearchTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterResolver)
+		ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), resolveCluster)
 		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
 		// when
 		_, tenant := test.SearchTenantsOK(t, createValidSAContext(), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
@@ -98,7 +98,7 @@ func (s *TenantControllerTestSuite) TestSearchTenants() {
 	})
 
 	s.T().Run("Failures", func(t *testing.T) {
-		ctrl := controller.NewTenantsController(svc, mockTenantService{}, clusterResolver)
+		ctrl := controller.NewTenantsController(svc, mockTenantService{}, resolveCluster)
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
 			test.SearchTenantsUnauthorized(t, context.Background(), svc, ctrl, "foo", "bar")

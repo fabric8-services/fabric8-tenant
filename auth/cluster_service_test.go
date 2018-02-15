@@ -18,7 +18,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("cluster - end slash", func(t *testing.T) {
 		target := "A"
 
-		c := auth.NewCachedClusterResolver([]*auth.Cluster{
+		c := auth.NewCachedResolveCluster([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
@@ -32,7 +32,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("cluster - no end slash", func(t *testing.T) {
 		target := "A"
 
-		c := auth.NewCachedClusterResolver([]*auth.Cluster{
+		c := auth.NewCachedResolveCluster([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target},
 		})
@@ -46,7 +46,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("both slash", func(t *testing.T) {
 		target := "A"
 
-		c := auth.NewCachedClusterResolver([]*auth.Cluster{
+		c := auth.NewCachedResolveCluster([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
@@ -60,7 +60,7 @@ func TestClusterCache(t *testing.T) {
 	t.Run("no slash", func(t *testing.T) {
 		target := "A"
 
-		c := auth.NewCachedClusterResolver([]*auth.Cluster{
+		c := auth.NewCachedResolveCluster([]*auth.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
@@ -73,7 +73,7 @@ func TestClusterCache(t *testing.T) {
 	})
 }
 
-func TestClusterResolver(t *testing.T) {
+func TestResolveCluster(t *testing.T) {
 	tests := []struct {
 		name   string
 		status int

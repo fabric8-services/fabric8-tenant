@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ClusterResolver a cluster resolver
-type ClusterResolver func(ctx context.Context, target string) (Cluster, error)
+// ResolveCluster a cluster resolver
+type ResolveCluster func(ctx context.Context, target string) (Cluster, error)
 
 // Cluster a cluster
 type Cluster struct {
@@ -25,15 +25,15 @@ type Cluster struct {
 	Token string
 }
 
-// NewCachedClusterResolver returns a new ClusterResolved
-func NewCachedClusterResolver(clusters []*Cluster) ClusterResolver {
+// NewCachedResolveCluster returns a new ClusterResolved
+func NewCachedResolveCluster(clusters []*Cluster) ResolveCluster {
 	return func(ctx context.Context, target string) (Cluster, error) {
 		for _, cluster := range clusters {
 			if cleanURL(target) == cleanURL(cluster.APIURL) {
 				return *cluster, nil
 			}
 		}
-		return Cluster{}, fmt.Errorf("unable to resovle cluster")
+		return Cluster{}, fmt.Errorf("unable to resolve cluster")
 	}
 }
 

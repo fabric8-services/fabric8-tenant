@@ -137,7 +137,7 @@ func main() {
 		}, "unable to resolve clusters")
 	}
 
-	clusterResolver := auth.NewCachedClusterResolver(clusters)
+	resolveCluster := auth.NewCachedResolveCluster(clusters)
 	resolveTenant := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
 		return resolveToken(ctx, target, userToken, auth.PlainTextToken)
 	}
@@ -168,10 +168,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, clusterResolver, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, resolveCluster, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterResolver)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, resolveCluster)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

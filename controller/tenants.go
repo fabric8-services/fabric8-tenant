@@ -13,16 +13,16 @@ import (
 // TenantsController implements the tenants resource.
 type TenantsController struct {
 	*goa.Controller
-	tenantService   tenant.Service
-	clusterResolver auth.ClusterResolver
+	tenantService  tenant.Service
+	resolveCluster auth.ResolveCluster
 }
 
 // NewTenantsController creates a tenants controller.
-func NewTenantsController(service *goa.Service, tenantService tenant.Service, clusterResolver auth.ClusterResolver) *TenantsController {
+func NewTenantsController(service *goa.Service, tenantService tenant.Service, resolveCluster auth.ResolveCluster) *TenantsController {
 	return &TenantsController{
-		Controller:      service.NewController("TenantsController"),
-		tenantService:   tenantService,
-		clusterResolver: clusterResolver,
+		Controller:     service.NewController("TenantsController"),
+		tenantService:  tenantService,
+		resolveCluster: resolveCluster,
 	}
 }
 
@@ -42,7 +42,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterResolver)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
 	return ctx.OK(result)
 }
 
@@ -64,7 +64,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 	result := app.TenantList{
 		Data: []*app.Tenant{
-			convertTenant(ctx, tenant, namespaces, c.clusterResolver),
+			convertTenant(ctx, tenant, namespaces, c.resolveCluster),
 		},
 		// skipping the paging links for now
 		Meta: &app.TenantListMeta{

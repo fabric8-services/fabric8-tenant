@@ -27,7 +27,7 @@ type TenantController struct {
 	tenantService            tenant.Service
 	userService              auth.UserService
 	resolveTenant            auth.ResolveTenant
-	clusterResovler          auth.ClusterResolver
+	resolveCluster           auth.ResolveCluster
 	defaultOpenshiftTemplate openshift.Config
 	templateVars             map[string]string
 }
@@ -38,7 +38,7 @@ func NewTenantController(
 	tenantService tenant.Service,
 	userService auth.UserService,
 	resolveTenant auth.ResolveTenant,
-	clusterResolver auth.ClusterResolver,
+	resolveCluster auth.ResolveCluster,
 	defaultOpenshiftTemplate openshift.Config,
 	templateVars map[string]string) *TenantController {
 
@@ -47,7 +47,7 @@ func NewTenantController(
 		tenantService:            tenantService,
 		userService:              userService,
 		resolveTenant:            resolveTenant,
-		clusterResovler:          clusterResolver,
+		resolveCluster:           resolveCluster,
 		defaultOpenshiftTemplate: defaultOpenshiftTemplate,
 		templateVars:             templateVars,
 	}
@@ -87,7 +87,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the cluster info
-	cluster, err := c.clusterResovler(ctx, *user.Cluster)
+	cluster, err := c.resolveCluster(ctx, *user.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -167,7 +167,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
 	}
 
-	cluster, err := c.clusterResovler(ctx, *user.Cluster)
+	cluster, err := c.resolveCluster(ctx, *user.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -228,7 +228,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
 	}
 
-	cluster, err := c.clusterResovler(ctx, *user.Cluster)
+	cluster, err := c.resolveCluster(ctx, *user.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -270,7 +270,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterResovler)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
 	return ctx.OK(result)
 }
 
@@ -426,7 +426,7 @@ func (t TenantToken) Email() string {
 	return ""
 }
 
-func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, cluster auth.ClusterResolver) *app.Tenant {
+func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, cluster auth.ResolveCluster) *app.Tenant {
 	result := app.Tenant{
 		ID:   &tenant.ID,
 		Type: "tenants",
