@@ -41,6 +41,7 @@ const (
 	varOpenshiftTeamVersion            = "openshift.team.version"
 	varOpenshiftTemplateDir            = "openshift.template.dir"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
+	varTemplateJenkinsRootURL          = "template.jenkins.root.url"
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
@@ -363,6 +364,7 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),
+		"JENKINS_ROOT_URL":               c.v.GetString(varTemplateJenkinsRootURL),
 		"CHE_MULTITENANT_SERVER":         c.v.GetString(varTemplateCheMultiTenantServer),
 		"OSIO_TOKEN":                     "", // set per request
 		"IDENTITY_ID":                    "", // set per request
