@@ -34,7 +34,7 @@ func TestFoundJenkins(t *testing.T) {
 		t.Fatalf("parameters not found")
 	}
 
-	assert.Equal(t, 6, len(params), "unknown number of parameters")
+	assert.Equal(t, 7, len(params), "unknown number of parameters")
 }
 func TestFoundJenkinsKnownTypes(t *testing.T) {
 	verifyKindMapping(t, "template/fabric8-tenant-jenkins-openshift.yml")
