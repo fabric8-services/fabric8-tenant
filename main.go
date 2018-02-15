@@ -138,7 +138,7 @@ func main() {
 	}
 
 	clusterResolver := auth.NewCachedClusterResolver(clusters)
-	tenantResolver := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
+	resolveTenant := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
 		return resolveToken(ctx, target, userToken, auth.PlainTextToken)
 	}
 
@@ -168,7 +168,7 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, tenantResolver, clusterResolver, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, clusterResolver, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterResolver)

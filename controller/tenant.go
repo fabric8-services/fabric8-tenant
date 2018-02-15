@@ -26,7 +26,7 @@ type TenantController struct {
 	*goa.Controller
 	tenantService            tenant.Service
 	userService              auth.UserService
-	tenantResolver           auth.ResolveTenant
+	resolveTenant            auth.ResolveTenant
 	clusterResovler          auth.ClusterResolver
 	defaultOpenshiftTemplate openshift.Config
 	templateVars             map[string]string
@@ -37,7 +37,7 @@ func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
 	userService auth.UserService,
-	tenantResolver auth.ResolveTenant,
+	resolveTenant auth.ResolveTenant,
 	clusterResolver auth.ClusterResolver,
 	defaultOpenshiftTemplate openshift.Config,
 	templateVars map[string]string) *TenantController {
@@ -46,7 +46,7 @@ func NewTenantController(
 		Controller:               service.NewController("TenantController"),
 		tenantService:            tenantService,
 		userService:              userService,
-		tenantResolver:           tenantResolver,
+		resolveTenant:            resolveTenant,
 		clusterResovler:          clusterResolver,
 		defaultOpenshiftTemplate: defaultOpenshiftTemplate,
 		templateVars:             templateVars,
@@ -77,7 +77,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, openshiftUserToken, err := c.tenantResolver(ctx, user.Cluster, &userToken.Raw)
+	openshiftUsername, openshiftUserToken, err := c.resolveTenant(ctx, user.Cluster, &userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -158,7 +158,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.tenantResolver(ctx, user.Cluster, &userToken.Raw)
+	openshiftUsername, _, err := c.resolveTenant(ctx, user.Cluster, &userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -219,7 +219,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.tenantResolver(ctx, user.Cluster, &userToken.Raw)
+	openshiftUsername, _, err := c.resolveTenant(ctx, user.Cluster, &userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
