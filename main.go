@@ -123,11 +123,11 @@ func main() {
 		}, "failed to fetch service account token")
 	}
 
-	tokenResolver := auth.NewTokenResolver(config)
+	resolveToken := auth.NewResolveToken(config)
 	clusterService := auth.NewClusterService(
 		config,
 		*saToken,
-		tokenResolver,
+		resolveToken,
 		auth.NewGPGDecypter(config.GetTokenKey()),
 	)
 	clusters, err := clusterService.GetClusters(context.Background())
@@ -139,7 +139,7 @@ func main() {
 
 	clusterResolver := auth.NewCachedClusterResolver(clusters)
 	tenantResolver := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
-		return tokenResolver(ctx, target, userToken, auth.PlainTextToken)
+		return resolveToken(ctx, target, userToken, auth.PlainTextToken)
 	}
 
 	// create user profile client to get the user's cluster

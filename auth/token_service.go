@@ -10,14 +10,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TokenResolver resolves a Token for a given user/service
-type TokenResolver func(ctx context.Context, target, token *string, decode Decode) (username, accessToken *string, err error)
+// ResolveToken resolves a Token for a given user/service
+type ResolveToken func(ctx context.Context, target, token *string, decode Decode) (username, accessToken *string, err error)
 
-// TenantResolver resolves tenant tokens based on tenants auth
-type TenantResolver func(ctx context.Context, target, token *string) (username, accessToken *string, err error)
+// ResolveTenant resolves tenant tokens based on tenants auth
+type ResolveTenant func(ctx context.Context, target, token *string) (username, accessToken *string, err error)
 
-// NewTokenResolver creates a Resolver that rely on the Auth service to retrieve tokens
-func NewTokenResolver(config ClientConfig) TokenResolver {
+// NewResolveToken creates a Resolver that rely on the Auth service to retrieve tokens
+func NewResolveToken(config ClientConfig) ResolveToken {
 	c := tokenService{config: config}
 	return c.ResolveUserToken
 }

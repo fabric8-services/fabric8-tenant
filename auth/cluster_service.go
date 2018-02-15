@@ -50,14 +50,14 @@ type ClusterService interface {
 }
 
 // NewClusterService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewClusterService(config ClientConfig, serviceToken string, token TokenResolver, decode Decode) ClusterService {
-	return &clusterService{config: config, serviceToken: serviceToken, token: token, decode: decode}
+func NewClusterService(config ClientConfig, serviceToken string, resolveToken ResolveToken, decode Decode) ClusterService {
+	return &clusterService{config: config, serviceToken: serviceToken, resolveToken: resolveToken, decode: decode}
 }
 
 type clusterService struct {
 	config       ClientConfig
 	serviceToken string
-	token        TokenResolver
+	resolveToken ResolveToken
 	decode       Decode
 }
 
@@ -94,7 +94,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 
 	var cls []*Cluster
 	for _, cluster := range clusters.Data {
-		clusterUser, clusterToken, err := s.token(ctx, &cluster.APIURL, &s.serviceToken, s.decode)
+		clusterUser, clusterToken, err := s.resolveToken(ctx, &cluster.APIURL, &s.serviceToken, s.decode)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}

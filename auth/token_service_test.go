@@ -110,7 +110,7 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			config, err := configuration.GetData()
 			require.NoError(t, err)
 
-			resolver := auth.NewTokenResolver(config)
+			resolver := auth.NewResolveToken(config)
 
 			if testData.decoder == nil {
 				testData.decoder = auth.PlainTextToken

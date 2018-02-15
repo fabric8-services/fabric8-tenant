@@ -26,7 +26,7 @@ type TenantController struct {
 	*goa.Controller
 	tenantService            tenant.Service
 	userService              auth.UserService
-	tenantResolver           auth.TenantResolver
+	tenantResolver           auth.ResolveTenant
 	clusterResovler          auth.ClusterResolver
 	defaultOpenshiftTemplate openshift.Config
 	templateVars             map[string]string
@@ -37,7 +37,7 @@ func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
 	userService auth.UserService,
-	tenantResolver auth.TenantResolver,
+	tenantResolver auth.ResolveTenant,
 	clusterResolver auth.ClusterResolver,
 	defaultOpenshiftTemplate openshift.Config,
 	templateVars map[string]string) *TenantController {
