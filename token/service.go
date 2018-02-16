@@ -1,29 +1,18 @@
-package auth
+package token
 
 import (
 	"context"
 	"fmt"
 	"io/ioutil"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
-// ResolveToken resolves a Token for a given user/service
-type ResolveToken func(ctx context.Context, target, token *string, decode Decode) (username, accessToken *string, err error)
-
-// ResolveTenant resolves tenant tokens based on tenants auth
-type ResolveTenant func(ctx context.Context, target, token *string) (username, accessToken *string, err error)
-
-// NewResolveToken creates a Resolver that rely on the Auth service to retrieve tokens
-func NewResolveToken(config ClientConfig) ResolveToken {
-	c := tokenService{config: config}
-	return c.ResolveUserToken
-}
-
 type tokenService struct {
-	config ClientConfig
+	config auth.ClientConfig
 }
 
 func (c *tokenService) ResolveUserToken(ctx context.Context, target, token *string, decode Decode) (username, accessToken *string, err error) {
@@ -37,7 +26,7 @@ func (c *tokenService) ResolveUserToken(ctx context.Context, target, token *stri
 		return nil, nil, fmt.Errorf("auth service returned an empty cluster url")
 	}
 
-	client, err := NewClient(c.config)
+	client, err := auth.NewClient(c.config)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -57,7 +46,7 @@ func (c *tokenService) ResolveUserToken(ctx context.Context, target, token *stri
 		res.Body.Close()
 	}()
 
-	validationerror := validateError(client, res)
+	validationerror := auth.ValidateError(client, res)
 	if validationerror != nil {
 		return nil, nil, errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
 	}

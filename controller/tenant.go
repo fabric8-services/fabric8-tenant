@@ -8,11 +8,12 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
@@ -25,9 +26,9 @@ import (
 type TenantController struct {
 	*goa.Controller
 	tenantService            tenant.Service
-	userService              auth.UserService
-	resolveTenant            auth.ResolveTenant
-	resolveCluster           auth.ResolveCluster
+	resolveTenant            tenant.Resolve
+	userService              user.Service
+	resolveCluster           cluster.Resolve
 	defaultOpenshiftTemplate openshift.Config
 	templateVars             map[string]string
 }
@@ -36,9 +37,9 @@ type TenantController struct {
 func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
-	userService auth.UserService,
-	resolveTenant auth.ResolveTenant,
-	resolveCluster auth.ResolveCluster,
+	userService user.Service,
+	resolveTenant tenant.Resolve,
+	resolveCluster cluster.Resolve,
 	defaultOpenshiftTemplate openshift.Config,
 	templateVars map[string]string) *TenantController {
 
@@ -275,7 +276,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 }
 
 // usersOpenshiftConfig builds openshift config for every user request depending on the user profile
-func usersOpenshiftConfig(osTemplate openshift.Config, user *authclient.UserDataAttributes, cluster auth.Cluster) (openshift.Config, error) {
+func usersOpenshiftConfig(osTemplate openshift.Config, user *authclient.UserDataAttributes, cluster cluster.Cluster) (openshift.Config, error) {
 	return overrideTemplateVersions(
 		user,
 		osTemplate.WithMasterUser(cluster.User).WithToken(cluster.Token).WithMasterURL(cluster.APIURL)), nil
@@ -416,7 +417,7 @@ func (t TenantToken) Email() string {
 	return ""
 }
 
-func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, cluster auth.ResolveCluster) *app.Tenant {
+func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, resolveCluster cluster.Resolve) *app.Tenant {
 	result := app.Tenant{
 		ID:   &tenant.ID,
 		Type: "tenants",
@@ -428,13 +429,13 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 		},
 	}
 	for _, ns := range namespaces {
-		c, err := cluster(ctx, ns.MasterURL)
+		c, err := resolveCluster(ctx, ns.MasterURL)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
 				"cluster_url": ns.MasterURL,
 			}, "unable to resolve cluster")
-			c = auth.Cluster{}
+			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(

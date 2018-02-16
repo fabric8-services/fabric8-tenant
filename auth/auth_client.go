@@ -80,9 +80,9 @@ func (d *doer) Do(ctx context.Context, req *http.Request) (*http.Response, error
 	return d.target.Do(ctx, req)
 }
 
-// validateError function when given client and response checks if the
+// ValidateError function when given client and response checks if the
 // response has any errors by also looking at the status code
-func validateError(c *authclient.Client, res *http.Response) error {
+func ValidateError(c *authclient.Client, res *http.Response) error {
 	if res.StatusCode == http.StatusNotFound {
 		return fmt.Errorf("404 Not found")
 	} else if res.StatusCode != http.StatusOK {

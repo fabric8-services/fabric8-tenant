@@ -8,7 +8,7 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app/test"
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
@@ -32,8 +32,8 @@ func TestTenantController(t *testing.T) {
 	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-var resolveCluster = func(ctx context.Context, target string) (auth.Cluster, error) {
-	return auth.Cluster{
+var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
+	return cluster.Cluster{
 		APIURL:     "https://api.example.com",
 		ConsoleURL: "https://console.example.com/console",
 		MetricsURL: "https://metrics.example.com",

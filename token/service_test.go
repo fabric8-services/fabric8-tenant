@@ -1,4 +1,4 @@
-package auth_test
+package token_test
 
 import (
 	"context"
@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/token"
 )
 
 func TestClusterTokenClient_Get(t *testing.T) {
 	want := "fake_token"
 	fake_user := "fake_user"
-	output := fmt.Sprintf(`{
+	output := fmt.Sprintf(`{ 
 			"access_token": "%s",
 			"token_type": "bearer",
 			"username": "%s"
@@ -41,7 +41,7 @@ func TestClusterTokenClient_Get(t *testing.T) {
 		URL     string
 		status  int
 		output  string
-		decoder auth.Decode
+		decoder token.Decode
 	}{
 		{
 			name:    "access token empty",
@@ -110,10 +110,10 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			config, err := configuration.GetData()
 			require.NoError(t, err)
 
-			resolver := auth.NewResolveToken(config)
+			resolver := token.NewResolve(config)
 
 			if testData.decoder == nil {
-				testData.decoder = auth.PlainTextToken
+				testData.decoder = token.PlainText
 			}
 			// when
 			_, got, err := resolver(context.Background(), testData.args.cluster, testData.args.accessToken, testData.decoder)

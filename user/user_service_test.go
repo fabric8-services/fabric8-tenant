@@ -1,4 +1,4 @@
-package auth_test
+package user_test
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/user"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -91,7 +91,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			os.Setenv("F8_AUTH_URL", testData.URL)
 			config, err := configuration.GetData()
 			require.NoError(t, err)
-			s := auth.NewUserService(config, token)
+			s := user.NewService(config, token)
 			// when
 			user, err := s.GetUser(context.Background(), testData.user)
 			// then

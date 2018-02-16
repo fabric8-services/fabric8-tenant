@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
@@ -20,6 +20,8 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
+	"github.com/fabric8-services/fabric8-tenant/token"
+	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
@@ -115,7 +117,7 @@ func main() {
 	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
 	// fetch service account token for tenant service
-	saTokenService := auth.NewServiceAccountTokenService(config)
+	saTokenService := token.NewServiceAccountTokenService(config)
 	saToken, err := saTokenService.GetOAuthToken(context.Background())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -123,12 +125,12 @@ func main() {
 		}, "failed to fetch service account token")
 	}
 
-	resolveToken := auth.NewResolveToken(config)
-	clusterService := auth.NewClusterService(
+	resolveToken := token.NewResolve(config)
+	clusterService := cluster.NewService(
 		config,
 		*saToken,
 		resolveToken,
-		auth.NewGPGDecypter(config.GetTokenKey()),
+		token.NewGPGDecypter(config.GetTokenKey()),
 	)
 	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
@@ -137,13 +139,13 @@ func main() {
 		}, "unable to resolve clusters")
 	}
 
-	resolveCluster := auth.NewCachedResolveCluster(clusters)
+	resolveCluster := cluster.NewResolve(clusters)
 	resolveTenant := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
-		return resolveToken(ctx, target, userToken, auth.PlainTextToken)
+		return resolveToken(ctx, target, userToken, token.PlainText)
 	}
 
 	// create user profile client to get the user's cluster
-	userService := auth.NewUserService(config, *saToken)
+	userService := user.NewService(config, *saToken)
 
 	var tr *http.Transport
 	if config.APIServerInsecureSkipTLSVerify() {

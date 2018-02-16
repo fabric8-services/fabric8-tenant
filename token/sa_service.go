@@ -1,10 +1,11 @@
-package auth
+package token
 
 import (
 	"context"
 	"fmt"
 	"io/ioutil"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/pkg/errors"
 )
@@ -16,7 +17,7 @@ type ServiceAccountTokenService interface {
 
 // ServiceAccountTokenServiceConfig the config for the Service Account service
 type ServiceAccountTokenServiceConfig interface {
-	ClientConfig
+	auth.ClientConfig
 	GetAuthClientID() string
 	GetClientSecret() string
 	GetAuthGrantType() string
@@ -32,7 +33,7 @@ type serviceAccountTokenService struct {
 }
 
 func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string, error) {
-	c, err := NewClient(s.config)
+	c, err := auth.NewClient(s.config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while initializing the auth client")
 	}
@@ -57,7 +58,7 @@ func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string
 		res.Body.Close()
 	}()
 
-	validationerror := validateError(c, res)
+	validationerror := auth.ValidateError(c, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
 	}

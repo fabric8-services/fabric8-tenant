@@ -1,4 +1,4 @@
-package auth_test
+package cluster_test
 
 import (
 	"context"
@@ -7,8 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,59 +17,57 @@ import (
 func TestClusterCache(t *testing.T) {
 
 	t.Run("cluster - end slash", func(t *testing.T) {
+		// given
 		target := "A"
-
-		c := auth.NewCachedResolveCluster([]*auth.Cluster{
+		resolve := cluster.NewResolve([]*cluster.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
-
-		found, err := c(context.Background(), target)
-		if err != nil {
-			t.Error(err)
-		}
+		// when
+		found, err := resolve(context.Background(), target)
+		// then
+		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
 	})
 	t.Run("cluster - no end slash", func(t *testing.T) {
+		// given
 		target := "A"
-
-		c := auth.NewCachedResolveCluster([]*auth.Cluster{
+		resolve := cluster.NewResolve([]*cluster.Cluster{
 			{APIURL: "X"},
 			{APIURL: target},
 		})
-
-		found, err := c(context.Background(), target+"/")
-		if err != nil {
-			t.Error(err)
-		}
+		// when
+		found, err := resolve(context.Background(), target+"/")
+		// then
+		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
 	})
+
 	t.Run("both slash", func(t *testing.T) {
+		// given
 		target := "A"
-
-		c := auth.NewCachedResolveCluster([]*auth.Cluster{
+		resolve := cluster.NewResolve([]*cluster.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
-
-		found, err := c(context.Background(), target+"/")
-		if err != nil {
-			t.Error(err)
-		}
+		// when
+		found, err := resolve(context.Background(), target+"/")
+		// then
+		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
 	})
-	t.Run("no slash", func(t *testing.T) {
-		target := "A"
 
-		c := auth.NewCachedResolveCluster([]*auth.Cluster{
+	t.Run("no slash", func(t *testing.T) {
+		// given
+		target := "A"
+		resolve := cluster.NewResolve([]*cluster.Cluster{
 			{APIURL: "X"},
 			{APIURL: target + "/"},
 		})
-
-		found, err := c(context.Background(), target+"/")
-		if err != nil {
-			t.Error(err)
-		}
+		// when
+		found, err := resolve(context.Background(), target+"/")
+		// then
+		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
 	})
 }
@@ -105,13 +104,13 @@ func TestResolveCluster(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tr := func(ctx context.Context, target, token *string, decode auth.Decode) (user, accessToken *string, err error) {
+			tr := func(ctx context.Context, target, token *string, decode token.Decode) (user, accessToken *string, err error) {
 				foo := "foo"
 				bar := "bar"
 				return &foo, &bar, nil
 			}
-			cresolver := auth.NewClusterService(config, "aa", tr, auth.PlainTextToken)
-			clusters, err := cresolver.GetClusters(context.Background())
+			cs := cluster.NewService(config, "aa", tr, token.PlainText)
+			clusters, err := cs.GetClusters(context.Background())
 			require.NoError(t, err)
 			assert.Len(t, clusters, tt.count)
 		})

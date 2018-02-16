@@ -1,4 +1,4 @@
-package auth
+package token
 
 import (
 	"bytes"
@@ -12,9 +12,9 @@ import (
 // Decode a function to decode a given value
 type Decode func(data string) (*string, error)
 
-// PlainTextToken is a Decode function that can be used to fetch tokens that are not encrypted.
+// PlainText is a Decode function that can be used to fetch tokens that are not encrypted.
 // Simply return the same token back
-func PlainTextToken(token string) (*string, error) {
+func PlainText(token string) (*string, error) {
 	return &token, nil
 }
 

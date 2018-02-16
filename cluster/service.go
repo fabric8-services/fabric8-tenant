@@ -1,18 +1,16 @@
-package auth
+package cluster
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"strings"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
-
-// ResolveCluster a cluster resolver
-type ResolveCluster func(ctx context.Context, target string) (Cluster, error)
 
 // Cluster a cluster
 type Cluster struct {
@@ -25,18 +23,6 @@ type Cluster struct {
 	Token string
 }
 
-// NewCachedResolveCluster returns a new ClusterResolved
-func NewCachedResolveCluster(clusters []*Cluster) ResolveCluster {
-	return func(ctx context.Context, target string) (Cluster, error) {
-		for _, cluster := range clusters {
-			if cleanURL(target) == cleanURL(cluster.APIURL) {
-				return *cluster, nil
-			}
-		}
-		return Cluster{}, fmt.Errorf("unable to resolve cluster")
-	}
-}
-
 func cleanURL(url string) string {
 	if !strings.HasSuffix(url, "/") {
 		return url + "/"
@@ -44,25 +30,25 @@ func cleanURL(url string) string {
 	return url
 }
 
-// ClusterService the interface for the cluster service
-type ClusterService interface {
+// Service the interface for the cluster service
+type Service interface {
 	GetClusters(context.Context) ([]*Cluster, error)
 }
 
-// NewClusterService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewClusterService(config ClientConfig, serviceToken string, resolveToken ResolveToken, decode Decode) ClusterService {
+// NewService creates a Resolver that rely on the Auth service to retrieve tokens
+func NewService(config auth.ClientConfig, serviceToken string, resolveToken token.Resolve, decode token.Decode) Service {
 	return &clusterService{config: config, serviceToken: serviceToken, resolveToken: resolveToken, decode: decode}
 }
 
 type clusterService struct {
-	config       ClientConfig
+	config       auth.ClientConfig
 	serviceToken string
-	resolveToken ResolveToken
-	decode       Decode
+	resolveToken token.Resolve
+	decode       token.Decode
 }
 
 func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
-	client, err := NewClient(s.config)
+	client, err := auth.NewClient(s.config)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +68,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 		res.Body.Close()
 	}()
 
-	validationerror := validateError(client, res)
+	validationerror := auth.ValidateError(client, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
 	}

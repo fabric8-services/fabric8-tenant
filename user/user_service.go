@@ -1,36 +1,37 @@
-package auth
+package user
 
 import (
 	"context"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
-// UserService the interface for the User service
-type UserService interface {
+// Service the interface for the User service
+type Service interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*authclient.UserDataAttributes, error)
 }
 
-// UserServiceConfig the User service config
-type UserServiceConfig interface {
+// ServiceConfig the User service config
+type ServiceConfig interface {
 	GetAuthURL() string
 }
 
-// NewUserService creates a new User service
-func NewUserService(config UserServiceConfig, serviceToken string) UserService {
+// NewService creates a new User service
+func NewService(config ServiceConfig, serviceToken string) Service {
 	return &userService{config: config, serviceToken: serviceToken}
 }
 
 type userService struct {
-	config       UserServiceConfig
+	config       ServiceConfig
 	serviceToken string
 }
 
 func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.UserDataAttributes, error) {
-	c, err := NewClient(s.config, WithToken(s.serviceToken))
+	c, err := auth.NewClient(s.config, auth.WithToken(s.serviceToken))
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.Us
 	}
 	defer res.Body.Close()
 
-	validationerror := validateError(c, res)
+	validationerror := auth.ValidateError(c, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
 	}

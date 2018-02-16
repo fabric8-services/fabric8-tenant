@@ -2,7 +2,7 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-tenant/app"
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
@@ -14,11 +14,11 @@ import (
 type TenantsController struct {
 	*goa.Controller
 	tenantService  tenant.Service
-	resolveCluster auth.ResolveCluster
+	resolveCluster cluster.Resolve
 }
 
 // NewTenantsController creates a tenants controller.
-func NewTenantsController(service *goa.Service, tenantService tenant.Service, resolveCluster auth.ResolveCluster) *TenantsController {
+func NewTenantsController(service *goa.Service, tenantService tenant.Service, resolveCluster cluster.Resolve) *TenantsController {
 	return &TenantsController{
 		Controller:     service.NewController("TenantsController"),
 		tenantService:  tenantService,
