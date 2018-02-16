@@ -308,16 +308,6 @@ func overrideTemplateVersions(user *authclient.UserDataAttributes, config opensh
 	return config
 }
 
-//TODO: Remove WhoAmI
-func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (string, error) {
-	//return OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
-	return "", nil
-}
-
-func OpenShiftWhoAmI(token *jwt.Token, oc openshift.Config, openshiftUserToken string) (string, error) {
-	return openshift.WhoAmI(oc.WithToken(openshiftUserToken))
-}
-
 // InitTenant is a Callback that assumes a new tenant is being created
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
