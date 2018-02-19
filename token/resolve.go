@@ -10,7 +10,10 @@ import (
 type Resolve func(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error)
 
 // NewResolve creates a Resolver that rely on the Auth service to retrieve tokens
-func NewResolve(config auth.ClientConfig) Resolve {
-	c := tokenService{config: config}
-	return c.ResolveUserToken
+func NewResolve(authURL string, options ...auth.ClientOption) Resolve {
+	s := tokenService{
+		authURL:       authURL,
+		clientOptions: options,
+	}
+	return s.ResolveUserToken
 }

@@ -1,5 +1,5 @@
-hash: c3b517bed13f23c18b32e9d92d1a6555e99fd025d7eeb6d6d055e4ee0221daf6
-updated: 2018-01-27T03:06:02.770020823+01:00
+hash: 74dd804dbd95ecc457828ec77c43a44f316111d53d35f3f3391d824c4be9b82d
+updated: 2018-02-19T18:04:25.746664673+01:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -21,18 +21,19 @@ imports:
   version: c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc
 - name: github.com/dimfeld/httptreemux
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
+- name: github.com/dnaeon/go-vcr
+  version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
+  subpackages:
+  - cassette
+  - recorder
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-auth
-  version: 18b81c4be89e10f503c0c5039f5f6c8c5d5a2ec5
+  version: 52cab6691f9864f42b9089729c290083d77b3d83
   subpackages:
   - design
-  - errors
-  - log
-  - login/tokencontext
-  - rest
   - token
 - name: github.com/fabric8-services/fabric8-wit
   version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
@@ -110,7 +111,7 @@ imports:
   subpackages:
   - oid
 - name: github.com/magiconair/properties
-  version: d419a98cdbed11a922bf76f257b7c4be79b50e73
+  version: c3beff4c2358b44d0493c7dda585e7db7ff28ae6
 - name: github.com/manveru/faker
   version: 717f7cf83fb78669bfab612749c2e8ff63d5be11
 - name: github.com/matttproud/golang_protobuf_extensions
@@ -164,7 +165,7 @@ imports:
 - name: github.com/spf13/viper
   version: 651d9d916abc3c3d6a91a12549495caba5edffd2
 - name: github.com/stretchr/testify
-  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
+  version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:
   - assert
   - require
@@ -216,10 +217,6 @@ imports:
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports:
-- name: github.com/certifi/gocertifi
-  version: deb3ae2ef2610fde3330947281941c562861188b
-- name: github.com/getsentry/raven-go
-  version: 563b81fc02b75d664e54da31f787c2cc2186780b
 - name: github.com/jstemmer/go-junit-report
   version: 15422cf504f9dc030386499a5c68053a38763e58
 - name: github.com/wadey/gocovmerge

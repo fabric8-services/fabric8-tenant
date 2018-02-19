@@ -15,23 +15,18 @@ type Service interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*authclient.UserDataAttributes, error)
 }
 
-// ServiceConfig the User service config
-type ServiceConfig interface {
-	GetAuthURL() string
-}
-
 // NewService creates a new User service
-func NewService(config ServiceConfig, serviceToken string) Service {
-	return &userService{config: config, serviceToken: serviceToken}
+func NewService(authURL string, serviceToken string) Service {
+	return &userService{authURL: authURL, serviceToken: serviceToken}
 }
 
 type userService struct {
-	config       ServiceConfig
+	authURL      string
 	serviceToken string
 }
 
 func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.UserDataAttributes, error) {
-	c, err := auth.NewClient(s.config, auth.WithToken(s.serviceToken))
+	c, err := auth.NewClient(s.authURL, auth.WithToken(s.serviceToken))
 	if err != nil {
 		return nil, err
 	}
@@ -52,11 +47,11 @@ func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.Us
 
 	validationerror := auth.ValidateError(c, res)
 	if validationerror != nil {
-		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
+		return nil, errors.Wrapf(validationerror, "error from server %q", s.authURL)
 	}
 	user, err := c.DecodeUser(res)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error from server %q", s.config.GetAuthURL())
+		return nil, errors.Wrapf(err, "error from server %q", s.authURL)
 	}
 
 	return user.Data.Attributes, nil

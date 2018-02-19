@@ -15,8 +15,8 @@ type clientImpl struct {
 }
 
 // NewClient returns a new auth client
-func NewClient(config ClientConfig, options ...ClientOption) (*authclient.Client, error) {
-	u, err := url.Parse(config.GetAuthURL())
+func NewClient(authURL string, options ...ClientOption) (*authclient.Client, error) {
+	u, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err
 	}
@@ -31,11 +31,6 @@ func NewClient(config ClientConfig, options ...ClientOption) (*authclient.Client
 	client.Host = u.Host
 	client.Scheme = u.Scheme
 	return client, nil
-}
-
-// ClientConfig the client config
-type ClientConfig interface {
-	GetAuthURL() string
 }
 
 // ClientOption a function to customize the auth client

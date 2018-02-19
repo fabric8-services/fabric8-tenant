@@ -12,10 +12,11 @@ import (
 )
 
 type tokenService struct {
-	config auth.ClientConfig
+	authURL       string
+	clientOptions []auth.ClientOption
 }
 
-func (c *tokenService) ResolveUserToken(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error) {
+func (s *tokenService) ResolveUserToken(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error) {
 	// auth can return empty token so validate against that
 	if token == "" {
 		return "", "", fmt.Errorf("access token can't be empty")
@@ -26,7 +27,7 @@ func (c *tokenService) ResolveUserToken(ctx context.Context, target, token strin
 		return "", "", fmt.Errorf("auth service returned an empty cluster url")
 	}
 
-	client, err := auth.NewClient(c.config)
+	client, err := auth.NewClient(s.authURL, s.clientOptions...)
 	if err != nil {
 		return "", "", err
 	}
@@ -48,15 +49,15 @@ func (c *tokenService) ResolveUserToken(ctx context.Context, target, token strin
 
 	validationerror := auth.ValidateError(client, res)
 	if validationerror != nil {
-		return "", "", errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
+		return "", "", errors.Wrapf(validationerror, "error from server %q", s.authURL)
 	}
 
 	externalToken, err := client.DecodeExternalToken(res)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error from server %q", c.config.GetAuthURL())
+		return "", "", errors.Wrapf(err, "error from server %q", s.authURL)
 	}
 	if externalToken.Username == nil {
-		return "", "", errors.Wrapf(err, "missing username", c.config.GetAuthURL())
+		return "", "", errors.Wrapf(err, "missing username", s.authURL)
 	}
 
 	t, err := decode(externalToken.AccessToken)

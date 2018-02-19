@@ -36,19 +36,20 @@ type Service interface {
 }
 
 // NewService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewService(config auth.ClientConfig, serviceToken string, resolveToken token.Resolve, decode token.Decode) Service {
-	return &clusterService{config: config, serviceToken: serviceToken, resolveToken: resolveToken, decode: decode}
+func NewService(authURL string, serviceToken string, resolveToken token.Resolve, decode token.Decode, options ...auth.ClientOption) Service {
+	return &clusterService{authURL: authURL, serviceToken: serviceToken, resolveToken: resolveToken, decode: decode, clientOptions: options}
 }
 
 type clusterService struct {
-	config       auth.ClientConfig
-	serviceToken string
-	resolveToken token.Resolve
-	decode       token.Decode
+	authURL       string
+	clientOptions []auth.ClientOption
+	serviceToken  string
+	resolveToken  token.Resolve
+	decode        token.Decode
 }
 
 func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
-	client, err := auth.NewClient(s.config)
+	client, err := auth.NewClient(s.authURL, s.clientOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,12 +71,12 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 
 	validationerror := auth.ValidateError(client, res)
 	if validationerror != nil {
-		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
+		return nil, errors.Wrapf(validationerror, "error from server %q", s.authURL)
 	}
 
 	clusters, err := client.DecodeClusterList(res)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error from server %q", s.config.GetAuthURL())
+		return nil, errors.Wrapf(err, "error from server %q", s.authURL)
 	}
 
 	var cls []*Cluster

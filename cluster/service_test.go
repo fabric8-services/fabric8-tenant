@@ -107,7 +107,7 @@ func TestResolveCluster(t *testing.T) {
 			tr := func(ctx context.Context, target, token string, decode token.Decode) (user, accessToken string, err error) {
 				return "foo", "bar", nil
 			}
-			cs := cluster.NewService(config, "aa", tr, token.PlainText)
+			cs := cluster.NewService(config.GetAuthURL(), "aa", tr, token.PlainText)
 			clusters, err := cs.GetClusters(context.Background())
 			require.NoError(t, err)
 			assert.Len(t, clusters, tt.count)

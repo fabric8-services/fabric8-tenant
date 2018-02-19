@@ -1,0 +1,56 @@
+---
+version: 1
+interactions:
+- request:
+    method: GET
+    url: http://authservice/api/token/keys
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "keys": [
+        {
+          "alg": "RS256",
+          "e": "AQAB",
+          "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+          "kty": "RSA",
+          "n": "jCE4HewT6uAkFk-O01U9jz3nPtQGNTJN9a9DJB3zu0WneUxuwQKYoY3FdgIc7bjwkSEuw8csRUZqoB5fCwdiv10qcoeeAWB07F1E6Etov7YNOrNJcR2rTxhet5IvxWjEBO8fJjexYk5wR2J7VcwOnvAxG0Qt9iymHaAIKoHjrwG0Is-zNtjw6kRq9uqd1r7hddzktaZteaEwSKsl2DHhkjdsY455ZwWlJsjTOtFpL5IK4onmMq2N-4745H8cZlpAo30TrFH5aAV1LyAa_ul2hVdEYtgeBO8dSmYEzu4L5kO5Q9KzsDddqHAXQ2t5ZZh80EgtR36bjCSno5gigB1cpQ",
+          "use": "sig"
+        },
+        {
+          "alg": "RS256",
+          "e": "AQAB",
+          "kid": "quzUZlR_ollAUoAGgm165tYDTU3xtKon8O1RghJZ4TU",
+          "kty": "RSA",
+          "n": "vmvSDzC7VthnlzP2lpTRSTEamcOoS9_O_6uxkTYmOqcCwcID6RBauewLu2YYWvOB8sNb1eqq1r1SQjX7gtxJ4QZ-ME72lbc8ONpJQG_S32cL2P77JSpYhAHdPzefIgKFrtYaxz5LkqQPuHWRfHLKP7RBbFlvwC5j9mIZUe0QV7KolnCV8Z2G5cUCVzu79PxQNWvm0z8Tq3xcB46TRRiCIA-skeFc98k5H2kYbwEwCdSdeRF0Bzmc4pUNkkHvmtWD0M6uoGo-m-ajM9gP38ZO1z2ILLeHSCQb2FpXMX-GuSH-1dWESD3Y53J8p1rrcjhSvxxNoj5hPLWX2HeYf301Qw",
+          "use": "sig"
+        },
+        {
+          "alg": "RS256",
+          "e": "AQAB",
+          "kid": "billythekid",
+          "kty": "RSA",
+          "n": "DpfS9jJGDXFUqjw5QAKm8M5ciqBDelRrmby5VPaPi7P8tvyS3YBKyLBfAAVOkvoFwSBcz94yuGh2q8tP8LIM8QLbixeaB5OSUC-z9Oq-bRhUlJEtZ1fqaHzwGC0ru6rrd8rEZRij1iaVPsX16Mm12RNpACmjyhr_PEcLeLQA9KVpjTNTUX3n1BhK0VUIrxKSfdxs4MX_5I3WjGPf_-3r2wacxap9OWUVwbuEPfrXAan89cj-fxTWxU57etkR5wdbAkXmSW0u7rLtfKoek9iuTxCn4WjWjdZ8Rxobs_YllW97fk_7FhYG-bsRGxuqKHlpIUnPwLeEqXBJA4RW220",
+          "use": "sig"
+
+        }
+      ]
+    }'
+- request:
+    method: GET
+    url: http://authservice/api/token/keys?format=pem
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "keys": [
+        {
+          "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjCE4HewT6uAkFk+O01U9jz3nPtQGNTJN9a9DJB3zu0WneUxuwQKYoY3FdgIc7bjwkSEuw8csRUZqoB5fCwdiv10qcoeeAWB07F1E6Etov7YNOrNJcR2rTxhet5IvxWjEBO8fJjexYk5wR2J7VcwOnvAxG0Qt9iymHaAIKoHjrwG0Is+zNtjw6kRq9uqd1r7hddzktaZteaEwSKsl2DHhkjdsY455ZwWlJsjTOtFpL5IK4onmMq2N+4745H8cZlpAo30TrFH5aAV1LyAa/ul2hVdEYtgeBO8dSmYEzu4L5kO5Q9KzsDddqHAXQ2t5ZZh80EgtR36bjCSno5gigB1cpQIDAQAB",
+          "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU"
+        },
+        {
+          "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvmvSDzC7VthnlzP2lpTRSTEamcOoS9/O/6uxkTYmOqcCwcID6RBauewLu2YYWvOB8sNb1eqq1r1SQjX7gtxJ4QZ+ME72lbc8ONpJQG/S32cL2P77JSpYhAHdPzefIgKFrtYaxz5LkqQPuHWRfHLKP7RBbFlvwC5j9mIZUe0QV7KolnCV8Z2G5cUCVzu79PxQNWvm0z8Tq3xcB46TRRiCIA+skeFc98k5H2kYbwEwCdSdeRF0Bzmc4pUNkkHvmtWD0M6uoGo+m+ajM9gP38ZO1z2ILLeHSCQb2FpXMX+GuSH+1dWESD3Y53J8p1rrcjhSvxxNoj5hPLWX2HeYf301QwIDAQAB",
+          "kid": "quzUZlR_ollAUoAGgm165tYDTU3xtKon8O1RghJZ4TU"
+        }
+      ]
+    }'

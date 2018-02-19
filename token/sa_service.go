@@ -17,23 +17,24 @@ type ServiceAccountTokenService interface {
 
 // ServiceAccountTokenServiceConfig the config for the Service Account service
 type ServiceAccountTokenServiceConfig interface {
-	auth.ClientConfig
+	GetAuthURL() string
 	GetAuthClientID() string
 	GetClientSecret() string
 	GetAuthGrantType() string
 }
 
 // NewServiceAccountTokenService initializes a new ServiceAccountTokenService
-func NewServiceAccountTokenService(config ServiceAccountTokenServiceConfig) ServiceAccountTokenService {
+func NewServiceAccountTokenService(config ServiceAccountTokenServiceConfig, options ...auth.ClientOption) ServiceAccountTokenService {
 	return &serviceAccountTokenService{config: config}
 }
 
 type serviceAccountTokenService struct {
-	config ServiceAccountTokenServiceConfig
+	config        ServiceAccountTokenServiceConfig
+	clientOptions []auth.ClientOption
 }
 
 func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string, error) {
-	c, err := auth.NewClient(s.config)
+	c, err := auth.NewClient(s.config.GetAuthURL(), s.clientOptions...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while initializing the auth client")
 	}

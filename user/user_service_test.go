@@ -91,7 +91,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			os.Setenv("F8_AUTH_URL", testData.URL)
 			config, err := configuration.GetData()
 			require.NoError(t, err)
-			s := user.NewService(config, token)
+			s := user.NewService(config.GetAuthURL(), token)
 			// when
 			user, err := s.GetUser(context.Background(), testData.user)
 			// then

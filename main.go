@@ -94,7 +94,7 @@ func main() {
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
 	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
-	publicKeys, err := tenant.GetPublicKeys(config.GetAuthURL())
+	publicKeys, err := token.GetPublicKeys(context.Background(), config.GetAuthURL())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err":    err,
@@ -125,9 +125,9 @@ func main() {
 		}, "failed to fetch service account token")
 	}
 
-	resolveToken := token.NewResolve(config)
+	resolveToken := token.NewResolve(config.GetAuthURL())
 	clusterService := cluster.NewService(
-		config,
+		config.GetAuthURL(),
 		*saToken,
 		resolveToken,
 		token.NewGPGDecypter(config.GetTokenKey()),
@@ -145,7 +145,7 @@ func main() {
 	}
 
 	// create user profile client to get the user's cluster
-	userService := user.NewService(config, *saToken)
+	userService := user.NewService(config.GetAuthURL(), *saToken)
 
 	var tr *http.Transport
 	if config.APIServerInsecureSkipTLSVerify() {
