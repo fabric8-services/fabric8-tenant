@@ -1,11 +1,11 @@
-package keycloak_test
+package tenant_test
 
 import (
 	"context"
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,24 +21,24 @@ func TestServiceAccount(t *testing.T) {
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.True(t, keycloak.IsServiceAccount(ctx))
+			assert.True(t, tenant.IsServiceAccount(ctx))
 		})
 		t.Run("Missing name", func(t *testing.T) {
 			claims := jwt.MapClaims{}
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.False(t, keycloak.IsServiceAccount(ctx))
+			assert.False(t, tenant.IsServiceAccount(ctx))
 		})
 		t.Run("Missing token", func(t *testing.T) {
 			ctx := context.Background()
 
-			assert.False(t, keycloak.IsServiceAccount(ctx))
+			assert.False(t, tenant.IsServiceAccount(ctx))
 		})
 		t.Run("Nil token", func(t *testing.T) {
 			ctx := goajwt.WithJWT(context.Background(), nil)
 
-			assert.False(t, keycloak.IsServiceAccount(ctx))
+			assert.False(t, tenant.IsServiceAccount(ctx))
 		})
 		t.Run("Wrong data type", func(t *testing.T) {
 			claims := jwt.MapClaims{}
@@ -46,7 +46,7 @@ func TestServiceAccount(t *testing.T) {
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.False(t, keycloak.IsServiceAccount(ctx))
+			assert.False(t, tenant.IsServiceAccount(ctx))
 		})
 	})
 	t.Run("Is Specific Service Account", func(t *testing.T) {
@@ -57,19 +57,19 @@ func TestServiceAccount(t *testing.T) {
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.True(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
+			assert.True(t, tenant.IsSpecificServiceAccount(ctx, serviceName))
 		})
 		t.Run("Missing name", func(t *testing.T) {
 			claims := jwt.MapClaims{}
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
+			assert.False(t, tenant.IsSpecificServiceAccount(ctx, serviceName))
 		})
 		t.Run("Nil token", func(t *testing.T) {
 			ctx := goajwt.WithJWT(context.Background(), nil)
 
-			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
+			assert.False(t, tenant.IsSpecificServiceAccount(ctx, serviceName))
 		})
 		t.Run("Wrong data type", func(t *testing.T) {
 			claims := jwt.MapClaims{}
@@ -77,12 +77,12 @@ func TestServiceAccount(t *testing.T) {
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
+			assert.False(t, tenant.IsSpecificServiceAccount(ctx, serviceName))
 		})
 		t.Run("Missing token", func(t *testing.T) {
 			ctx := context.Background()
 
-			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
+			assert.False(t, tenant.IsSpecificServiceAccount(ctx, serviceName))
 		})
 		t.Run("Wrong name", func(t *testing.T) {
 			claims := jwt.MapClaims{}
@@ -90,7 +90,7 @@ func TestServiceAccount(t *testing.T) {
 			token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 			ctx := goajwt.WithJWT(context.Background(), token)
 
-			assert.False(t, keycloak.IsSpecificServiceAccount(ctx, serviceName))
+			assert.False(t, tenant.IsSpecificServiceAccount(ctx, serviceName))
 		})
 	})
 }

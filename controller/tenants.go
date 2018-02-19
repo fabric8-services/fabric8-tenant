@@ -4,7 +4,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/goadesign/goa"
@@ -28,7 +27,7 @@ func NewTenantsController(service *goa.Service, tenantService tenant.Service, re
 
 // Show runs the show action.
 func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
-	if !keycloak.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+	if !tenant.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -48,7 +47,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 
 // Search runs the search action.
 func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
-	if !keycloak.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+	if !tenant.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 

@@ -1,4 +1,4 @@
-package keycloak
+package tenant
 
 import (
 	"context"

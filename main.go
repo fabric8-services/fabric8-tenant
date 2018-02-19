@@ -94,7 +94,7 @@ func main() {
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
 	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
-	publicKeys, err := keycloak.GetPublicKeys(config.GetAuthURL())
+	publicKeys, err := tenant.GetPublicKeys(config.GetAuthURL())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err":    err,
