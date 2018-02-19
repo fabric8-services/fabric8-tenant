@@ -18,7 +18,7 @@ func TestDecryptSuccess(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, txt)
-		assert.Equal(t, "SuperSecret", *txt)
+		assert.Equal(t, "SuperSecret", txt)
 	})
 
 	t.Run("fail", func(t *testing.T) {

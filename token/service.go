@@ -15,31 +15,31 @@ type tokenService struct {
 	config auth.ClientConfig
 }
 
-func (c *tokenService) ResolveUserToken(ctx context.Context, target, token *string, decode Decode) (username, accessToken *string, err error) {
+func (c *tokenService) ResolveUserToken(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error) {
 	// auth can return empty token so validate against that
-	if token == nil {
-		return nil, nil, fmt.Errorf("access token can't be empty")
+	if token == "" {
+		return "", "", fmt.Errorf("access token can't be empty")
 	}
 
 	// check if the cluster is empty
-	if target == nil {
-		return nil, nil, fmt.Errorf("auth service returned an empty cluster url")
+	if target == "" {
+		return "", "", fmt.Errorf("auth service returned an empty cluster url")
 	}
 
 	client, err := auth.NewClient(c.config)
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
 	client.SetJWTSigner(
 		&goaclient.JWTSigner{
 			TokenSource: &goaclient.StaticTokenSource{
 				StaticToken: &goaclient.StaticToken{
-					Value: *token,
+					Value: token,
 					Type:  "Bearer"}}})
 
-	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), *target, nil)
+	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, nil)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "error while doing the request")
+		return "", "", errors.Wrapf(err, "error while doing the request")
 	}
 	defer func() {
 		ioutil.ReadAll(res.Body)
@@ -48,17 +48,17 @@ func (c *tokenService) ResolveUserToken(ctx context.Context, target, token *stri
 
 	validationerror := auth.ValidateError(client, res)
 	if validationerror != nil {
-		return nil, nil, errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
+		return "", "", errors.Wrapf(validationerror, "error from server %q", c.config.GetAuthURL())
 	}
 
 	externalToken, err := client.DecodeExternalToken(res)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "error from server %q", c.config.GetAuthURL())
+		return "", "", errors.Wrapf(err, "error from server %q", c.config.GetAuthURL())
 	}
 	if externalToken.Username == nil {
-		return nil, nil, errors.Wrapf(err, "missing username", c.config.GetAuthURL())
+		return "", "", errors.Wrapf(err, "missing username", c.config.GetAuthURL())
 	}
 
 	t, err := decode(externalToken.AccessToken)
-	return externalToken.Username, t, err
+	return *externalToken.Username, t, err
 }

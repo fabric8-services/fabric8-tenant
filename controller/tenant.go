@@ -8,7 +8,6 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
-	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
@@ -78,7 +77,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, openshiftUserToken, err := c.resolveTenant(ctx, user.Cluster, &userToken.Raw)
+	openshiftUsername, openshiftUserToken, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -98,11 +97,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig, err := usersOpenshiftConfig(c.defaultOpenshiftTemplate, user, cluster)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftTemplate, user, cluster)
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 	err = c.tenantService.SaveTenant(tenant)
 	if err != nil {
@@ -119,8 +114,8 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			ctx,
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			*openshiftUsername,
-			*openshiftUserToken,
+			openshiftUsername,
+			openshiftUserToken,
 			c.templateVars)
 
 		if err != nil {
@@ -159,7 +154,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.resolveTenant(ctx, user.Cluster, &userToken.Raw)
+	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -178,10 +173,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig, err := usersOpenshiftConfig(c.defaultOpenshiftTemplate, user, cluster)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftTemplate, user, cluster)
 
 	go func() {
 		ctx := ctx
@@ -190,7 +182,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			ctx,
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			*openshiftUsername,
+			openshiftUsername,
 			c.templateVars)
 
 		if err != nil {
@@ -220,7 +212,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// fetch the users cluster token
-	openshiftUsername, _, err := c.resolveTenant(ctx, user.Cluster, &userToken.Raw)
+	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -239,12 +231,9 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig, err := usersOpenshiftConfig(c.defaultOpenshiftTemplate, user, cluster)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftTemplate, user, cluster)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, *openshiftUsername, c.templateVars)
+	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -273,40 +262,6 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 
 	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
 	return ctx.OK(result)
-}
-
-// usersOpenshiftConfig builds openshift config for every user request depending on the user profile
-func usersOpenshiftConfig(osTemplate openshift.Config, user *authclient.UserDataAttributes, cluster cluster.Cluster) (openshift.Config, error) {
-	return overrideTemplateVersions(
-		user,
-		osTemplate.WithMasterUser(cluster.User).WithToken(cluster.Token).WithMasterURL(cluster.APIURL)), nil
-}
-
-func overrideTemplateVersions(user *authclient.UserDataAttributes, config openshift.Config) openshift.Config {
-	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
-		return config
-	}
-	userContext := user.ContextInformation
-	if tc, found := userContext["tenantConfig"]; found {
-		if tenantConfig, ok := tc.(map[string]interface{}); ok {
-			find := func(key, defaultValue string) string {
-				if rawValue, found := tenantConfig[key]; found {
-					if value, ok := rawValue.(string); ok {
-						return value
-					}
-				}
-				return defaultValue
-			}
-
-			return config.WithUserSettings(
-				find("cheVersion", config.CheVersion),
-				find("jenkinsVersion", config.JenkinsVersion),
-				find("teamVersion", config.TeamVersion),
-				find("mavenRepo", config.MavenRepoURL),
-			)
-		}
-	}
-	return config
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created
@@ -435,7 +390,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				"err":         err,
 				"cluster_url": ns.MasterURL,
 			}, "unable to resolve cluster")
-			c = cluster.Cluster{}
+			c = &cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(

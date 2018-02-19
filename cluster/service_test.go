@@ -104,10 +104,8 @@ func TestResolveCluster(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			tr := func(ctx context.Context, target, token *string, decode token.Decode) (user, accessToken *string, err error) {
-				foo := "foo"
-				bar := "bar"
-				return &foo, &bar, nil
+			tr := func(ctx context.Context, target, token string, decode token.Decode) (user, accessToken string, err error) {
+				return "foo", "bar", nil
 			}
 			cs := cluster.NewService(config, "aa", tr, token.PlainText)
 			clusters, err := cs.GetClusters(context.Background())

@@ -7,7 +7,7 @@ import (
 )
 
 // Resolve a func to resolve a token for a given user/service
-type Resolve func(ctx context.Context, target, token *string, decode Decode) (username, accessToken *string, err error)
+type Resolve func(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error)
 
 // NewResolve creates a Resolver that rely on the Auth service to retrieve tokens
 func NewResolve(config auth.ClientConfig) Resolve {

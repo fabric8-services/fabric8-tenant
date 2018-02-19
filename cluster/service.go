@@ -80,7 +80,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 
 	var cls []*Cluster
 	for _, cluster := range clusters.Data {
-		clusterUser, clusterToken, err := s.resolveToken(ctx, &cluster.APIURL, &s.serviceToken, s.decode)
+		clusterUser, clusterToken, err := s.resolveToken(ctx, cluster.APIURL, s.serviceToken, s.decode)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
@@ -89,8 +89,8 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 			AppDNS:     cluster.AppDNS,
 			ConsoleURL: cluster.ConsoleURL,
 			MetricsURL: cluster.MetricsURL,
-			User:       *clusterUser,
-			Token:      *clusterToken,
+			User:       clusterUser,
+			Token:      clusterToken,
 		})
 	}
 	return cls, nil

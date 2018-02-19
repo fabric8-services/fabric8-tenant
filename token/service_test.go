@@ -30,8 +30,8 @@ func TestClusterTokenClient_Get(t *testing.T) {
 		ClusterToken string
 	}
 	type args struct {
-		accessToken *string
-		cluster     *string
+		accessToken string
+		cluster     string
 	}
 	tests := []struct {
 		name    string
@@ -50,36 +50,36 @@ func TestClusterTokenClient_Get(t *testing.T) {
 		{
 			name:    "cluster url is empty",
 			wantErr: true,
-			args:    args{accessToken: &accessToken},
+			args:    args{accessToken: accessToken},
 		},
 		{
 			name:    "misformed URL",
 			URL:     "google.com",
-			args:    args{accessToken: &accessToken, cluster: &cluster},
+			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: true,
 		},
 		{
 			name:    "bad status code",
-			args:    args{accessToken: &accessToken, cluster: &cluster},
+			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: true,
 			status:  http.StatusNotFound,
 		},
 		{
 			name:    "make code fail on parsing output",
-			args:    args{accessToken: &accessToken, cluster: &cluster},
+			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: true,
 			output:  "foobar",
 		},
 		{
 			name:    "valid output",
-			args:    args{accessToken: &accessToken, cluster: &cluster},
+			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: false,
 		},
 		{
 			name:    "invalid encrypted token",
-			args:    args{accessToken: &accessToken, cluster: &cluster},
+			args:    args{accessToken: accessToken, cluster: cluster},
 			wantErr: true,
-			decoder: func(data string) (*string, error) { return nil, fmt.Errorf("Could not decrypt") },
+			decoder: func(data string) (string, error) { return "", fmt.Errorf("Could not decrypt") },
 		},
 	}
 	for _, testData := range tests {
@@ -123,7 +123,7 @@ func TestClusterTokenClient_Get(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, want, *got)
+			assert.Equal(t, want, got)
 		})
 	}
 }

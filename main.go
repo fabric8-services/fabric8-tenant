@@ -140,7 +140,7 @@ func main() {
 	}
 
 	resolveCluster := cluster.NewResolve(clusters)
-	resolveTenant := func(ctx context.Context, target, userToken *string) (user, accessToken *string, err error) {
+	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
 		return resolveToken(ctx, target, userToken, token.PlainText)
 	}
 

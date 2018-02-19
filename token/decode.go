@@ -10,17 +10,17 @@ import (
 )
 
 // Decode a function to decode a given value
-type Decode func(data string) (*string, error)
+type Decode func(data string) (string, error)
 
 // PlainText is a Decode function that can be used to fetch tokens that are not encrypted.
 // Simply return the same token back
-func PlainText(token string) (*string, error) {
-	return &token, nil
+func PlainText(token string) (string, error) {
+	return token, nil
 }
 
 // NewGPGDecypter takes a passphrase and returns a GPG based Decypter decode function
 func NewGPGDecypter(passphrase string) Decode {
-	return func(body string) (*string, error) {
+	return func(body string) (string, error) {
 		return gpgDecyptToken(body, passphrase)
 	}
 }
@@ -28,10 +28,10 @@ func NewGPGDecypter(passphrase string) Decode {
 // GPGDecyptToken decrypts a Base64 encoded GPG un armored encrypted string
 // using provided passphrase.
 // echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64 -w0
-func gpgDecyptToken(base64Body, passphrase string) (*string, error) {
+func gpgDecyptToken(base64Body, passphrase string) (string, error) {
 	decodedEnc, err := base64.StdEncoding.DecodeString(base64Body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	decbuf := bytes.NewBuffer(decodedEnc)
 	firstCall := true
@@ -44,12 +44,11 @@ func gpgDecyptToken(base64Body, passphrase string) (*string, error) {
 
 	}, nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	bytes, err := ioutil.ReadAll(md.UnverifiedBody)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	result := string(bytes)
-	return &result, nil
+	return string(bytes), nil
 }

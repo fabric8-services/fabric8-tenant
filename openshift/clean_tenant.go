@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-wit/log"
 )
 
+// CleanTenant
 func CleanTenant(ctx context.Context, config Config, username string, templateVars map[string]string) error {
 	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
 	if err != nil {
