@@ -2,8 +2,8 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-wit/errors"
@@ -13,22 +13,22 @@ import (
 // TenantsController implements the tenants resource.
 type TenantsController struct {
 	*goa.Controller
-	tenantService   tenant.Service
-	clusterResolver token.ClusterResolver
+	tenantService  tenant.Service
+	resolveCluster cluster.Resolve
 }
 
 // NewTenantsController creates a tenants controller.
-func NewTenantsController(service *goa.Service, tenantService tenant.Service, clusterResolver token.ClusterResolver) *TenantsController {
+func NewTenantsController(service *goa.Service, tenantService tenant.Service, resolveCluster cluster.Resolve) *TenantsController {
 	return &TenantsController{
-		Controller:      service.NewController("TenantsController"),
-		tenantService:   tenantService,
-		clusterResolver: clusterResolver,
+		Controller:     service.NewController("TenantsController"),
+		tenantService:  tenantService,
+		resolveCluster: resolveCluster,
 	}
 }
 
 // Show runs the show action.
 func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
-	if !keycloak.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+	if !token.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -42,13 +42,13 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterResolver)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
 	return ctx.OK(result)
 }
 
 // Search runs the search action.
 func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
-	if !keycloak.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+	if !token.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -64,7 +64,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 	result := app.TenantList{
 		Data: []*app.Tenant{
-			convertTenant(ctx, tenant, namespaces, c.clusterResolver),
+			convertTenant(ctx, tenant, namespaces, c.resolveCluster),
 		},
 		// skipping the paging links for now
 		Meta: &app.TenantListMeta{

@@ -27,7 +27,7 @@ import:
   - resource
   - jsonapi
 - package: github.com/fabric8-services/fabric8-auth
-  version: 18b81c4be89e10f503c0c5039f5f6c8c5d5a2ec5gl
+  version: 52cab6691f9864f42b9089729c290083d77b3d83
   subpackages:
   - design
   - token
@@ -70,3 +70,5 @@ import:
 testImport:
 - package: github.com/wadey/gocovmerge
 - package: github.com/jstemmer/go-junit-report
+- package: github.com/dnaeon/go-vcr
+  version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb

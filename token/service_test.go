@@ -8,6 +8,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/token"
 )
@@ -15,12 +18,11 @@ import (
 func TestClusterTokenClient_Get(t *testing.T) {
 	want := "fake_token"
 	fake_user := "fake_user"
-	output := `
-		{
-			"access_token": "` + want + `",
+	output := fmt.Sprintf(`{ 
+			"access_token": "%s",
 			"token_type": "bearer",
-			"username": "` + fake_user + `"
-		}`
+			"username": "%s"
+		}`, want, fake_user)
 	accessToken := "fake_accesstoken"
 	cluster := "fake_cluster"
 
@@ -80,51 +82,48 @@ func TestClusterTokenClient_Get(t *testing.T) {
 			decoder: func(data string) (string, error) { return "", fmt.Errorf("Could not decrypt") },
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testData := range tests {
+		t.Run(testData.name, func(t *testing.T) {
+			// given
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// if no status code given in test case, set the default
-				if tt.status == 0 {
-					tt.status = http.StatusOK
+				if testData.status == 0 {
+					testData.status = http.StatusOK
 				}
-				w.WriteHeader(tt.status)
+				w.WriteHeader(testData.status)
 
 				// if the output of the server is not set in testcase, set the default
-				if tt.output == "" {
-					tt.output = output
+				if testData.output == "" {
+					testData.output = output
 				}
-				w.Write([]byte(tt.output))
+				w.Write([]byte(testData.output))
 			}))
 			defer ts.Close()
 
 			// if the URL is not given in test case then set what is given by user
-			if tt.URL == "" {
-				tt.URL = ts.URL
+			if testData.URL == "" {
+				testData.URL = ts.URL
 			}
 
 			// set the URL given by the temporary server
-			os.Setenv("F8_AUTH_URL", tt.URL)
-
+			os.Setenv("F8_AUTH_URL", testData.URL)
 			config, err := configuration.GetData()
-			if err != nil {
-				t.Fatalf("could not retrieve configuration: %v", err)
-			}
+			require.NoError(t, err)
 
-			resolver := token.NewAuthServiceResolver(config)
+			resolver := token.NewResolve(config.GetAuthURL())
 
-			if tt.decoder == nil {
-				tt.decoder = token.PlainTextToken
+			if testData.decoder == nil {
+				testData.decoder = token.PlainText
 			}
-			_, got, err := resolver(context.Background(), tt.args.cluster, tt.args.accessToken, tt.decoder)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Resolver() error = %v, wantErr %v", err, tt.wantErr)
-			} else if err != nil && tt.wantErr {
-				t.Logf("Resolver() failed with = %v", err)
+			// when
+			_, got, err := resolver(context.Background(), testData.args.cluster, testData.args.accessToken, testData.decoder)
+			// then
+			if testData.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if got != want {
-				t.Errorf("Resolver() = %v, want %v", got, want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
 		})
 	}
 }

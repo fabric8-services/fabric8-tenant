@@ -167,6 +167,9 @@ $(GO_JUNIT_BIN): $(VENDOR_DIR)
 
 CLEAN_TARGETS += clean-artifacts
 .PHONY: clean-artifacts
+
+
+     
 ## Removes the ./bin directory.
 clean-artifacts:
 	-rm -rf $(INSTALL_PREFIX)
@@ -185,7 +188,7 @@ clean-generated:
 	-rm -rf ./swagger/
 	-rm -f ./migration/sqlbindata.go
 	-rm -f ./template/bindata.go
-	-rm -rf ./auth
+	-rm -rf ./auth/client
 
 CLEAN_TARGETS += clean-vendor
 .PHONY: clean-vendor
@@ -211,7 +214,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) app -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) controller -d ${PACKAGE_NAME}/${DESIGN_DIR} -o controller/ --pkg controller --app-pkg app
 	$(GOAGEN_BIN) swagger -d ${PACKAGE_NAME}/${DESIGN_DIR}
-	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-auth/design --notool --pkg auth
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-auth/design --notool --out auth --pkg client 
 
 
 .PHONY: migrate-database

@@ -1,0 +1,11 @@
+= Generating the pair of private/public RSA keys
+
+```
+$ openssl genrsa -out test/private_key2.pem 2028
+Generating RSA private key, 2028 bit long modulus
+.............................+++
+..............................+++
+e is 65537 (0x10001)
+$ openssl rsa -in test/private_key2.pem -pubout -outform PEM -out test/public_key2.pem
+writing RSA key
+```

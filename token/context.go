@@ -1,4 +1,4 @@
-package keycloak
+package token
 
 import (
 	"context"

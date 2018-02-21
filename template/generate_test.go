@@ -9,31 +9,23 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/template"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v2"
 )
 
 func TestFoundJenkins(t *testing.T) {
+	// given
 	c, err := template.Asset("template/fabric8-tenant-jenkins-openshift.yml")
-	if err != nil {
-		t.Fatalf("Asset template/fabric8-tenant-jenkins-openshift.yml not found")
-	}
-
+	require.NoError(t, err)
 	cs := string(c)
-	if !strings.Contains(cs, "jenkins") {
-		t.Fatalf("Word jenkins not found in the template")
-	}
-
+	require.True(t, strings.Contains(cs, "jenkins"))
+	// when
 	var template map[interface{}]interface{}
 	err = yaml.Unmarshal(c, &template)
-	if err != nil {
-		t.Fatalf("Could not parse template as yaml")
-	}
-
+	// then
+	require.NoError(t, err)
 	params, ok := template["parameters"].([]interface{})
-	if !ok {
-		t.Fatalf("parameters not found")
-	}
-
+	require.True(t, ok)
 	assert.Equal(t, 7, len(params), "unknown number of parameters")
 }
 func TestFoundJenkinsKnownTypes(t *testing.T) {
@@ -41,48 +33,34 @@ func TestFoundJenkinsKnownTypes(t *testing.T) {
 }
 
 func TestFoundJenkinsQuotasOSO(t *testing.T) {
+	// given
 	c, err := template.Asset("template/fabric8-tenant-jenkins-quotas-oso-openshift.yml")
-	if err != nil {
-		t.Fatalf("Asset template/fabric8-tenant-jenkins-quotas-oso-openshift.yml not found")
-	}
-
+	require.NoError(t, err)
 	cs := string(c)
-	if !strings.Contains(cs, "Limit") {
-		t.Fatalf("Word Limit not found in the resource")
-	}
-
+	require.True(t, strings.Contains(cs, "Limit"))
+	// when
 	var template map[interface{}]interface{}
 	err = yaml.Unmarshal(c, &template)
-	if err != nil {
-		t.Fatalf("Could not parse resource as yaml")
-	}
+	// then
+	require.NoError(t, err)
 }
 func TestFoundJenkinsQuotasOSOKnownTypes(t *testing.T) {
 	verifyKindMapping(t, "template/fabric8-tenant-jenkins-quotas-oso-openshift.yml")
 }
 
 func TestFoundChe(t *testing.T) {
+	// given
 	c, err := template.Asset("template/fabric8-tenant-che-openshift.yml")
-	if err != nil {
-		t.Fatalf("Asset template/fabric8-tenant-che-openshift.yml not found")
-	}
-
+	require.NoError(t, err)
 	cs := string(c)
-	if !strings.Contains(cs, "che") {
-		t.Fatalf("Word che not found in the template")
-	}
-
+	require.True(t, strings.Contains(cs, "che"))
+	// when
 	var template map[interface{}]interface{}
 	err = yaml.Unmarshal(c, &template)
-	if err != nil {
-		t.Fatalf("Could not parse template as yaml")
-	}
-
+	// then
+	require.NoError(t, err)
 	params, ok := template["parameters"].([]interface{})
-	if !ok {
-		t.Fatalf("parameters not found")
-	}
-
+	require.True(t, ok)
 	assert.Equal(t, 10, len(params), "unknown number of parameters")
 }
 
@@ -91,27 +69,18 @@ func TestFoundCheKnownTypes(t *testing.T) {
 }
 
 func TestFoundCheMultiTenant(t *testing.T) {
+	// given
 	c, err := template.Asset("template/fabric8-tenant-che-mt-openshift.yml")
-	if err != nil {
-		t.Fatalf("Asset template/fabric8-tenant-che-mt-openshift.yml not found")
-	}
-
+	require.NoError(t, err)
 	cs := string(c)
-	if !strings.Contains(cs, "claim-che-workspace") {
-		t.Fatalf("Word claim-che-workspace not found in the template")
-	}
-
+	require.True(t, strings.Contains(cs, "claim-che-workspace"))
+	// when
 	var template map[interface{}]interface{}
 	err = yaml.Unmarshal(c, &template)
-	if err != nil {
-		t.Fatalf("Could not parse template as yaml")
-	}
-
+	// then
+	require.NoError(t, err)
 	params, ok := template["parameters"].([]interface{})
-	if !ok {
-		t.Fatalf("parameters not found")
-	}
-
+	require.True(t, ok)
 	assert.Equal(t, 6, len(params), "unknown number of parameters")
 }
 
@@ -120,21 +89,16 @@ func TestFoundCheMultiTenantKnownTypes(t *testing.T) {
 }
 
 func TestFoundCheQuotasOSO(t *testing.T) {
+	// given
 	c, err := template.Asset("template/fabric8-tenant-che-quotas-oso-openshift.yml")
-	if err != nil {
-		t.Fatalf("Asset template/fabric8-tenant-che-quotas-oso-openshift.yml not found")
-	}
-
+	require.NoError(t, err)
 	cs := string(c)
-	if !strings.Contains(cs, "Limit") {
-		t.Fatalf("Word Limit not found in the resource")
-	}
-
+	require.True(t, strings.Contains(cs, "Limit"))
+	// when
 	var template map[interface{}]interface{}
 	err = yaml.Unmarshal(c, &template)
-	if err != nil {
-		t.Fatalf("Could not parse resource as yaml")
-	}
+	// then
+	require.NoError(t, err)
 }
 
 func TestFoundCheQuotasOSOKnownTypes(t *testing.T) {
@@ -142,26 +106,18 @@ func TestFoundCheQuotasOSOKnownTypes(t *testing.T) {
 }
 
 func TestFoundTeam(t *testing.T) {
+	// given
 	c, err := template.Asset("template/fabric8-tenant-team-openshift.yml")
-	if err != nil {
-		t.Fatalf("Asset template/fabric8-tenant-team-openshift.yml not found")
-	}
-
+	require.NoError(t, err)
 	cs := string(c)
-	if !strings.Contains(cs, "team") {
-		t.Fatalf("Word team not found in the template")
-	}
-
+	require.True(t, strings.Contains(cs, "team"))
+	// when
 	var template map[interface{}]interface{}
 	err = yaml.Unmarshal(c, &template)
-	if err != nil {
-		t.Fatalf("Could not parse template as yaml")
-	}
-
+	// then
+	require.NoError(t, err)
 	params, ok := template["parameters"].([]interface{})
-	if !ok {
-		t.Fatalf("parameters not found")
-	}
+	require.True(t, ok)
 	// 1 parameter not used in Openshift templates but bleed through from k8
 	assert.Equal(t, 8, len(params), "unknown number of parameters")
 }
