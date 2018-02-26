@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-wit/log"
 	goaclient "github.com/goadesign/goa/client"
 )
 
@@ -30,6 +31,7 @@ func NewClient(authURL string, options ...ClientOption) (*authclient.Client, err
 	client := authclient.New(newDoer(c))
 	client.Host = u.Host
 	client.Scheme = u.Scheme
+	log.Debug(nil, map[string]interface{}{"host": client.Host, "scheme": client.Scheme}, "initializing auth client")
 	return client, nil
 }
 

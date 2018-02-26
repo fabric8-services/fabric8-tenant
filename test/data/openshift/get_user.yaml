@@ -1,0 +1,24 @@
+---
+version: 1
+interactions:
+- request:
+    method: GET
+    url: http://openshift/oapi/v1/users/~
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind": "User",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "developer",
+        "selfLink": "/oapi/v1/users/developer",
+        "uid": "bcdd0b29-123d-11e8-a8bc-b69930b94f5c",
+        "resourceVersion": "814",
+        "creationTimestamp": "2018-02-15T10:48:20Z"
+      },
+      "identities": [
+        "anypassword:developer"
+      ],
+      "groups": []
+    }'

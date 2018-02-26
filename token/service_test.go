@@ -2,128 +2,65 @@ package token_test
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"os"
 	"testing"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	testsupport "github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/token"
 )
 
-func TestClusterTokenClient_Get(t *testing.T) {
-	want := "fake_token"
-	fake_user := "fake_user"
-	output := fmt.Sprintf(`{ 
-			"access_token": "%s",
-			"token_type": "bearer",
-			"username": "%s"
-		}`, want, fake_user)
-	accessToken := "fake_accesstoken"
-	cluster := "fake_cluster"
+func TestResolveUserToken(t *testing.T) {
+	// given
+	r, err := recorder.New("../test/data/token/auth_resolve_user_token", recorder.WithJWTMatcher())
+	require.NoError(t, err)
+	defer r.Stop()
+	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
+	tok, err := createToken("user_foo")
+	require.NoError(t, err)
 
-	type fields struct {
-		ClusterToken string
+	t.Run("ok", func(t *testing.T) {
+		// when
+		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, token.PlainText)
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "user_foo", username)
+		assert.Equal(t, "an_access_token", accessToken)
+	})
+
+	t.Run("invalid resource", func(t *testing.T) {
+		// when
+		_, _, err := resolveToken(context.Background(), "some_invalid_resource", tok.Raw, token.PlainText)
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("empty access token", func(t *testing.T) {
+		// when
+		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", token.PlainText)
+		// then
+		require.Error(t, err)
+	})
+}
+
+func createToken(sub string) (*jwt.Token, error) {
+	claims := jwt.MapClaims{}
+	claims["sub"] = sub
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+	// use the test private key to sign the token
+	key, err := testsupport.PrivateKey("../test/private_key.pem")
+	if err != nil {
+		return nil, err
 	}
-	type args struct {
-		accessToken string
-		cluster     string
+	signed, err := token.SignedString(key)
+	if err != nil {
+		return nil, err
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-		URL     string
-		status  int
-		output  string
-		decoder token.Decode
-	}{
-		{
-			name:    "access token empty",
-			wantErr: true,
-		},
-		{
-			name:    "cluster url is empty",
-			wantErr: true,
-			args:    args{accessToken: accessToken},
-		},
-		{
-			name:    "misformed URL",
-			URL:     "google.com",
-			args:    args{accessToken: accessToken, cluster: cluster},
-			wantErr: true,
-		},
-		{
-			name:    "bad status code",
-			args:    args{accessToken: accessToken, cluster: cluster},
-			wantErr: true,
-			status:  http.StatusNotFound,
-		},
-		{
-			name:    "make code fail on parsing output",
-			args:    args{accessToken: accessToken, cluster: cluster},
-			wantErr: true,
-			output:  "foobar",
-		},
-		{
-			name:    "valid output",
-			args:    args{accessToken: accessToken, cluster: cluster},
-			wantErr: false,
-		},
-		{
-			name:    "invalid encrypted token",
-			args:    args{accessToken: accessToken, cluster: cluster},
-			wantErr: true,
-			decoder: func(data string) (string, error) { return "", fmt.Errorf("Could not decrypt") },
-		},
-	}
-	for _, testData := range tests {
-		t.Run(testData.name, func(t *testing.T) {
-			// given
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// if no status code given in test case, set the default
-				if testData.status == 0 {
-					testData.status = http.StatusOK
-				}
-				w.WriteHeader(testData.status)
-
-				// if the output of the server is not set in testcase, set the default
-				if testData.output == "" {
-					testData.output = output
-				}
-				w.Write([]byte(testData.output))
-			}))
-			defer ts.Close()
-
-			// if the URL is not given in test case then set what is given by user
-			if testData.URL == "" {
-				testData.URL = ts.URL
-			}
-
-			// set the URL given by the temporary server
-			os.Setenv("F8_AUTH_URL", testData.URL)
-			config, err := configuration.GetData()
-			require.NoError(t, err)
-
-			resolver := token.NewResolve(config.GetAuthURL())
-
-			if testData.decoder == nil {
-				testData.decoder = token.PlainText
-			}
-			// when
-			_, got, err := resolver(context.Background(), testData.args.cluster, testData.args.accessToken, testData.decoder)
-			// then
-			if testData.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, want, got)
-		})
-	}
+	token.Raw = signed
+	return token, nil
 }
