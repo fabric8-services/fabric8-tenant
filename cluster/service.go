@@ -81,7 +81,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 
 	var cls []*Cluster
 	for _, cluster := range clusters.Data {
-		clusterUser, clusterToken, err := s.resolveToken(ctx, cluster.APIURL, s.serviceToken, true, s.decode) // use "forcePull=true" to validate the `tenant service account` token on the target
+		clusterUser, clusterToken, err := s.resolveToken(ctx, cluster.APIURL, s.serviceToken, false, s.decode) // can't use "forcePull=true" to validate the `tenant service account` token since it's encrypted on auth
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
