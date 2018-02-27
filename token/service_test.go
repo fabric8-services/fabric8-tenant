@@ -17,7 +17,7 @@ import (
 
 func TestResolveUserToken(t *testing.T) {
 	// given
-	r, err := recorder.New("../test/data/token/auth_resolve_user_token", recorder.WithJWTMatcher())
+	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
 	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
@@ -43,6 +43,49 @@ func TestResolveUserToken(t *testing.T) {
 	t.Run("empty access token", func(t *testing.T) {
 		// when
 		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", false, token.PlainText)
+		// then
+		require.Error(t, err)
+	})
+}
+
+func TestResolveServiceAccountToken(t *testing.T) {
+	// given
+	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
+	require.NoError(t, err)
+	defer r.Stop()
+	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
+	tok, err := createToken("tenant_service")
+	require.NoError(t, err)
+
+	t.Run("ok", func(t *testing.T) {
+		// when
+		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "user_foo", username)
+		assert.Equal(t, "an_access_token", accessToken)
+	})
+
+	t.Run("expired token", func(t *testing.T) {
+		// given
+		tok, err := createToken("expired_tenant_service")
+		require.NoError(t, err)
+		// when
+		_, _, err = resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("invalid resource", func(t *testing.T) {
+		// when
+		_, _, err := resolveToken(context.Background(), "some_invalid_resource", tok.Raw, true, token.PlainText)
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("empty access token", func(t *testing.T) {
+		// when
+		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", true, token.PlainText)
 		// then
 		require.Error(t, err)
 	})
