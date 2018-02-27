@@ -2,90 +2,128 @@ package token_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
-	testsupport "github.com/fabric8-services/fabric8-tenant/test"
-	"github.com/fabric8-services/fabric8-tenant/test/recorder"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/token"
 )
 
-func TestResolveUserToken(t *testing.T) {
-	// given
-	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
-	require.NoError(t, err)
-	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
-	tok, err := testsupport.NewToken("user_foo", "../test/private_key.pem")
-	require.NoError(t, err)
+func TestClusterTokenClient_Get(t *testing.T) {
+	want := "fake_token"
+	fake_user := "fake_user"
+	output := fmt.Sprintf(`{ 
+			"access_token": "%s",
+			"token_type": "bearer",
+			"username": "%s"
+		}`, want, fake_user)
+	accessToken := "fake_accesstoken"
+	cluster := "fake_cluster"
 
-	t.Run("ok", func(t *testing.T) {
-		// when
-		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, false, token.PlainText)
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, "user_foo", username)
-		assert.Equal(t, "an_openshift_token", accessToken)
-	})
+	type fields struct {
+		ClusterToken string
+	}
+	type args struct {
+		accessToken string
+		cluster     string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		URL     string
+		status  int
+		output  string
+		decoder token.Decode
+	}{
+		{
+			name:    "access token empty",
+			wantErr: true,
+		},
+		{
+			name:    "cluster url is empty",
+			wantErr: true,
+			args:    args{accessToken: accessToken},
+		},
+		{
+			name:    "misformed URL",
+			URL:     "google.com",
+			args:    args{accessToken: accessToken, cluster: cluster},
+			wantErr: true,
+		},
+		{
+			name:    "bad status code",
+			args:    args{accessToken: accessToken, cluster: cluster},
+			wantErr: true,
+			status:  http.StatusNotFound,
+		},
+		{
+			name:    "make code fail on parsing output",
+			args:    args{accessToken: accessToken, cluster: cluster},
+			wantErr: true,
+			output:  "foobar",
+		},
+		{
+			name:    "valid output",
+			args:    args{accessToken: accessToken, cluster: cluster},
+			wantErr: false,
+		},
+		{
+			name:    "invalid encrypted token",
+			args:    args{accessToken: accessToken, cluster: cluster},
+			wantErr: true,
+			decoder: func(data string) (string, error) { return "", fmt.Errorf("Could not decrypt") },
+		},
+	}
+	for _, testData := range tests {
+		t.Run(testData.name, func(t *testing.T) {
+			// given
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// if no status code given in test case, set the default
+				if testData.status == 0 {
+					testData.status = http.StatusOK
+				}
+				w.WriteHeader(testData.status)
 
-	t.Run("invalid resource", func(t *testing.T) {
-		// when
-		_, _, err := resolveToken(context.Background(), "some_invalid_resource", tok.Raw, false, token.PlainText)
-		// then
-		require.Error(t, err)
-	})
+				// if the output of the server is not set in testcase, set the default
+				if testData.output == "" {
+					testData.output = output
+				}
+				w.Write([]byte(testData.output))
+			}))
+			defer ts.Close()
 
-	t.Run("empty access token", func(t *testing.T) {
-		// when
-		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", false, token.PlainText)
-		// then
-		require.Error(t, err)
-	})
-}
+			// if the URL is not given in test case then set what is given by user
+			if testData.URL == "" {
+				testData.URL = ts.URL
+			}
 
-func TestResolveServiceAccountToken(t *testing.T) {
-	// given
-	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
-	require.NoError(t, err)
-	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
-	tok, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
-	require.NoError(t, err)
+			// set the URL given by the temporary server
+			os.Setenv("F8_AUTH_URL", testData.URL)
+			config, err := configuration.GetData()
+			require.NoError(t, err)
 
-	t.Run("ok", func(t *testing.T) {
-		// when
-		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, "tenant_service", username)
-		assert.Equal(t, "an_openshift_token", accessToken)
-	})
+			resolver := token.NewResolve(config.GetAuthURL())
 
-	t.Run("expired token", func(t *testing.T) {
-		// given
-		tok, err := testsupport.NewToken("expired_tenant_service", "../test/private_key.pem")
-		require.NoError(t, err)
-		// when
-		_, _, err = resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)
-		// then
-		require.Error(t, err)
-	})
-
-	t.Run("invalid resource", func(t *testing.T) {
-		// when
-		_, _, err := resolveToken(context.Background(), "some_invalid_resource", tok.Raw, true, token.PlainText)
-		// then
-		require.Error(t, err)
-	})
-
-	t.Run("empty access token", func(t *testing.T) {
-		// when
-		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", true, token.PlainText)
-		// then
-		require.Error(t, err)
-	})
+			if testData.decoder == nil {
+				testData.decoder = token.PlainText
+			}
+			// when
+			_, got, err := resolver(context.Background(), testData.args.cluster, testData.args.accessToken, testData.decoder)
+			// then
+			if testData.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
 }
