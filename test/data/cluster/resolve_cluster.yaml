@@ -3,7 +3,7 @@ version: 1
 interactions:
 - request:
     method: GET
-    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=true
+    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -35,7 +35,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=http%3A%2F%2Fcluster%2Fapi&force_pull=true
+    url: http://authservice/api/token?for=http%3A%2F%2Fcluster%2Fapi&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
