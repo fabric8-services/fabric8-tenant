@@ -3,12 +3,12 @@ package cluster_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
-	"os"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
+	testsupport "github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,6 +29,7 @@ func TestClusterCache(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
 	})
+
 	t.Run("cluster - no end slash", func(t *testing.T) {
 		// given
 		target := "A"
@@ -73,44 +74,35 @@ func TestClusterCache(t *testing.T) {
 }
 
 func TestResolveCluster(t *testing.T) {
-	tests := []struct {
-		name   string
-		status int
-		count  int
-		output string
-	}{
-		{
-			name:   "Fully complete",
-			status: 200,
-			count:  1,
-			output: `{"data": [{"api-url": "http://a.com", "app-dns": "b.com"}]}`,
-		},
-	}
+	// given
+	r, err := recorder.New("../test/data/cluster/resolve_cluster", recorder.WithJWTMatcher())
+	require.NoError(t, err)
+	defer r.Stop()
+	authURL := "http://authservice"
+	resolveToken := token.NewResolve(authURL, auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
+	saToken, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
+	require.NoError(t, err)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(tt.status)
-				if tt.output != "" {
-					w.Write([]byte(tt.output))
-				}
-			}))
+	t.Run("ok", func(t *testing.T) {
+		// given
+		clusterService := cluster.NewService(
+			authURL,
+			saToken.Raw,
+			resolveToken,
+			token.NewGPGDecypter("foo"),
+			auth.WithHTTPClient(&http.Client{Transport: r.Transport}),
+		)
+		// when
+		clusters, err := clusterService.GetClusters(context.Background())
+		// then
+		require.NoError(t, err)
+		require.Len(t, clusters, 1)
+		assert.Equal(t, "http://cluster/api", clusters[0].APIURL)
+		assert.Equal(t, "foo", clusters[0].AppDNS)
+		assert.Equal(t, "http://cluster/console", clusters[0].ConsoleURL)
+		assert.Equal(t, "http://cluster/metrics", clusters[0].MetricsURL)
+		assert.Equal(t, "SuperSecret", clusters[0].Token) // see decode_test.go for decoded value of data in yaml file
+		assert.Equal(t, "tenant_service", clusters[0].User)
 
-			defer ts.Close()
-
-			os.Setenv("F8_AUTH_URL", ts.URL)
-
-			config, err := configuration.GetData()
-			if err != nil {
-				t.Fatal(err)
-			}
-			tr := func(ctx context.Context, target, token string, forcePull bool, decode token.Decode) (user, accessToken string, err error) {
-				return "foo", "bar", nil
-			}
-			cs := cluster.NewService(config.GetAuthURL(), "aa", tr, token.PlainText)
-			clusters, err := cs.GetClusters(context.Background())
-			require.NoError(t, err)
-			assert.Len(t, clusters, tt.count)
-		})
-	}
+	})
 }

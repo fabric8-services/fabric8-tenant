@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +20,7 @@ func TestResolveUserToken(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Stop()
 	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
-	tok, err := createToken("user_foo")
+	tok, err := testsupport.NewToken("user_foo", "../test/private_key.pem")
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -30,7 +29,7 @@ func TestResolveUserToken(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "user_foo", username)
-		assert.Equal(t, "an_access_token", accessToken)
+		assert.Equal(t, "an_openshift_token", accessToken)
 	})
 
 	t.Run("invalid resource", func(t *testing.T) {
@@ -54,7 +53,7 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Stop()
 	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
-	tok, err := createToken("tenant_service")
+	tok, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -62,13 +61,13 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, "user_foo", username)
-		assert.Equal(t, "an_access_token", accessToken)
+		assert.Equal(t, "tenant_service", username)
+		assert.Equal(t, "an_openshift_token", accessToken)
 	})
 
 	t.Run("expired token", func(t *testing.T) {
 		// given
-		tok, err := createToken("expired_tenant_service")
+		tok, err := testsupport.NewToken("expired_tenant_service", "../test/private_key.pem")
 		require.NoError(t, err)
 		// when
 		_, _, err = resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)
@@ -89,21 +88,4 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		// then
 		require.Error(t, err)
 	})
-}
-
-func createToken(sub string) (*jwt.Token, error) {
-	claims := jwt.MapClaims{}
-	claims["sub"] = sub
-	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
-	// use the test private key to sign the token
-	key, err := testsupport.PrivateKey("../test/private_key.pem")
-	if err != nil {
-		return nil, err
-	}
-	signed, err := token.SignedString(key)
-	if err != nil {
-		return nil, err
-	}
-	token.Raw = signed
-	return token, nil
 }

@@ -10,7 +10,7 @@ interactions:
     status: 200 OK
     code: 200
     body: '{ 
-			"access_token": "an_access_token",
+			"access_token": "an_openshift_token",
 			"token_type": "bearer",
 			"username": "user_foo"
 		}'
@@ -56,9 +56,9 @@ interactions:
     status: 200 OK
     code: 200
     body: '{ 
-			"access_token": "an_access_token",
+			"access_token": "an_openshift_token",
 			"token_type": "bearer",
-			"username": "user_foo"
+			"username": "tenant_service"
 		}'
 - request:
     method: GET
