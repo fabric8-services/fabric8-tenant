@@ -335,6 +335,15 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 	}
 }
 
+func (c *TenantController) WhoAmI(token *jwt.Token, openshiftUserToken string) (string, error) {
+	//return OpenShiftWhoAmI(token, c.openshiftConfig, openshiftUserToken)
+	return "", nil
+}
+
+func OpenShiftWhoAmI(token *jwt.Token, oc openshift.Config, openshiftUserToken string) (string, error) {
+	return openshift.WhoAmI(oc.WithToken(openshiftUserToken))
+}
+
 func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
 	return "", nil
 }

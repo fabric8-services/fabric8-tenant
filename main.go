@@ -141,7 +141,7 @@ func main() {
 
 	resolveCluster := cluster.NewResolve(clusters)
 	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
-		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
+		return resolveToken(ctx, target, userToken, token.PlainText)
 	}
 
 	// create user profile client to get the user's cluster

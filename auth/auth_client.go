@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	"github.com/fabric8-services/fabric8-wit/log"
 	goaclient "github.com/goadesign/goa/client"
 )
 
@@ -31,7 +30,6 @@ func NewClient(authURL string, options ...ClientOption) (*authclient.Client, err
 	client := authclient.New(newDoer(c))
 	client.Host = u.Host
 	client.Scheme = u.Scheme
-	log.Debug(nil, map[string]interface{}{"host": client.Host, "scheme": client.Scheme}, "initializing auth client")
 	return client, nil
 }
 
@@ -77,11 +75,11 @@ func (d *doer) Do(ctx context.Context, req *http.Request) (*http.Response, error
 	return d.target.Do(ctx, req)
 }
 
-// ValidateResponse function when given client and response checks if the
+// ValidateError function when given client and response checks if the
 // response has any errors by also looking at the status code
-func ValidateResponse(c *authclient.Client, res *http.Response) error {
+func ValidateError(c *authclient.Client, res *http.Response) error {
 	if res.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("resource not found")
+		return fmt.Errorf("404 Not found")
 	} else if res.StatusCode != http.StatusOK {
 		goaErr, err := c.DecodeJSONAPIErrors(res)
 		if err != nil {
