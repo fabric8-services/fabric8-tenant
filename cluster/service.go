@@ -69,7 +69,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 		res.Body.Close()
 	}()
 
-	validationerror := auth.ValidateError(client, res)
+	validationerror := auth.ValidateResponse(client, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.authURL)
 	}

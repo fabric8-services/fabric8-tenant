@@ -41,24 +41,24 @@ func (s *tokenService) ResolveTargetToken(ctx context.Context, target, token str
 
 	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, &forcePull)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error while doing the request")
+		return "", "", errors.Wrapf(err, "error while doing the request: %v", err.Error())
 	}
 	defer func() {
 		ioutil.ReadAll(res.Body)
 		res.Body.Close()
 	}()
 
-	validationerror := auth.ValidateError(client, res)
-	if validationerror != nil {
-		return "", "", errors.Wrapf(validationerror, "error from server %q", s.authURL)
+	err = auth.ValidateResponse(client, res)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "error from server %q: %v", s.authURL, err.Error())
 	}
 
 	externalToken, err := client.DecodeExternalToken(res)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error from server %q", s.authURL)
+		return "", "", errors.Wrapf(err, "error from server %q: %v", s.authURL, err.Error())
 	}
 	if externalToken.Username == nil {
-		return "", "", errors.Wrapf(err, "missing username", s.authURL)
+		return "", "", errors.Errorf("missing username", s.authURL)
 	}
 
 	t, err := decode(externalToken.AccessToken)

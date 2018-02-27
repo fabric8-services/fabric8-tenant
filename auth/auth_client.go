@@ -77,11 +77,11 @@ func (d *doer) Do(ctx context.Context, req *http.Request) (*http.Response, error
 	return d.target.Do(ctx, req)
 }
 
-// ValidateError function when given client and response checks if the
+// ValidateResponse function when given client and response checks if the
 // response has any errors by also looking at the status code
-func ValidateError(c *authclient.Client, res *http.Response) error {
+func ValidateResponse(c *authclient.Client, res *http.Response) error {
 	if res.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("404 Not found")
+		return fmt.Errorf("resource not found")
 	} else if res.StatusCode != http.StatusOK {
 		goaErr, err := c.DecodeJSONAPIErrors(res)
 		if err != nil {
