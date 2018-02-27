@@ -26,7 +26,7 @@ func TestResolveUserToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		// when
-		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, token.PlainText)
+		username, accessToken, err := resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, false, token.PlainText)
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "user_foo", username)
@@ -35,14 +35,14 @@ func TestResolveUserToken(t *testing.T) {
 
 	t.Run("invalid resource", func(t *testing.T) {
 		// when
-		_, _, err := resolveToken(context.Background(), "some_invalid_resource", tok.Raw, token.PlainText)
+		_, _, err := resolveToken(context.Background(), "some_invalid_resource", tok.Raw, false, token.PlainText)
 		// then
 		require.Error(t, err)
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
 		// when
-		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", token.PlainText)
+		_, _, err := resolveToken(context.Background(), "some_valid_openshift_resource", "", false, token.PlainText)
 		// then
 		require.Error(t, err)
 	})

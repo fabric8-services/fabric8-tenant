@@ -16,15 +16,16 @@ type tokenService struct {
 	clientOptions []auth.ClientOption
 }
 
-func (s *tokenService) ResolveUserToken(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error) {
+// ResolveTargetToken resolves the token for a human user or a service account user on the given target environment (can be GitHub, OpenShift Online, etc.)
+func (s *tokenService) ResolveTargetToken(ctx context.Context, target, token string, forcePull bool, decode Decode) (username, accessToken string, err error) {
 	// auth can return empty token so validate against that
 	if token == "" {
-		return "", "", fmt.Errorf("access token can't be empty")
+		return "", "", fmt.Errorf("token must not be empty")
 	}
 
 	// check if the cluster is empty
 	if target == "" {
-		return "", "", fmt.Errorf("auth service returned an empty cluster url")
+		return "", "", fmt.Errorf("target must not be empty")
 	}
 
 	client, err := auth.NewClient(s.authURL, s.clientOptions...)
@@ -38,7 +39,7 @@ func (s *tokenService) ResolveUserToken(ctx context.Context, target, token strin
 					Value: token,
 					Type:  "Bearer"}}})
 
-	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, nil)
+	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, &forcePull)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error while doing the request")
 	}
