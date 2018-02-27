@@ -45,7 +45,7 @@ func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.Us
 	}
 	defer res.Body.Close()
 
-	validationerror := auth.ValidateError(c, res)
+	validationerror := auth.ValidateResponse(c, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.authURL)
 	}

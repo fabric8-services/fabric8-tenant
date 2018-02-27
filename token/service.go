@@ -16,15 +16,16 @@ type tokenService struct {
 	clientOptions []auth.ClientOption
 }
 
-func (s *tokenService) ResolveUserToken(ctx context.Context, target, token string, decode Decode) (username, accessToken string, err error) {
+// ResolveTargetToken resolves the token for a human user or a service account user on the given target environment (can be GitHub, OpenShift Online, etc.)
+func (s *tokenService) ResolveTargetToken(ctx context.Context, target, token string, forcePull bool, decode Decode) (username, accessToken string, err error) {
 	// auth can return empty token so validate against that
 	if token == "" {
-		return "", "", fmt.Errorf("access token can't be empty")
+		return "", "", fmt.Errorf("token must not be empty")
 	}
 
 	// check if the cluster is empty
 	if target == "" {
-		return "", "", fmt.Errorf("auth service returned an empty cluster url")
+		return "", "", fmt.Errorf("target must not be empty")
 	}
 
 	client, err := auth.NewClient(s.authURL, s.clientOptions...)
@@ -38,26 +39,26 @@ func (s *tokenService) ResolveUserToken(ctx context.Context, target, token strin
 					Value: token,
 					Type:  "Bearer"}}})
 
-	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, nil)
+	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, &forcePull)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error while doing the request")
+		return "", "", errors.Wrapf(err, "error while resolving the token for %s", target)
 	}
 	defer func() {
 		ioutil.ReadAll(res.Body)
 		res.Body.Close()
 	}()
 
-	validationerror := auth.ValidateError(client, res)
-	if validationerror != nil {
-		return "", "", errors.Wrapf(validationerror, "error from server %q", s.authURL)
+	err = auth.ValidateResponse(client, res)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "error while resolving the token for %s", target)
 	}
 
 	externalToken, err := client.DecodeExternalToken(res)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error from server %q", s.authURL)
+		return "", "", errors.Wrapf(err, "error while decoding the token for %s", target)
 	}
 	if externalToken.Username == nil {
-		return "", "", errors.Wrapf(err, "missing username", s.authURL)
+		return "", "", errors.Errorf("missing username", s.authURL)
 	}
 
 	t, err := decode(externalToken.AccessToken)
