@@ -3,7 +3,7 @@ version: 1
 interactions:
 - request:
     method: GET
-    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=true
+    url: http://authservice/api/token?for=some_valid_openshift_resource
     headers:
       sub: ["user_foo"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -16,7 +16,7 @@ interactions:
 		}'
 - request:
     method: GET
-    url: http://authservice/api/token?for=some_invalid_resource&force_pull=true
+    url: http://authservice/api/token?for=some_invalid_resource
     headers:
       sub: ["user_foo"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -33,7 +33,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=true
+    url: http://authservice/api/token?for=some_valid_openshift_resource
   response:
     status: 401 Unauthorized
     code: 401

@@ -38,8 +38,7 @@ func (s *tokenService) ResolveUserToken(ctx context.Context, target, token strin
 					Value: token,
 					Type:  "Bearer"}}})
 
-	forcePull := true
-	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, &forcePull)
+	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, nil)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error while doing the request")
 	}
