@@ -167,18 +167,6 @@ func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
 	}
 }
 
-// CreateHTTPClient returns an HTTP client with the options settings,
-// or a default HTTP client if nothing was specified
-func (a *ApplyOptions) CreateHTTPClient() *http.Client {
-	transport := a.HTTPTransport
-	if transport != nil {
-		return &http.Client{
-			Transport: transport,
-		}
-	}
-	return http.DefaultClient
-}
-
 // Apply a given template structure to a target API
 func Apply(source string, opts ApplyOptions) error {
 

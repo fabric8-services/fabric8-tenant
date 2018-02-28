@@ -22,3 +22,10 @@ interactions:
       "identities":[],
       "groups":[]
     }'
+- request:
+    method: GET
+    url: https://openshift.test/apis/user.openshift.io/v1/users/~
+  response:
+    status: 403 Forbidden
+    code: 403
+    body: 'User "system:anonymous" cannot get users.user.openshift.io at the cluster scope: User "system:anonymous" cannot get users.user.openshift.io at the cluster scope'

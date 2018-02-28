@@ -15,8 +15,7 @@ func execute(ctx context.Context, client *http.Client, method, url, token string
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Accept", "application/yaml")
-	req.Header.Set("Content-Type", "application/yaml")
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	// debug only

@@ -58,6 +58,17 @@ func overrideTemplateVersions(user *authclient.UserDataAttributes, config Config
 
 type LogCallback func(message string)
 
+// CreateHTTPClient returns an HTTP client with the options settings,
+// or a default HTTP client if nothing was specified
+func (c *Config) CreateHTTPClient() *http.Client {
+	if c.HTTPTransport != nil {
+		return &http.Client{
+			Transport: c.HTTPTransport,
+		}
+	}
+	return http.DefaultClient
+}
+
 // WithToken returns a new config with an override of the token
 func (c Config) WithToken(token string) Config {
 	c.Token = token
