@@ -29,6 +29,7 @@ interactions:
           "api-url": "http://cluster/api",
           "console-url": "http://cluster/console",
           "metrics-url": "http://cluster/metrics",
+          "logging-url": "http://cluster/console", # not a typo; logging and console are on the same host
           "app-dns": "foo"
         }
       ]

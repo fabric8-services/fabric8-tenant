@@ -57,10 +57,7 @@ func (s *tokenService) ResolveTargetToken(ctx context.Context, target, token str
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error while decoding the token for %s", target)
 	}
-	if externalToken.Username == nil {
-		return "", "", errors.Errorf("missing username", s.authURL)
-	}
 
 	t, err := decode(externalToken.AccessToken)
-	return *externalToken.Username, t, err
+	return externalToken.Username, t, err
 }

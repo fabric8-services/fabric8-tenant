@@ -101,7 +101,8 @@ func TestResolveCluster(t *testing.T) {
 		assert.Equal(t, "foo", clusters[0].AppDNS)
 		assert.Equal(t, "http://cluster/console", clusters[0].ConsoleURL)
 		assert.Equal(t, "http://cluster/metrics", clusters[0].MetricsURL)
-		assert.Equal(t, "SuperSecret", clusters[0].Token) // see decode_test.go for decoded value of data in yaml file
+		assert.Equal(t, "http://cluster/console", clusters[0].LoggingURL) // not a typo; logging and console are on the same host
+		assert.Equal(t, "SuperSecret", clusters[0].Token)                 // see decode_test.go for decoded value of data in yaml file
 		assert.Equal(t, "tenant_service", clusters[0].User)
 
 	})

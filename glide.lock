@@ -1,5 +1,5 @@
-hash: 6bf68d8708a70dd4aa5d0d5d21c36027a07a134a509deb09e407008fbfb887c7
-updated: 2018-02-27T09:36:22.879689509-05:00
+hash: be35098347209cbb7524fc18ef395796dd8789b63062f764297e04d67b5432b1
+updated: 2018-02-28T11:11:24.246920024-05:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -17,6 +17,8 @@ imports:
   - spew
 - name: github.com/dgrijalva/jwt-go
   version: dbeaa9332f19a944acb5736b4456cfcc02140e29
+  subpackages:
+  - request
 - name: github.com/dimfeld/httppath
   version: c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc
 - name: github.com/dimfeld/httptreemux
@@ -31,7 +33,7 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-auth
-  version: 52cab6691f9864f42b9089729c290083d77b3d83
+  version: a801d184afb23ed62e5d1762778b0a5283407c42
   subpackages:
   - design
   - token
@@ -216,7 +218,7 @@ imports:
   subpackages:
   - go/ast/astutil
 - name: gopkg.in/square/go-jose.v2
-  version: f8f38de21b4dcd69d0413faf231983f5fd6634b1
+  version: 6ee92191fea850cdcab9a18867abf5f521cdbadb
   subpackages:
   - cipher
   - json

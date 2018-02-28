@@ -37,6 +37,7 @@ var resolveCluster = func(ctx context.Context, target string) (*cluster.Cluster,
 		APIURL:     "https://api.example.com",
 		ConsoleURL: "https://console.example.com/console",
 		MetricsURL: "https://metrics.example.com",
+		LoggingURL: "https://console.example.com/console", // not a typo; logging and console are on the same host
 		AppDNS:     "apps.example.com",
 		User:       "service-account",
 		Token:      "XX",

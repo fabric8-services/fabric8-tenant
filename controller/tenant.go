@@ -402,6 +402,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				ClusterAppDomain:  &c.AppDNS,
 				ClusterConsoleURL: &c.ConsoleURL,
 				ClusterMetricsURL: &c.MetricsURL,
+				ClusterLoggingURL: &c.LoggingURL,
 				Name:              &ns.Name,
 				Type:              &tenantType,
 				Version:           &ns.Version,

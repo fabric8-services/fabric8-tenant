@@ -27,7 +27,7 @@ import:
   - resource
   - jsonapi
 - package: github.com/fabric8-services/fabric8-auth
-  version: 52cab6691f9864f42b9089729c290083d77b3d83
+  version: a801d184afb23ed62e5d1762778b0a5283407c42
   subpackages:
   - design
   - token
