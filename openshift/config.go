@@ -8,11 +8,13 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 )
 
+// Config the configuration for the connection to Openshift and for the templates to apply
+// TODO: split the config in 2 parts to distinguish connection settings vs template settings ?
 type Config struct {
 	MasterURL      string
 	MasterUser     string
 	Token          string
-	HttpTransport  *http.Transport
+	HTTPTransport  http.RoundTripper
 	TemplateDir    string
 	MavenRepoURL   string
 	ConsoleURL     string

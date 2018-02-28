@@ -149,6 +149,7 @@ type ApplyOptions struct {
 	Callback  Callback
 }
 
+// WithNamespace returns a new ApplyOptions with the specified namespace
 func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 	return ApplyOptions{
 		Config:    a.Config,
@@ -157,6 +158,7 @@ func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 	}
 }
 
+// WithCallback returns a new ApplyOptions with the specified callback
 func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
 	return ApplyOptions{
 		Config:    a.Config,
@@ -165,8 +167,10 @@ func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
 	}
 }
 
-func (a *ApplyOptions) CreateHttpClient() *http.Client {
-	transport := a.HttpTransport
+// CreateHTTPClient returns an HTTP client with the options settings,
+// or a default HTTP client if nothing was specified
+func (a *ApplyOptions) CreateHTTPClient() *http.Client {
+	transport := a.HTTPTransport
 	if transport != nil {
 		return &http.Client{
 			Transport: transport,
@@ -257,7 +261,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		fmt.Println(string(rb))
 	}
 
-	client := opts.CreateHttpClient()
+	client := opts.CreateHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
