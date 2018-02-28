@@ -1,5 +1,5 @@
-hash: 74dd804dbd95ecc457828ec77c43a44f316111d53d35f3f3391d824c4be9b82d
-updated: 2018-02-19T18:04:25.746664673+01:00
+hash: 6bf68d8708a70dd4aa5d0d5d21c36027a07a134a509deb09e407008fbfb887c7
+updated: 2018-02-27T09:36:22.879689509-05:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -98,6 +98,8 @@ imports:
   - json/parser
   - json/scanner
   - json/token
+- name: github.com/howeyc/fsnotify
+  version: f0c08ee9c60704c1879025f2ae0ff3e000082c13
 - name: github.com/jinzhu/gorm
   version: c1b9cf186e4bcd8e5d566ef43f2ae2dfe22dc34e
 - name: github.com/jinzhu/inflection
@@ -124,6 +126,10 @@ imports:
   version: c37440a7cf42ac63b919c752ca73a85067e05992
 - name: github.com/pelletier/go-toml
   version: 13d49d4606eb801b8f01ae542b4afc4c6ee3d84a
+- name: github.com/pilu/config
+  version: 3eb99e6c0b9a2dae0f56f05552c06ca5a643919b
+- name: github.com/pilu/fresh
+  version: 315385b584ff3845a255844aeb2b7d14a26648b0
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/pmezard/go-difflib
