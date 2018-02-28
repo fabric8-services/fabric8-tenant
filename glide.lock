@@ -1,5 +1,5 @@
-hash: 74dd804dbd95ecc457828ec77c43a44f316111d53d35f3f3391d824c4be9b82d
-updated: 2018-02-19T18:04:25.746664673+01:00
+hash: be35098347209cbb7524fc18ef395796dd8789b63062f764297e04d67b5432b1
+updated: 2018-02-28T11:11:24.246920024-05:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -17,6 +17,8 @@ imports:
   - spew
 - name: github.com/dgrijalva/jwt-go
   version: dbeaa9332f19a944acb5736b4456cfcc02140e29
+  subpackages:
+  - request
 - name: github.com/dimfeld/httppath
   version: c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc
 - name: github.com/dimfeld/httptreemux
@@ -31,7 +33,7 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-auth
-  version: 52cab6691f9864f42b9089729c290083d77b3d83
+  version: a801d184afb23ed62e5d1762778b0a5283407c42
   subpackages:
   - design
   - token
@@ -98,6 +100,8 @@ imports:
   - json/parser
   - json/scanner
   - json/token
+- name: github.com/howeyc/fsnotify
+  version: f0c08ee9c60704c1879025f2ae0ff3e000082c13
 - name: github.com/jinzhu/gorm
   version: c1b9cf186e4bcd8e5d566ef43f2ae2dfe22dc34e
 - name: github.com/jinzhu/inflection
@@ -124,6 +128,10 @@ imports:
   version: c37440a7cf42ac63b919c752ca73a85067e05992
 - name: github.com/pelletier/go-toml
   version: 13d49d4606eb801b8f01ae542b4afc4c6ee3d84a
+- name: github.com/pilu/config
+  version: 3eb99e6c0b9a2dae0f56f05552c06ca5a643919b
+- name: github.com/pilu/fresh
+  version: 315385b584ff3845a255844aeb2b7d14a26648b0
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/pmezard/go-difflib
@@ -210,7 +218,7 @@ imports:
   subpackages:
   - go/ast/astutil
 - name: gopkg.in/square/go-jose.v2
-  version: f8f38de21b4dcd69d0413faf231983f5fd6634b1
+  version: 6ee92191fea850cdcab9a18867abf5f521cdbadb
   subpackages:
   - cipher
   - json

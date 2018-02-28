@@ -27,7 +27,7 @@ import:
   - resource
   - jsonapi
 - package: github.com/fabric8-services/fabric8-auth
-  version: 52cab6691f9864f42b9089729c290083d77b3d83
+  version: a801d184afb23ed62e5d1762778b0a5283407c42
   subpackages:
   - design
   - token
@@ -47,7 +47,9 @@ import:
 - package: github.com/fzipp/gocyclo
 - package: github.com/sirupsen/logrus
 - package: github.com/lib/pq
-- package: golang.org/x/crypto/openpgp
+- package: golang.org/x/crypto
+  subpackages:
+  - openpgp
 - package: github.com/stretchr/testify
   subpackages:
   - assert
@@ -67,6 +69,9 @@ import:
 - package: github.com/bitly/go-simplejson
   version: ^0.5.0
 - package: github.com/google/go-querystring
+- package: github.com/pilu/config
+- package: github.com/howeyc/fsnotify
+- package: github.com/pilu/fresh
 testImport:
 - package: github.com/wadey/gocovmerge
 - package: github.com/jstemmer/go-junit-report

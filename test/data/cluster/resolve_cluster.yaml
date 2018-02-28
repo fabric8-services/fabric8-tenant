@@ -29,6 +29,7 @@ interactions:
           "api-url": "http://cluster/api",
           "console-url": "http://cluster/console",
           "metrics-url": "http://cluster/metrics",
+          "logging-url": "http://cluster/console",
           "app-dns": "foo"
         }
       ]

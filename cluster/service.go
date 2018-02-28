@@ -17,6 +17,7 @@ type Cluster struct {
 	APIURL     string
 	ConsoleURL string
 	MetricsURL string
+	LoggingURL string
 	AppDNS     string
 
 	User  string
@@ -90,6 +91,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 			AppDNS:     cluster.AppDNS,
 			ConsoleURL: cluster.ConsoleURL,
 			MetricsURL: cluster.MetricsURL,
+			LoggingURL: cluster.LoggingURL,
 			User:       clusterUser,
 			Token:      clusterToken,
 		})
