@@ -1,0 +1,31 @@
+---
+version: 1
+interactions:
+- request:
+    method: GET
+    url: https://openshift.test/apis/user.openshift.io/v1/users/~
+    headers:
+      sub: ["user_foo"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind":"User",
+      "apiVersion":"user.openshift.io/v1",
+      "metadata":{
+        "name":"user_foo",
+        "selfLink":"/apis/user.openshift.io/v1/users/user_foo",
+        "uid":"bcdd0b29-123d-11e8-a8bc-b69930b94f5c",
+        "resourceVersion":"814",
+        "creationTimestamp":"2018-02-15T10:48:20Z"
+      },
+      "identities":[],
+      "groups":[]
+    }'
+- request:
+    method: GET
+    url: https://openshift.test/apis/user.openshift.io/v1/users/~
+  response:
+    status: 403 Forbidden
+    code: 403
+    body: 'User "system:anonymous" cannot get users.user.openshift.io at the cluster scope: User "system:anonymous" cannot get users.user.openshift.io at the cluster scope'

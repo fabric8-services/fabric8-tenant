@@ -5,14 +5,15 @@ import (
 	"net/http"
 
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	"github.com/fabric8-services/fabric8-tenant/cluster"
 )
 
+// Config the configuration for the connection to Openshift and for the templates to apply
+// TODO: split the config in 2 parts to distinguish connection settings vs template settings ?
 type Config struct {
 	MasterURL      string
 	MasterUser     string
 	Token          string
-	HttpTransport  *http.Transport
+	HTTPTransport  http.RoundTripper
 	TemplateDir    string
 	MavenRepoURL   string
 	ConsoleURL     string
@@ -23,8 +24,8 @@ type Config struct {
 }
 
 // NewConfig builds openshift config for every user request depending on the user profile
-func NewConfig(osTemplate Config, user *authclient.UserDataAttributes, cluster *cluster.Cluster) Config {
-	return overrideTemplateVersions(user, osTemplate.WithMasterUser(cluster.User).WithToken(cluster.Token).WithMasterURL(cluster.APIURL))
+func NewConfig(baseConfig Config, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL string) Config {
+	return overrideTemplateVersions(user, baseConfig.WithMasterUser(clusterUser).WithToken(clusterToken).WithMasterURL(clusterURL))
 }
 
 // overrideTemplateVersions returns a new config in which the template versions have been overridden
@@ -55,6 +56,17 @@ func overrideTemplateVersions(user *authclient.UserDataAttributes, config Config
 }
 
 type LogCallback func(message string)
+
+// CreateHTTPClient returns an HTTP client with the options settings,
+// or a default HTTP client if nothing was specified
+func (c *Config) CreateHTTPClient() *http.Client {
+	if c.HTTPTransport != nil {
+		return &http.Client{
+			Transport: c.HTTPTransport,
+		}
+	}
+	return http.DefaultClient
+}
 
 // WithToken returns a new config with an override of the token
 func (c Config) WithToken(token string) Config {

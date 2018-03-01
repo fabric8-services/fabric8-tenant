@@ -24,12 +24,12 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService            tenant.Service
-	resolveTenant            tenant.Resolve
-	userService              user.Service
-	resolveCluster           cluster.Resolve
-	defaultOpenshiftTemplate openshift.Config
-	templateVars             map[string]string
+	tenantService          tenant.Service
+	resolveTenant          tenant.Resolve
+	userService            user.Service
+	resolveCluster         cluster.Resolve
+	defaultOpenshiftConfig openshift.Config
+	templateVars           map[string]string
 }
 
 // NewTenantController creates a status controller.
@@ -39,17 +39,17 @@ func NewTenantController(
 	userService user.Service,
 	resolveTenant tenant.Resolve,
 	resolveCluster cluster.Resolve,
-	defaultOpenshiftTemplate openshift.Config,
+	defaultOpenshiftConfig openshift.Config,
 	templateVars map[string]string) *TenantController {
 
 	return &TenantController{
-		Controller:               service.NewController("TenantController"),
-		tenantService:            tenantService,
-		userService:              userService,
-		resolveTenant:            resolveTenant,
-		resolveCluster:           resolveCluster,
-		defaultOpenshiftTemplate: defaultOpenshiftTemplate,
-		templateVars:             templateVars,
+		Controller:             service.NewController("TenantController"),
+		tenantService:          tenantService,
+		userService:            userService,
+		resolveTenant:          resolveTenant,
+		resolveCluster:         resolveCluster,
+		defaultOpenshiftConfig: defaultOpenshiftConfig,
+		templateVars:           templateVars,
 	}
 }
 
@@ -97,7 +97,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftTemplate, user, cluster)
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 	err = c.tenantService.SaveTenant(tenant)
 	if err != nil {
@@ -173,7 +173,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftTemplate, user, cluster)
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
 	go func() {
 		ctx := ctx
@@ -231,7 +231,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftTemplate, user, cluster)
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
 	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars)
 	if err != nil {

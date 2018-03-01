@@ -3,11 +3,10 @@ package token_test
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/token"
@@ -27,10 +26,7 @@ func TestPublicKeys(t *testing.T) {
 		// when
 		result, err := token.GetPublicKeys(context.Background(),
 			"http://authservice",
-			auth.WithHTTPClient(
-				&http.Client{
-					Transport: r.Transport,
-				}))
+			configuration.WithRoundTripper(r.Transport))
 		// then
 		require.NoError(t, err)
 		assert.Len(t, result, 3)

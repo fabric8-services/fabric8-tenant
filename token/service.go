@@ -7,13 +7,13 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	goaclient "github.com/goadesign/goa/client"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
 )
 
 type tokenService struct {
 	authURL       string
-	clientOptions []auth.ClientOption
+	clientOptions []configuration.HTTPClientOption
 }
 
 // ResolveTargetToken resolves the token for a human user or a service account user on the given target environment (can be GitHub, OpenShift Online, etc.)
@@ -28,17 +28,10 @@ func (s *tokenService) ResolveTargetToken(ctx context.Context, target, token str
 		return "", "", fmt.Errorf("target must not be empty")
 	}
 
-	client, err := auth.NewClient(s.authURL, s.clientOptions...)
+	client, err := auth.NewClient(s.authURL, token, s.clientOptions...)
 	if err != nil {
 		return "", "", err
 	}
-	client.SetJWTSigner(
-		&goaclient.JWTSigner{
-			TokenSource: &goaclient.StaticTokenSource{
-				StaticToken: &goaclient.StaticToken{
-					Value: token,
-					Type:  "Bearer"}}})
-
 	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, &forcePull)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error while resolving the token for %s", target)

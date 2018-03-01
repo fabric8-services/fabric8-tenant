@@ -26,7 +26,7 @@ type userService struct {
 }
 
 func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.UserDataAttributes, error) {
-	c, err := auth.NewClient(s.authURL, auth.WithToken(s.serviceToken))
+	c, err := auth.NewClient(s.authURL, s.serviceToken)
 	if err != nil {
 		return nil, err
 	}

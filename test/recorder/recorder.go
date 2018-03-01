@@ -68,7 +68,7 @@ func JWTMatcher() cassette.Matcher {
 			return testsupport.PublicKey("../test/public_key.pem")
 		})
 		if err != nil {
-			log.Error(nil, map[string]interface{}{"error": err.Error()}, "failed to parse token from request")
+			log.Error(nil, map[string]interface{}{"error": err.Error(), "request_method": cassetteRequest.Method, "request_url": cassetteRequest.URL, "authorization_header": httpRequest.Header["Authorization"]}, "failed to parse token from request")
 			return false
 		}
 		claims := token.Claims.(jwt.MapClaims)

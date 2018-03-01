@@ -156,7 +156,7 @@ func main() {
 
 	osTemplate := openshift.Config{
 		ConsoleURL:     config.GetConsoleURL(),
-		HttpTransport:  tr,
+		HTTPTransport:  tr,
 		CheVersion:     config.GetOpenshiftCheVersion(),
 		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
 		TeamVersion:    config.GetOpenshiftTeamVersion(),

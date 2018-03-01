@@ -7,6 +7,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
 )
 
@@ -24,17 +25,17 @@ type ServiceAccountTokenServiceConfig interface {
 }
 
 // NewServiceAccountTokenService initializes a new ServiceAccountTokenService
-func NewServiceAccountTokenService(config ServiceAccountTokenServiceConfig, options ...auth.ClientOption) ServiceAccountTokenService {
+func NewServiceAccountTokenService(config ServiceAccountTokenServiceConfig, options ...configuration.HTTPClientOption) ServiceAccountTokenService {
 	return &serviceAccountTokenService{config: config}
 }
 
 type serviceAccountTokenService struct {
 	config        ServiceAccountTokenServiceConfig
-	clientOptions []auth.ClientOption
+	clientOptions []configuration.HTTPClientOption
 }
 
 func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string, error) {
-	c, err := auth.NewClient(s.config.GetAuthURL(), s.clientOptions...)
+	c, err := auth.NewClient(s.config.GetAuthURL(), "", s.clientOptions...) // no need to specify a token in this request
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while initializing the auth client")
 	}

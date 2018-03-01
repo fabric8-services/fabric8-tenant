@@ -149,6 +149,7 @@ type ApplyOptions struct {
 	Callback  Callback
 }
 
+// WithNamespace returns a new ApplyOptions with the specified namespace
 func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 	return ApplyOptions{
 		Config:    a.Config,
@@ -157,22 +158,13 @@ func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 	}
 }
 
+// WithCallback returns a new ApplyOptions with the specified callback
 func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
 	return ApplyOptions{
 		Config:    a.Config,
 		Callback:  callback,
 		Namespace: a.Namespace,
 	}
-}
-
-func (a *ApplyOptions) CreateHttpClient() *http.Client {
-	transport := a.HttpTransport
-	if transport != nil {
-		return &http.Client{
-			Transport: transport,
-		}
-	}
-	return http.DefaultClient
 }
 
 // Apply a given template structure to a target API
@@ -257,7 +249,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		fmt.Println(string(rb))
 	}
 
-	client := opts.CreateHttpClient()
+	client := opts.CreateHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
