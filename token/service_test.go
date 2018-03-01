@@ -2,13 +2,12 @@ package token_test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/token"
@@ -19,7 +18,7 @@ func TestResolveUserToken(t *testing.T) {
 	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
+	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
 	tok, err := testsupport.NewToken("user_foo", "../test/private_key.pem")
 	require.NoError(t, err)
 
@@ -52,7 +51,7 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
+	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
 	tok, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
 	require.NoError(t, err)
 

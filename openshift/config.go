@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	"github.com/fabric8-services/fabric8-tenant/cluster"
 )
 
 // Config the configuration for the connection to Openshift and for the templates to apply
@@ -25,8 +24,8 @@ type Config struct {
 }
 
 // NewConfig builds openshift config for every user request depending on the user profile
-func NewConfig(osTemplate Config, user *authclient.UserDataAttributes, cluster *cluster.Cluster) Config {
-	return overrideTemplateVersions(user, osTemplate.WithMasterUser(cluster.User).WithToken(cluster.Token).WithMasterURL(cluster.APIURL))
+func NewConfig(baseConfig Config, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL string) Config {
+	return overrideTemplateVersions(user, baseConfig.WithMasterUser(clusterUser).WithToken(clusterToken).WithMasterURL(clusterURL))
 }
 
 // overrideTemplateVersions returns a new config in which the template versions have been overridden

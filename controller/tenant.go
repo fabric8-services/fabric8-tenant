@@ -97,7 +97,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster)
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
 	err = c.tenantService.SaveTenant(tenant)
 	if err != nil {
@@ -173,7 +173,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster)
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
 	go func() {
 		ctx := ctx
@@ -231,7 +231,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster)
+	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
 	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars)
 	if err != nil {

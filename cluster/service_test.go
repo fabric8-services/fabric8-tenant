@@ -2,11 +2,10 @@ package cluster_test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/token"
@@ -79,7 +78,7 @@ func TestResolveCluster(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Stop()
 	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, auth.WithHTTPClient(&http.Client{Transport: r.Transport}))
+	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r.Transport))
 	saToken, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
 	require.NoError(t, err)
 
@@ -90,19 +89,19 @@ func TestResolveCluster(t *testing.T) {
 			saToken.Raw,
 			resolveToken,
 			token.NewGPGDecypter("foo"),
-			auth.WithHTTPClient(&http.Client{Transport: r.Transport}),
+			configuration.WithRoundTripper(r.Transport),
 		)
 		// when
 		clusters, err := clusterService.GetClusters(context.Background())
 		// then
 		require.NoError(t, err)
 		require.Len(t, clusters, 1)
-		assert.Equal(t, "http://cluster/api", clusters[0].APIURL)
+		assert.Equal(t, "http://api.cluster1/", clusters[0].APIURL)
 		assert.Equal(t, "foo", clusters[0].AppDNS)
-		assert.Equal(t, "http://cluster/console", clusters[0].ConsoleURL)
-		assert.Equal(t, "http://cluster/metrics", clusters[0].MetricsURL)
-		assert.Equal(t, "http://cluster/console", clusters[0].LoggingURL) // not a typo; logging and console are on the same host
-		assert.Equal(t, "SuperSecret", clusters[0].Token)                 // see decode_test.go for decoded value of data in yaml file
+		assert.Equal(t, "http://console.cluster1/console/", clusters[0].ConsoleURL)
+		assert.Equal(t, "http://metrics.cluster1/", clusters[0].MetricsURL)
+		assert.Equal(t, "http://logging.cluster1/", clusters[0].LoggingURL)
+		assert.Equal(t, saToken.Raw, clusters[0].Token) // see decode_test.go for decoded value of data in yaml file
 		assert.Equal(t, "tenant_service", clusters[0].User)
 
 	})

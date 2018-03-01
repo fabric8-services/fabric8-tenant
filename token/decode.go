@@ -27,7 +27,14 @@ func NewGPGDecypter(passphrase string) Decode {
 
 // GPGDecyptToken decrypts a Base64 encoded GPG un armored encrypted string
 // using provided passphrase.
+// on Linux:
 // echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64 -w0
+// on macOS:
+// echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64
+// and keep the result then use a Docker container to run:
+// echo -n $TOKEN | base64 -d | base64 -w0
+// in any case, don't forget the `-n` arg in the `echo` command!
+
 func gpgDecyptToken(base64Body, passphrase string) (string, error) {
 	decodedEnc, err := base64.StdEncoding.DecodeString(base64Body)
 	if err != nil {

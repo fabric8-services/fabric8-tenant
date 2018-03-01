@@ -8,6 +8,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	errs "github.com/pkg/errors"
@@ -15,10 +16,10 @@ import (
 )
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service
-func GetPublicKeys(ctx context.Context, authURL string, options ...auth.ClientOption) ([]*rsa.PublicKey, error) {
-	client, err := auth.NewClient(authURL, options...)
+func GetPublicKeys(ctx context.Context, authURL string, options ...configuration.HTTPClientOption) ([]*rsa.PublicKey, error) {
+	client, err := auth.NewClient(authURL, "", options...) // no need for a token when calling this endpoint
 	if err != nil {
-		return nil, errs.Wrapf(err, "unable to retrieve public keys")
+		return nil, errs.Wrapf(err, "unable to retrieve public keys from %s", authURL)
 	}
 	res, err := client.KeysToken(ctx, authclient.KeysTokenPath(), nil)
 	if err != nil {
