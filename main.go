@@ -147,11 +147,10 @@ func main() {
 	// create user profile client to get the user's cluster
 	userService := user.NewService(config.GetAuthURL(), *saToken)
 
-	var tr *http.Transport
-	if config.APIServerInsecureSkipTLSVerify() {
-		tr = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: config.APIServerInsecureSkipTLSVerify(),
+		},
 	}
 
 	osTemplate := openshift.Config{
