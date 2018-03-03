@@ -277,6 +277,8 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			"namespace": openshift.GetNamespace(request),
 			"name":      openshift.GetName(request),
 			"kind":      openshift.GetKind(request),
+			"request":   yamlString(request),
+			"response":  yamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
 			if openshift.GetKind(request) == openshift.ValKindNamespace {
