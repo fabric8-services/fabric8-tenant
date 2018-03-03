@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -267,6 +268,8 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 
 // InitTenant is a Callback that assumes a new tenant is being created
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
+	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
+	var currentResourceQuotaStatusCheck int32 = 0
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":    statusCode,
@@ -315,11 +318,25 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Type:      tenant.GetNamespaceType(name),
 					MasterURL: masterURL,
 				})
+			} else if openshift.GetKind(request) == openshift.ValKindResourceQuota {
+				// trigger a check status loop
+				time.Sleep(time.Millisecond * 50)
+				return "GET", response
 			}
 			return "", nil
 		} else if statusCode == http.StatusOK {
 			if method == "DELETE" {
 				return "POST", request
+			} else if method == "GET" {
+				if openshift.GetKind(request) == openshift.ValKindResourceQuota {
+
+					if openshift.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
+						return "", nil
+					}
+					atomic.AddInt32(&currentResourceQuotaStatusCheck, 1)
+					time.Sleep(time.Millisecond * 50)
+					return "GET", response
+				}
 			}
 			return "", nil
 		}
