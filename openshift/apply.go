@@ -26,6 +26,7 @@ const (
 	FieldVersion                  = "version"
 	FieldNamespace                = "namespace"
 	FieldName                     = "name"
+	FieldStatus                   = "status"
 	FieldResourceVersion          = "resourceVersion"
 	ValKindTemplate               = "Template"
 	ValKindNamespace              = "Namespace"
@@ -36,6 +37,7 @@ const (
 	ValKindRoleBinding            = "RoleBinding"
 	ValKindList                   = "List"
 	ValKindDeploymentConfig       = "DeploymentConfig"
+	ValKindResourceQuota          = "ResourceQuota"
 )
 
 var (
@@ -289,6 +291,17 @@ func updateResourceVersion(source, target map[interface{}]interface{}) {
 			}
 		}
 	}
+}
+
+func HasValidStatus(obj map[interface{}]interface{}) bool {
+	return len(GetStatus(obj)) > 0
+}
+
+func GetStatus(obj map[interface{}]interface{}) map[interface{}]interface{} {
+	if status, statusFound := obj[FieldStatus].(map[interface{}]interface{}); statusFound {
+		return status
+	}
+	return nil
 }
 
 func GetName(obj map[interface{}]interface{}) string {
