@@ -308,7 +308,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 
 				// HACK to workaround osio applying some dsaas-user permissions async
 				// Should loop on a Check if allowed type of call instead
-				time.Sleep(time.Second * 2)
+				time.Sleep(time.Second * 5)
 
 			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
 				name := openshift.GetName(request)
