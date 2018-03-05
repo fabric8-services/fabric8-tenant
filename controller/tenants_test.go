@@ -184,3 +184,7 @@ func (s mockTenantService) LookupTenantByClusterAndNamespace(masterURL, namespac
 	return nil, errors.NewNotFoundError("tenant", "")
 
 }
+
+func (s mockTenantService) DeleteAll(tenantID uuid.UUID) error {
+	return nil
+}
