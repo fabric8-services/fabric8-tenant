@@ -16,6 +16,7 @@ type Service interface {
 	GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error)
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
+	DeleteAll(tenantID uuid.UUID) error
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -81,6 +82,26 @@ func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	return t, nil
 }
 
+func (s DBService) DeleteAll(tenantID uuid.UUID) error {
+	err := s.deleteNamespaces(tenantID)
+	err = s.deleteTenant(tenantID)
+	return err
+}
+
+func (s DBService) deleteNamespaces(tenantID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return nil
+	}
+	return s.db.Unscoped().Delete(&Namespace{}, "tenant_id = ?", tenantID).Error
+}
+
+func (s DBService) deleteTenant(tenantID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return nil
+	}
+	return s.db.Unscoped().Delete(&Tenant{ID: tenantID}).Error
+}
+
 type NilService struct {
 }
 
@@ -106,4 +127,8 @@ func (s NilService) SaveNamespace(namespace *Namespace) error {
 
 func (s NilService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
 	return nil, nil
+}
+
+func (s NilService) DeleteAll(tenantID uuid.UUID) error {
+	return nil
 }

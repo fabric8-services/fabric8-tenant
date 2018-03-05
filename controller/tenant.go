@@ -235,12 +235,17 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars)
+	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars, ctx.Remove)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	// TODO (xcoulon): respond with `204 No Content` instead ?
-	return ctx.OK([]byte{})
+	if ctx.Remove {
+		err = c.tenantService.DeleteAll(ttoken.Subject())
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+	}
+	return ctx.NoContent()
 }
 
 // Show runs the setup action.

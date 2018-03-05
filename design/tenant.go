@@ -137,9 +137,14 @@ var _ = a.Resource("tenant", func() {
 		a.Routing(
 			a.DELETE(""),
 		)
+		a.Params(func() {
+			a.Param("remove", d.Boolean, "Remove tenant from cluster and Tenant DB. Tenant requires a new reprovision after completion to work.", func() {
+				a.Default(false)
+			})
+		})
 
 		a.Description("Clear tenant environment.")
-		a.Response(d.OK)
+		a.Response(d.NoContent)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)

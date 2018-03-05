@@ -8,8 +8,8 @@ import (
 	"github.com/fabric8-services/fabric8-wit/log"
 )
 
-// CleanTenant
-func CleanTenant(ctx context.Context, config Config, username string, templateVars map[string]string) error {
+// CleanTenant clean or remove
+func CleanTenant(ctx context.Context, config Config, username string, templateVars map[string]string, remove bool) error {
 	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
 	if err != nil {
 		return err
@@ -23,9 +23,13 @@ func CleanTenant(ctx context.Context, config Config, username string, templateVa
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
 	for key, val := range mapped {
-		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
+		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions, remove bool) {
 			defer wg.Done()
-			output, err := executeCleanNamespaceCMD(
+			var clean cleanFunc = executeCleanNamespaceCMD
+			if remove {
+				clean = executeDeleteNamespaceCMD
+			}
+			output, err := clean(
 				namespace,
 				opts.WithNamespace(namespace),
 			)
@@ -41,12 +45,18 @@ func CleanTenant(ctx context.Context, config Config, username string, templateVa
 				"output":    output,
 				"namespace": namespace,
 			}, "clean ok")
-		}(key, val, masterOpts)
+		}(key, val, masterOpts, remove)
 	}
 	wg.Wait()
 	return nil
 }
 
+type cleanFunc func(namespace string, opt ApplyOptions) (string, error)
+
 func executeCleanNamespaceCMD(namespace string, opt ApplyOptions) (string, error) {
 	return executeCMD(nil, []string{"-c", fmt.Sprintf("oc delete all,pvc,cm --all --now=true --namespace=%v --server=%v --token=%v", namespace, opt.MasterURL, opt.Token)})
+}
+
+func executeDeleteNamespaceCMD(namespace string, opt ApplyOptions) (string, error) {
+	return executeCMD(nil, []string{"-c", fmt.Sprintf("oc delete project %v --server=%v --token=%v", namespace, opt.MasterURL, opt.Token)})
 }
