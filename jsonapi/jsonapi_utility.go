@@ -3,6 +3,7 @@ package jsonapi
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -17,13 +18,14 @@ const (
 	ErrorCodeNotFound          = "not_found"
 	ErrorCodeBadParameter      = "bad_parameter"
 	ErrorCodeVersionConflict   = "version_conflict"
+	ErrorCodeDataConflict      = "data_conflict_error"
+	ErrorCodeProjectConflict   = "project_conflict"
 	ErrorCodeUnknownError      = "unknown_error"
 	ErrorCodeConversionError   = "conversion_error"
 	ErrorCodeInternalError     = "internal_error"
 	ErrorCodeUnauthorizedError = "unauthorized_error"
 	ErrorCodeForbiddenError    = "forbidden_error"
 	ErrorCodeJWTSecurityError  = "jwt_security_error"
-	ErrorCodeDataConflict      = "data_conflict_error"
 )
 
 // ErrorToJSONAPIError returns the JSONAPI representation
@@ -95,6 +97,12 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		Title:  &title,
 		Detail: detail,
 	}
+	log.Debug(ctx, map[string]interface{}{
+		"code":   code,
+		"status": statusCodeStr,
+		"title":  title,
+		"detail": detail,
+	}, "converted error to JSON Error")
 	return jerr, statusCode
 }
 
@@ -145,6 +153,7 @@ func JSONErrorResponse(obj interface{}, err error) error {
 	c := obj.(context.Context)
 
 	jsonErr, status := ErrorToJSONAPIErrors(c, err)
+	log.Debug(c, map[string]interface{}{"status": status, "jsonErr type": reflect.TypeOf(jsonErr)}, "processing JSON error")
 	switch status {
 	case http.StatusBadRequest:
 		if ctx, ok := x.(BadRequest); ok {
@@ -166,6 +175,7 @@ func JSONErrorResponse(obj interface{}, err error) error {
 		if ctx, ok := x.(Conflict); ok {
 			return errs.WithStack(ctx.Conflict(jsonErr))
 		}
+		log.Debug(c, nil, "CANNOT convert context to Conflict")
 	default:
 		return errs.WithStack(x.InternalServerError(jsonErr))
 	}

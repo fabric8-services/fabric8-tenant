@@ -10,9 +10,9 @@ interactions:
     status: 200 OK
     code: 200
     body: '{ 
-			"access_token": "an_openshift_token",
 			"token_type": "bearer",
-			"username": "user_foo"
+			"username": "user_foo",
+			"access_token": "an_openshift_token"
 		}'
 - request:
     method: GET
@@ -56,7 +56,7 @@ interactions:
     status: 200 OK
     code: 200
     body: '{ 
-			"access_token": "an_openshift_token",
+			"access_token": "jA0ECQMCV1nKvgRtKl1g0sDSAfxyo94B+Mi1erfAyYHddxrqYXHQ7LS+ZhObCbTbYdIxDc5EnGxm68yUbuSf/PARs8ZhHV/8lSPHhLjA1aWjp9SiFtaC+hrx+UEcc55PQ3scUCuDqIaUdJeAt9Nib5D0dZL/Pd4j5kAVQ6Yhu39C4xZlCpGI72UWO6/+BeLLMg5NKmVp+9ouCcVwUgvt5cZLkljC8kSPjX9T6sdb1zU8UFE/zJkr3DNsIPvoxXkbffBjMQ8KlKNbjDF2a/EawKiQU5j47j7issGBwodW1SCyp9Ull2DZ2YkHO1w3BDU/AUQncyRBr+d+SyIh5vId87oP4s2dJCluN8ZaP3uRCCuNUf1nKL1WiYCdxCEezAKOwEYIxFVkIGr4rOvNppkyxdxpW7h+OOOsXUCE5u2RqfmP0KcifT1IlBE2xypmoIHgQ5bBtiVvpH8FPf0uZBX7G7VsS44bedWxNVUp3/vLX4dhzHBQmAQkimNxlT6lhKTZc4j8FY5Nbea0C8wH9o+9qQgpJWoYFfqItF6F+U0KEk1v90Ho",
 			"token_type": "bearer",
 			"username": "tenant_service"
 		}'

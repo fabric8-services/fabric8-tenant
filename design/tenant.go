@@ -98,7 +98,7 @@ var _ = a.Resource("tenant", func() {
 
 		a.Description("Initialize new tenant environment.")
 		a.Response(d.Accepted)
-		a.Response(d.Conflict)
+		a.Response(d.Conflict, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)

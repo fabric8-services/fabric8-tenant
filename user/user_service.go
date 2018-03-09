@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -16,17 +17,22 @@ type Service interface {
 }
 
 // NewService creates a new User service
-func NewService(authURL string, serviceToken string) Service {
-	return &userService{authURL: authURL, serviceToken: serviceToken}
+func NewService(authURL string, serviceToken string, options ...configuration.HTTPClientOption) Service {
+	return &userService{
+		authURL:       authURL,
+		serviceToken:  serviceToken,
+		clientOptions: options,
+	}
 }
 
 type userService struct {
-	authURL      string
-	serviceToken string
+	authURL       string
+	serviceToken  string
+	clientOptions []configuration.HTTPClientOption
 }
 
 func (s *userService) GetUser(ctx context.Context, id uuid.UUID) (*authclient.UserDataAttributes, error) {
-	c, err := auth.NewClient(s.authURL, s.serviceToken)
+	c, err := auth.NewClient(s.authURL, s.serviceToken, s.clientOptions...)
 	if err != nil {
 		return nil, err
 	}
