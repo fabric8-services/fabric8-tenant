@@ -213,6 +213,12 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	// restrict deprovision from cluster to internal users only
+	removeFromCluster := false
+	if user.FeatureLevel != nil && *user.FeatureLevel == "internal" {
+		removeFromCluster = ctx.Remove
+	}
+
 	// fetch the users cluster token
 	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
 	if err != nil {
@@ -235,11 +241,11 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars, ctx.Remove)
+	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	if ctx.Remove {
+	if removeFromCluster {
 		err = c.tenantService.DeleteAll(ttoken.Subject())
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
