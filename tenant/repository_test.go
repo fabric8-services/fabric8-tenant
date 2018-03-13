@@ -25,6 +25,25 @@ func TestTenantService(t *testing.T) {
 
 func (s *TenantServiceTestSuite) TestCreateTenant() {
 
+	s.T().Run("ko - duplicate", func(t *testing.T) {
+		// given
+		svc := tenant.NewDBService(s.DB)
+		tenant := &tenant.Tenant{
+			ID:      uuid.NewV4(),
+			Email:   "joe@foo.com",
+			Profile: "free",
+		}
+		// when
+		err := svc.CreateTenant(tenant)
+		assert.NoError(t, err)
+		err = svc.CreateTenant(tenant)
+		// then
+		assert.Error(t, err)
+	})
+}
+
+func (s *TenantServiceTestSuite) TestSaveTenant() {
+
 	s.T().Run("ok", func(t *testing.T) {
 		// given
 		svc := tenant.NewDBService(s.DB)
