@@ -116,27 +116,6 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	// check if the user already has a project on the cluster
-	userProjects, err := openshift.ListProjects(ctx, clustr.APIURL, openshiftUserToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *usr.Cluster,
-		}, "unable to fetch user's projects on the cluster")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-	log.Debug(ctx, map[string]interface{}{"cluster_api_url": clustr.APIURL, "user_id": tenantToken.Subject().String()}, "resolved cluster for user")
-	if len(userProjects) > 0 {
-		log.Warn(ctx, map[string]interface{}{
-			"cluster_url":            *usr.Cluster,
-			"openshift_user_project": userProjects[0],
-			"openshift_user_name":    openshiftUsername,
-		}, "user already has one or more projects on the cluster which will be cleaned before proceeding with the tenant init...")
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-	}
-
 	// perform the tenant init
 	err = openshift.InitTenant(
 		ctx,

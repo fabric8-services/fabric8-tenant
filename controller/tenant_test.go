@@ -53,24 +53,12 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 
 	s.T().Run("accepted", func(t *testing.T) {
 
-		t.Run("no namespace already exists on OpenShift", func(t *testing.T) {
+		t.Run("no namespace already exists on tenant cluster", func(t *testing.T) {
 			// given
 			tenantID := "83fdcae2-634f-4a52-958a-f723cb621700" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
 			ctx, err := createValidUserContext(map[string]interface{}{
 				"sub":   tenantID,
 				"email": "user_foo@bar.com",
-			})
-			require.NoError(t, err)
-			// when/then
-			test.SetupTenantAccepted(t, ctx, svc, ctrl)
-		})
-
-		t.Run("namespace already exists on OpenShift", func(t *testing.T) {
-			// given
-			tenantID := "38b33b8b-996d-4ba4-b565-f32a526de85c" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
-			ctx, err := createValidUserContext(map[string]interface{}{
-				"sub":   tenantID,
-				"email": "user_foo2@bar.com",
 			})
 			require.NoError(t, err)
 			// when/then
@@ -119,8 +107,21 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 			})
 			require.NoError(t, err)
 			// when/then
-			test.SetupTenantAccepted(t, ctx, svc, ctrl)
+			test.SetupTenantConflict(t, ctx, svc, ctrl)
 		})
+
+		t.Run("quotad execeeded on tenant cluster", func(t *testing.T) {
+			// given
+			tenantID := "38b33b8b-996d-4ba4-b565-f32a526de85c" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+			ctx, err := createValidUserContext(map[string]interface{}{
+				"sub":   tenantID,
+				"email": "user_foo2@bar.com",
+			})
+			require.NoError(t, err)
+			// when/then
+			test.SetupTenantForbidden(t, ctx, svc, ctrl)
+		})
+
 	})
 
 }

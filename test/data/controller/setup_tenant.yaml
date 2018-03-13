@@ -336,45 +336,38 @@ interactions:
     headers:
       sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
   response:
-    status: 200 OK
-    code: 200
+    status: 403 Forbidden
+    code: 403
+    body: |
+      apiVersion: v1
+      metadata: {}
+      code: 403
+      details:
+        kind: projectrequests
+        name: user-foo
+      kind: Status
+      message: "projectrequests \"user-foo\" is forbidden: user user-foo cannot create more than 1 project(s)."
+      reason: Forbidden
+      status: Failure
+
+# set of requests for the init tenant API calls on the target (OSO) cluster for user 38b33b8b-996d-4ba4-b565-f32a526de85c
 - request:
     method: POST
-    url: http://api.cluster1/oapi/v1/namespaces/user-foo2/rolebindingrestrictions
+    url: http://api.cluster1/oapi/v1/projectrequests
     headers:
-      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+      sub: ["02a6474c-3b04-4dc4-bfd2-4867102581e0"] # will be compared against the `sub` claim in the incoming request's token
   response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: http://api.cluster1/api/v1/namespaces/user-foo2/services
-    headers:
-      sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: http://api.cluster1/oapi/v1/namespaces/user-foo2/rolebindings
-    headers:
-      sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: http://api.cluster1/api/v1/namespaces/user-foo2/configmaps
-    headers:
-      sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: DELETE
-    url: http://api.cluster1/oapi/v1/namespaces/user-foo2/rolebindings/admin
-    headers:
-      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
+    status: 409 Conflict
+    code: 409
+    body: |
+      metadata: {}
+      status: Failure
+      message: project.project.openshift.io "user_ns_exists" already exists
+      reason: AlreadyExists
+      details:
+        name: user_ns_exists
+        group: project.openshift.io
+        kind: project
+      code: 409'
+
+

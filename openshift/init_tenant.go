@@ -56,7 +56,7 @@ func InitTenant(ctx context.Context, config Config, callback Callback, username,
 	for key, val := range mapped {
 		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
 			defer wg.Done()
-			err := ApplyProcessed(objects, opts)
+			err := applyProcessed(ctx, objects, opts)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"namespace": namespace,
@@ -70,7 +70,7 @@ func InitTenant(ctx context.Context, config Config, callback Callback, username,
 }
 
 func initUserNamespace(ctx context.Context, namespace string, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) error {
-	err := ApplyProcessed(Filter(objects, IsOfKind(ValKindProjectRequest, ValKindNamespace)), userOpts)
+	err := applyProcessed(ctx, Filter(objects, IsOfKind(ValKindProjectRequest, ValKindNamespace)), userOpts)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"namespace": namespace,
@@ -78,7 +78,7 @@ func initUserNamespace(ctx context.Context, namespace string, objects []map[inte
 		}, "error during the initialization of the user project (project creation)")
 		return errs.Wrapf(err, "error during the initialization of the user project (project creation)")
 	}
-	err = ApplyProcessed(Filter(objects, IsOfKind(ValKindRoleBindingRestriction)), opts)
+	err = applyProcessed(ctx, Filter(objects, IsOfKind(ValKindRoleBindingRestriction)), opts)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"namespace": namespace,
@@ -86,7 +86,7 @@ func initUserNamespace(ctx context.Context, namespace string, objects []map[inte
 		}, "error during the initialization of the user project (role binding restrictions)")
 		return errs.Wrapf(err, "error during the initialization of the user project (role binding restrictions)")
 	}
-	err = ApplyProcessed(Filter(objects, IsNotOfKind(ValKindProjectRequest, ValKindNamespace, ValKindRoleBindingRestriction)), userOpts)
+	err = applyProcessed(ctx, Filter(objects, IsNotOfKind(ValKindProjectRequest, ValKindNamespace, ValKindRoleBindingRestriction)), userOpts)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"namespace": namespace,
@@ -95,6 +95,7 @@ func initUserNamespace(ctx context.Context, namespace string, objects []map[inte
 		return errs.Wrapf(err, "error during the initialization of the user project (other)")
 	}
 	_, err = apply(
+		ctx,
 		CreateAdminRoleBinding(namespace),
 		"DELETE",
 		opts.WithCallback(
