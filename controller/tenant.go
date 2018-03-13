@@ -107,8 +107,8 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL)
-	tenant := &tenant.Tenant{ID: tenantToken.Subject(), Email: tenantToken.Email()}
-	err = c.tenantService.SaveTenant(tenant)
+	t := &tenant.Tenant{ID: tenantToken.Subject(), Email: tenantToken.Email()}
+	err = c.tenantService.SaveTenant(t)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -132,30 +132,26 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			"openshift_user_project": userProjects[0],
 			"openshift_user_name":    openshiftUsername,
 		}, "user already has one or more projects on the cluster which will be cleaned before proceeding with the tenant init...")
-		err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars, true)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 	}
 
-	go func() {
-		ctx := ctx
-		t := tenant
-		err = openshift.RawInitTenant(
-			ctx,
-			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			openshiftUsername,
-			openshiftUserToken,
-			c.templateVars)
-
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":     err,
-				"os_user": openshiftUsername,
-			}, "unable initialize tenant")
-		}
-	}()
+	// perform the tenant init
+	err = openshift.InitTenant(
+		ctx,
+		openshiftConfig,
+		newTenantCallBack(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+		openshiftUsername,
+		openshiftUserToken,
+		c.templateVars)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":     err,
+			"os_user": openshiftUsername,
+		}, "unable initialize tenant")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
@@ -209,10 +205,10 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	go func() {
 		ctx := ctx
 		t := tenant
-		err = openshift.RawUpdateTenant(
+		err = openshift.UpdateTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			newTenantCallBack(ctx, openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUsername,
 			c.templateVars)
 
@@ -244,7 +240,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 
 	// restrict deprovision from cluster to internal users only
 	removeFromCluster := false
-	if user.FeatureLevel != nil && *user.FeatureLevel == "internal" {
+	if usr.FeatureLevel != nil && *usr.FeatureLevel == "internal" {
 		removeFromCluster = ctx.Remove
 	}
 
@@ -306,12 +302,12 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	return ctx.OK(result)
 }
 
-// InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
+// newTenantCallBack returns a Callback that assumes a new tenant is being created
+func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
-	var currentResourceQuotaStatusCheck int32 = 0
+	var currentResourceQuotaStatusCheck int32
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
-		log.Info(ctx, map[string]interface{}{
+		log.Debug(ctx, map[string]interface{}{
 			"status":    statusCode,
 			"method":    method,
 			"namespace": openshift.GetNamespace(request),

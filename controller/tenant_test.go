@@ -36,7 +36,7 @@ func TestTenantController(t *testing.T) {
 	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-func (s *TenantControllerTestSuite) TestInitTenant() {
+func (s *TenantControllerTestSuite) TestSetupTenant() {
 	// given
 	r, err := recorder.New("../test/data/controller/setup_tenant", recorder.WithJWTMatcher())
 	require.NoError(s.T(), err)
