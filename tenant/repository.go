@@ -14,6 +14,9 @@ type Service interface {
 	GetTenant(tenantID uuid.UUID) (*Tenant, error)
 	LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error)
 	GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error)
+	// CreateTenant will return err on duplicate insert
+	CreateTenant(tenant *Tenant) error
+	// SaveTenant will update on dupliate 'insert'
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
 	DeleteAll(tenantID uuid.UUID) error
@@ -64,6 +67,13 @@ func (s DBService) SaveTenant(tenant *Tenant) error {
 		tenant.Profile = "free"
 	}
 	return s.db.Save(tenant).Error
+}
+
+func (s DBService) CreateTenant(tenant *Tenant) error {
+	if tenant.Profile == "" {
+		tenant.Profile = "free"
+	}
+	return s.db.Create(tenant).Error
 }
 
 func (s DBService) SaveNamespace(namespace *Namespace) error {
