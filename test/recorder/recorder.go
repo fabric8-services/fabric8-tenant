@@ -78,10 +78,10 @@ func JWTMatcher() cassette.Matcher {
 		claims := token.Claims.(jwt.MapClaims)
 		sub, found := cassetteRequest.Headers["sub"]
 		if found && len(sub) > 0 && sub[0] == claims["sub"] {
-			// log.Debug(nil, map[string]interface{}{
-			// 	"method": cassetteRequest.Method,
-			// 	"url":    cassetteRequest.URL,
-			// 	"sub":    sub[0]}, "found interaction")
+			log.Debug(nil, map[string]interface{}{
+				"method": cassetteRequest.Method,
+				"url":    cassetteRequest.URL,
+				"sub":    sub[0]}, "found interaction")
 			return true
 		}
 		log.Debug(nil, map[string]interface{}{

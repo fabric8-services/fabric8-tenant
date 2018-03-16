@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/token"
+	"github.com/fabric8-services/fabric8-wit/log"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
@@ -90,6 +91,7 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 			return nil, errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
 		// verify the token
+		log.Debug(ctx, map[string]interface{}{"cluster_url": cluster.APIURL, "cluster_user": clusterUser}, "verifying the token on the cluster...")
 		_, err = openshift.WhoAmI(ctx, cluster.APIURL, clusterToken, s.clientOptions...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)

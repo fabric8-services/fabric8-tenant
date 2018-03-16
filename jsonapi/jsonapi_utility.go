@@ -25,6 +25,7 @@ const (
 	ErrorCodeInternalError     = "internal_error"
 	ErrorCodeUnauthorizedError = "unauthorized_error"
 	ErrorCodeForbiddenError    = "forbidden_error"
+	ErrorCodeQuotaExceedError  = "quota_exceeded_error"
 	ErrorCodeJWTSecurityError  = "jwt_security_error"
 )
 
@@ -74,6 +75,22 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		code = ErrorCodeUnauthorizedError
 		title = "Unauthorized error"
 		statusCode = http.StatusUnauthorized
+	case errors.QuotaExceedError:
+		code = ErrorCodeQuotaExceedError
+		title = "Quota exceeded error"
+		statusCode = http.StatusForbidden
+		if ctx, ok := ctx.(app.AbsoluteURL); ok {
+			for _, n := range cause.Namespaces {
+				log.Debug(ctx, map[string]interface{}{"namespace": n}, "adding a link to remove the namespace")
+				if n != "" {
+					deleteNamespaceURL := ctx.AbsoluteURL(fmt.Sprintf("%s/namespaces/%s", app.TenantHref(), n))
+					links[n] = &app.JSONAPILink{
+						Href: &deleteNamespaceURL,
+					}
+				}
+			}
+		}
+
 	case errors.ForbiddenError:
 		code = ErrorCodeForbiddenError
 		title = "Forbidden error"
@@ -118,8 +135,9 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 // array.
 func ErrorToJSONAPIErrors(ctx context.Context, err error) (*app.JSONAPIErrors, int) {
 	jerr, httpStatusCode := ErrorToJSONAPIError(ctx, err)
-	jerrors := app.JSONAPIErrors{}
-	jerrors.Errors = append(jerrors.Errors, &jerr)
+	jerrors := app.JSONAPIErrors{
+		Errors: []*app.JSONAPIError{&jerr},
+	}
 	return &jerrors, httpStatusCode
 }
 

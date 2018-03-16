@@ -43,13 +43,14 @@ func InitTenant(ctx context.Context, config Config, callback Callback, username,
 	for namespace, objects := range mappedObjects {
 		namespaceType := tenant.GetNamespaceType(namespace)
 		if namespaceType == tenant.TypeUser {
-			log.Debug(ctx, map[string]interface{}{"username": username, "namespace": namespace}, "initializing namespace for user...")
+			userOpts.Namespace = namespace
+			log.Debug(ctx, map[string]interface{}{"username": username, "namespace": userOpts.Namespace}, "initializing namespace for user...")
 			delete(mappedObjects, namespace) // remove the ns entry so it won't be processed again afterwards
-			err = initUserNamespace(ctx, namespace, objects, masterOpts, userOpts)
+			err = initUserNamespace(ctx, objects, masterOpts, userOpts)
 			if err != nil {
 				log.Info(ctx, map[string]interface{}{"error_message": err, "error_type": reflect.TypeOf(err)}, "error occurred while initializing user namespace")
 				// enrich the error with the namespace
-				return enrichError(ctx, err, namespace)
+				return enrichError(ctx, err, userOpts)
 			}
 		}
 	}
@@ -72,28 +73,38 @@ func InitTenant(ctx context.Context, config Config, callback Callback, username,
 	return nil
 }
 
-func enrichError(ctx context.Context, err error, namespace string) error {
-	switch err := err.(type) {
+func enrichError(ctx context.Context, err error, userOpts ApplyOptions) error {
+	cause := errs.Cause(err)
+	log.Debug(ctx, map[string]interface{}{"namespace": userOpts.Namespace, "error_type": reflect.TypeOf(cause)}, "enriching error...")
+	switch err := cause.(type) {
 	case errors.NamespaceConflictError:
-		log.Debug(ctx, map[string]interface{}{"namespace": namespace}, "adding namespace info in NamespaceConflict error")
-		err.Namespace = namespace
+		log.Debug(ctx, map[string]interface{}{"namespace": userOpts.Namespace}, "adding namespace info in NamespaceConflict error")
+		err.Namespace = userOpts.Namespace
 		return err // return the enriched error
-	case errors.ForbiddenError:
-		err.Namespace = namespace
-		return err // return the enriched error
-	default:
-		if errs.Cause(err) != nil {
-			return enrichError(ctx, errs.Cause(err), namespace)
+	case errors.QuotaExceedError:
+		// need to fetch the list of current projects that caused the quota exceeded error
+		log.Debug(ctx, map[string]interface{}{"namespace": userOpts.Namespace}, "fetching user's projects on the target cluster...")
+		projects, errListProjects := ListProjects(ctx, userOpts.MasterURL, userOpts.Token)
+		if errListProjects != nil {
+			log.Error(ctx, map[string]interface{}{"cluster_url": userOpts.MasterURL, "error_message": errListProjects}, "failed to list user's projects on target cluster")
+			return err // return the input error without adding the list of user's projects
 		}
+		err.Namespaces = projects
+		log.Debug(ctx, map[string]interface{}{"projects": err.Namespaces}, "fetched user's projects on the target cluster")
+		return err // return the enriched error
 	}
 	return err
 }
 
-func initUserNamespace(ctx context.Context, namespace string, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) error {
+func initUserNamespace(ctx context.Context, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) error {
 	err := applyProcessed(ctx, Filter(objects, IsOfKind(ValKindProjectRequest, ValKindNamespace)), userOpts)
 	if err != nil {
+		// convert the ForbiddenError into a QuotaExceededError here, so we can include the list of current projects in the user's account
+		if _, ok := err.(errors.ForbiddenError); ok {
+			err = errors.NewQuotaExceedError(err.Error())
+		}
 		log.Error(ctx, map[string]interface{}{
-			"namespace": namespace,
+			"namespace": userOpts.Namespace,
 			"err":       err,
 		}, "error during the initialization of the user project (project creation)")
 		return errs.Wrapf(err, "error during the initialization of the user project (project creation)")
@@ -101,7 +112,7 @@ func initUserNamespace(ctx context.Context, namespace string, objects []map[inte
 	err = applyProcessed(ctx, Filter(objects, IsOfKind(ValKindRoleBindingRestriction)), opts)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"namespace": namespace,
+			"namespace": userOpts.Namespace,
 			"err":       err,
 		}, "error during the initialization of the user project (role binding restrictions)")
 		return errs.Wrapf(err, "error during the initialization of the user project (role binding restrictions)")
@@ -109,14 +120,14 @@ func initUserNamespace(ctx context.Context, namespace string, objects []map[inte
 	err = applyProcessed(ctx, Filter(objects, IsNotOfKind(ValKindProjectRequest, ValKindNamespace, ValKindRoleBindingRestriction)), userOpts)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"namespace": namespace,
+			"namespace": userOpts.Namespace,
 			"err":       err,
 		}, "error during the initialization of the user project (other)")
 		return errs.Wrapf(err, "error during the initialization of the user project (other)")
 	}
 	_, err = apply(
 		ctx,
-		CreateAdminRoleBinding(namespace),
+		CreateAdminRoleBinding(userOpts.Namespace),
 		"DELETE",
 		opts.WithCallback(
 			func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
@@ -133,7 +144,7 @@ func initUserNamespace(ctx context.Context, namespace string, objects []map[inte
 	)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"namespace": namespace,
+			"namespace": userOpts.Namespace,
 			"err":       err,
 		}, "unable to remove admin role from project")
 	}

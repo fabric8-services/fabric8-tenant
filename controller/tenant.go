@@ -128,7 +128,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err":     err,
 			"os_user": openshiftUsername,
-		}, "unable initialize tenant")
+		}, "unable to initialize tenant")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -195,7 +195,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			log.Error(ctx, map[string]interface{}{
 				"err":     err,
 				"os_user": openshiftUsername,
-			}, "unable initialize tenant")
+			}, "unable to initialize tenant")
 		}
 	}()
 

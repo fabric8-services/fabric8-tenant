@@ -61,6 +61,19 @@ type ForbiddenError struct {
 	Namespace string
 }
 
+// QuotaExceedError means that the operation is forbidden because of exceeded quota
+type QuotaExceedError struct {
+	simpleError
+	Namespaces []string
+}
+
+// NewQuotaExceedError returns the custom defined error of type QuotaExceedError.
+func NewQuotaExceedError(msg string) QuotaExceedError {
+	return QuotaExceedError{
+		simpleError: simpleError{msg},
+	}
+}
+
 // NamespaceConflictError means that the version was not as expected in an update operation
 type NamespaceConflictError struct {
 	simpleError

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -16,7 +17,7 @@ func ListProjects(ctx context.Context, clusterURL string, token string, clientOp
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to retrieve the user's projects from the API endpoint")
 	}
-	var prjcts projects
+	var prjcts Projects
 	err = yaml.Unmarshal(respBody, &prjcts)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to retrieve the user's projects from the API endpoint")
@@ -25,14 +26,17 @@ func ListProjects(ctx context.Context, clusterURL string, token string, clientOp
 	for i, p := range prjcts.Items {
 		prjNames[i] = p.Metadata.Name
 	}
+	log.Debug(ctx, map[string]interface{}{"project_names": prjNames}, "retrieved projects on tenant cluster")
 	return prjNames, nil
 }
 
-type projects struct {
-	Items []project
+// Projects the user's projects on the cluster
+type Projects struct {
+	Items []Project
 }
 
-type project struct {
+// Project a user's project on the cluster
+type Project struct {
 	Metadata struct {
 		Name string
 	}

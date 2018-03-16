@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -38,24 +39,13 @@ func TestTenantController(t *testing.T) {
 }
 
 func (s *TenantControllerTestSuite) TestSetupTenant() {
-	// given
-	r, err := recorder.New("../test/data/controller/setup_tenant", recorder.WithJWTMatcher())
-	require.NoError(s.T(), err)
-	defer r.Stop()
-	saToken, err := testsupport.NewToken(
-		map[string]interface{}{
-			"sub": "tenant_service",
-		},
-		"../test/private_key.pem",
-	)
-	require.NoError(s.T(), err)
-	svc, ctrl, err := newTestTenantController(saToken, s.DB, r.Transport)
-	require.NoError(s.T(), err)
 
 	s.T().Run("accepted", func(t *testing.T) {
 
 		t.Run("no namespace already exists on tenant cluster", func(t *testing.T) {
 			// given
+			svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-1")
+			require.NoError(t, err)
 			tenantID := "83fdcae2-634f-4a52-958a-f723cb621700" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
 			ctx, err := createValidUserContext(map[string]interface{}{
 				"sub":   tenantID,
@@ -71,6 +61,8 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 
 		t.Run("tenant already exists in DB", func(t *testing.T) {
 			// given a user that already exists in the tenant DB
+			svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-2")
+			require.NoError(t, err)
 			tenantID := uuid.NewV4()
 			tenant.NewDBService(s.DB).SaveTenant(&tenant.Tenant{ID: tenantID})
 			ctx, err := createValidUserContext(map[string]interface{}{
@@ -83,12 +75,17 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 		})
 
 		t.Run("missing token", func(t *testing.T) {
+			// given
+			svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-3")
+			require.NoError(t, err)
 			// when using default context with no JWT
 			test.SetupTenantUnauthorized(t, context.Background(), svc, ctrl, nil)
 		})
 
 		t.Run("cluster not found", func(t *testing.T) {
 			// given
+			svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-4")
+			require.NoError(t, err)
 			tenantID := "526ea9ac-0cf7-4e12-a835-0b76eab45517"
 			ctx, err := createValidUserContext(map[string]interface{}{
 				"sub":   tenantID,
@@ -103,6 +100,8 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 
 			t.Run("without x-forwarded-path", func(t *testing.T) {
 				// given an account that already has a namespace with a different name on OpenShift
+				svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-5")
+				require.NoError(t, err)
 				tenantID := "02a6474c-3b04-4dc4-bfd2-4867102581e0"
 				ctx, err := createValidUserContext(map[string]interface{}{
 					"sub":   tenantID,
@@ -115,12 +114,14 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 				require.NotEmpty(t, jsonAPIErr.Errors)
 				require.NotNil(t, jsonAPIErr.Errors[0].Links)
 				t.Logf("JSON-API error links: %v\n", jsonAPIErr.Errors[0].Links)
-				require.NotNil(t, jsonAPIErr.Errors[0].Links["user-with-namespace"])                                                          // namespace is based on username, with some replacements
-				assert.Equal(t, "http:///api/tenant/namespaces/user-with-namespace", *jsonAPIErr.Errors[0].Links["user-with-namespace"].Href) // namespace is based on username, with some replacements
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["user-with-namespace"])
+				assert.Equal(t, "http:///api/tenant/namespaces/user-with-namespace", *jsonAPIErr.Errors[0].Links["user-with-namespace"].Href)
 			})
 
 			t.Run("with x-forwarded-path", func(t *testing.T) {
 				// given an account that already has a namespace with a different name on OpenShift
+				svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-6")
+				require.NoError(t, err)
 				tenantID := "0443beeb-1cfb-427f-bd7c-d22d941bea4f"
 				ctx, err := createValidUserContext(map[string]interface{}{
 					"sub":   tenantID,
@@ -134,36 +135,89 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 				require.NotEmpty(t, jsonAPIErr.Errors)
 				require.NotNil(t, jsonAPIErr.Errors[0].Links)
 				t.Logf("JSON-API error links: %v\n", jsonAPIErr.Errors[0].Links)
-				require.NotNil(t, jsonAPIErr.Errors[0].Links["user-with-namespace2"])                                                         // namespace is based on username, with some replacements
-				assert.Equal(t, "http:///api/user/namespaces/user-with-namespace2", *jsonAPIErr.Errors[0].Links["user-with-namespace2"].Href) // namespace is based on username, with some replacements
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["user-with-namespace2"])
+				assert.Equal(t, "http:///api/user/namespaces/user-with-namespace2", *jsonAPIErr.Errors[0].Links["user-with-namespace2"].Href)
 			})
 		})
 
 		t.Run("quotad execeeded on tenant cluster", func(t *testing.T) {
-			// given
-			tenantID := "38b33b8b-996d-4ba4-b565-f32a526de85c" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
-			ctx, err := createValidUserContext(map[string]interface{}{
-				"sub":   tenantID,
-				"email": "user_foo2@bar.com",
+
+			t.Run("without x-forwarded-path", func(t *testing.T) {
+				// given
+				svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-7")
+				require.NoError(t, err)
+				tenantID := "38b33b8b-996d-4ba4-b565-f32a526de85c" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+				ctx, err := createValidUserContext(map[string]interface{}{
+					"sub":   tenantID,
+					"email": "user_foo2@bar.com",
+				})
+				require.NoError(t, err)
+				// when
+				_, jsonAPIErr := test.SetupTenantForbidden(t, ctx, svc, ctrl, nil)
+				//then
+				require.NotEmpty(t, jsonAPIErr.Errors)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links)
+				t.Logf("JSON-API error links: %v\n", jsonAPIErr.Errors[0].Links)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["foo1"])
+				assert.Equal(t, "http:///api/tenant/namespaces/foo1", *jsonAPIErr.Errors[0].Links["foo1"].Href)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["foo2"])
+				assert.Equal(t, "http:///api/tenant/namespaces/foo2", *jsonAPIErr.Errors[0].Links["foo2"].Href)
 			})
-			require.NoError(t, err)
-			// when/then
-			test.SetupTenantForbidden(t, ctx, svc, ctrl, nil)
+
+			t.Run("with x-forwarded-path", func(t *testing.T) {
+				// given
+				svc, ctrl, err := newTestTenantController(s.DB, "setup_tenant-8")
+				require.NoError(t, err)
+				tenantID := "da6d50b9-0086-4aec-9fcd-2882c09ea53b" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+				ctx, err := createValidUserContext(map[string]interface{}{
+					"sub":   tenantID,
+					"email": "user_foo3@bar.com",
+				})
+				require.NoError(t, err)
+				xForwardedPath := "/api/user"
+				// when
+				_, jsonAPIErr := test.SetupTenantForbidden(t, ctx, svc, ctrl, &xForwardedPath)
+				//then
+				require.NotEmpty(t, jsonAPIErr.Errors)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links)
+				t.Logf("JSON-API error links: %v\n", jsonAPIErr.Errors[0].Links)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["foo1"])
+				assert.Equal(t, "http:///api/user/namespaces/foo1", *jsonAPIErr.Errors[0].Links["foo1"].Href)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["foo2"])
+				assert.Equal(t, "http:///api/user/namespaces/foo2", *jsonAPIErr.Errors[0].Links["foo2"].Href)
+			})
 		})
 
 	})
 
 }
 
-func newTestTenantController(saToken *jwt.Token, db *gorm.DB, rt http.RoundTripper) (*goa.Service, *controller.TenantController, error) {
+func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *controller.TenantController, error) {
+	r, err := recorder.New(fmt.Sprintf("../test/data/controller/%s", filename), recorder.WithJWTMatcher())
+	if err != nil {
+		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
+	}
+	defer r.Stop()
+
+	saToken, err := testsupport.NewToken(
+		map[string]interface{}{
+			"sub": "tenant_service",
+		},
+		"../test/private_key.pem",
+	)
+	if err != nil {
+		fmt.Printf("error occurred: %v", err)
+		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
+	}
+
 	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(rt))
+	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r.Transport))
 	clusterService := cluster.NewService(
 		authURL,
 		saToken.Raw,
 		resolveToken,
 		token.NewGPGDecypter("foo"),
-		configuration.WithRoundTripper(rt),
+		configuration.WithRoundTripper(r.Transport),
 	)
 	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
@@ -178,7 +232,7 @@ func newTestTenantController(saToken *jwt.Token, db *gorm.DB, rt http.RoundTripp
 	userService := user.NewService(
 		authURL,
 		saToken.Raw,
-		configuration.WithRoundTripper(rt),
+		configuration.WithRoundTripper(r.Transport),
 	)
 	defaultOpenshiftConfig := openshift.Config{}
 	templateVars := make(map[string]string)
