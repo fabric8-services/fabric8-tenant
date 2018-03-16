@@ -20,7 +20,6 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	uuid "github.com/satori/go.uuid"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // TenantController implements the status resource.
@@ -288,8 +287,8 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			"namespace": openshift.GetNamespace(request),
 			"name":      openshift.GetName(request),
 			"kind":      openshift.GetKind(request),
-			"request":   yamlString(request),
-			"response":  yamlString(response),
+			"request":   openshift.YamlString(request),
+			"response":  openshift.YamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
 			if openshift.GetKind(request) == openshift.ValKindNamespace {
@@ -359,8 +358,8 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			"namespace": openshift.GetNamespace(request),
 			"name":      openshift.GetName(request),
 			"kind":      openshift.GetKind(request),
-			"request":   yamlString(request),
-			"response":  yamlString(response),
+			"request":   openshift.YamlString(request),
+			"response":  openshift.YamlString(response),
 		}, "unhandled resource response")
 		return "", nil
 	}
@@ -441,12 +440,4 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			})
 	}
 	return &result
-}
-
-func yamlString(data map[interface{}]interface{}) string {
-	b, err := yaml.Marshal(data)
-	if err != nil {
-		return fmt.Sprintf("Could not marshal yaml %v", data)
-	}
-	return string(b)
 }

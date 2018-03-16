@@ -7,7 +7,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -118,19 +117,19 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, user
 	for key, val := range mapped {
 		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
 			defer wg.Done()
-			output, err := executeProccessedNamespaceCMD(
-				listToTemplate(
-					//RemoveReplicas(
-					Filter(
-						objects,
-						IsNotOfKind(ValKindProjectRequest),
-					),
-					//),
+			template := listToTemplate(
+				Filter(
+					objects,
+					IsNotOfKind(ValKindProjectRequest),
 				),
+			)
+			output, err := executeProccessedNamespaceCMD(
+				template,
 				opts.WithNamespace(namespace),
 			)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
+					"request":   template,
 					"output":    output,
 					"namespace": namespace,
 					"error":     err,
@@ -138,6 +137,7 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, user
 				return
 			}
 			log.Info(ctx, map[string]interface{}{
+				"request":   template,
 				"output":    output,
 				"namespace": namespace,
 			}, "applied")
@@ -154,6 +154,5 @@ func listToTemplate(objects []map[interface{}]interface{}) string {
 		"objects":    objects,
 	}
 
-	b, _ := yaml.Marshal(template)
-	return string(b)
+	return YamlString(template)
 }
