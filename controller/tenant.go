@@ -108,12 +108,12 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL)
 	t := &tenant.Tenant{ID: tenantToken.Subject(), Email: tenantToken.Email()}
-	err = c.tenantService.SaveTenant(t)
+	err = c.tenantService.CreateTenant(t)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to store tenant configuration")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewDataConflictError("unable to store tenant configuration"))
 	}
 
 	// perform the tenant init

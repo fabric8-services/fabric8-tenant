@@ -172,6 +172,10 @@ func (s mockTenantService) SaveTenant(tenant *tenant.Tenant) error {
 	return nil
 }
 
+func (s mockTenantService) CreateTenant(tenant *tenant.Tenant) error {
+	return nil
+}
+
 func (s mockTenantService) SaveNamespace(namespace *tenant.Namespace) error {
 	return nil
 }
