@@ -22,7 +22,6 @@ import:
   version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
   subpackages:
   - log
-  - errors
   - login/token_context
   - resource
   - jsonapi
@@ -76,4 +75,4 @@ testImport:
 - package: github.com/wadey/gocovmerge
 - package: github.com/jstemmer/go-junit-report
 - package: github.com/dnaeon/go-vcr
-  version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
+  # version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb

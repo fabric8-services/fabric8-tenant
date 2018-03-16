@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"

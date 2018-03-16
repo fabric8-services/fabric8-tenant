@@ -10,11 +10,11 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/user"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
@@ -279,6 +279,30 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 
 	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
 	return ctx.OK(result)
+}
+
+// Show runs the setup action.
+func (c *TenantController) DeleteNamespace(ctx *app.DeleteNamespacesContext) error {
+	// 	token := goajwt.ContextJWT(ctx)
+	// 	if token == nil {
+	// 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	// 	}
+
+	// 	tenantToken := &TenantToken{token: token}
+	// 	tenantID := tenantToken.Subject()
+	// 	tenant, err := c.tenantService.GetTenant(tenantID)
+	// 	if err != nil {
+	// 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", tenantID.String()))
+	// 	}
+
+	// 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	// 	if err != nil {
+	// 		return jsonapi.JSONErrorResponse(ctx, err)
+	// 	}
+
+	// 	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
+	// 	return ctx.OK(result)
+	return nil
 }
 
 // newTenantCallBack returns a Callback that assumes a new tenant is being created

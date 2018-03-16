@@ -9,7 +9,7 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"

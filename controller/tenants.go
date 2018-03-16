@@ -3,10 +3,10 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/goadesign/goa"
 )
 

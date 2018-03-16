@@ -2,12 +2,13 @@ package jsonapi
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strconv"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
-	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 
 	"github.com/goadesign/goa"
@@ -17,8 +18,7 @@ import (
 const (
 	ErrorCodeNotFound          = "not_found"
 	ErrorCodeBadParameter      = "bad_parameter"
-	ErrorCodeVersionConflict   = "version_conflict"
-	ErrorCodeDataConflict      = "data_conflict_error"
+	ErrorCodeNamespaceConflict = "namespace_conflict"
 	ErrorCodeProjectConflict   = "project_conflict"
 	ErrorCodeUnknownError      = "unknown_error"
 	ErrorCodeConversionError   = "conversion_error"
@@ -38,26 +38,32 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 	var title, code string
 	var statusCode int
 	var id *string
-	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
-	switch cause.(type) {
+	links := make(map[string]*app.JSONAPILink, 0)
+	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error(), "err_type": reflect.TypeOf(err)}, "an error occurred in our api")
+	switch cause := cause.(type) {
 	case errors.NotFoundError:
 		code = ErrorCodeNotFound
 		title = "Not found error"
 		statusCode = http.StatusNotFound
-	case errors.ConversionError:
-		code = ErrorCodeConversionError
-		title = "Conversion error"
-		statusCode = http.StatusBadRequest
 	case errors.BadParameterError:
 		code = ErrorCodeBadParameter
 		title = "Bad parameter error"
 		statusCode = http.StatusBadRequest
-	case errors.VersionConflictError:
-		code = ErrorCodeVersionConflict
-		title = "Version conflict error"
+	case errors.NamespaceConflictError:
+		code = ErrorCodeNamespaceConflict
+		title = "Namespace conflict error"
 		statusCode = http.StatusConflict
+		if ctx, ok := ctx.(app.AbsoluteURL); ok {
+			log.Debug(ctx, map[string]interface{}{"namespace": cause.Namespace}, "adding a link to remove the namespace")
+			if cause.Namespace != "" {
+				deleteNamespaceURL := ctx.AbsoluteURL(fmt.Sprintf("%s/namespaces/%s", app.TenantHref(), cause.Namespace))
+				links[cause.Namespace] = &app.JSONAPILink{
+					Href: &deleteNamespaceURL,
+				}
+			}
+		}
 	case errors.DataConflictError:
-		code = ErrorCodeDataConflict
+		code = ErrorCodeNamespaceConflict
 		title = "Data conflict error"
 		statusCode = http.StatusConflict
 	case errors.InternalError:
@@ -77,7 +83,7 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		title = "Unknown error"
 		statusCode = http.StatusInternalServerError
 
-		cause := errs.Cause(err)
+		cause = errs.Cause(err)
 		if err, ok := cause.(goa.ServiceError); ok {
 			statusCode = err.ResponseStatus()
 			idStr := err.Token()
@@ -96,6 +102,7 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		Status: &statusCodeStr,
 		Title:  &title,
 		Detail: detail,
+		Links:  links,
 	}
 	log.Debug(ctx, map[string]interface{}{
 		"code":   code,
@@ -148,36 +155,33 @@ type Conflict interface {
 
 // JSONErrorResponse auto maps the provided error to the correct response type
 // If all else fails, InternalServerError is returned
-func JSONErrorResponse(obj interface{}, err error) error {
-	x := obj.(InternalServerError)
-	c := obj.(context.Context)
-
-	jsonErr, status := ErrorToJSONAPIErrors(c, err)
-	log.Debug(c, map[string]interface{}{"status": status, "jsonErr type": reflect.TypeOf(jsonErr)}, "processing JSON error")
+func JSONErrorResponse(ctx context.Context, err error) error {
+	jsonErr, status := ErrorToJSONAPIErrors(ctx, err)
+	log.Debug(ctx, map[string]interface{}{"status": status, "jsonErr type": reflect.TypeOf(jsonErr)}, "processing JSON error")
 	switch status {
 	case http.StatusBadRequest:
-		if ctx, ok := x.(BadRequest); ok {
+		if ctx, ok := ctx.(BadRequest); ok {
 			return errs.WithStack(ctx.BadRequest(jsonErr))
 		}
 	case http.StatusNotFound:
-		if ctx, ok := x.(NotFound); ok {
+		if ctx, ok := ctx.(NotFound); ok {
 			return errs.WithStack(ctx.NotFound(jsonErr))
 		}
 	case http.StatusUnauthorized:
-		if ctx, ok := x.(Unauthorized); ok {
+		if ctx, ok := ctx.(Unauthorized); ok {
 			return errs.WithStack(ctx.Unauthorized(jsonErr))
 		}
 	case http.StatusForbidden:
-		if ctx, ok := x.(Forbidden); ok {
+		if ctx, ok := ctx.(Forbidden); ok {
 			return errs.WithStack(ctx.Forbidden(jsonErr))
 		}
 	case http.StatusConflict:
-		if ctx, ok := x.(Conflict); ok {
+		if ctx, ok := ctx.(Conflict); ok {
 			return errs.WithStack(ctx.Conflict(jsonErr))
 		}
-		log.Debug(c, nil, "CANNOT convert context to Conflict")
+		log.Debug(ctx, nil, "CANNOT convert context to Conflict")
 	default:
-		return errs.WithStack(x.InternalServerError(jsonErr))
+		return errs.WithStack(ctx.(InternalServerError).InternalServerError(jsonErr))
 	}
 	return nil
 }

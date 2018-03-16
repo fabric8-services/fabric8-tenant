@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-wit/log"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -261,12 +261,12 @@ func apply(ctx context.Context, object map[interface{}]interface{}, action strin
 	}
 	// if something went wrong
 	if resp.StatusCode >= 400 {
-		log.Error(ctx, map[string]interface{}{"status": resp.StatusCode, "message": buf.String()}, "failed to parse the yaml response")
+		log.Error(ctx, map[string]interface{}{"status": resp.StatusCode, "message": buf.String()}, "failed to process the request")
 		switch resp.StatusCode {
 		case 403:
 			return nil, errors.NewForbiddenError(fmt.Sprintf("%s", respType["message"]))
 		case 409:
-			return nil, errors.NewDataConflictError(fmt.Sprintf("%s", respType["message"]))
+			return nil, errors.NewNamespaceConflictError(fmt.Sprintf("%s", respType["message"]))
 		case 500:
 			return nil, errors.NewInternalError(ctx, fmt.Errorf("%s", respType["message"]))
 		}

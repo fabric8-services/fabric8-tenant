@@ -23,6 +23,7 @@ import (
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -62,7 +63,7 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 			})
 			require.NoError(t, err)
 			// when/then
-			test.SetupTenantAccepted(t, ctx, svc, ctrl)
+			test.SetupTenantAccepted(t, ctx, svc, ctrl, nil)
 		})
 	})
 
@@ -78,12 +79,12 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 			})
 			require.NoError(t, err)
 			// when/then
-			test.SetupTenantConflict(t, ctx, svc, ctrl)
+			test.SetupTenantConflict(t, ctx, svc, ctrl, nil)
 		})
 
 		t.Run("missing token", func(t *testing.T) {
 			// when using default context with no JWT
-			test.SetupTenantUnauthorized(t, context.Background(), svc, ctrl)
+			test.SetupTenantUnauthorized(t, context.Background(), svc, ctrl, nil)
 		})
 
 		t.Run("cluster not found", func(t *testing.T) {
@@ -95,19 +96,47 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 			})
 			require.NoError(t, err)
 			// when/then
-			test.SetupTenantInternalServerError(t, ctx, svc, ctrl)
+			test.SetupTenantInternalServerError(t, ctx, svc, ctrl, nil)
 		})
 
 		t.Run("namespace already exists on OpenShift", func(t *testing.T) {
-			// given an account that already has a namespace with a different name on OpenShift
-			tenantID := "02a6474c-3b04-4dc4-bfd2-4867102581e0"
-			ctx, err := createValidUserContext(map[string]interface{}{
-				"sub":   tenantID,
-				"email": "user_ns_exists@bar.com",
+
+			t.Run("without x-forwarded-path", func(t *testing.T) {
+				// given an account that already has a namespace with a different name on OpenShift
+				tenantID := "02a6474c-3b04-4dc4-bfd2-4867102581e0"
+				ctx, err := createValidUserContext(map[string]interface{}{
+					"sub":   tenantID,
+					"email": "user_with_namespace@bar.com",
+				})
+				require.NoError(t, err)
+				// when
+				_, jsonAPIErr := test.SetupTenantConflict(t, ctx, svc, ctrl, nil)
+				// then
+				require.NotEmpty(t, jsonAPIErr.Errors)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links)
+				t.Logf("JSON-API error links: %v\n", jsonAPIErr.Errors[0].Links)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["user-with-namespace"])                                                          // namespace is based on username, with some replacements
+				assert.Equal(t, "http:///api/tenant/namespaces/user-with-namespace", *jsonAPIErr.Errors[0].Links["user-with-namespace"].Href) // namespace is based on username, with some replacements
 			})
-			require.NoError(t, err)
-			// when/then
-			test.SetupTenantConflict(t, ctx, svc, ctrl)
+
+			t.Run("with x-forwarded-path", func(t *testing.T) {
+				// given an account that already has a namespace with a different name on OpenShift
+				tenantID := "0443beeb-1cfb-427f-bd7c-d22d941bea4f"
+				ctx, err := createValidUserContext(map[string]interface{}{
+					"sub":   tenantID,
+					"email": "user_with_namespace2@bar.com",
+				})
+				require.NoError(t, err)
+				xForwardedPath := "/api/user"
+				// when
+				_, jsonAPIErr := test.SetupTenantConflict(t, ctx, svc, ctrl, &xForwardedPath)
+				//then
+				require.NotEmpty(t, jsonAPIErr.Errors)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links)
+				t.Logf("JSON-API error links: %v\n", jsonAPIErr.Errors[0].Links)
+				require.NotNil(t, jsonAPIErr.Errors[0].Links["user-with-namespace2"])                                                         // namespace is based on username, with some replacements
+				assert.Equal(t, "http:///api/user/namespaces/user-with-namespace2", *jsonAPIErr.Errors[0].Links["user-with-namespace2"].Href) // namespace is based on username, with some replacements
+			})
 		})
 
 		t.Run("quotad execeeded on tenant cluster", func(t *testing.T) {
@@ -119,7 +148,7 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 			})
 			require.NoError(t, err)
 			// when/then
-			test.SetupTenantForbidden(t, ctx, svc, ctrl)
+			test.SetupTenantForbidden(t, ctx, svc, ctrl, nil)
 		})
 
 	})
@@ -163,5 +192,9 @@ func createValidUserContext(claims map[string]interface{}) (context.Context, err
 	if err != nil {
 		return nil, errs.Wrapf(err, "failed to create token")
 	}
-	return goajwt.WithJWT(context.Background(), tok), nil
+	req := &http.Request{
+		Host: "https://example.com",
+	}
+	ctx := goa.NewContext(context.Background(), nil, req, nil)
+	return goajwt.WithJWT(ctx, tok), nil
 }

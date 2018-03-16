@@ -2,8 +2,10 @@ package openshift
 
 import (
 	"context"
+	"reflect"
 	"sync"
 
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/log"
 	errs "github.com/pkg/errors"
@@ -31,29 +33,30 @@ func InitTenant(ctx context.Context, config Config, callback Callback, username,
 	if err != nil {
 		return err
 	}
-
-	mapped, err := MapByNamespaceAndSort(templs)
+	mappedObjects, err := MapByNamespaceAndSort(templs)
 	if err != nil {
 		return err
 	}
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callback}
 	masterOpts := ApplyOptions{Config: config, Callback: callback}
 	// init user namespace first, and check for errors
-	for key, val := range mapped {
-		namespaceType := tenant.GetNamespaceType(key)
+	for namespace, objects := range mappedObjects {
+		namespaceType := tenant.GetNamespaceType(namespace)
 		if namespaceType == tenant.TypeUser {
-			log.Debug(ctx, map[string]interface{}{"username": username, "namespace": key}, "initializing namespace for user...")
-			delete(mapped, key) // remove the ns entry so it won't be processed again afterwards
-			err = initUserNamespace(ctx, key, val, masterOpts, userOpts)
+			log.Debug(ctx, map[string]interface{}{"username": username, "namespace": namespace}, "initializing namespace for user...")
+			delete(mappedObjects, namespace) // remove the ns entry so it won't be processed again afterwards
+			err = initUserNamespace(ctx, namespace, objects, masterOpts, userOpts)
 			if err != nil {
-				return err
+				log.Info(ctx, map[string]interface{}{"error_message": err, "error_type": reflect.TypeOf(err)}, "error occurred while initializing user namespace")
+				// enrich the error with the namespace
+				return enrichError(ctx, err, namespace)
 			}
 		}
 	}
 	// if user namespace was initialized, then proceed with other namespaces in separate go routines...
 	var wg sync.WaitGroup
-	wg.Add(len(mapped))
-	for key, val := range mapped {
+	wg.Add(len(mappedObjects))
+	for namespace, objects := range mappedObjects {
 		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions) {
 			defer wg.Done()
 			err := applyProcessed(ctx, objects, opts)
@@ -63,10 +66,27 @@ func InitTenant(ctx context.Context, config Config, callback Callback, username,
 					"err":       err,
 				}, "error dsaas project")
 			}
-		}(key, val, masterOpts)
+		}(namespace, objects, masterOpts)
 	}
 	wg.Wait()
 	return nil
+}
+
+func enrichError(ctx context.Context, err error, namespace string) error {
+	switch err := err.(type) {
+	case errors.NamespaceConflictError:
+		log.Debug(ctx, map[string]interface{}{"namespace": namespace}, "adding namespace info in NamespaceConflict error")
+		err.Namespace = namespace
+		return err // return the enriched error
+	case errors.ForbiddenError:
+		err.Namespace = namespace
+		return err // return the enriched error
+	default:
+		if errs.Cause(err) != nil {
+			return enrichError(ctx, errs.Cause(err), namespace)
+		}
+	}
+	return err
 }
 
 func initUserNamespace(ctx context.Context, namespace string, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) error {

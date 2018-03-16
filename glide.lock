@@ -1,5 +1,5 @@
-hash: be35098347209cbb7524fc18ef395796dd8789b63062f764297e04d67b5432b1
-updated: 2018-02-28T11:11:24.246920024-05:00
+hash: 19494df3e9734be14517bd486d7806874c043f81ff8f097f09d1c967ce1bc9aa
+updated: 2018-03-14T12:05:16.766868244+01:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
@@ -16,7 +16,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/dgrijalva/jwt-go
-  version: dbeaa9332f19a944acb5736b4456cfcc02140e29
+  version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
   subpackages:
   - request
 - name: github.com/dimfeld/httppath
