@@ -475,12 +475,3 @@ func (a ByKind) Less(i, j int) bool {
 	}
 	return iO < jO
 }
-
-// YamlString returns a Yaml object to String
-func YamlString(data map[interface{}]interface{}) string {
-	b, err := yaml.Marshal(data)
-	if err != nil {
-		return fmt.Sprintf("Could not marshal yaml %v", data)
-	}
-	return string(b)
-}
