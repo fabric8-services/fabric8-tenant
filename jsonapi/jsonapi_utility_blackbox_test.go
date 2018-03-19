@@ -59,7 +59,7 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	require.Equal(t, http.StatusConflict, httpStatus)
 	require.NotNil(t, jerr.Code)
 	require.NotNil(t, jerr.Status)
-	require.Equal(t, jsonapi.ErrorCodeNamespaceConflict, *jerr.Code)
+	require.Equal(t, jsonapi.ErrorCodeConflict, *jerr.Code)
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
 	// test forbidden error
