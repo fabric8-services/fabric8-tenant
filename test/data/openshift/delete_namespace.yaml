@@ -1,0 +1,57 @@
+---
+version: 1
+interactions:
+- request:
+    method: DELETE
+    url: https://openshift.test/oapi/v1/projects/ns1
+    headers:
+      sub: ["user"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+
+- request:
+    method: DELETE
+    url: https://openshift.test/oapi/v1/projects/unknown
+    headers:
+      sub: ["user"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 404 OK
+    code: 404
+    body: '{
+      "kind":"Status",
+      "apiVersion":"v1",
+      "metadata":{},
+      "status":"Failure",
+      "message":"namespaces \"unknown\" not found",
+      "reason":"NotFound",
+      "details":{
+        "name":"unknown",
+        "kind":"namespaces"
+      },
+      "code":404
+    }'
+
+
+- request:
+    method: DELETE
+    url: https://openshift.test/oapi/v1/projects/conflict
+    headers:
+      sub: ["user"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 409 Conflict
+    code: 409
+    body: '{
+      "kind":"Status",
+      "apiVersion":"v1",
+      "metadata":{},
+      "status":"Failure",
+      "message":"Operation cannot be fulfilled on namespaces \"test\": The system is ensuring all content is removed from this namespace.  Upon completion, this namespace will automatically be purged by the system.",
+      "reason":"Conflict",
+      "details":
+        {"name":"test",
+        "kind":"namespaces"},
+      "code":409
+    }'
+
+

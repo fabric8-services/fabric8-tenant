@@ -18,7 +18,7 @@ import (
 const (
 	ErrorCodeNotFound          = "not_found"
 	ErrorCodeBadParameter      = "bad_parameter"
-	ErrorCodeNamespaceConflict = "namespace_conflict"
+	ErrorCodeConflict          = "conflict"
 	ErrorCodeProjectConflict   = "project_conflict"
 	ErrorCodeUnknownError      = "unknown_error"
 	ErrorCodeConversionError   = "conversion_error"
@@ -42,7 +42,7 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 	links := make(map[string]*app.JSONAPILink, 0)
 	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error(), "err_type": reflect.TypeOf(err)}, "an error occurred in our api")
 	switch cause := cause.(type) {
-	case errors.NotFoundError:
+	case errors.TenantRecordNotFoundError, errors.OpenShiftObjectNotFoundError:
 		code = ErrorCodeNotFound
 		title = "Not found error"
 		statusCode = http.StatusNotFound
@@ -51,7 +51,7 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		title = "Bad parameter error"
 		statusCode = http.StatusBadRequest
 	case errors.NamespaceConflictError:
-		code = ErrorCodeNamespaceConflict
+		code = ErrorCodeConflict
 		title = "Namespace conflict error"
 		statusCode = http.StatusConflict
 		if ctx, ok := ctx.(app.AbsoluteURL); ok {
@@ -64,8 +64,12 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 			}
 		}
 	case errors.DataConflictError:
-		code = ErrorCodeNamespaceConflict
+		code = ErrorCodeConflict
 		title = "Data conflict error"
+		statusCode = http.StatusConflict
+	case errors.OpenShiftObjectConflictError:
+		code = ErrorCodeConflict
+		title = "OpenShifr object conflict error"
 		statusCode = http.StatusConflict
 	case errors.InternalError:
 		code = ErrorCodeInternalError

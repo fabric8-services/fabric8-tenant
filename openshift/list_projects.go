@@ -13,7 +13,12 @@ import (
 
 // ListProjects returns the name of the projects of the user identified by the given token
 func ListProjects(ctx context.Context, clusterURL string, token string, clientOptions ...configuration.HTTPClientOption) ([]string, error) {
-	respBody, err := executeRequest(fmt.Sprintf("%s/oapi/v1/projects", strings.TrimSuffix(clusterURL, "/")), token, clientOptions...)
+	respBody, err := executeRequest(ctx,
+		request{
+			method:      "GET",
+			url:         fmt.Sprintf("%s/oapi/v1/projects", strings.TrimSuffix(clusterURL, "/")),
+			bearerToken: token},
+		clientOptions...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to retrieve the user's projects from the API endpoint")
 	}

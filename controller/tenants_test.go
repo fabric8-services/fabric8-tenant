@@ -139,7 +139,7 @@ func (s mockTenantService) Exists(tenantID uuid.UUID) bool {
 
 func (s mockTenantService) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error) {
 	if s.ID != tenantID {
-		return nil, errors.NewNotFoundError("tenant", tenantID.String())
+		return nil, errors.NewTenantRecordNotFoundError("tenant", tenantID.String())
 	}
 	return &tenant.Tenant{
 		CreatedAt: time.Now(),
@@ -151,7 +151,7 @@ func (s mockTenantService) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error)
 
 func (s mockTenantService) GetNamespaces(tenantID uuid.UUID) ([]*tenant.Namespace, error) {
 	if s.ID != tenantID {
-		return nil, errors.NewNotFoundError("tenant", tenantID.String())
+		return nil, errors.NewTenantRecordNotFoundError("tenant", tenantID.String())
 	}
 	return []*tenant.Namespace{
 		{
@@ -185,7 +185,7 @@ func (s mockTenantService) LookupTenantByClusterAndNamespace(masterURL, namespac
 	if masterURL == "" || namespace == "" {
 		return nil, fmt.Errorf("mock error")
 	}
-	return nil, errors.NewNotFoundError("tenant", "")
+	return nil, errors.NewTenantRecordNotFoundError("tenant", "")
 
 }
 

@@ -23,7 +23,7 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	var httpStatus int
 
 	// test not found error
-	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewNotFoundError("foo", "bar"))
+	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewTenantRecordNotFoundError("foo", "bar"))
 	require.Equal(t, http.StatusNotFound, httpStatus)
 	require.NotNil(t, jerr.Code)
 	require.NotNil(t, jerr.Status)

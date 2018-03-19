@@ -91,7 +91,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	tenantToken := &TenantToken{token: usrToken}
 	tenant, err := c.tenantService.GetTenant(tenantToken.Subject())
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", tenantToken.Subject().String()))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewTenantRecordNotFoundError("tenants", tenantToken.Subject().String()))
 	}
 
 	// fetch the cluster the user belongs to
@@ -215,7 +215,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	tenantID := tenantToken.Subject()
 	tenant, err := c.tenantService.GetTenant(tenantID)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", tenantID.String()))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewTenantRecordNotFoundError("tenants", tenantID.String()))
 	}
 
 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
@@ -228,18 +228,21 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 }
 
 // DeleteNamespace runs the "delete namespace" action.
-func (c *TenantController) DeleteNamespace(ctx *app.DeleteNamespacesContext) error {
-	// usrToken := goajwt.ContextJWT(ctx)
-	// if usrToken == nil {
-	// 	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	// }
-	// tenantToken := &TenantToken{token: usrToken}
-	// usr, err := c.userService.GetUser(ctx, tenantToken.Subject())
-	// if err != nil {
-	// 	return jsonapi.JSONErrorResponse(ctx, err)
-	// }
-
-	return nil
+func (c *TenantController) DeleteNamespace(ctx *app.DeleteNamespaceTenantContext) error {
+	// get the tenant (OSO) config for the OSIO user
+	t, config, err := c.resolveTenantConfig(ctx, false)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	// perform the tenant init
+	err = openshift.DeleteNamespace(
+		ctx.Name,
+		config.MasterURL,
+		t.AccessToken)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.Accepted()
 }
 
 func (c *TenantController) resolveTenantConfig(ctx context.Context, mustExist bool) (Tenant, openshift.Config, error) {

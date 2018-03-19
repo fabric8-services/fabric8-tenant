@@ -8,7 +8,7 @@ import (
 const (
 	stBadParameterErrorMsg         = "Bad value for parameter '%s': '%v'"
 	stBadParameterErrorExpectedMsg = "Bad value for parameter '%s': '%v' (expected: '%v')"
-	stNotFoundErrorMsg             = "%s with id '%s' not found"
+	stTenantRecordNotFoundErrorMsg = "%s with id '%s' not found"
 )
 
 // Constants that can be used to identify internal server errors
@@ -129,17 +129,45 @@ func NewBadParameterError(param string, actual interface{}) BadParameterError {
 	return BadParameterError{parameter: param, value: actual}
 }
 
-// NotFoundError means the object specified for the operation does not exist
-type NotFoundError struct {
+// TenantRecordNotFoundError means the tenant record specified for the operation does not exist
+type TenantRecordNotFoundError struct {
 	entity string
 	ID     string
 }
 
-func (err NotFoundError) Error() string {
-	return fmt.Sprintf(stNotFoundErrorMsg, err.entity, err.ID)
+func (err TenantRecordNotFoundError) Error() string {
+	return fmt.Sprintf(stTenantRecordNotFoundErrorMsg, err.entity, err.ID)
 }
 
-// NewNotFoundError returns the custom defined error of type NewNotFoundError.
-func NewNotFoundError(entity string, id string) NotFoundError {
-	return NotFoundError{entity: entity, ID: id}
+// NewTenantRecordNotFoundError returns the custom defined error of type TenantRecordNotFoundError.
+func NewTenantRecordNotFoundError(entity string, id string) TenantRecordNotFoundError {
+	return TenantRecordNotFoundError{entity: entity, ID: id}
+}
+
+// OpenShiftObjectNotFoundError means the requested Openshift object does not exist
+type OpenShiftObjectNotFoundError struct {
+	message string
+}
+
+// NewOpenShiftObjectNotFoundError returns the custom defined error of type OpenShiftObjectNotFoundError.
+func NewOpenShiftObjectNotFoundError(message string) OpenShiftObjectNotFoundError {
+	return OpenShiftObjectNotFoundError{message: message}
+}
+
+func (err OpenShiftObjectNotFoundError) Error() string {
+	return err.message
+}
+
+// OpenShiftObjectConflictError means the requested on an Openshift object conflicts with another resource or operation in progress
+type OpenShiftObjectConflictError struct {
+	message string
+}
+
+// NewOpenShiftObjectConflictError returns the custom defined error of type OpenShiftObjectConflictError.
+func NewOpenShiftObjectConflictError(message string) OpenShiftObjectConflictError {
+	return OpenShiftObjectConflictError{message: message}
+}
+
+func (err OpenShiftObjectConflictError) Error() string {
+	return err.message
 }

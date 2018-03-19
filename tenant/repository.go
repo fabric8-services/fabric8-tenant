@@ -55,7 +55,7 @@ func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string
 	err := s.db.Raw(query, masterURL, namespace).Scan(&result).Error
 	if err == gorm.ErrRecordNotFound {
 		// no match
-		return nil, errors.NewNotFoundError("tenant", "")
+		return nil, errors.NewTenantRecordNotFoundError("tenant", "")
 	} else if err != nil {
 		return nil, errs.Wrapf(err, "unable to lookup tenant by namespace")
 	}

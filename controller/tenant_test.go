@@ -192,6 +192,42 @@ func (s *TenantControllerTestSuite) TestSetupTenant() {
 
 }
 
+func (s *TenantControllerTestSuite) TestDeleteNamespace() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		svc, ctrl, err := newTestTenantController(s.DB, "delete_namespace-1")
+		require.NoError(t, err)
+		tenantID := "6d603ab4-7c5e-4c5f-bba8-a3ba9d370985" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+		ctx, err := createValidUserContext(map[string]interface{}{
+			"sub":   tenantID,
+			"email": "user_foo@bar.com",
+		})
+		require.NoError(t, err)
+
+		// when
+		test.DeleteNamespaceTenantAccepted(t, ctx, svc, ctrl, "foo")
+	})
+
+	s.T().Run("fail", func(t *testing.T) {
+
+		t.Run("not found", func(t *testing.T) {
+			// given
+			svc, ctrl, err := newTestTenantController(s.DB, "delete_namespace-2")
+			require.NoError(t, err)
+			tenantID := "3194ab60-855b-4155-9005-9dce4a05f1eb" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+			ctx, err := createValidUserContext(map[string]interface{}{
+				"sub":   tenantID,
+				"email": "user_foo@bar.com",
+			})
+			require.NoError(t, err)
+
+			// when
+			test.DeleteNamespaceTenantNotFound(t, ctx, svc, ctrl, "unknown")
+		})
+	})
+
+}
 func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *controller.TenantController, error) {
 	r, err := recorder.New(fmt.Sprintf("../test/data/controller/%s", filename), recorder.WithJWTMatcher())
 	if err != nil {

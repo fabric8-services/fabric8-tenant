@@ -134,7 +134,7 @@ func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 		result, err := svc.LookupTenantByClusterAndNamespace("foo", "bar")
 		// then
 		require.Error(t, err)
-		require.IsType(t, errors.NotFoundError{}, err)
+		require.IsType(t, errors.TenantRecordNotFoundError{}, err)
 		require.Nil(t, result)
 	})
 

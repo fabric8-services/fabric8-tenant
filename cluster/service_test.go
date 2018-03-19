@@ -101,7 +101,7 @@ func TestResolveCluster(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Len(t, clusters, 1)
-		assert.Equal(t, "http://api.cluster1/", clusters[0].APIURL)
+		assert.Equal(t, "https://api.cluster1/", clusters[0].APIURL)
 		assert.Equal(t, "foo", clusters[0].AppDNS)
 		assert.Equal(t, "http://console.cluster1/console/", clusters[0].ConsoleURL)
 		assert.Equal(t, "http://metrics.cluster1/", clusters[0].MetricsURL)

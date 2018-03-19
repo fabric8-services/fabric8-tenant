@@ -15,7 +15,7 @@ interactions:
         "attributes": {
           "username": "user_foo",
           "email": "user_foo@bar.com",
-      	  "cluster": "http://api.cluster1/"
+      	  "cluster": "https://api.cluster1/"
         }
       }
     }'
@@ -33,7 +33,7 @@ interactions:
       "data":[
         {
           "name": "cluster_name",
-          "api-url": "http://api.cluster1/",
+          "api-url": "https://api.cluster1/",
           "console-url": "http://console.cluster1/",
           "metrics-url": "http://metrics.cluster1/",
           "logging-url": "http://logs.cluster1/",
@@ -45,7 +45,7 @@ interactions:
 # requests to resolve the user's token on his/her target cluster
 - request:
     method: GET
-    url: http://authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -59,7 +59,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
       sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -75,7 +75,7 @@ interactions:
 # requests to verify that the token is still valid, using the `whoami` API on the user's target cluster
 - request:
     method: GET
-    url: http://api.cluster1/apis/user.openshift.io/v1/users/~
+    url: https://api.cluster1/apis/user.openshift.io/v1/users/~
     headers:
       sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -93,7 +93,7 @@ interactions:
 # set requests for the init tenant API calls on the target (OSO) cluster for user 83fdcae2-634f-4a52-958a-f723cb621700
 - request:
     method: POST
-    url: http://api.cluster1/oapi/v1/projectrequests
+    url: https://api.cluster1/oapi/v1/projectrequests
     headers:
       sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -101,7 +101,7 @@ interactions:
     code: 200
 - request:
     method: POST
-    url: http://api.cluster1/oapi/v1/namespaces/user-foo/rolebindingrestrictions
+    url: https://api.cluster1/oapi/v1/namespaces/user-foo/rolebindingrestrictions
     headers:
       sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -109,7 +109,7 @@ interactions:
     code: 200
 - request:
     method: POST
-    url: http://api.cluster1/api/v1/namespaces/user-foo/services
+    url: https://api.cluster1/api/v1/namespaces/user-foo/services
     headers:
       sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -117,7 +117,7 @@ interactions:
     code: 200
 - request:
     method: POST
-    url: http://api.cluster1/oapi/v1/namespaces/user-foo/rolebindings
+    url: https://api.cluster1/oapi/v1/namespaces/user-foo/rolebindings
     headers:
       sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -125,7 +125,7 @@ interactions:
     code: 200
 - request:
     method: POST
-    url: http://api.cluster1/api/v1/namespaces/user-foo/configmaps
+    url: https://api.cluster1/api/v1/namespaces/user-foo/configmaps
     headers:
       sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -133,7 +133,7 @@ interactions:
     code: 200
 - request:
     method: DELETE
-    url: http://api.cluster1/oapi/v1/namespaces/user-foo/rolebindings/admin
+    url: https://api.cluster1/oapi/v1/namespaces/user-foo/rolebindings/admin
     headers:
       sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
   response:

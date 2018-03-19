@@ -155,15 +155,11 @@ var _ = a.Resource("tenant", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
-})
 
-var _ = a.Resource("namespaces", func() {
-	a.BasePath("/api/tenant/namespaces")
-
-	a.Action("delete", func() {
+	a.Action("delete namespace", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.DELETE("/:name"),
+			a.DELETE("/namespaces/:name"),
 		)
 
 		a.Description("Delete a namespace on the tenant cluster")

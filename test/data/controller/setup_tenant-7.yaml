@@ -15,7 +15,7 @@ interactions:
         "attributes": {
           "username": "user_foo2",
           "email": "user_foo2@bar.com",
-      	  "cluster": "http://api.cluster1/"
+      	  "cluster": "https://api.cluster1/"
         }
       }
     }'
@@ -33,7 +33,7 @@ interactions:
       "data":[
         {
           "name": "cluster_name",
-          "api-url": "http://api.cluster1/",
+          "api-url": "https://api.cluster1/",
           "console-url": "http://console.cluster1/",
           "metrics-url": "http://metrics.cluster1/",
           "logging-url": "http://logs.cluster1/",
@@ -45,7 +45,7 @@ interactions:
 # requests to resolve the user's token on his/her target cluster
 - request:
     method: GET
-    url: http://authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -59,7 +59,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
       sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -75,7 +75,7 @@ interactions:
 # requests to verify that the token is still valid, using the `whoami` API on the user's target cluster
 - request:
     method: GET
-    url: http://api.cluster1/apis/user.openshift.io/v1/users/~
+    url: https://api.cluster1/apis/user.openshift.io/v1/users/~
     headers:
       sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -94,7 +94,7 @@ interactions:
 # requests to retrieve the user's list of projects on OSO
 - request:
     method: GET
-    url: http://api.cluster1/oapi/v1/projects
+    url: https://api.cluster1/oapi/v1/projects
     headers:
       sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -155,7 +155,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://api.cluster1/oapi/v1/projects
+    url: https://api.cluster1/oapi/v1/projects
     headers:
       sub: ["da6d50b9-0086-4aec-9fcd-2882c09ea53b"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -216,7 +216,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://api.cluster1/oapi/v1/projects
+    url: https://api.cluster1/oapi/v1/projects
     headers:
       sub: ["02a6474c-3b04-4dc4-bfd2-4867102581e0"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -255,7 +255,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://api.cluster1/oapi/v1/projects
+    url: https://api.cluster1/oapi/v1/projects
     headers:
       sub: ["0443beeb-1cfb-427f-bd7c-d22d941bea4f"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -296,7 +296,7 @@ interactions:
 # set of requests for the init tenant API calls on the target (OSO) cluster for user 38b33b8b-996d-4ba4-b565-f32a526de85c
 - request:
     method: POST
-    url: http://api.cluster1/oapi/v1/projectrequests
+    url: https://api.cluster1/oapi/v1/projectrequests
     headers:
       sub: ["38b33b8b-996d-4ba4-b565-f32a526de85c"] # will be compared against the `sub` claim in the incoming request's token
   response:
