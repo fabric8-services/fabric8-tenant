@@ -55,79 +55,25 @@ func NewTenantController(
 	}
 }
 
-// Setup runs the setup action.
+// Setup runs the "setup" action.
 func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
-	usrToken := goajwt.ContextJWT(ctx)
-	if usrToken == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	}
-	tenantToken := &TenantToken{token: usrToken}
-	if c.tenantService.Exists(tenantToken.Subject()) {
-		log.Error(ctx, map[string]interface{}{"tenant_id": tenantToken.Subject()}, "a tenant with the same ID already exists")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewDataConflictError(fmt.Sprintf("a tenant with the same ID already exists: %s", tenantToken.Subject())))
-	}
-	// fetch the cluster the user belongs to
-	usr, err := c.userService.GetUser(ctx, tenantToken.Subject())
+	// get the tenant (OSO) config for the OSIO user
+	t, config, err := c.resolveTenantConfig(ctx, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
-	if usr.Cluster == nil {
-		log.Error(ctx, nil, "no cluster defined for tenant")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
-	}
-
-	// fetch the users cluster token
-	openshiftUsername, openshiftUserToken, err := c.resolveTenant(ctx, *usr.Cluster, usrToken.Raw)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *usr.Cluster,
-		}, "unable to fetch tenant token from auth")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
-	}
-	log.Debug(ctx, map[string]interface{}{
-		"openshift_username": openshiftUsername,
-		"openshift_token":    openshiftUserToken},
-		"resolved user on cluster")
-
-	// fetch the cluster info
-	clustr, err := c.resolveCluster(ctx, *usr.Cluster)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *usr.Cluster,
-		}, "unable to fetch cluster")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-	log.Debug(ctx, map[string]interface{}{
-		"cluster_api_url": clustr.APIURL,
-		"user_id":         tenantToken.Subject().String()},
-		"resolved cluster for user")
-
-	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL)
-	t := &tenant.Tenant{ID: tenantToken.Subject(), Email: tenantToken.Email()}
-	err = c.tenantService.CreateTenant(t)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to store tenant configuration")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewDataConflictError("unable to store tenant configuration"))
-	}
-
 	// perform the tenant init
 	err = openshift.InitTenant(
 		ctx,
-		openshiftConfig,
-		newTenantCallBack(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-		openshiftUsername,
-		openshiftUserToken,
+		config,
+		newTenantCallBack(ctx, config.MasterURL, c.tenantService, t.ID),
+		t.Owner,
+		t.AccessToken,
 		c.templateVars)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"err":     err,
-			"os_user": openshiftUsername,
+			"err":             err,
+			"tenant_username": t.Owner,
 		}, "unable to initialize tenant")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -136,7 +82,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	return ctx.Accepted()
 }
 
-// Update runs the setup action.
+// Update runs the "update" action.
 func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	usrToken := goajwt.ContextJWT(ctx)
 	if usrToken == nil {
@@ -187,7 +133,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		err = openshift.UpdateTenant(
 			ctx,
 			openshiftConfig,
-			newTenantCallBack(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			newTenantCallBack(ctx, openshiftConfig.MasterURL, c.tenantService, t.ID),
 			openshiftUsername,
 			c.templateVars)
 
@@ -203,7 +149,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-// Clean runs the setup action for the tenant namespaces.
+// Clean runs the "clean" action for the tenant namespaces.
 func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	usrToken := goajwt.ContextJWT(ctx)
 	if usrToken == nil {
@@ -211,7 +157,6 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 	tenantToken := &TenantToken{token: usrToken}
 
-	// fetch the cluster the user belongs to
 	usr, err := c.userService.GetUser(ctx, tenantToken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -233,6 +178,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
 	}
 
+	// fetch the cluster the user belongs to
 	clustr, err := c.resolveCluster(ctx, *usr.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -258,7 +204,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	return ctx.NoContent()
 }
 
-// Show runs the setup action.
+// Show runs the "setup" action.
 func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	token := goajwt.ContextJWT(ctx)
 	if token == nil {
@@ -281,32 +227,76 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	return ctx.OK(result)
 }
 
-// Show runs the setup action.
+// DeleteNamespace runs the "delete namespace" action.
 func (c *TenantController) DeleteNamespace(ctx *app.DeleteNamespacesContext) error {
-	// 	token := goajwt.ContextJWT(ctx)
-	// 	if token == nil {
-	// 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	// 	}
+	// usrToken := goajwt.ContextJWT(ctx)
+	// if usrToken == nil {
+	// 	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+	// }
+	// tenantToken := &TenantToken{token: usrToken}
+	// usr, err := c.userService.GetUser(ctx, tenantToken.Subject())
+	// if err != nil {
+	// 	return jsonapi.JSONErrorResponse(ctx, err)
+	// }
 
-	// 	tenantToken := &TenantToken{token: token}
-	// 	tenantID := tenantToken.Subject()
-	// 	tenant, err := c.tenantService.GetTenant(tenantID)
-	// 	if err != nil {
-	// 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", tenantID.String()))
-	// 	}
-
-	// 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
-	// 	if err != nil {
-	// 		return jsonapi.JSONErrorResponse(ctx, err)
-	// 	}
-
-	// 	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
-	// 	return ctx.OK(result)
 	return nil
 }
 
+func (c *TenantController) resolveTenantConfig(ctx context.Context, mustExist bool) (Tenant, openshift.Config, error) {
+	usrToken := goajwt.ContextJWT(ctx)
+	if usrToken == nil {
+		return Tenant{}, openshift.Config{}, errors.NewUnauthorizedError("Missing JWT token")
+	}
+	// make sure there is no entry in the service DB for the OSIO user
+	tenantToken := TenantToken{token: usrToken}
+	if c.tenantService.Exists(tenantToken.Subject()) != mustExist {
+		log.Error(ctx, map[string]interface{}{"tenant_id": tenantToken.Subject()}, "a tenant with the same ID already exists")
+		return Tenant{}, openshift.Config{}, errors.NewDataConflictError(fmt.Sprintf("a tenant with the same ID already exists: %s", tenantToken.Subject()))
+	}
+
+	// fetch the cluster the user belongs to
+	usr, err := c.userService.GetUser(ctx, tenantToken.Subject())
+	if err != nil {
+		return Tenant{}, openshift.Config{}, err
+	}
+
+	if usr.Cluster == nil {
+		log.Error(ctx, nil, "no cluster defined for tenant")
+		return Tenant{}, openshift.Config{}, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster"))
+	}
+
+	// fetch the users cluster token
+	username, token, err := c.resolveTenant(ctx, *usr.Cluster, usrToken.Raw)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"cluster_url": *usr.Cluster,
+		}, "unable to fetch tenant token from auth")
+		return Tenant{}, openshift.Config{}, errors.NewUnauthorizedError("Could not resolve user token")
+	}
+
+	clustr, err := c.resolveCluster(ctx, *usr.Cluster)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"cluster_url": *usr.Cluster,
+		}, "unable to fetch cluster")
+		return Tenant{}, openshift.Config{}, errors.NewInternalError(ctx, err)
+	}
+	log.Info(ctx, map[string]interface{}{"cluster_api_url": clustr.APIURL, "user_id": tenantToken.Subject().String()}, "resolved cluster for user")
+	// create openshift config
+	return Tenant{
+			ID:          tenantToken.Subject(),
+			Owner:       username,
+			AccessToken: token,
+		},
+		openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL),
+		nil
+
+}
+
 // newTenantCallBack returns a Callback that assumes a new tenant is being created
-func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
+func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Service, tenantID uuid.UUID) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
@@ -337,7 +327,7 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
 				name := openshift.GetName(request)
 				service.SaveNamespace(&tenant.Namespace{
-					TenantID:  currentTenant.ID,
+					TenantID:  tenantID,
 					Name:      name,
 					State:     "created",
 					Version:   openshift.GetLabelVersion(request),
@@ -352,7 +342,7 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
 				name := openshift.GetName(request)
 				service.SaveNamespace(&tenant.Namespace{
-					TenantID:  currentTenant.ID,
+					TenantID:  tenantID,
 					Name:      name,
 					State:     "created",
 					Version:   openshift.GetLabelVersion(request),
@@ -398,6 +388,12 @@ func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string,
 	return "", nil
 }
 
+// Tenant some user info about the tenant (OS cluster)
+type Tenant struct {
+	ID          uuid.UUID
+	Owner       string
+	AccessToken string
+}
 type TenantToken struct {
 	token *jwt.Token
 }
