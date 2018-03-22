@@ -104,6 +104,7 @@ func getMigrations() migrations {
 	m = append(m, steps{executeSQLFile("001-tenant-and-namespaces.sql")})
 	m = append(m, steps{executeSQLFile("002-remove-dup-ns.sql")})
 	m = append(m, steps{executeSQLFile("003-profiles.sql")})
+	m = append(m, steps{executeSQLFile("004-index-tenants-search.sql")})
 
 	// Version N
 	//
