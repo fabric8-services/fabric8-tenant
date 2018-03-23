@@ -54,12 +54,6 @@ func JWTMatcher() cassette.Matcher {
 		// check the request URI and method
 		if httpRequest.Method != cassetteRequest.Method ||
 			(httpRequest.URL != nil && httpRequest.URL.String() != cassetteRequest.URL) {
-			// log.Debug(nil, map[string]interface{}{
-			// 	"http_request_method": httpRequest.Method,
-			// 	"cassette_method":     cassetteRequest.Method,
-			// 	"http_request_url":    httpRequest.URL,
-			// 	"cassette_url":        cassetteRequest.URL,
-			// }, "Cassette method/url doesn't match with the current request")
 			return false
 		}
 		// look-up the JWT's "sub" claim and compare with the request
