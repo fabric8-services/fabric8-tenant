@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app/test"
@@ -247,13 +248,14 @@ func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *contr
 	}
 
 	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r.Transport))
+	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
 	clusterService := cluster.NewService(
 		authURL,
+		time.Hour, // don't want to interfer with the refresher here
 		saToken.Raw,
 		resolveToken,
 		token.NewGPGDecypter("foo"),
-		configuration.WithRoundTripper(r.Transport),
+		configuration.WithRoundTripper(r),
 	)
 	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
@@ -268,7 +270,7 @@ func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *contr
 	userService := user.NewService(
 		authURL,
 		saToken.Raw,
-		configuration.WithRoundTripper(r.Transport),
+		configuration.WithRoundTripper(r),
 	)
 	defaultOpenshiftConfig := openshift.Config{}
 	templateVars := make(map[string]string)

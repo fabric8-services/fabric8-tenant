@@ -24,7 +24,8 @@ imports:
 - name: github.com/dimfeld/httptreemux
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/dnaeon/go-vcr
-  version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
+  version: fd097d581a47517ee36686adfd3153d6f8eca367
+  repo: https://github.com/xcoulon/go-vcr/
   subpackages:
   - cassette
   - recorder

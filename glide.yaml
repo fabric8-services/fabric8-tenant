@@ -75,4 +75,5 @@ testImport:
 - package: github.com/wadey/gocovmerge
 - package: github.com/jstemmer/go-junit-report
 - package: github.com/dnaeon/go-vcr
-  # version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
+  repo: https://github.com/xcoulon/go-vcr/
+  version: fd097d581a47517ee36686adfd3153d6f8eca367

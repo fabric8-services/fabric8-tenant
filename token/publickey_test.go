@@ -26,7 +26,7 @@ func TestPublicKeys(t *testing.T) {
 		// when
 		result, err := token.GetPublicKeys(context.Background(),
 			"http://authservice",
-			configuration.WithRoundTripper(r.Transport))
+			configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		assert.Len(t, result, 3)

@@ -8,6 +8,7 @@ interactions:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
     status: 200 OK
+    duration: 5s
     code: 200
     body: '{
       "data":[
