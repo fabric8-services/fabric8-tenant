@@ -128,10 +128,12 @@ func main() {
 	resolveToken := token.NewResolve(config.GetAuthURL())
 	clusterService := cluster.NewService(
 		config.GetAuthURL(),
+		config.GetClustersRefreshDelay(),
 		*saToken,
 		resolveToken,
 		token.NewGPGDecypter(config.GetTokenKey()),
 	)
+	defer clusterService.Stop()
 	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

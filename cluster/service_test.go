@@ -2,7 +2,9 @@ package cluster_test
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -72,27 +74,32 @@ func TestClusterCache(t *testing.T) {
 	})
 }
 
-func TestResolveCluster(t *testing.T) {
+func TestGetClusters(t *testing.T) {
 	// given
 	r, err := recorder.New("../test/data/cluster/resolve_cluster", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
 	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r.Transport))
-	saToken, err := testsupport.NewToken(map[string]interface{}{
-		"sub": "tenant_service",
-	}, "../test/private_key.pem")
+	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
+	saToken, err := testsupport.NewToken(
+		map[string]interface{}{
+			"sub": "tenant_service",
+		},
+		"../test/private_key.pem",
+	)
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
 		// given
 		clusterService := cluster.NewService(
 			authURL,
+			time.Hour, // don't want to interfer with the refresher here
 			saToken.Raw,
 			resolveToken,
 			token.NewGPGDecypter("foo"),
-			configuration.WithRoundTripper(r.Transport),
+			configuration.WithRoundTripper(r),
 		)
+		defer clusterService.Stop()
 		// when
 		clusters, err := clusterService.GetClusters(context.Background())
 		// then
@@ -106,5 +113,83 @@ func TestResolveCluster(t *testing.T) {
 		assert.Equal(t, saToken.Raw, clusters[0].Token) // see decode_test.go for decoded value of data in yaml file
 		assert.Equal(t, "tenant_service", clusters[0].User)
 		assert.Equal(t, false, clusters[0].CapacityExhausted)
+	})
+
+	t.Run("cache", func(t *testing.T) {
+		t.Run("not loaded", func(t *testing.T) {
+			// given
+			clusterService := cluster.NewService(
+				authURL,
+				time.Hour, //
+				saToken.Raw,
+				resolveToken,
+				token.NewGPGDecypter("foo"),
+				configuration.WithRoundTripper(r),
+			)
+			defer clusterService.Stop()
+			<-time.After(time.Second) // make sure the cache is not loaded
+			// when
+			clusters, err := clusterService.GetClusters(context.Background())
+			// then
+			require.NoError(t, err)
+			require.Len(t, clusters, 1)
+			stats := clusterService.Stats()
+			assert.Equal(t, 1, stats.CacheRefreshes)
+			assert.Equal(t, 0, stats.CacheHits)
+			assert.Equal(t, 1, stats.CacheMissed)
+		})
+
+		t.Run("loaded", func(t *testing.T) {
+			// given
+			clusterService := cluster.NewService(
+				authURL,
+				time.Second, //
+				saToken.Raw,
+				resolveToken,
+				token.NewGPGDecypter("foo"),
+				configuration.WithRoundTripper(r),
+			)
+			defer clusterService.Stop()
+			<-time.After(time.Duration(2 * int(time.Second))) // make sure the cache is loaded
+			// when
+			clusters, err := clusterService.GetClusters(context.Background())
+			// then
+			require.NoError(t, err)
+			require.Len(t, clusters, 1)
+			stats := clusterService.Stats()
+			assert.Equal(t, 1, stats.CacheRefreshes)
+			assert.Equal(t, 1, stats.CacheHits)
+			assert.Equal(t, 0, stats.CacheMissed)
+		})
+
+		t.Run("concurrent access upon start", func(t *testing.T) {
+			// given
+			clusterService := cluster.NewService(
+				authURL,
+				time.Hour, // make sure the refresher does not interfer
+				saToken.Raw,
+				resolveToken,
+				token.NewGPGDecypter("foo"),
+				configuration.WithRoundTripper(r),
+			)
+			defer clusterService.Stop()
+			// when 5 requests arrive at the same time (more or less)
+			wg := sync.WaitGroup{}
+			for i := 0; i < 5; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					clusters, err := clusterService.GetClusters(context.Background())
+					// then
+					require.NoError(t, err)
+					require.Len(t, clusters, 1)
+				}()
+			}
+			wg.Wait()
+			stats := clusterService.Stats()
+			assert.Equal(t, 1, stats.CacheRefreshes)
+			assert.Equal(t, 4, stats.CacheHits)
+			assert.Equal(t, 1, stats.CacheMissed)
+		})
 	})
 }

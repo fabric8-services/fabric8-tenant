@@ -101,7 +101,6 @@ func Test_convertTenant(t *testing.T) {
 	}
 
 	got := convertTenant(ctx, tenant, namespaces, resolveCluster)
-
 	require.Equal(t, want, got)
 }
 
