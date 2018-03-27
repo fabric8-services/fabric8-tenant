@@ -155,8 +155,9 @@ template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
 
 # install dep (see https://golang.github.io/dep/docs/installation.html)
 $(DEP_BIN):
+	@echo "Installing 'dep' in $(GOPATH)/bin"
+	@mkdir -p $(GOPATH)/bin
 	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-	# @echo "dep is available at $(GOPATH)/bin/$(DEP_BIN_NAME) / $(DEP_BIN)"
 
 # These are binary tools from our vendored packages
 $(GOAGEN_BIN): $(VENDOR_DIR)
