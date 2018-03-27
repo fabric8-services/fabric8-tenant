@@ -156,6 +156,7 @@ template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
 # install dep (see https://golang.github.io/dep/docs/installation.html)
 $(DEP_BIN):
 	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+	echo $(GOPATH)/bin/$(DEP_BIN_NAME)
 
 # These are binary tools from our vendored packages
 $(GOAGEN_BIN): $(VENDOR_DIR)
@@ -246,13 +247,9 @@ $(TMP_PATH):
 
 .PHONY: prebuild-check
 prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN) $(DEP_BIN)
-	ls -al $(DEP_BIN)
 # Check that all tools where found
 ifndef GIT_BIN
 	$(error The "$(GIT_BIN_NAME)" executable could not be found in your PATH)
-endif
-ifndef DEP_BIN
-	$(error The "$(DEP_BIN_NAME)" executable could not be found in your PATH)
 endif
 ifndef HG_BIN
 	$(error The "$(HG_BIN_NAME)" executable could not be found in your PATH)
