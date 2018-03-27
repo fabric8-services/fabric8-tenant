@@ -246,6 +246,7 @@ $(TMP_PATH):
 
 .PHONY: prebuild-check
 prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN) $(DEP_BIN)
+	ls -al $(DEP_BIN)
 # Check that all tools where found
 ifndef GIT_BIN
 	$(error The "$(GIT_BIN_NAME)" executable could not be found in your PATH)
