@@ -153,6 +153,10 @@ template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
 		-nocompress \
 		template
 
+# install dep (see https://golang.github.io/dep/docs/installation.html)
+$(DEP_BIN):
+	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
 # These are binary tools from our vendored packages
 $(GOAGEN_BIN): $(VENDOR_DIR)
 	cd $(VENDOR_DIR)/github.com/goadesign/goa/goagen && go build -v
@@ -195,12 +199,6 @@ CLEAN_TARGETS += clean-vendor
 ## Removes the ./vendor directory.
 clean-vendor:
 	-rm -rf $(VENDOR_DIR)
-
-CLEAN_TARGETS += clean-glide-cache
-.PHONY: clean-glide-cache
-## Removes the ./glide directory.
-clean-glide-cache:
-	-rm -rf ./.glide
 
 $(VENDOR_DIR): Gopkg.lock Gopkg.toml
 	$(DEP_BIN) ensure
@@ -247,7 +245,7 @@ $(TMP_PATH):
 	mkdir -p $(TMP_PATH)
 
 .PHONY: prebuild-check
-prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN)
+prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN) $(DEP_BIN)
 # Check that all tools where found
 ifndef GIT_BIN
 	$(error The "$(GIT_BIN_NAME)" executable could not be found in your PATH)
