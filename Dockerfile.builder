@@ -18,6 +18,6 @@ RUN yum --enablerepo=centosplus install -y \
 # Get dep for Go package management
 RUN mkdir -p /tmp/go/bin
 ENV GOPATH /tmp/go
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh && mv /tmp/go/bin/dep /usr/bin
 
 ENTRYPOINT ["/bin/bash"]
