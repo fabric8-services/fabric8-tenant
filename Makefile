@@ -20,7 +20,7 @@ DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -
 
 # Find all required tools:
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
-GLIDE_BIN := $(shell command -v $(GLIDE_BIN_NAME) 2> /dev/null)
+DEP_BIN := $(shell command -v $(DEP_BIN_NAME) 2> /dev/null)
 GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 HG_BIN := $(shell command -v $(HG_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
@@ -202,8 +202,8 @@ CLEAN_TARGETS += clean-glide-cache
 clean-glide-cache:
 	-rm -rf ./.glide
 
-$(VENDOR_DIR): glide.lock glide.yaml
-	$(GLIDE_BIN) install
+$(VENDOR_DIR): Gopkg.lock Gopkg.toml
+	$(DEP_BIN) ensure
 	touch $(VENDOR_DIR)
 
 .PHONY: deps
@@ -252,8 +252,8 @@ prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN)
 ifndef GIT_BIN
 	$(error The "$(GIT_BIN_NAME)" executable could not be found in your PATH)
 endif
-ifndef GLIDE_BIN
-	$(error The "$(GLIDE_BIN_NAME)" executable could not be found in your PATH)
+ifndef DEP_BIN
+	$(error The "$(DEP_BIN_NAME)" executable could not be found in your PATH)
 endif
 ifndef HG_BIN
 	$(error The "$(HG_BIN_NAME)" executable could not be found in your PATH)
