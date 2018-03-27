@@ -163,6 +163,15 @@
   revision = "74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff"
 
 [[projects]]
+  name = "github.com/jstemmer/go-junit-report"
+  packages = [
+    ".",
+    "formatter",
+    "parser"
+  ]
+  revision = "master"
+
+[[projects]]
   name = "github.com/jteeuwen/go-bindata"
   packages = [
     ".",
@@ -373,6 +382,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3e1500971c0e07f174c1df86c5267365e06858ea7b80930ab2c26cb7083ee64b"
+  inputs-digest = "9a2a5a6ddb109bd13fa7f65f17144be00b9fede1afe83519f7156881d9f5f7c9"
   solver-name = "gps-cdcl"
   solver-version = 1
