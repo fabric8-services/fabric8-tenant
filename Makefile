@@ -20,7 +20,7 @@ DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -
 
 # Find all required tools:
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
-DEP_BIN := $(shell command -v $(GOPATH)/bin/$(DEP_BIN_NAME) 2> /dev/null)
+DEP_BIN := $(GOPATH)/bin/$(DEP_BIN_NAME)
 GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 HG_BIN := $(shell command -v $(HG_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
@@ -156,7 +156,7 @@ template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
 # install dep (see https://golang.github.io/dep/docs/installation.html)
 $(DEP_BIN):
 	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-	echo $(GOPATH)/bin/$(DEP_BIN_NAME)
+	# @echo "dep is available at $(GOPATH)/bin/$(DEP_BIN_NAME) / $(DEP_BIN)"
 
 # These are binary tools from our vendored packages
 $(GOAGEN_BIN): $(VENDOR_DIR)
