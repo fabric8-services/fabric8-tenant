@@ -20,7 +20,7 @@ DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -
 
 # Find all required tools:
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
-GLIDE_BIN := $(shell command -v $(GLIDE_BIN_NAME) 2> /dev/null)
+DEP_BIN := $(GOPATH)/bin/$(DEP_BIN_NAME)
 GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 HG_BIN := $(shell command -v $(HG_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
@@ -153,6 +153,12 @@ template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
 		-nocompress \
 		template
 
+# install dep (see https://golang.github.io/dep/docs/installation.html)
+$(DEP_BIN):
+	@echo "Installing 'dep' in $(GOPATH)/bin"
+	@mkdir -p $(GOPATH)/bin
+	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
 # These are binary tools from our vendored packages
 $(GOAGEN_BIN): $(VENDOR_DIR)
 	cd $(VENDOR_DIR)/github.com/goadesign/goa/goagen && go build -v
@@ -196,14 +202,8 @@ CLEAN_TARGETS += clean-vendor
 clean-vendor:
 	-rm -rf $(VENDOR_DIR)
 
-CLEAN_TARGETS += clean-glide-cache
-.PHONY: clean-glide-cache
-## Removes the ./glide directory.
-clean-glide-cache:
-	-rm -rf ./.glide
-
-$(VENDOR_DIR): glide.lock glide.yaml
-	$(GLIDE_BIN) install
+$(VENDOR_DIR): Gopkg.lock Gopkg.toml
+	$(DEP_BIN) ensure
 	touch $(VENDOR_DIR)
 
 .PHONY: deps
@@ -247,13 +247,10 @@ $(TMP_PATH):
 	mkdir -p $(TMP_PATH)
 
 .PHONY: prebuild-check
-prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN)
+prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN) $(DEP_BIN)
 # Check that all tools where found
 ifndef GIT_BIN
 	$(error The "$(GIT_BIN_NAME)" executable could not be found in your PATH)
-endif
-ifndef GLIDE_BIN
-	$(error The "$(GLIDE_BIN_NAME)" executable could not be found in your PATH)
 endif
 ifndef HG_BIN
 	$(error The "$(HG_BIN_NAME)" executable could not be found in your PATH)
