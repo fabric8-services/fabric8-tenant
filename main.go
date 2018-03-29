@@ -126,22 +126,21 @@ func main() {
 	}
 
 	resolveToken := token.NewResolve(config.GetAuthURL())
-	clusterService := cluster.NewService(
+	clusterService, err := cluster.NewService(
 		config.GetAuthURL(),
 		config.GetClustersRefreshDelay(),
 		*saToken,
 		resolveToken,
 		token.NewGPGDecypter(config.GetTokenKey()),
 	)
-	defer clusterService.Stop()
-	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
-		}, "unable to resolve clusters")
+		}, "failed to initialize the cluster.Service component")
 	}
+	defer clusterService.Stop()
 
-	resolveCluster := cluster.NewResolve(clusters)
+	resolveCluster := cluster.NewResolve(clusterService)
 	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
 		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
 	}

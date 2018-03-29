@@ -40,8 +40,8 @@ func TestTenantsController(t *testing.T) {
 	suite.Run(t, &TenantsControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-var resolveCluster = func(ctx context.Context, target string) (*cluster.Cluster, error) {
-	return &cluster.Cluster{
+var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
+	return cluster.Cluster{
 		APIURL:     "https://api.example.com",
 		ConsoleURL: "https://console.example.com/console",
 		MetricsURL: "https://metrics.example.com",
@@ -302,19 +302,20 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 	}
 
 	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r.Transport))
-	clusterService := cluster.NewService(
+	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
+	clusterService, err := cluster.NewService(
 		authURL,
+		10 * time.Seconds,
 		saToken.Raw,
 		resolveToken,
 		token.NewGPGDecypter("foo"),
-		configuration.WithRoundTripper(r.Transport),
+		configuration.WithRoundTripper(r),
 	)
-	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
-	resolveCluster := cluster.NewResolve(clusters)
+
+	resolveCluster := cluster.NewResolve(clusterService)
 	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
 		// log.Debug(ctx, map[string]interface{}{"user_token": userToken}, "attempting to resolve tenant for user...")
 		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
@@ -323,9 +324,9 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 	userService := user.NewService(
 		authURL,
 		saToken.Raw,
-		configuration.WithRoundTripper(r.Transport),
+		configuration.WithRoundTripper(r),
 	)
-	openshiftService := openshift.NewService(configuration.WithRoundTripper(r.Transport))
+	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
 	defaultOpenshiftConfig := openshift.Config{}
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantsController(svc, tenantService, userService, openshiftService, resolveTenant, resolveCluster, defaultOpenshiftConfig)
