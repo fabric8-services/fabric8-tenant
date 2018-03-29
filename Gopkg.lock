@@ -60,7 +60,7 @@
     "cassette",
     "recorder"
   ]
-  revision = "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+  revision = "b68d3628568e385c2f706bf3f0db84f9c32fe610"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-auth"
@@ -115,6 +115,20 @@
   ]
   revision = "5646a430cdeb66983d5ace3384e0a667c185abc7"
   version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/generator"
+  packages = ["."]
+  revision = "2224a98ac05213f8dff340ea2a489217d2d8b965"
+
+[[projects]]
+  name = "github.com/gojuno/minimock"
+  packages = [
+    ".",
+    "cmd/minimock"
+  ]
+  revision = "master"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -361,7 +375,12 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/tools"
-  packages = ["go/ast/astutil"]
+  packages = [
+    "go/ast/astutil",
+    "go/buildutil",
+    "go/loader",
+    "imports"
+  ]
   revision = "77106db15f689a60e7d4e085d967ac557b918fb2"
 
 [[projects]]
@@ -382,6 +401,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9a2a5a6ddb109bd13fa7f65f17144be00b9fede1afe83519f7156881d9f5f7c9"
+  inputs-digest = "0fa7d7e3f1ad23ff3c9a151163bf450c8f6170f3f6e4513a1e796e55316e24f2"
   solver-name = "gps-cdcl"
   solver-version = 1

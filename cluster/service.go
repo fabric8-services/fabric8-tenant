@@ -38,7 +38,7 @@ func cleanURL(url string) string {
 
 // Service the interface for the cluster service
 type Service interface {
-	GetClusters(context.Context) ([]*Cluster, error)
+	GetClusters(context.Context) ([]Cluster, error)
 	Stats() Stats
 	Stop()
 }
@@ -51,7 +51,7 @@ type Stats struct {
 }
 
 // NewService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewService(authURL string, clustersRefreshDelay time.Duration, serviceToken string, resolveToken token.Resolve, decode token.Decode, options ...configuration.HTTPClientOption) Service {
+func NewService(authURL string, clustersRefreshDelay time.Duration, serviceToken string, resolveToken token.Resolve, decode token.Decode, options ...configuration.HTTPClientOption) (Service, error) {
 	// setup a ticker to refresh the cluster cache at regular intervals
 	cacheRefresher := time.NewTicker(clustersRefreshDelay)
 	s := &clusterService{
@@ -60,17 +60,20 @@ func NewService(authURL string, clustersRefreshDelay time.Duration, serviceToken
 		resolveToken:     resolveToken,
 		decode:           decode,
 		cacheRefresher:   cacheRefresher,
-		cacheRefreshLock: &sync.Mutex{},
+		cacheRefreshLock: &sync.RWMutex{},
 		clientOptions:    options}
+	// immediately load the list of clusters before returning
+	err := s.refreshCache(context.Background())
+	if err != nil {
+		log.Error(nil, map[string]interface{}{"error_message": err}, "failed to load the list of clusters during service initialization")
+		return nil, err
+	}
 	go func() {
 		for range cacheRefresher.C { // while the `cacheRefresh` ticker is running
-			s.cacheRefreshLock.Lock()
-			defer s.cacheRefreshLock.Unlock()
 			s.refreshCache(context.Background())
 		}
 	}()
-
-	return s
+	return s, nil
 }
 
 type clusterService struct {
@@ -78,40 +81,23 @@ type clusterService struct {
 	serviceToken     string
 	resolveToken     token.Resolve
 	cacheRefresher   *time.Ticker
-	cacheRefreshLock *sync.Mutex
+	cacheRefreshLock *sync.RWMutex
 	cacheHits        int
 	cacheMissed      int
 	cacheRefreshes   int
-	cachedClusters   []*Cluster
+	cachedClusters   []Cluster
 	decode           token.Decode
 	clientOptions    []configuration.HTTPClientOption
 }
 
-func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
-	// force fetch if nothing was loaded in the cache
-	if len(s.cachedClusters) == 0 {
-		log.Debug(ctx, nil, "cache not loaded. Attempting to obtain a lock...")
-		// lock to avoid concurrent fetches
-		s.cacheRefreshLock.Lock()
-		log.Debug(ctx, nil, "lock acquired")
-		defer s.cacheRefreshLock.Unlock()
-		// once lock is freed, check if fetching is still needed
-		// (in case another request already triggered the refresh while this one acquired the lock)
-		if len(s.cachedClusters) == 0 {
-			s.cacheMissed++
-			err := s.refreshCache(ctx)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			log.Debug(ctx, nil, "ah, cache is now loaded!")
-			s.cacheHits++ // cache was hit since loaded by another rountine in the mean time
-		}
-	} else {
-		log.Debug(ctx, nil, "cache is already loaded!")
-		s.cacheHits++ // cache was hit immediately
-	}
-	return s.cachedClusters, nil
+func (s *clusterService) GetClusters(ctx context.Context) ([]Cluster, error) {
+	s.cacheRefreshLock.RLock()
+	log.Debug(ctx, nil, "read lock acquired")
+	clusters := make([]Cluster, len(s.cachedClusters))
+	copy(clusters, s.cachedClusters)
+	s.cacheRefreshLock.RUnlock()
+	log.Debug(ctx, nil, "read lock released")
+	return clusters, nil // return a copy of the cached clusters
 }
 
 func (s *clusterService) Stop() {
@@ -119,7 +105,8 @@ func (s *clusterService) Stop() {
 }
 
 func (s *clusterService) refreshCache(ctx context.Context) error {
-	log.Info(ctx, nil, "refreshing cached list of clusters...")
+	log.Debug(ctx, nil, "refreshing cached list of clusters...")
+	defer log.Debug(ctx, nil, "refreshed cached list of clusters.")
 	s.cacheRefreshes = s.cacheRefreshes + 1
 	client, err := auth.NewClient(s.authURL, s.serviceToken, s.clientOptions...)
 	if err != nil {
@@ -151,7 +138,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 		return errors.Wrapf(err, "error from server %q", s.authURL)
 	}
 
-	var cls []*Cluster
+	var cls []Cluster
 	for _, cluster := range clusters.Data {
 		// resolve/obtain the cluster token
 		clusterUser, clusterToken, err := s.resolveToken(ctx, cluster.APIURL, s.serviceToken, false, s.decode) // can't use "forcePull=true" to validate the `tenant service account` token since it's encrypted on auth
@@ -165,7 +152,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 			return errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
 		}
 
-		cls = append(cls, &Cluster{
+		cls = append(cls, Cluster{
 			APIURL:     cluster.APIURL,
 			AppDNS:     cluster.AppDNS,
 			ConsoleURL: cluster.ConsoleURL,
@@ -175,7 +162,12 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 			Token:      clusterToken,
 		})
 	}
-	s.cachedClusters = cls // only replace at the end, i.e., when all retrieved clusters have been processed
+	// lock to avoid concurrent writes
+	s.cacheRefreshLock.Lock()
+	log.Debug(ctx, nil, "write lock acquired")
+	s.cachedClusters = cls // only replace at the end of this function and within a Write lock scope, i.e., when all retrieved clusters have been processed
+	s.cacheRefreshLock.Unlock()
+	log.Debug(ctx, nil, "write lock released")
 	return nil
 }
 

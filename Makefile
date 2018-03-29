@@ -25,6 +25,7 @@ GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 HG_BIN := $(shell command -v $(HG_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
 DOCKER_BIN := $(shell command -v $(DOCKER_BIN_NAME) 2> /dev/null)
+MINIMOCK_BIN=$(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock/minimock
 
 # This is a fix for a non-existing user in passwd file when running in a docker
 # container and trying to clone repos of dependencies
@@ -217,6 +218,15 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-auth/design --notool --out auth --pkg client 
 	$(GOAGEN_BIN) gen -d ${PACKAGE_NAME}/${DESIGN_DIR} --pkg-path=${PACKAGE_NAME}/goasupport/context --out app
 	
+$(MINIMOCK_BIN): 
+	@echo "building the minimock binary..."
+	@cd $(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock && go build -v minimock.go
+
+.PHONY: generate-minimock
+generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
+	@echo "Generating mocks..."
+	@-mkdir -p test/cluster
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-tenant/cluster.Service -o ./test/cluster/cluster_mock.go -t ServiceMock
 
 
 .PHONY: migrate-database
@@ -226,7 +236,7 @@ migrate-database: $(BINARY_SERVER_BIN)
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.
-generate: app/controllers.go migration/sqlbindata.go template/bindata.go
+generate: app/controllers.go migration/sqlbindata.go template/bindata.go generate-minimock
 
 .PHONY: dev
 dev: prebuild-check deps generate $(FRESH_BIN)

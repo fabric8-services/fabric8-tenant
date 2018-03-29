@@ -249,7 +249,7 @@ func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *contr
 
 	authURL := "http://authservice"
 	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
-	clusterService := cluster.NewService(
+	clusterService, err := cluster.NewService(
 		authURL,
 		time.Hour, // don't want to interfer with the refresher here
 		saToken.Raw,
@@ -257,11 +257,10 @@ func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *contr
 		token.NewGPGDecypter("foo"),
 		configuration.WithRoundTripper(r),
 	)
-	clusters, err := clusterService.GetClusters(context.Background())
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
-	resolveCluster := cluster.NewResolve(clusters)
+	resolveCluster := cluster.NewResolve(clusterService)
 	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
 		// log.Debug(ctx, map[string]interface{}{"user_token": userToken}, "attempting to resolve tenant for user...")
 		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.

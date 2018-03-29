@@ -387,20 +387,19 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 	}
 }
 
-func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
-	return "", nil
-}
-
 // Tenant some user info about the tenant (OS cluster)
 type Tenant struct {
 	ID          uuid.UUID
 	Owner       string
 	AccessToken string
 }
+
+// TenantToken the token on the tenant
 type TenantToken struct {
 	token *jwt.Token
 }
 
+// Subject returns the value of the `sub` claim in the token
 func (t TenantToken) Subject() uuid.UUID {
 	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
 		id, err := uuid.FromString(claims["sub"].(string))
@@ -412,6 +411,7 @@ func (t TenantToken) Subject() uuid.UUID {
 	return uuid.UUID{}
 }
 
+// Username returns the value of the `preferred_username` claim in the token
 func (t TenantToken) Username() string {
 	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
 		answer := claims["preferred_username"].(string)
@@ -423,6 +423,7 @@ func (t TenantToken) Username() string {
 	return ""
 }
 
+// Email returns the value of the `email` claim in the token
 func (t TenantToken) Email() string {
 	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
 		return claims["email"].(string)
@@ -448,7 +449,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				"err":         err,
 				"cluster_url": ns.MasterURL,
 			}, "unable to resolve cluster")
-			c = &cluster.Cluster{}
+			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(

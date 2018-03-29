@@ -2,7 +2,7 @@ package cluster
 
 /*
 DO NOT EDIT!
-This code was generated automatically using github.com/gojuno/minimock v1.9
+This code was generated automatically using github.com/gojuno/minimock v1.8
 The original interface "Service" can be found in github.com/fabric8-services/fabric8-tenant/cluster
 */
 import (
@@ -20,7 +20,7 @@ import (
 type ServiceMock struct {
 	t minimock.Tester
 
-	GetClustersFunc       func(p context.Context) (r []*cluster.Cluster, r1 error)
+	GetClustersFunc       func(p context.Context) (r []cluster.Cluster, r1 error)
 	GetClustersCounter    uint64
 	GetClustersPreCounter uint64
 	GetClustersMock       mServiceMockGetClusters
@@ -68,21 +68,21 @@ func (m *mServiceMockGetClusters) Expect(p context.Context) *mServiceMockGetClus
 }
 
 //Return sets up a mock for Service.GetClusters to return Return's arguments
-func (m *mServiceMockGetClusters) Return(r []*cluster.Cluster, r1 error) *ServiceMock {
-	m.mock.GetClustersFunc = func(p context.Context) ([]*cluster.Cluster, error) {
+func (m *mServiceMockGetClusters) Return(r []cluster.Cluster, r1 error) *ServiceMock {
+	m.mock.GetClustersFunc = func(p context.Context) ([]cluster.Cluster, error) {
 		return r, r1
 	}
 	return m.mock
 }
 
 //Set uses given function f as a mock of Service.GetClusters method
-func (m *mServiceMockGetClusters) Set(f func(p context.Context) (r []*cluster.Cluster, r1 error)) *ServiceMock {
+func (m *mServiceMockGetClusters) Set(f func(p context.Context) (r []cluster.Cluster, r1 error)) *ServiceMock {
 	m.mock.GetClustersFunc = f
 	return m.mock
 }
 
 //GetClusters implements github.com/fabric8-services/fabric8-tenant/cluster.Service interface
-func (m *ServiceMock) GetClusters(p context.Context) (r []*cluster.Cluster, r1 error) {
+func (m *ServiceMock) GetClusters(p context.Context) (r []cluster.Cluster, r1 error) {
 	atomic.AddUint64(&m.GetClustersPreCounter, 1)
 	defer atomic.AddUint64(&m.GetClustersCounter, 1)
 

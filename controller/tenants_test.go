@@ -32,8 +32,8 @@ func TestTenantsController(t *testing.T) {
 	suite.Run(t, &TenantsControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-var resolveCluster = func(ctx context.Context, target string) (*cluster.Cluster, error) {
-	return &cluster.Cluster{
+var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
+	return cluster.Cluster{
 		APIURL:     "https://api.example.com",
 		ConsoleURL: "https://console.example.com/console",
 		MetricsURL: "https://metrics.example.com",
