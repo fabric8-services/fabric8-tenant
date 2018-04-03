@@ -117,20 +117,6 @@
   version = "v1.3.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/gojuno/generator"
-  packages = ["."]
-  revision = "2224a98ac05213f8dff340ea2a489217d2d8b965"
-
-[[projects]]
-  name = "github.com/gojuno/minimock"
-  packages = [
-    ".",
-    "cmd/minimock"
-  ]
-  revision = "master"
-
-[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "8ee79997227bf9b34611aee7946ae64735e6fd93"
@@ -375,12 +361,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/tools"
-  packages = [
-    "go/ast/astutil",
-    "go/buildutil",
-    "go/loader",
-    "imports"
-  ]
+  packages = ["go/ast/astutil"]
   revision = "77106db15f689a60e7d4e085d967ac557b918fb2"
 
 [[projects]]
@@ -401,6 +382,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0fa7d7e3f1ad23ff3c9a151163bf450c8f6170f3f6e4513a1e796e55316e24f2"
+  inputs-digest = "969b44861dd069ea701ad6709245b08ec26ef847b709ecaa98d95f32aca190e1"
   solver-name = "gps-cdcl"
   solver-version = 1

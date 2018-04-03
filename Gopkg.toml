@@ -39,7 +39,6 @@ required = [
     "github.com/fabric8-services/fabric8-auth/design",
     "github.com/jteeuwen/go-bindata/go-bindata",
     "github.com/jstemmer/go-junit-report",
-    "github.com/gojuno/minimock/cmd/minimock",
     ]
 
 ignored = [
@@ -92,10 +91,6 @@ ignored = [
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"
-  revision = "master"
-
-[[constraint]]
-  name = "github.com/gojuno/minimock"
   revision = "master"
 
 [prune]
