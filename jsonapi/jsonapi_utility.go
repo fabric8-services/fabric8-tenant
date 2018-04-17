@@ -40,12 +40,18 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 	var statusCode int
 	var id *string
 	links := make(map[string]*app.JSONAPILink, 0)
-	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error(), "err_type": reflect.TypeOf(err)}, "an error occurred in our api")
+	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
 	switch cause := cause.(type) {
-	case errors.TenantRecordNotFoundError, errors.OpenShiftObjectNotFoundError:
+	case errors.TenantRecordNotFoundError:
 		code = ErrorCodeNotFound
-		title = "Not found error"
+		title = "Tenant record not found error"
 		statusCode = http.StatusNotFound
+		id = &cause.ID
+	case errors.OpenShiftObjectNotFoundError:
+		code = ErrorCodeNotFound
+		title = "OpenShift object not found error"
+		statusCode = http.StatusNotFound
+		id = &cause.ObjectURL // pass the object URL that could not be located as the ID in the JSON-API error
 	case errors.BadParameterError:
 		code = ErrorCodeBadParameter
 		title = "Bad parameter error"
@@ -103,7 +109,6 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		code = ErrorCodeUnknownError
 		title = "Unknown error"
 		statusCode = http.StatusInternalServerError
-
 		cause = errs.Cause(err)
 		if err, ok := cause.(goa.ServiceError); ok {
 			statusCode = err.ResponseStatus()

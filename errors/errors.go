@@ -131,31 +131,32 @@ func NewBadParameterError(param string, actual interface{}) BadParameterError {
 
 // TenantRecordNotFoundError means the tenant record specified for the operation does not exist
 type TenantRecordNotFoundError struct {
-	entity string
+	Entity string
 	ID     string
 }
 
 func (err TenantRecordNotFoundError) Error() string {
-	return fmt.Sprintf(stTenantRecordNotFoundErrorMsg, err.entity, err.ID)
+	return fmt.Sprintf(stTenantRecordNotFoundErrorMsg, err.Entity, err.ID)
 }
 
 // NewTenantRecordNotFoundError returns the custom defined error of type TenantRecordNotFoundError.
 func NewTenantRecordNotFoundError(entity string, id string) TenantRecordNotFoundError {
-	return TenantRecordNotFoundError{entity: entity, ID: id}
+	return TenantRecordNotFoundError{Entity: entity, ID: id}
 }
 
 // OpenShiftObjectNotFoundError means the requested Openshift object does not exist
 type OpenShiftObjectNotFoundError struct {
-	message string
+	ObjectURL string
+	Message   string
 }
 
 // NewOpenShiftObjectNotFoundError returns the custom defined error of type OpenShiftObjectNotFoundError.
-func NewOpenShiftObjectNotFoundError(message string) OpenShiftObjectNotFoundError {
-	return OpenShiftObjectNotFoundError{message: message}
+func NewOpenShiftObjectNotFoundError(objectURL, message string) OpenShiftObjectNotFoundError {
+	return OpenShiftObjectNotFoundError{ObjectURL: objectURL, Message: message}
 }
 
 func (err OpenShiftObjectNotFoundError) Error() string {
-	return err.message
+	return err.Message
 }
 
 // OpenShiftObjectConflictError means the requested on an Openshift object conflicts with another resource or operation in progress

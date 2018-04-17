@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
+
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	goaclient "github.com/goadesign/goa/client"
@@ -50,21 +52,27 @@ func (d *doer) Do(ctx context.Context, req *http.Request) (*http.Response, error
 
 // ValidateResponse function when given client and response checks if the
 // response has any errors by also looking at the status code
-func ValidateResponse(c *authclient.Client, res *http.Response) error {
-	if res.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("resource not found")
-	} else if res.StatusCode != http.StatusOK {
-		goaErr, err := c.DecodeJSONAPIErrors(res)
-		if err != nil {
-			return err
-		}
-		if len(goaErr.Errors) != 0 {
-			var output string
-			for _, error := range goaErr.Errors {
-				output += fmt.Sprintf("%s: %s %s, %s\n", *error.Title, *error.Status, *error.Code, error.Detail)
-			}
-			return fmt.Errorf("%s", output)
-		}
+func ValidateResponse(ctx context.Context, c *authclient.Client, res *http.Response) error {
+	// 2xx and 3xx response are not considered as errors
+	if res.StatusCode < 400 {
+		return nil
 	}
-	return nil
+	errs, err := c.DecodeJSONAPIErrors(res)
+	if err != nil {
+		return err
+	}
+	if len(errs.Errors) > 0 {
+		if res.StatusCode == http.StatusNotFound {
+			// take the first JSON-API error and convert it into a NotFoundError
+			if errs.Errors[0].ID != nil {
+				return errors.NewNotFoundError("users", *errs.Errors[0].ID)
+			}
+		}
+		var output string
+		for _, error := range errs.Errors {
+			output += fmt.Sprintf("%s: %s %s, %s\n", *error.Title, *error.Status, *error.Code, error.Detail)
+		}
+		return errors.NewInternalError(ctx, fmt.Errorf("%s", output))
+	}
+	return errors.NewInternalError(ctx, fmt.Errorf("unknown error: %d", res.StatusCode))
 }

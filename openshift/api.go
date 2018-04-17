@@ -62,7 +62,7 @@ func executeRequest(ctx context.Context, request request, clientOptions ...confi
 			"operation failed")
 		switch es.Code {
 		case http.StatusNotFound:
-			return nil, errors.NewOpenShiftObjectNotFoundError(es.Message)
+			return nil, errors.NewOpenShiftObjectNotFoundError(request.url, es.Message)
 		case http.StatusConflict:
 			return nil, errors.NewOpenShiftObjectConflictError(es.Message)
 		default:
