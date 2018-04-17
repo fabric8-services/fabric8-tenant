@@ -60,7 +60,7 @@ func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string
 		res.Body.Close()
 	}()
 
-	validationerror := auth.ValidateResponse(c, res)
+	validationerror := auth.ValidateResponse(ctx, c, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
 	}
