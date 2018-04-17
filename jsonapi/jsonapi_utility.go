@@ -37,11 +37,12 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 	var statusCode int
 	var id *string
 	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
-	switch cause.(type) {
+	switch cause := cause.(type) {
 	case errors.NotFoundError:
 		code = ErrorCodeNotFound
 		title = "Not found error"
 		statusCode = http.StatusNotFound
+		id = &cause.ID
 	case errors.ConversionError:
 		code = ErrorCodeConversionError
 		title = "Conversion error"
@@ -74,8 +75,7 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		code = ErrorCodeUnknownError
 		title = "Unknown error"
 		statusCode = http.StatusInternalServerError
-
-		cause := errs.Cause(err)
+		cause = errs.Cause(err)
 		if err, ok := cause.(goa.ServiceError); ok {
 			statusCode = err.ResponseStatus()
 			idStr := err.Token()
