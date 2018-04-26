@@ -117,7 +117,7 @@ objects:
               secretKeyRef:
                 name: f8tenant
                 key: auth.token.key
-          image: registry.devshift.net/fabric8-services/fabric8-tenant:${IMAGE_TAG}
+          image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
           ports:
@@ -145,7 +145,7 @@ objects:
             timeoutSeconds: 1
           resources:
             limits:
-              memory: 1Gi            
+              memory: 1Gi
     triggers:
     - type: ConfigChange
 - apiVersion: v1
@@ -160,5 +160,7 @@ objects:
     selector:
       deploymentconfig: f8tenant
 parameters:
+- name: IMAGE
+  value: registry.devshift.net/fabric8-services/fabric8-tenant
 - name: IMAGE_TAG
   value: latest
