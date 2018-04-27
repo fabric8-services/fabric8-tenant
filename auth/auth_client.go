@@ -10,7 +10,6 @@ import (
 
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-wit/log"
 	goaclient "github.com/goadesign/goa/client"
 )
 
@@ -35,7 +34,7 @@ func NewClient(authURL, token string, options ...configuration.HTTPClientOption)
 	})
 	client.Host = u.Host
 	client.Scheme = u.Scheme
-	log.Debug(nil, map[string]interface{}{"host": client.Host, "scheme": client.Scheme}, "initializing auth client")
+	// log.Debug(nil, map[string]interface{}{"host": client.Host, "scheme": client.Scheme}, "initializing auth client")
 	return client, nil
 }
 

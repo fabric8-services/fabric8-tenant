@@ -54,27 +54,37 @@ func JWTMatcher() cassette.Matcher {
 		// check the request URI and method
 		if httpRequest.Method != cassetteRequest.Method ||
 			(httpRequest.URL != nil && httpRequest.URL.String() != cassetteRequest.URL) {
-			log.Debug(nil, map[string]interface{}{
-				"httpRequest_method":     httpRequest.Method,
-				"cassetteRequest_method": cassetteRequest.Method,
-				"httpRequest_url":        httpRequest.URL,
-				"cassetteRequest_url":    cassetteRequest.URL,
-			}, "Cassette method/url doesn't match with the current request")
 			return false
 		}
-
 		// look-up the JWT's "sub" claim and compare with the request
 		token, err := jwtrequest.ParseFromRequest(httpRequest, jwtrequest.AuthorizationHeaderExtractor, func(*jwt.Token) (interface{}, error) {
 			return testsupport.PublicKey("../test/public_key.pem")
 		})
 		if err != nil {
-			log.Error(nil, map[string]interface{}{"error": err.Error(), "request_method": cassetteRequest.Method, "request_url": cassetteRequest.URL, "authorization_header": httpRequest.Header["Authorization"]}, "failed to parse token from request")
+			log.Error(nil, map[string]interface{}{
+				"error":                err.Error(),
+				"request_method":       cassetteRequest.Method,
+				"request_url":          cassetteRequest.URL,
+				"authorization_header": httpRequest.Header["Authorization"]},
+				"failed to parse token from request")
 			return false
 		}
 		claims := token.Claims.(jwt.MapClaims)
-		if sub, found := cassetteRequest.Headers["sub"]; found {
-			return sub[0] == claims["sub"]
+		sub, found := cassetteRequest.Headers["sub"]
+		if found && len(sub) > 0 && sub[0] == claims["sub"] {
+			log.Debug(nil, map[string]interface{}{
+				"method": cassetteRequest.Method,
+				"url":    cassetteRequest.URL,
+				"sub":    sub[0]}, "found interaction")
+			return true
 		}
+		log.Debug(nil, map[string]interface{}{
+			"method": cassetteRequest.Method,
+			"url":    cassetteRequest.URL,
+			"cassetteRequest_sub": sub,
+			"http_request_sub":    claims["sub"],
+		}, "Authorization header's 'sub' claim doesn't match with the current request")
+
 		return false
 	}
 }

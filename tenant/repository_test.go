@@ -3,11 +3,11 @@ package tenant_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,7 +134,7 @@ func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 		result, err := svc.LookupTenantByClusterAndNamespace("foo", "bar")
 		// then
 		require.Error(t, err)
-		require.IsType(t, errors.NotFoundError{}, err)
+		require.IsType(t, errors.TenantRecordNotFoundError{}, err)
 		require.Nil(t, result)
 	})
 

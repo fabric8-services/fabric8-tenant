@@ -1,0 +1,113 @@
+---
+version: 1
+interactions:
+# requests to retrieve the user from auth service, given his/her ID
+- request:
+    method: GET
+    url: http://authservice/api/users/02a6474c-3b04-4dc4-bfd2-4867102581e0
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{ 
+      "data": {
+        "attributes": {
+          "username": "user_with_namespace",
+          "email": "user_with_namespace@bar.com",
+      	  "cluster": "https://api.cluster1/"
+        }
+      }
+    }'
+
+    # requests to retrieve the list of clusters configured in `auth` service
+- request:
+    method: GET
+    url: http://authservice/api/clusters/
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "data":[
+        {
+          "name": "cluster_name",
+          "api-url": "https://api.cluster1/",
+          "console-url": "http://console.cluster1/",
+          "metrics-url": "http://metrics.cluster1/",
+          "logging-url": "http://logs.cluster1/",
+          "app-dns": "foo"
+        }
+      ]
+    }'
+
+# requests to resolve the user's token on his/her target cluster
+- request:
+    method: GET
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    # response with encrypted token for the "tenant service" account
+    body: '{ 
+			"token_type": "bearer",
+			"username": "devtools-sre",
+      "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
+    }'
+- request:
+    method: GET
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    headers:
+      sub: ["02a6474c-3b04-4dc4-bfd2-4867102581e0"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    # response with plaintext token for the "user" account
+    body: '{ 
+      "token_type": "bearer",
+      "username": "user_with_namespace",
+      "access_token": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJfbnNfZXhpc3RzQGJhci5jb20iLCJzdWIiOiIwMmE2NDc0Yy0zYjA0LTRkYzQtYmZkMi00ODY3MTAyNTgxZTAifQ.CLyi2xYuF2El8W4js8dJQ_rVy38c7YIBNF5_rlkhhQ_-gllnw1PYNNcaYRbqYZ8dXJ0ZcVDBp1-zMucbP-AV2kn2n8BkzxiK2ohxkpLYtwY9sVTmFgxbOB3REx7WTKCiMuogdAJ1ssC_ze5dsoVmFHACyGeGpaTvMeZh76TnYAcgjgs3iIUEtoAvTRlcZ7HDZPJcOmNmUjnNa6v3JiQeOcBwgq6dW9ye18o2tctcTZx7-aKZNWXUdn1SQipvnZu1ksDNpU-7r_cRhizdrHfgylbNwWV8ZxofOBo_U6Rrb7bSpt2FQ8-9ngyQxPKY6jD_eBxWUbcW3YdyNIryoqA"
+    }'
+
+
+# requests to verify that the token is still valid, using the `whoami` API on the user's target cluster
+- request:
+    method: GET
+    url: https://api.cluster1/apis/user.openshift.io/v1/users/~
+    headers:
+      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind":"User",
+      "apiVersion":"user.openshift.io/v1",
+      "metadata":{
+        "name":"devtools-sre",
+      },
+      "identities":[],
+      "groups":[]
+    }'
+
+# set of requests for the init tenant API calls on the target (OSO) cluster for user 38b33b8b-996d-4ba4-b565-f32a526de85c
+- request:
+    method: POST
+    url: https://api.cluster1/oapi/v1/projectrequests
+    headers:
+      sub: ["02a6474c-3b04-4dc4-bfd2-4867102581e0"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 409 Conflict
+    code: 409
+    body: |
+      metadata: {}
+      status: Failure
+      message: project.project.openshift.io "user_with_namespace" already exists
+      reason: AlreadyExists
+      details:
+        name: user_with_namespace
+        group: project.openshift.io
+        kind: project
+      code: 409'

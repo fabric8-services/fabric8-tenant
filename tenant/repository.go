@@ -3,7 +3,7 @@ package tenant
 import (
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -55,7 +55,7 @@ func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string
 	err := s.db.Raw(query, masterURL, namespace).Scan(&result).Error
 	if err == gorm.ErrRecordNotFound {
 		// no match
-		return nil, errors.NewNotFoundError("tenant", "")
+		return nil, errors.NewTenantRecordNotFoundError("tenant", "")
 	} else if err != nil {
 		return nil, errs.Wrapf(err, "unable to lookup tenant by namespace")
 	}

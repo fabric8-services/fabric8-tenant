@@ -1,0 +1,100 @@
+---
+version: 1
+interactions:
+# requests to retrieve the list of clusters configured in `auth` service
+- request:
+    method: GET
+    url: http://authservice/api/clusters/
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "data":[
+        {
+          "name": "cluster_name",
+          "api-url": "https://api.cluster1/",
+          "console-url": "http://console.cluster1/",
+          "metrics-url": "http://metrics.cluster1/",
+          "logging-url": "http://logs.cluster1/",
+          "app-dns": "foo"
+        }
+      ]
+    }'
+# requests to verify that the token is still valid, using the `whoami` API on the user's target cluster
+- request:
+    method: GET
+    url: https://api.cluster1/apis/user.openshift.io/v1/users/~
+    headers:
+      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind":"User",
+      "apiVersion":"user.openshift.io/v1",
+      "metadata":{
+        "name":"devtools-sre",
+      },
+      "identities":[],
+      "groups":[]
+    }'
+
+# requests to resolve the user's token on his/her target cluster
+- request:
+    method: GET
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    # response with encrypted token for the "tenant service" account
+    body: '{ 
+			"token_type": "bearer",
+			"username": "devtools-sre",
+      "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
+    }'
+- request:
+    method: GET
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    headers:
+      sub: ["6d603ab4-7c5e-4c5f-bba8-a3ba9d370985"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    # response with plaintext token for the "user" account
+    body: '{ 
+      "token_type": "bearer",
+      "username": "user_foo",
+      "access_token": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJfZm9vQGJhci5jb20iLCJzdWIiOiI2ZDYwM2FiNC03YzVlLTRjNWYtYmJhOC1hM2JhOWQzNzA5ODUifQ.CjTRvLXAgwSvf1qu_LBWsST7bGDLAW3fmCuEoV41RYxXutWjFH7ulBbsUYs4JfkoCKP0PpkTb029fuhtFd40L9ybgMeUCFJ5LCGXF3NSkqgbf28Ha9A6oI1PSqGfQgDZse2dQLaY41-cKakenTxzU6mFmBDJKE2ktuMK-VH_ZGwS2zZQmChvxWDTwKGEKaccBOexx-lkE33XvkUY-2rUquOgzJyVVDmsBk6dctMz29fbaqFx8XA9X7sJkiYfcNwJQ62nv4kiaMNQ3L7Kmk0Jg3Ct7OhKo97g5XxJLXMpE0WPvgw3CNyKWX9Hr_vvMpUa92U0AEdfrVW_HfPhexs"
+    }'
+
+# requests to retrieve the user from auth service, given his/her ID
+- request:
+    method: GET
+    url: http://authservice/api/users/6d603ab4-7c5e-4c5f-bba8-a3ba9d370985
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{ 
+      "data": {
+        "attributes": {
+          "username": "user_foo",
+          "email": "user_foo@bar.com",
+      	  "cluster": "https://api.cluster1/"
+        }
+      }
+    }'
+
+- request:
+    method: DELETE
+    url: https://api.cluster1/oapi/v1/projects/foo
+    headers:
+      sub: ["6d603ab4-7c5e-4c5f-bba8-a3ba9d370985"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200

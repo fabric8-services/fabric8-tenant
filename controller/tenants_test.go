@@ -10,10 +10,10 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -23,17 +23,17 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TenantControllerTestSuite struct {
+type TenantsControllerTestSuite struct {
 	gormsupport.DBTestSuite
 }
 
-func TestTenantController(t *testing.T) {
+func TestTenantsController(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TenantsControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-var resolveCluster = func(ctx context.Context, target string) (*cluster.Cluster, error) {
-	return &cluster.Cluster{
+var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
+	return cluster.Cluster{
 		APIURL:     "https://api.example.com",
 		ConsoleURL: "https://console.example.com/console",
 		MetricsURL: "https://metrics.example.com",
@@ -44,7 +44,7 @@ var resolveCluster = func(ctx context.Context, target string) (*cluster.Cluster,
 	}, nil
 }
 
-func (s *TenantControllerTestSuite) TestShowTenants() {
+func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
@@ -82,7 +82,7 @@ func (s *TenantControllerTestSuite) TestShowTenants() {
 	})
 }
 
-func (s *TenantControllerTestSuite) TestSearchTenants() {
+func (s *TenantsControllerTestSuite) TestSearchTenants() {
 	// given
 	svc := goa.New("Tenants-service")
 
@@ -139,7 +139,7 @@ func (s mockTenantService) Exists(tenantID uuid.UUID) bool {
 
 func (s mockTenantService) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error) {
 	if s.ID != tenantID {
-		return nil, errors.NewNotFoundError("tenant", tenantID.String())
+		return nil, errors.NewTenantRecordNotFoundError("tenant", tenantID.String())
 	}
 	return &tenant.Tenant{
 		CreatedAt: time.Now(),
@@ -151,7 +151,7 @@ func (s mockTenantService) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error)
 
 func (s mockTenantService) GetNamespaces(tenantID uuid.UUID) ([]*tenant.Namespace, error) {
 	if s.ID != tenantID {
-		return nil, errors.NewNotFoundError("tenant", tenantID.String())
+		return nil, errors.NewTenantRecordNotFoundError("tenant", tenantID.String())
 	}
 	return []*tenant.Namespace{
 		{
@@ -185,7 +185,7 @@ func (s mockTenantService) LookupTenantByClusterAndNamespace(masterURL, namespac
 	if masterURL == "" || namespace == "" {
 		return nil, fmt.Errorf("mock error")
 	}
-	return nil, errors.NewNotFoundError("tenant", "")
+	return nil, errors.NewTenantRecordNotFoundError("tenant", "")
 
 }
 

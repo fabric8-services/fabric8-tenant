@@ -75,7 +75,7 @@ ignored = [
 
 [[constraint]]
   name = "github.com/dnaeon/go-vcr"
-  revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+  revision= "b68d3628568e385c2f706bf3f0db84f9c32fe610"
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-auth"

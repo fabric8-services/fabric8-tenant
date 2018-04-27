@@ -50,10 +50,11 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 
-	varAuthURL      = "auth.url"
-	varAuthClientID = "service.account.id"
-	varClientSecret = "service.account.secret"
-	varAuthTokenKey = "auth.token.key"
+	varAuthURL              = "auth.url"
+	varClustersRefreshDelay = "cluster.refresh.delay"
+	varAuthClientID         = "service.account.id"
+	varClientSecret         = "service.account.secret"
+	varAuthTokenKey         = "auth.token.key"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -126,6 +127,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varOpenshiftUseCurrentCluster, false)
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
 	c.v.SetDefault(varAuthURL, defaultAuthURL)
+	c.v.SetDefault(varClustersRefreshDelay, defaultClustersRefreshDelay)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varTogglesURL, defaultTogglesURL)
 	c.v.SetDefault(varTemplateCheMultiTenantServer, defaultCheMultiTenantServer)
@@ -294,6 +296,11 @@ func (c *Data) GetAuthURL() string {
 	return c.v.GetString(varAuthURL)
 }
 
+// GetClustersRefreshDelay returns delay of clusters refresh (in minutes)
+func (c *Data) GetClustersRefreshDelay() time.Duration {
+	return time.Duration(c.v.GetInt(varClustersRefreshDelay) * int(time.Minute))
+}
+
 // GetTogglesURL returns Toggle service URL
 func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)
@@ -386,6 +393,7 @@ const (
 	devModeKeycloakRealm = "fabric8-test"
 
 	defaultAuthURL              = "https://auth.prod-preview.openshift.io"
+	defaultClustersRefreshDelay = 60 // 1 hour
 	defaultCheMultiTenantServer = "https://che.prod-preview.openshift.io"
 
 	defaultLogLevel = "info"

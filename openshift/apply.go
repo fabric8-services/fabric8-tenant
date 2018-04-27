@@ -2,14 +2,16 @@ package openshift
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"reflect"
 	"strings"
 
+	"github.com/fabric8-services/fabric8-tenant/errors"
+	"github.com/fabric8-services/fabric8-wit/log"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -170,44 +172,37 @@ func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
 }
 
 // Apply a given template structure to a target API
-func Apply(source string, opts ApplyOptions) error {
-
+func Apply(ctx context.Context, source string, opts ApplyOptions) error {
 	objects, err := ParseObjects(source, opts.Namespace)
 	if err != nil {
 		return err
 	}
-
 	err = allKnownTypes(objects)
 	if err != nil {
 		return err
 	}
-
-	err = applyAll(objects, opts)
+	err = applyAll(ctx, objects, opts)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func ApplyProcessed(objects []map[interface{}]interface{}, opts ApplyOptions) error {
-
+func applyProcessed(ctx context.Context, objects []map[interface{}]interface{}, opts ApplyOptions) error {
 	err := allKnownTypes(objects)
 	if err != nil {
 		return err
 	}
-
-	err = applyAll(objects, opts)
+	err = applyAll(ctx, objects, opts)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
+func applyAll(ctx context.Context, objects []map[interface{}]interface{}, opts ApplyOptions) error {
 	for _, obj := range objects {
-		_, err := apply(obj, "POST", opts)
+		_, err := apply(ctx, obj, "POST", opts)
 		if err != nil {
 			return err
 		}
@@ -215,9 +210,7 @@ func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
 	return nil
 }
 
-func apply(object map[interface{}]interface{}, action string, opts ApplyOptions) (map[interface{}]interface{}, error) {
-	//fmt.Println("apply ", action, GetKind(object), GetName(object), opts.Callback)
-
+func apply(ctx context.Context, object map[interface{}]interface{}, action string, opts ApplyOptions) (map[interface{}]interface{}, error) {
 	body, err := yaml.Marshal(object)
 	if err != nil {
 		return nil, err
@@ -225,12 +218,10 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	if action == "DELETE" {
 		body = []byte(deleteOptions)
 	}
-
 	url, err := CreateURL(opts.MasterURL, action, object)
 	if url == "" {
 		return nil, nil
 	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -238,11 +229,12 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", "application/yaml")
-	req.Header.Set("Content-Type", "application/yaml")
 	if action == "PATCH" {
 		req.Header.Set("Content-Type", "application/merge-patch+json")
+	} else {
+		req.Header.Set("Content-Type", "application/yaml")
 	}
+	req.Header.Set("Accept", "application/yaml")
 	req.Header.Set("Authorization", "Bearer "+opts.Token)
 
 	// for debug only
@@ -250,34 +242,41 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 		rb, _ := httputil.DumpRequest(req, true)
 		fmt.Println(string(rb))
 	}
-
 	client := opts.CreateHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-
 	defer func() {
-		ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 	}()
-
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
 	b := buf.Bytes()
-
 	var respType map[interface{}]interface{}
 	err = yaml.Unmarshal(b, &respType)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err, "resp": respType["message"], "details": respType["details"]}, "an error occurred while processing the request on the cluster")
 		return nil, err
+	}
+	// if something went wrong
+	if resp.StatusCode >= 400 {
+		log.Error(ctx, map[string]interface{}{"status": resp.StatusCode, "message": buf.String()}, "failed to process the request")
+		switch resp.StatusCode {
+		case 403:
+			return nil, errors.NewForbiddenError(fmt.Sprintf("%s", respType["message"]))
+		case 409:
+			return nil, errors.NewNamespaceConflictError(fmt.Sprintf("%s", respType["message"]))
+		case 500:
+			return nil, errors.NewInternalError(ctx, fmt.Errorf("%s", respType["message"]))
+		}
 	}
 
 	if opts.Callback != nil {
 		act, newObject := opts.Callback(resp.StatusCode, action, object, respType)
 		if act != "" {
-			return apply(newObject, act, opts)
+			return apply(ctx, newObject, act, opts)
 		}
-
 	}
 	return respType, nil
 }

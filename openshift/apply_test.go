@@ -1,6 +1,7 @@
 package openshift_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -108,7 +109,7 @@ func xTestApply(t *testing.T) {
 	}
 
 	t.Run("apply single project", func(t *testing.T) {
-		result := openshift.Apply(applyTemplate, opts)
+		result := openshift.Apply(context.Background(), applyTemplate, opts)
 		assert.NoError(t, result, "apply error")
 	})
 

@@ -95,10 +95,14 @@ var _ = a.Resource("tenant", func() {
 		a.Routing(
 			a.POST(""),
 		)
+		a.Headers(func() {
+			a.Header("X-Forwarded-Path", d.String)
+		})
 
 		a.Description("Initialize new tenant environment.")
 		a.Response(d.Accepted)
-		a.Response(d.Conflict)
+		a.Response(d.Conflict, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
@@ -132,6 +136,7 @@ var _ = a.Resource("tenant", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+
 	a.Action("clean", func() {
 		a.Security("jwt")
 		a.Routing(
@@ -150,6 +155,20 @@ var _ = a.Resource("tenant", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+
+	a.Action("delete namespace", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE("/namespaces/:name"),
+		)
+
+		a.Description("Delete a namespace on the tenant cluster")
+		a.Response(d.Accepted)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
 })
 
 var _ = a.Resource("tenants", func() {

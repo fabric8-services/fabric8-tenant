@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/errors"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,7 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	var httpStatus int
 
 	// test not found error
-	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewNotFoundError("foo", "bar"))
+	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewTenantRecordNotFoundError("foo", "bar"))
 	require.Equal(t, http.StatusNotFound, httpStatus)
 	require.NotNil(t, jerr.Code)
 	require.Equal(t, jsonapi.ErrorCodeNotFound, *jerr.Code)
@@ -31,14 +31,6 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 	require.NotNil(t, jerr.ID)
 	require.Equal(t, "bar", *jerr.ID)
-
-	// test not found error
-	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewConversionError("foo"))
-	require.Equal(t, http.StatusBadRequest, httpStatus)
-	require.NotNil(t, jerr.Code)
-	require.Equal(t, jsonapi.ErrorCodeConversionError, *jerr.Code)
-	require.NotNil(t, jerr.Status)
-	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
 	// test bad parameter error
 	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewBadParameterError("foo", "bar"))
@@ -64,12 +56,28 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	require.NotNil(t, jerr.Status)
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
+	// test namespace conflict error
+	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewNamespaceConflictError("foo"))
+	require.Equal(t, http.StatusConflict, httpStatus)
+	require.NotNil(t, jerr.Code)
+	require.NotNil(t, jerr.Status)
+	require.Equal(t, jsonapi.ErrorCodeConflict, *jerr.Code)
+	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
+
 	// test forbidden error
 	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewForbiddenError("foo"))
 	require.Equal(t, http.StatusForbidden, httpStatus)
 	require.NotNil(t, jerr.Code)
 	require.Equal(t, jsonapi.ErrorCodeForbiddenError, *jerr.Code)
 	require.NotNil(t, jerr.Status)
+	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
+
+	// test quota exceeded error
+	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewQuotaExceedError("foo"))
+	require.Equal(t, http.StatusForbidden, httpStatus)
+	require.NotNil(t, jerr.Code)
+	require.NotNil(t, jerr.Status)
+	require.Equal(t, jsonapi.ErrorCodeQuotaExceedError, *jerr.Code)
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
 	// test unspecified error

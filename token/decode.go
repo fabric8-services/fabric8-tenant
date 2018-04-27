@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 
+	"github.com/fabric8-services/fabric8-wit/log"
 	"golang.org/x/crypto/openpgp"
 )
 
@@ -15,12 +16,14 @@ type Decode func(data string) (string, error)
 // PlainText is a Decode function that can be used to fetch tokens that are not encrypted.
 // Simply return the same token back
 func PlainText(token string) (string, error) {
+	log.Debug(nil, nil, "decoding a plain text value...")
 	return token, nil
 }
 
 // NewGPGDecypter takes a passphrase and returns a GPG based Decypter decode function
 func NewGPGDecypter(passphrase string) Decode {
 	return func(body string) (string, error) {
+		log.Debug(nil, nil, "decoding a gpg-encrypted value...")
 		return gpgDecyptToken(body, passphrase)
 	}
 }
@@ -28,11 +31,13 @@ func NewGPGDecypter(passphrase string) Decode {
 // GPGDecyptToken decrypts a Base64 encoded GPG un armored encrypted string
 // using provided passphrase.
 // on Linux:
-// echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64 -w0
+//   echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64 -w0
+//
 // on macOS:
-// echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64
+//   echo -n "SuperSecret" | gpg --symmetric --cipher-algo AES256 | base64
 // and keep the result then use a Docker container to run:
-// echo -n $TOKEN | base64 -d | base64 -w0
+//   echo -n $TOKEN | base64 -d | base64 -w0
+//
 // in any case, don't forget the `-n` arg in the `echo` command!
 
 func gpgDecyptToken(base64Body, passphrase string) (string, error) {
