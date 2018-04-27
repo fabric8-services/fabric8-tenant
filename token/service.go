@@ -41,7 +41,7 @@ func (s *tokenService) ResolveTargetToken(ctx context.Context, target, token str
 		res.Body.Close()
 	}()
 
-	err = auth.ValidateResponse(client, res)
+	err = auth.ValidateResponse(ctx, client, res)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "error while resolving the token for %s", target)
 	}

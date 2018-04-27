@@ -103,7 +103,6 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 		code = ErrorCodeUnknownError
 		title = "Unknown error"
 		statusCode = http.StatusInternalServerError
-
 		cause = errs.Cause(err)
 		if err, ok := cause.(goa.ServiceError); ok {
 			statusCode = err.ResponseStatus()

@@ -20,7 +20,7 @@ function load_jenkins_vars() {
 
 function install_deps() {
   # We need to disable selinux for now, XXX
-  /usr/sbin/setenforce 0
+  /usr/sbin/setenforce 0 || :
 
   # Get all the deps in
   yum -y install \
@@ -102,15 +102,12 @@ function run_tests_with_coverage() {
 }
 
 function tag_push() {
-  TARGET=$1
-  docker tag fabric8-tenant-deploy $TARGET
-  docker push $TARGET
+  local tag=$1
+  docker tag fabric8-tenant-deploy $tag
+  docker push $tag
 }
 
 function deploy() {
-  # Let's deploy
-  make docker-image-deploy
-
   TAG=$(echo $GIT_COMMIT | cut -c1-${DEVSHIFT_TAG_LEN})
   REGISTRY="push.registry.devshift.net"
 
@@ -120,8 +117,17 @@ function deploy() {
     echo "Could not login, missing credentials for the registry"
   fi
 
-  tag_push ${REGISTRY}/fabric8-services/fabric8-tenant:$TAG
-  tag_push ${REGISTRY}/fabric8-services/fabric8-tenant:latest
+  # Let's deploy
+  make docker-image-deploy
+
+  if [ "$TARGET" = "rhel" ]; then
+    tag_push ${REGISTRY}/osio-prod/fabric8-services/fabric8-tenant:$TAG
+    tag_push ${REGISTRY}/osio-prod/fabric8-services/fabric8-tenant:latest
+  else
+    tag_push ${REGISTRY}/fabric8-services/fabric8-tenant:$TAG
+    tag_push ${REGISTRY}/fabric8-services/fabric8-tenant:latest
+  fi
+
   echo 'CICO: Image pushed, ready to update deployed app'
 }
 

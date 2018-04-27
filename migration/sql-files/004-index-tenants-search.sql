@@ -1,0 +1,1 @@
+create index idx_namespace_search on namespaces using btree (name, master_url);

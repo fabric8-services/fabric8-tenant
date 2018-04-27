@@ -303,14 +303,15 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
-		log.Debug(ctx, map[string]interface{}{
-			"status":    statusCode,
-			"method":    method,
-			"namespace": openshift.GetNamespace(request),
-			"name":      openshift.GetName(request),
-			"kind":      openshift.GetKind(request),
-			"request":   yamlString(request),
-			"response":  yamlString(response),
+		log.Info(ctx, map[string]interface{}{
+			"status":      statusCode,
+			"method":      method,
+			"cluster_url": masterURL,
+			"namespace":   openshift.GetNamespace(request),
+			"name":        openshift.GetName(request),
+			"kind":        openshift.GetKind(request),
+			"request":     yamlString(request),
+			"response":    yamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
 			if openshift.GetKind(request) == openshift.ValKindNamespace {
@@ -375,13 +376,14 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 			return "", nil
 		}
 		log.Info(ctx, map[string]interface{}{
-			"status":    statusCode,
-			"method":    method,
-			"namespace": openshift.GetNamespace(request),
-			"name":      openshift.GetName(request),
-			"kind":      openshift.GetKind(request),
-			"request":   yamlString(request),
-			"response":  yamlString(response),
+			"status":      statusCode,
+			"method":      method,
+			"namespace":   openshift.GetNamespace(request),
+			"cluster_url": masterURL,
+			"name":        openshift.GetName(request),
+			"kind":        openshift.GetKind(request),
+			"request":     yamlString(request),
+			"response":    yamlString(response),
 		}, "unhandled resource response")
 		return "", nil
 	}

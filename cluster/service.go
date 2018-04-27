@@ -128,7 +128,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 		res.Body.Close()
 	}()
 
-	validationerror := auth.ValidateResponse(client, res)
+	validationerror := auth.ValidateResponse(ctx, client, res)
 	if validationerror != nil {
 		return errors.Wrapf(validationerror, "error from server %q", s.authURL)
 	}

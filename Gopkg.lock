@@ -64,7 +64,10 @@
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-auth"
-  packages = ["design"]
+  packages = [
+    "design",
+    "errors"
+  ]
   revision = "0dd9dae7ea819f950d1a64b8a2241131a29f4028"
 
 [[projects]]
@@ -382,6 +385,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "969b44861dd069ea701ad6709245b08ec26ef847b709ecaa98d95f32aca190e1"
+  inputs-digest = "a5209a60de23779011f0e6cd398fbbd813a936b3c9ac0f8fa598fbc575357338"
   solver-name = "gps-cdcl"
   solver-version = 1
