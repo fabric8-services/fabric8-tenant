@@ -172,6 +172,22 @@ var _ = a.Resource("tenants", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
+	a.Action("delete", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:tenantID"),
+		)
+		a.Params(func() {
+			a.Param("tenantID", d.UUID, "ID of the tenant to delete/deprovision")
+		})
+		a.Description("delete/deprovision a single tenant environment.")
+		a.Response(d.NoContent)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
 	a.Action("search", func() {
 		a.Security("jwt")
 		a.Routing(

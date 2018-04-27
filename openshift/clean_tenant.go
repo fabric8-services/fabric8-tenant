@@ -35,15 +35,17 @@ func CleanTenant(ctx context.Context, config Config, username string, templateVa
 			)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
-					"output":    output,
-					"namespace": namespace,
-					"error":     err,
+					"output":      output,
+					"cluster_url": opts.MasterURL,
+					"namespace":   namespace,
+					"error":       err,
 				}, "clean failed")
 				return
 			}
 			log.Info(ctx, map[string]interface{}{
-				"output":    output,
-				"namespace": namespace,
+				"output":      output,
+				"cluster_url": opts.MasterURL,
+				"namespace":   namespace,
 			}, "clean ok")
 		}(key, val, masterOpts, remove)
 	}
