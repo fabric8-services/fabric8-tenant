@@ -116,7 +116,6 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
-		// openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL)
 		openshiftConfig := openshift.Config{
 			MasterURL: namespace.MasterURL,
 			Token:     clustr.Token,
