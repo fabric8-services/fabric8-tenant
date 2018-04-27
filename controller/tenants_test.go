@@ -56,7 +56,6 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 	// given
 	svc, ctrl, err := newTestTenantsController(s.DB, "show-tenants")
 	require.NoError(s.T(), err)
-	s.DB.LogMode(true)
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
@@ -130,8 +129,6 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 }
 
 func (s *TenantsControllerTestSuite) TestDeleteTenants() {
-
-	// s.DB.LogMode(true)
 
 	s.T().Run("Success", func(t *testing.T) {
 

@@ -55,11 +55,10 @@ func (s openShiftService) DeleteNamespace(ctx context.Context, config Config, na
 	body := buf.Bytes()
 	// only report error if the operation did not return a 2xx (OK) or 403 (Forbidden)
 	// actually, Openshift checks if the namespace belongs to the user even before checking if it exists...
-	if resp.StatusCode == http.StatusForbidden {
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
 		// let's log the error, nonetheless
 		log.Warn(ctx, map[string]interface{}{"namespace": namespace, "message": body}, "failed to delete namespace (but it probably does not exist)")
-	}
-	if resp.StatusCode >= 400 && resp.StatusCode != http.StatusForbidden {
+	} else if resp.StatusCode >= 400 { // other errors
 		return errors.Errorf("unable to delete the namespace from the API endpoint: status=%v message=%s", resp.StatusCode, string(body))
 	}
 	log.Info(ctx, map[string]interface{}{"namespace": namespace}, "deleted namespace")
