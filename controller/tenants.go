@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -101,38 +100,34 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 	tenantID := ctx.TenantID
-	// fetch the cluster the user belongs to
-	usr, err := c.userService.GetUser(ctx, tenantID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if usr.Cluster == nil {
-		log.Error(ctx, nil, "no cluster defined for tenant")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
-	}
-	// fetch the cluster info
-	clustr, err := c.resolveCluster(ctx, *usr.Cluster)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *usr.Cluster,
-			"tenant_id":   tenantID,
-		}, "unable to fetch cluster for user")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL)
 	for _, namespace := range namespaces {
+		// fetch the cluster info
+		clustr, err := c.resolveCluster(ctx, namespace.MasterURL)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"cluster_url": namespace.MasterURL,
+				"tenant_id":   tenantID,
+			}, "unable to fetch cluster for user")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+
+		// openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, usr, clustr.User, clustr.Token, clustr.APIURL)
+		openshiftConfig := openshift.Config{
+			MasterURL: namespace.MasterURL,
+			Token:     clustr.Token,
+		}
 		log.Info(ctx, map[string]interface{}{"tenant_id": tenantID, "namespace": namespace.Name}, "deleting namespace...")
 		// delete the namespace in the cluster
 		err = c.openshiftService.DeleteNamespace(ctx, openshiftConfig, namespace.Name)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
-				"cluster_url": *usr.Cluster,
+				"cluster_url": namespace.MasterURL,
 				"namespace":   namespace.Name,
 				"tenant_id":   tenantID,
 			}, "failed to delete namespace")

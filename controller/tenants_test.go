@@ -142,12 +142,12 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				fxt.Tenants[0].ID = id
 				return nil
 			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
+				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
+				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
 				if idx == 0 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 					fxt.Namespaces[idx].Name = "foo"
 					fxt.Namespaces[idx].Type = "user"
 				} else if idx == 1 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 					fxt.Namespaces[idx].Name = "foo-che"
 					fxt.Namespaces[idx].Type = "che"
 				}
@@ -176,12 +176,12 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				fxt.Tenants[0].ID = id
 				return nil
 			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
+				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
+				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
 				if idx == 0 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 					fxt.Namespaces[idx].Name = "bar"
 					fxt.Namespaces[idx].Type = "user"
 				} else if idx == 1 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 					fxt.Namespaces[idx].Name = "bar-che"
 					fxt.Namespaces[idx].Type = "che"
 				}
@@ -232,8 +232,9 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				fxt.Tenants[0].ID = id
 				return nil
 			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
+				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
+				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
 				if idx == 0 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 					fxt.Namespaces[idx].Name = "baz"
 					fxt.Namespaces[idx].Type = "user"
 				} else if idx == 1 {
