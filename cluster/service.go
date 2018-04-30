@@ -16,11 +16,12 @@ import (
 
 // Cluster a cluster
 type Cluster struct {
-	APIURL     string
-	ConsoleURL string
-	MetricsURL string
-	LoggingURL string
-	AppDNS     string
+	APIURL            string
+	ConsoleURL        string
+	MetricsURL        string
+	LoggingURL        string
+	AppDNS            string
+	CapacityExhausted bool
 
 	User  string
 	Token string
@@ -96,13 +97,15 @@ func (s *clusterService) GetClusters(ctx context.Context) ([]*Cluster, error) {
 		}
 
 		cls = append(cls, &Cluster{
-			APIURL:     cluster.APIURL,
-			AppDNS:     cluster.AppDNS,
-			ConsoleURL: cluster.ConsoleURL,
-			MetricsURL: cluster.MetricsURL,
-			LoggingURL: cluster.LoggingURL,
-			User:       clusterUser,
-			Token:      clusterToken,
+			APIURL:            cluster.APIURL,
+			AppDNS:            cluster.AppDNS,
+			ConsoleURL:        cluster.ConsoleURL,
+			MetricsURL:        cluster.MetricsURL,
+			LoggingURL:        cluster.LoggingURL,
+			CapacityExhausted: cluster.CapacityExhausted,
+
+			User:  clusterUser,
+			Token: clusterToken,
 		})
 	}
 	return cls, nil
