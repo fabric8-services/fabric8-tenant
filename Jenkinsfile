@@ -49,7 +49,7 @@ goTemplate{
         }
       }
     }
-    if (utils.isCD()){
+    if (true){
       ws{
         container(name: 'go') {
           def gitRepo = 'openshiftio/saas-openshiftio'
