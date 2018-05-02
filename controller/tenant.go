@@ -440,6 +440,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				Type:              &tenantType,
 				Version:           &ns.Version,
 				State:             &ns.State,
+				ClusterCapacityExhausted: &c.CapacityExhausted,
 			})
 	}
 	return &result
