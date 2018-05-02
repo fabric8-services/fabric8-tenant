@@ -10,6 +10,8 @@ import (
 	"github.com/goadesign/goa"
 )
 
+var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
+
 // TenantsController implements the tenants resource.
 type TenantsController struct {
 	*goa.Controller
@@ -28,7 +30,7 @@ func NewTenantsController(service *goa.Service, tenantService tenant.Service, re
 
 // Show runs the show action.
 func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
-	if !token.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+	if !token.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -48,7 +50,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 
 // Search runs the search action.
 func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
-	if !token.IsSpecificServiceAccount(ctx, "fabric8-jenkins-idler") {
+	if !token.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
