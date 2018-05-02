@@ -280,7 +280,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 // InitTenant is a Callback that assumes a new tenant is being created
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
-	var currentResourceQuotaStatusCheck int32 = 0
+	var currentResourceQuotaStatusCheck int32  // default is 0
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,

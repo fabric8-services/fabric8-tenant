@@ -19,7 +19,9 @@ func TestResolveUserToken(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Stop()
 	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
-	tok, err := testsupport.NewToken("user_foo", "../test/private_key.pem")
+	tok, err := testsupport.NewToken(map[string]interface{}{
+		"sub": "user_foo",
+	}, "../test/private_key.pem")
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -52,7 +54,9 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Stop()
 	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
-	tok, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
+	tok, err := testsupport.NewToken(map[string]interface{}{
+		"sub": "tenant_service",
+	}, "../test/private_key.pem")
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -66,7 +70,9 @@ func TestResolveServiceAccountToken(t *testing.T) {
 
 	t.Run("expired token", func(t *testing.T) {
 		// given
-		tok, err := testsupport.NewToken("expired_tenant_service", "../test/private_key.pem")
+		tok, err := testsupport.NewToken(map[string]interface{}{
+			"sub": "expired_tenant_service",
+		}, "../test/private_key.pem")
 		require.NoError(t, err)
 		// when
 		_, _, err = resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.PlainText)

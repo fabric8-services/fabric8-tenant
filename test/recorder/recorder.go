@@ -72,6 +72,13 @@ func JWTMatcher() cassette.Matcher {
 			return false
 		}
 		claims := token.Claims.(jwt.MapClaims)
+		log.Debug(nil, map[string]interface{}{
+			"httpRequest_method":  httpRequest.Method,
+			"httpRequest_url":     httpRequest.URL,
+			"cassetteRequest_sub": cassetteRequest.Headers["sub"],
+			"request_token_sub":   claims["sub"],
+		}, "comparing `sub` headers")
+
 		if sub, found := cassetteRequest.Headers["sub"]; found {
 			return sub[0] == claims["sub"]
 		}

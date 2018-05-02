@@ -17,7 +17,9 @@ func TestWhoAmI(t *testing.T) {
 	r, err := recorder.New("../test/data/openshift/whoami", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	tok, err := testsupport.NewToken("user_foo", "../test/private_key.pem")
+	tok, err := testsupport.NewToken(map[string]interface{}{
+		"sub": "user_foo",
+	}, "../test/private_key.pem")
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {

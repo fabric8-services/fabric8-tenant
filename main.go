@@ -144,6 +144,8 @@ func main() {
 		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
 	}
 
+	openshiftService := openshift.NewService()
+
 	// create user profile client to get the user's cluster
 	userService := user.NewService(config.GetAuthURL(), *saToken)
 
@@ -172,7 +174,7 @@ func main() {
 	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, resolveCluster, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, resolveCluster)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, userService, openshiftService, resolveTenant, resolveCluster, osTemplate)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

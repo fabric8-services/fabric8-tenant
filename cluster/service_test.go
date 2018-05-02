@@ -79,7 +79,9 @@ func TestResolveCluster(t *testing.T) {
 	defer r.Stop()
 	authURL := "http://authservice"
 	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r.Transport))
-	saToken, err := testsupport.NewToken("tenant_service", "../test/private_key.pem")
+	saToken, err := testsupport.NewToken(map[string]interface{}{
+		"sub": "tenant_service",
+	}, "../test/private_key.pem")
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {

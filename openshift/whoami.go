@@ -15,7 +15,6 @@ import (
 // WhoAmI checks with OSO who owns the current token.
 // returns the username
 func WhoAmI(ctx context.Context, clusterURL string, token string, clientOptions ...configuration.HTTPClientOption) (string, error) {
-
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/apis/user.openshift.io/v1/users/~", strings.TrimSuffix(clusterURL, "/")), nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "unable to retrieve the username from the `whoami` API endpoint")
