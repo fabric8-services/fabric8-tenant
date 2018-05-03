@@ -65,7 +65,7 @@ func TestServiceAccount(t *testing.T) {
 			claims["service_accountname"] = serviceName
 			ctx := goajwt.WithJWT(context.Background(), jwt.NewWithClaims(jwt.SigningMethodRS512, claims))
 			// then
-			assert.True(t, token.IsSpecificServiceAccount(ctx, []string{"dummy-service", serviceName}...))
+			assert.True(t, token.IsSpecificServiceAccount(ctx, "dummy-service", serviceName))
 		})
 
 		t.Run("Missing name", func(t *testing.T) {
