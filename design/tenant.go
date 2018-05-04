@@ -175,7 +175,7 @@ var _ = a.Resource("tenants", func() {
 	a.Action("delete", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.GET("/:tenantID"),
+			a.DELETE("/:tenantID"),
 		)
 		a.Params(func() {
 			a.Param("tenantID", d.UUID, "ID of the tenant to delete/deprovision")

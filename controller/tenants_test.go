@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app/test"
+	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -24,7 +25,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -131,6 +132,13 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 
 	s.T().Run("Success", func(t *testing.T) {
+
+		t.Run("delete method", func(t *testing.T) {
+			cl := client.New(nil)
+			req, err := cl.NewDeleteTenantsRequest(context.Background(), "")
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "DELETE", req.Method)
+		})
 
 		t.Run("all ok", func(t *testing.T) {
 			// given
