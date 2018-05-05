@@ -34,7 +34,7 @@ interactions:
 
 - request:
     method: GET
-    url: http://fast.authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    url: http://fast.authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:

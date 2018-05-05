@@ -44,7 +44,7 @@ func TestResolveCluster(t *testing.T) {
 
 	t.Run("cluster - end slash", func(t *testing.T) {
 		// given
-		target := "https://api.cluster1"
+		target := "http://api.cluster1"
 		resolve := cluster.NewResolve(clusterService)
 		// when
 		found, err := resolve(context.Background(), target)
@@ -66,7 +66,7 @@ func TestResolveCluster(t *testing.T) {
 
 	t.Run("both slash", func(t *testing.T) {
 		// given
-		target := "https://api.cluster1/"
+		target := "http://api.cluster1/"
 		resolve := cluster.NewResolve(clusterService)
 		// when
 		found, err := resolve(context.Background(), target)

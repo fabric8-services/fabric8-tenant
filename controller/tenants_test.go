@@ -306,7 +306,7 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
 	clusterService, err := cluster.NewService(
 		authURL,
-		10 * time.Seconds,
+		10*time.Seconds,
 		saToken.Raw,
 		resolveToken,
 		token.NewGPGDecypter("foo"),
