@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var resolveCluster = func(ctx context.Context, target string) (*cluster.Cluster, error) {
-	return &cluster.Cluster{
+var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
+	return cluster.Cluster{
 		AppDNS:            "apps.example.com",
 		ConsoleURL:        "https://console.example.com/console",
 		MetricsURL:        "https://metrics.example.com",
@@ -101,7 +101,6 @@ func Test_convertTenant(t *testing.T) {
 	}
 
 	got := convertTenant(ctx, tenant, namespaces, resolveCluster)
-
 	require.Equal(t, want, got)
 }
 

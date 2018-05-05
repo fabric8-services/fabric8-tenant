@@ -1,0 +1,101 @@
+---
+version: 1
+interactions:
+- request:
+    method: GET
+    url: http://slow.authservice/api/clusters/
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    duration: 2s
+    code: 200
+    body: '{
+      "data":[
+        {
+          "name": "cluster1_name",
+          "api-url": "http://api.cluster1/",
+          "console-url": "http://console.cluster1/console/",
+          "metrics-url": "http://metrics.cluster1/",
+          "logging-url": "http://logging.cluster1/",
+          "app-dns": "foo"
+        },
+        {
+          "name": "cluster2_name",
+          "api-url": "https://api.cluster2",
+          "console-url": "http://console.cluster2/console/",
+          "metrics-url": "http://metrics.cluster2/",
+          "logging-url": "http://logging.cluster2/",
+          "app-dns": "foo"
+        }
+      ]
+    }'
+- request:
+    method: GET
+    url: http://slow.authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{ 
+			"access_token": "jA0ECQMCYyjV8Zo7wgNg0sDQAUvut+valbh3k/zKDx+KPXcR7mmt7toLkc9Px7XaVMT6lQ6S7aOl6T8hpoPIWIEJuY33hZmJGmEXKkFzkU4BKcDaMnZXhiuwz4ECxOaeREpsUNCd7KSLayFGwuTuXbVwErmZau12CCCIjvlyJH89dCIkZD2hcElOhY6avEXfxQprtDF9iLddHiT+EOwZCSDOMKQbXVyAKR5FDaW8NXQpr7xsTmbe7dpoeS/uvIe2C5vEAH7dnc/TN5HmWYf0Is4ukfznKYef/+E+oSg3UkAO3i7PTFVsRuJCaN4pTIOcgeWjT7pvB49rb9UAZSfwSLDqbHgEfzjEatlC9PszMDlVckqvzg0Y0vhr+HpcvaJuu1VMy6Y5KH6NT4VlnL8tPFIcEeDJZLOreSmi43gkcl8YgTQp8G9C4h5h2nmS4E+1oU14uoBKwpjlek9r/x/o/hinYUrmSsht9FnQbbJAq7Umm/RbmanE47q86gy59UCTlW+zig8cp02pwQ7BW23YRrpZkiVB2QVmOGqB3+NCmK0pMg==",
+			"token_type": "bearer",
+			"username": "tenant_service"
+    }'
+- request:
+    method: GET
+    url: http://slow.authservice/api/token?for=https%3A%2F%2Fapi.cluster2&force_pull=false
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{ 
+			"access_token": "jA0ECQMCYyjV8Zo7wgNg0sDQAUvut+valbh3k/zKDx+KPXcR7mmt7toLkc9Px7XaVMT6lQ6S7aOl6T8hpoPIWIEJuY33hZmJGmEXKkFzkU4BKcDaMnZXhiuwz4ECxOaeREpsUNCd7KSLayFGwuTuXbVwErmZau12CCCIjvlyJH89dCIkZD2hcElOhY6avEXfxQprtDF9iLddHiT+EOwZCSDOMKQbXVyAKR5FDaW8NXQpr7xsTmbe7dpoeS/uvIe2C5vEAH7dnc/TN5HmWYf0Is4ukfznKYef/+E+oSg3UkAO3i7PTFVsRuJCaN4pTIOcgeWjT7pvB49rb9UAZSfwSLDqbHgEfzjEatlC9PszMDlVckqvzg0Y0vhr+HpcvaJuu1VMy6Y5KH6NT4VlnL8tPFIcEeDJZLOreSmi43gkcl8YgTQp8G9C4h5h2nmS4E+1oU14uoBKwpjlek9r/x/o/hinYUrmSsht9FnQbbJAq7Umm/RbmanE47q86gy59UCTlW+zig8cp02pwQ7BW23YRrpZkiVB2QVmOGqB3+NCmK0pMg==",
+			"token_type": "bearer",
+			"username": "tenant_service"
+    }'
+- request:
+    method: GET
+    url: http://api.cluster1/apis/user.openshift.io/v1/users/~
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind":"User",
+      "apiVersion":"user.openshift.io/v1",
+      "metadata":{
+        "name":"tenant_service",
+        "selfLink":"/apis/user.openshift.io/v1/users/tenant_service",
+        "uid":"bcdd0b29-123d-11e8-a8bc-b69930b94f5c",
+        "resourceVersion":"814",
+        "creationTimestamp":"2018-02-15T10:48:20Z"
+      },
+      "identities":[],
+      "groups":[]
+    }'
+- request:
+    method: GET
+    url: https://api.cluster2/apis/user.openshift.io/v1/users/~
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind":"User",
+      "apiVersion":"user.openshift.io/v1",
+      "metadata":{
+        "name":"tenant_service",
+        "selfLink":"/apis/user.openshift.io/v1/users/tenant_service",
+        "uid":"bcdd0b29-123d-11e8-a8bc-b69930b94f5c",
+        "resourceVersion":"814",
+        "creationTimestamp":"2018-02-15T10:48:20Z"
+      },
+      "identities":[],
+      "groups":[]
+    }'
+    

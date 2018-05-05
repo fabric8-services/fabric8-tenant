@@ -24,7 +24,7 @@ func TestWhoAmI(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		// when
-		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", tok.Raw, configuration.WithRoundTripper(r.Transport))
+		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", tok.Raw, configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "user_foo", username)
@@ -32,7 +32,7 @@ func TestWhoAmI(t *testing.T) {
 
 	t.Run("forbidden", func(t *testing.T) {
 		// when
-		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", "", configuration.WithRoundTripper(r.Transport))
+		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", "", configuration.WithRoundTripper(r))
 		// then
 		require.Error(t, err)
 		assert.Equal(t, "", username)

@@ -52,7 +52,8 @@
 [[projects]]
   name = "github.com/dnaeon/go-vcr"
   packages = ["cassette","recorder"]
-  revision = "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+  revision = "fd097d581a47517ee36686adfd3153d6f8eca367"
+  source = "https://github.com/xcoulon/go-vcr/"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-auth"
@@ -306,6 +307,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1b9a2de0300053d7ad432f00112f0589ce9f168227a81f5fc9c33ab6f6e3c816"
+  inputs-digest = "25bd4fb4732b834c585f86e7846b914d51a4d385ed6a76034161f30f0f7cfaa1"
   solver-name = "gps-cdcl"
   solver-version = 1

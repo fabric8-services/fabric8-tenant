@@ -18,10 +18,13 @@ func TestResolveUserToken(t *testing.T) {
 	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
-	tok, err := testsupport.NewToken(map[string]interface{}{
-		"sub": "user_foo",
-	}, "../test/private_key.pem")
+	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r))
+	tok, err := testsupport.NewToken(
+		map[string]interface{}{
+			"sub": "user_foo",
+		},
+		"../test/private_key.pem",
+	)
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -53,10 +56,13 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
-	tok, err := testsupport.NewToken(map[string]interface{}{
-		"sub": "tenant_service",
-	}, "../test/private_key.pem")
+	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r))
+	tok, err := testsupport.NewToken(
+		map[string]interface{}{
+			"sub": "tenant_service",
+		},
+		"../test/private_key.pem",
+	)
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {

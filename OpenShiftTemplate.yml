@@ -77,6 +77,11 @@ objects:
               configMapKeyRef:
                 name: f8tenant
                 key: auth.url
+          - name: F8_CLUSTER_REFRESH_DELAY
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: cluster.refresh.delay
           - name: F8_TEMPLATE_RECOMMENDER_EXTERNAL_NAME
             valueFrom:
               configMapKeyRef:
