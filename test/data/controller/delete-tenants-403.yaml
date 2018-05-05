@@ -1,0 +1,78 @@
+version: 1
+interactions:
+# requests to retrieve the list of clusters configured in `auth` service
+- request:
+    method: GET
+    url: http://authservice/api/clusters/
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "data":[
+        {
+          "name": "cluster_name",
+          "api-url": "https://api.cluster1/",
+          "console-url": "http://console.cluster1/",
+          "metrics-url": "http://metrics.cluster1/",
+          "logging-url": "http://logs.cluster1/",
+          "app-dns": "foo"
+        }
+      ]
+    }'
+
+# requests to resolve the user's token on his/her target cluster
+- request:
+    method: GET
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    headers:
+      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    # response with encrypted token for the "tenant service" account
+    body: '{ 
+      "token_type": "bearer",
+      "username": "devtools-sre",
+      "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
+    }'
+
+# requests to verify that the token is still valid, using the `whoami` API on the user's target cluster
+- request:
+    method: GET
+    url: https://api.cluster1/apis/user.openshift.io/v1/users/~
+    headers:
+      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+      "kind":"User",
+      "apiVersion":"user.openshift.io/v1",
+      "metadata":{
+        "name":"devtools-sre",
+      },
+      "identities":[],
+      "groups":[]
+    }'
+
+# case where a "user" ns exists, but the "che" ns does not exist
+- request:
+    method: DELETE
+    url: https://api.cluster1/apis/project.openshift.io/v1/projects/bar
+    headers:
+      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 200 OK
+    code: 200
+    body: '{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}'
+- request:
+    method: DELETE
+    url: https://api.cluster1/apis/project.openshift.io/v1/projects/bar-che
+    headers:
+      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 403 Forbidden # OSO responds with this code even if the ns does not exist
+    code: 403
+    body: '{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Not Found"}'

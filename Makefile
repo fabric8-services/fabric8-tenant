@@ -191,6 +191,7 @@ CLEAN_TARGETS += clean-generated
 ## Removes all generated code.
 clean-generated:
 	-rm -rf ./app
+	-rm -rf ./client
 	-rm -rf ./swagger/
 	-rm -f ./migration/sqlbindata.go
 	-rm -f ./template/bindata.go
@@ -213,6 +214,7 @@ deps: $(VENDOR_DIR)
 app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) app -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) controller -d ${PACKAGE_NAME}/${DESIGN_DIR} -o controller/ --pkg controller --app-pkg app
+	$(GOAGEN_BIN) client -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) swagger -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-auth/design --notool --out auth --pkg client 
 	$(GOAGEN_BIN) gen -d ${PACKAGE_NAME}/${DESIGN_DIR} --pkg-path=${PACKAGE_NAME}/goasupport/context --out app

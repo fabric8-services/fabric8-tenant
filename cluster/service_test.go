@@ -85,6 +85,7 @@ func TestResolveCluster(t *testing.T) {
 		},
 		"../test/private_key.pem",
 	)
+
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -108,6 +109,6 @@ func TestResolveCluster(t *testing.T) {
 		assert.Equal(t, "http://logging.cluster1/", clusters[0].LoggingURL)
 		assert.Equal(t, saToken.Raw, clusters[0].Token) // see decode_test.go for decoded value of data in yaml file
 		assert.Equal(t, "tenant_service", clusters[0].User)
-
+		assert.Equal(t, false, clusters[0].CapacityExhausted)
 	})
 }

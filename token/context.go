@@ -9,12 +9,17 @@ import (
 
 // IsSpecificServiceAccount checks if the request is done by a given
 // Service account based on the JWT Token provided in context
-func IsSpecificServiceAccount(ctx context.Context, name string) bool {
+func IsSpecificServiceAccount(ctx context.Context, names ...string) bool {
 	accountname, ok := extractServiceAccountName(ctx)
 	if !ok {
 		return false
 	}
-	return accountname == name
+	for _, name := range names {
+		if accountname == name {
+			return true
+		}
+	}
+	return false
 }
 
 // IsServiceAccount checks if the request is done by a

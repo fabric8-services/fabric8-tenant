@@ -58,6 +58,8 @@ var namespaceAttributes = a.Type("NamespaceAttributes", func() {
 	})
 	a.Attribute("cluster-app-domain", d.String, "The cluster app domain", func() {
 	})
+	a.Attribute("cluster-capacity-exhausted", d.Boolean, "Whether cluster hosting this namespace exhausted it's capacity", func() {
+	})
 	a.Attribute("type", d.String, "The tenant namespaces", func() {
 		a.Enum("user", "che", "jenkins", "stage", "test", "run")
 	})
@@ -183,6 +185,22 @@ var _ = a.Resource("tenants", func() {
 		})
 		a.Description("Show a single tenant environment.")
 		a.Response(d.OK, tenantSingle)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
+	a.Action("delete", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE("/:tenantID"),
+		)
+		a.Params(func() {
+			a.Param("tenantID", d.UUID, "ID of the tenant to delete/deprovision")
+		})
+		a.Description("delete/deprovision a single tenant environment.")
+		a.Response(d.NoContent)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)

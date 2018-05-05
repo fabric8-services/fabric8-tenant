@@ -79,7 +79,7 @@ ignored = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-auth"
-  revision = "0dd9dae7ea819f950d1a64b8a2241131a29f4028"
+  revision = "19eb16aaf10758299c4a5360600af983b8470909"
 
 [[override]]
   name = "github.com/spf13/cobra"

@@ -82,7 +82,6 @@ func TestResolveServiceAccountToken(t *testing.T) {
 			},
 			"../test/private_key.pem",
 		)
-
 		require.NoError(t, err)
 		// when
 		_, _, err = resolveToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, token.NewGPGDecypter("foo"))

@@ -17,7 +17,8 @@ interactions:
           "console-url": "http://console.cluster1/console/",
           "metrics-url": "http://metrics.cluster1/",
           "logging-url": "http://logging.cluster1/",
-          "app-dns": "foo"
+          "app-dns": "foo",
+          "capacity-exhausted": false
         }
       ]
     }'
