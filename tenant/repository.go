@@ -44,7 +44,7 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 	err := s.db.Table(t.TableName()).Where("id = ?", tenantID).Find(&t).Error
 	if err == gorm.ErrRecordNotFound {
 		// no match
-		return nil, errors.NewNotFoundError("tenant", tenantID.String())
+		return nil, errors.NewTenantRecordNotFoundError("tenant", tenantID.String())
 	} else if err != nil {
 		return nil, errs.Wrapf(err, "unable to lookup tenant by id")
 	}
