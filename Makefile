@@ -22,7 +22,6 @@ DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
 DEP_BIN := $(GOPATH)/bin/$(DEP_BIN_NAME)
 GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
-HG_BIN := $(shell command -v $(HG_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
 DOCKER_BIN := $(shell command -v $(DOCKER_BIN_NAME) 2> /dev/null)
 
@@ -253,9 +252,6 @@ prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN) $(DEP_BIN)
 # Check that all tools where found
 ifndef GIT_BIN
 	$(error The "$(GIT_BIN_NAME)" executable could not be found in your PATH)
-endif
-ifndef HG_BIN
-	$(error The "$(HG_BIN_NAME)" executable could not be found in your PATH)
 endif
 	@$(CHECK_GOPATH_BIN) -packageName=$(PACKAGE_NAME) || (echo "Project lives in wrong location"; exit 1)
 
