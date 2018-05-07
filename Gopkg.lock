@@ -4,7 +4,13 @@
 [[projects]]
   branch = "master"
   name = "github.com/Unleash/unleash-client-go"
-  packages = [".","context","internal/api","internal/strategies","strategy"]
+  packages = [
+    ".",
+    "context",
+    "internal/api",
+    "internal/strategies",
+    "strategy"
+  ]
   revision = "be883ea1af714aff427d0668dbd4fc549d4f701c"
 
 [[projects]]
@@ -33,7 +39,10 @@
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
-  packages = [".","request"]
+  packages = [
+    ".",
+    "request"
+  ]
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
 
@@ -51,18 +60,32 @@
 
 [[projects]]
   name = "github.com/dnaeon/go-vcr"
-  packages = ["cassette","recorder"]
-  revision = "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+  packages = [
+    "cassette",
+    "recorder"
+  ]
+  revision = "fd097d581a47517ee36686adfd3153d6f8eca367"
+  source = "https://github.com/xcoulon/go-vcr/"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-auth"
-  packages = ["design","errors"]
+  packages = [
+    "design",
+    "errors"
+  ]
   revision = "19eb16aaf10758299c4a5360600af983b8470909"
 
 [[projects]]
   branch = "master"
   name = "github.com/fabric8-services/fabric8-wit"
-  packages = ["configuration","errors","goamiddleware","log","resource","rest"]
+  packages = [
+    "configuration",
+    "errors",
+    "goamiddleware",
+    "log",
+    "resource",
+    "rest"
+  ]
   revision = "b59d0dc8ae9b2bfea1fb5dc6ff3552c42b735756"
 
 [[projects]]
@@ -73,7 +96,32 @@
 
 [[projects]]
   name = "github.com/goadesign/goa"
-  packages = [".","client","cors","design","design/apidsl","dslengine","encoding/form","goagen","goagen/codegen","goagen/gen_app","goagen/gen_client","goagen/gen_controller","goagen/gen_main","goagen/gen_schema","goagen/gen_swagger","goagen/meta","goagen/utils","goatest","logging/logrus","middleware","middleware/gzip","middleware/security/jwt","uuid","version"]
+  packages = [
+    ".",
+    "client",
+    "cors",
+    "design",
+    "design/apidsl",
+    "dslengine",
+    "encoding/form",
+    "goagen",
+    "goagen/codegen",
+    "goagen/gen_app",
+    "goagen/gen_client",
+    "goagen/gen_controller",
+    "goagen/gen_main",
+    "goagen/gen_schema",
+    "goagen/gen_swagger",
+    "goagen/meta",
+    "goagen/utils",
+    "goatest",
+    "logging/logrus",
+    "middleware",
+    "middleware/gzip",
+    "middleware/security/jwt",
+    "uuid",
+    "version"
+  ]
   revision = "5646a430cdeb66983d5ace3384e0a667c185abc7"
   version = "v1.3.0"
 
@@ -98,7 +146,18 @@
 [[projects]]
   branch = "master"
   name = "github.com/hashicorp/hcl"
-  packages = [".","hcl/ast","hcl/parser","hcl/printer","hcl/scanner","hcl/strconv","hcl/token","json/parser","json/scanner","json/token"]
+  packages = [
+    ".",
+    "hcl/ast",
+    "hcl/parser",
+    "hcl/printer",
+    "hcl/scanner",
+    "hcl/strconv",
+    "hcl/token",
+    "json/parser",
+    "json/scanner",
+    "json/token"
+  ]
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
 
 [[projects]]
@@ -121,19 +180,29 @@
 
 [[projects]]
   name = "github.com/jstemmer/go-junit-report"
-  packages = [".","formatter","parser"]
+  packages = [
+    ".",
+    "formatter",
+    "parser"
+  ]
   revision = "master"
 
 [[projects]]
   name = "github.com/jteeuwen/go-bindata"
-  packages = [".","go-bindata"]
+  packages = [
+    ".",
+    "go-bindata"
+  ]
   revision = "bbd0c6e271208dce66d8fda4bc536453cd27fc4a"
   version = "v3.0.7"
 
 [[projects]]
   branch = "master"
   name = "github.com/lib/pq"
-  packages = [".","oid"]
+  packages = [
+    ".",
+    "oid"
+  ]
   revision = "d34b9ff171c21ad295489235aec8b6626023cd04"
 
 [[projects]]
@@ -193,13 +262,22 @@
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/common"
-  packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model"
+  ]
   revision = "d811d2e9bf898806ecfb6ef6296774b13ffc314c"
 
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/procfs"
-  packages = [".","internal/util","nfs","xfs"]
+  packages = [
+    ".",
+    "internal/util",
+    "nfs",
+    "xfs"
+  ]
   revision = "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e"
 
 [[projects]]
@@ -216,7 +294,10 @@
 
 [[projects]]
   name = "github.com/spf13/afero"
-  packages = [".","mem"]
+  packages = [
+    ".",
+    "mem"
+  ]
   revision = "63644898a8da0bc22138abf860edaf5277b6102e"
   version = "v1.1.0"
 
@@ -251,7 +332,11 @@
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert","require","suite"]
+  packages = [
+    "assert",
+    "require",
+    "suite"
+  ]
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
 
@@ -264,13 +349,26 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["cast5","ed25519","ed25519/internal/edwards25519","openpgp","openpgp/armor","openpgp/elgamal","openpgp/errors","openpgp/packet","openpgp/s2k"]
+  packages = [
+    "cast5",
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k"
+  ]
   revision = "8b1d31080a7692e075c4681cb2458454a1fe0706"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","websocket"]
+  packages = [
+    "context",
+    "websocket"
+  ]
   revision = "640f4622ab692b87c2f3a94265e6f579fe38263d"
 
 [[projects]]
@@ -281,7 +379,14 @@
 
 [[projects]]
   name = "golang.org/x/text"
-  packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
+  packages = [
+    "internal/gen",
+    "internal/triegen",
+    "internal/ucd",
+    "transform",
+    "unicode/cldr",
+    "unicode/norm"
+  ]
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
@@ -293,7 +398,11 @@
 
 [[projects]]
   name = "gopkg.in/square/go-jose.v2"
-  packages = [".","cipher","json"]
+  packages = [
+    ".",
+    "cipher",
+    "json"
+  ]
   revision = "76dd09796242edb5b897103a75df2645c028c960"
   version = "v2.1.6"
 
@@ -306,6 +415,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f0e4ae1547b3d280a1d337a2c06a0fb7c2728271cb785d5a1a93b852972cd009"
+  inputs-digest = "9bf72de7507887702e82fa05ffccc6690ad338dd9dc5554cf3161084653154f7"
   solver-name = "gps-cdcl"
   solver-version = 1

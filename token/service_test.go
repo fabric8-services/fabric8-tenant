@@ -18,7 +18,7 @@ func TestResolveUserToken(t *testing.T) {
 	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
+	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r))
 	tok, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "user_foo",
@@ -56,7 +56,7 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	r, err := recorder.New("../test/data/token/auth_resolve_target_token", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r.Transport))
+	resolveToken := token.NewResolve("http://authservice", configuration.WithRoundTripper(r))
 	tok, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",

@@ -304,14 +304,14 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 	var currentResourceQuotaStatusCheck int32  // default is 0
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
-			"status":    statusCode,
-			"method":    method,
+			"status":      statusCode,
+			"method":      method,
 			"cluster_url": masterURL,
-			"namespace": openshift.GetNamespace(request),
-			"name":      openshift.GetName(request),
-			"kind":      openshift.GetKind(request),
-			"request":   yamlString(request),
-			"response":  yamlString(response),
+			"namespace":   openshift.GetNamespace(request),
+			"name":        openshift.GetName(request),
+			"kind":        openshift.GetKind(request),
+			"request":     yamlString(request),
+			"response":    yamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
 			if openshift.GetKind(request) == openshift.ValKindNamespace {
@@ -403,6 +403,7 @@ type TenantToken struct {
 	token *jwt.Token
 }
 
+// Subject returns the value of the `sub` claim in the token
 func (t TenantToken) Subject() uuid.UUID {
 	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
 		id, err := uuid.FromString(claims["sub"].(string))
@@ -414,6 +415,7 @@ func (t TenantToken) Subject() uuid.UUID {
 	return uuid.UUID{}
 }
 
+// Username returns the value of the `preferred_username` claim in the token
 func (t TenantToken) Username() string {
 	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
 		answer := claims["preferred_username"].(string)
@@ -425,6 +427,7 @@ func (t TenantToken) Username() string {
 	return ""
 }
 
+// Email returns the value of the `email` claim in the token
 func (t TenantToken) Email() string {
 	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
 		return claims["email"].(string)
@@ -450,7 +453,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				"err":         err,
 				"cluster_url": ns.MasterURL,
 			}, "unable to resolve cluster")
-			c = &cluster.Cluster{}
+			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(
