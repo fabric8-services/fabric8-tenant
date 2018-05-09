@@ -100,10 +100,6 @@ func TestGetClusters(t *testing.T) {
 		},
 		"../test/private_key.pem",
 	)
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
