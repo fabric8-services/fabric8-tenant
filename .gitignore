@@ -78,6 +78,7 @@ bindata_assetfs.go
 client/
 swagger/
 tool/cli/
+tool/tenant-cli
 migration/sqlbindata.go
 template/bindata.go
 auth/client

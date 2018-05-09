@@ -29,7 +29,7 @@ func TestListProjects(t *testing.T) {
 		)
 		require.NoError(t, err)
 		// when
-		projectNames, err := openshift.ListProjects(context.Background(), clusterURL, token.Raw, configuration.WithRoundTripper(r.Transport))
+		projectNames, err := openshift.ListProjects(context.Background(), clusterURL, token.Raw, configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		assert.Empty(t, projectNames)
@@ -46,7 +46,7 @@ func TestListProjects(t *testing.T) {
 		)
 		require.NoError(t, err)
 		// when
-		projectNames, err := openshift.ListProjects(context.Background(), clusterURL, token.Raw, configuration.WithRoundTripper(r.Transport))
+		projectNames, err := openshift.ListProjects(context.Background(), clusterURL, token.Raw, configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		require.Len(t, projectNames, 1)
@@ -63,7 +63,7 @@ func TestListProjects(t *testing.T) {
 		)
 		require.NoError(t, err)
 		// when
-		projectNames, err := openshift.ListProjects(context.Background(), clusterURL, token.Raw, configuration.WithRoundTripper(r.Transport))
+		projectNames, err := openshift.ListProjects(context.Background(), clusterURL, token.Raw, configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		require.Len(t, projectNames, 2)

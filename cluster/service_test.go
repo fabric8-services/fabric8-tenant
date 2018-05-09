@@ -22,7 +22,7 @@ func TestResolveCluster(t *testing.T) {
 	r, err := recorder.New("../test/data/cluster/resolve_cluster.fast", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	authURL := "http://fast.authservice"
+	authURL := "https://fast.authservice"
 	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
@@ -44,7 +44,7 @@ func TestResolveCluster(t *testing.T) {
 
 	t.Run("cluster - end slash", func(t *testing.T) {
 		// given
-		target := "http://api.cluster1"
+		target := "https://api.cluster1"
 		resolve := cluster.NewResolve(clusterService)
 		// when
 		found, err := resolve(context.Background(), target)
@@ -66,7 +66,7 @@ func TestResolveCluster(t *testing.T) {
 
 	t.Run("both slash", func(t *testing.T) {
 		// given
-		target := "http://api.cluster1/"
+		target := "https://api.cluster1/"
 		resolve := cluster.NewResolve(clusterService)
 		// when
 		found, err := resolve(context.Background(), target)
@@ -92,7 +92,7 @@ func TestGetClusters(t *testing.T) {
 	r, err := recorder.New("../test/data/cluster/resolve_cluster.slow", recorder.WithJWTMatcher())
 	require.NoError(t, err)
 	defer r.Stop()
-	authURL := "http://slow.authservice"
+	authURL := "https://slow.authservice"
 	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
@@ -119,7 +119,7 @@ func TestGetClusters(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Len(t, clusters, 2)
-		assert.Equal(t, "http://api.cluster1/", clusters[0].APIURL)
+		assert.Equal(t, "https://api.cluster1/", clusters[0].APIURL)
 		assert.Equal(t, "foo", clusters[0].AppDNS)
 		assert.Equal(t, "http://console.cluster1/console/", clusters[0].ConsoleURL)
 		assert.Equal(t, "http://metrics.cluster1/", clusters[0].MetricsURL)
@@ -135,7 +135,7 @@ func TestGetClusters(t *testing.T) {
 			// given
 			clusterService, err := cluster.NewService(
 				authURL,
-				time.Second, // make sure the refresher does not interfer
+				time.Hour, // make sure the refresher does not interfer
 				saToken.Raw,
 				resolveToken,
 				token.NewGPGDecypter("foo"),

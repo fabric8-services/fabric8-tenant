@@ -3,7 +3,7 @@ version: 1
 interactions:
 - request:
     method: GET
-    url: http://slow.authservice/api/clusters/
+    url: https://slow.authservice/api/clusters/
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -14,7 +14,7 @@ interactions:
       "data":[
         {
           "name": "cluster1_name",
-          "api-url": "http://api.cluster1/",
+          "api-url": "https://api.cluster1/",
           "console-url": "http://console.cluster1/console/",
           "metrics-url": "http://metrics.cluster1/",
           "logging-url": "http://logging.cluster1/",
@@ -32,7 +32,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://slow.authservice/api/token?for=http%3A%2F%2Fapi.cluster1%2F&force_pull=false
+    url: https://slow.authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -45,7 +45,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://slow.authservice/api/token?for=https%3A%2F%2Fapi.cluster2&force_pull=false
+    url: https://slow.authservice/api/token?for=https%3A%2F%2Fapi.cluster2&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -58,7 +58,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://api.cluster1/apis/user.openshift.io/v1/users/~
+    url: https://api.cluster1/apis/user.openshift.io/v1/users/~
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:

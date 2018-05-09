@@ -29,7 +29,7 @@ func TestDeleteNamespace(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		// when
-		err = openshift.DeleteNamespace("ns1", clusterURL, token.Raw, configuration.WithRoundTripper(r.Transport))
+		err = openshift.DeleteNamespace("ns1", clusterURL, token.Raw, configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 	})
@@ -38,7 +38,7 @@ func TestDeleteNamespace(t *testing.T) {
 
 		t.Run("no namespace", func(t *testing.T) {
 			// when
-			err = openshift.DeleteNamespace("unknown", clusterURL, token.Raw, configuration.WithRoundTripper(r.Transport))
+			err = openshift.DeleteNamespace("unknown", clusterURL, token.Raw, configuration.WithRoundTripper(r))
 			// then
 			require.Error(t, err)
 			t.Logf("error: %v", err)
@@ -47,7 +47,7 @@ func TestDeleteNamespace(t *testing.T) {
 
 		t.Run("conflict", func(t *testing.T) {
 			// when
-			err = openshift.DeleteNamespace("conflict", clusterURL, token.Raw, configuration.WithRoundTripper(r.Transport))
+			err = openshift.DeleteNamespace("conflict", clusterURL, token.Raw, configuration.WithRoundTripper(r))
 			// then
 			require.Error(t, err)
 			t.Logf("error: %v", err)

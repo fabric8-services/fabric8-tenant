@@ -59,7 +59,6 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 	svc, ctrl, err := newTestTenantsController(s.DB, "show-tenants")
 	require.NoError(s.T(), err)
 
-
 	s.T().Run("OK", func(t *testing.T) {
 		// given
 		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
@@ -169,7 +168,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 			// then
 			_, err = tenant.NewDBService(s.DB).GetTenant(fxt.Tenants[0].ID)
-			require.IsType(t, errors.NotFoundError{}, err)
+			require.IsType(t, errors.TenantRecordNotFoundError{}, err)
 			namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
 			assert.Empty(t, namespaces)
@@ -203,7 +202,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 			// then
 			_, err = tenant.NewDBService(s.DB).GetTenant(fxt.Tenants[0].ID)
-			require.IsType(t, errors.NotFoundError{}, err)
+			require.IsType(t, errors.TenantRecordNotFoundError{}, err)
 			namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
 			assert.Empty(t, namespaces)

@@ -15,7 +15,7 @@ interactions:
         "attributes": {
           "username": "user_unknown_cluster",
           "email": "user_unknown_cluster@bar.com",
-      	  "cluster": "http://api.cluster.unknown/"
+      	  "cluster": "https://api.cluster.unknown/"
         }
       }
     }'
@@ -59,7 +59,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=http%3A%2F%2Fapi.cluster.unknown%2F&force_pull=false
+    url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster.unknown%2F&force_pull=false
     headers:
       sub: ["526ea9ac-0cf7-4e12-a835-0b76eab45517"] # will be compared against the `sub` claim in the incoming request's token
   response:

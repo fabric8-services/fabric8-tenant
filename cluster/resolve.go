@@ -17,9 +17,10 @@ func NewResolve(clusterService Service) Resolve {
 		clusters, err := clusterService.GetClusters(context.Background())
 		if err != nil {
 			log.Panic(nil, map[string]interface{}{
-				"err": err,
+				"err":    err,
+				"target": target,
 			}, "unable to resolve clusters")
-			return Cluster{}, errs.Wrapf(err, "unable to resolve cluster")
+			return Cluster{}, errs.Wrapf(err, "unable to resolve clusters")
 		}
 		for _, cluster := range clusters {
 			log.Debug(nil, map[string]interface{}{"target_url": cleanURL(target), "cluster_url": cleanURL(cluster.APIURL)}, "comparing URLs...")
@@ -27,6 +28,6 @@ func NewResolve(clusterService Service) Resolve {
 				return cluster, nil
 			}
 		}
-		return Cluster{}, fmt.Errorf("unable to resolve cluster")
+		return Cluster{}, fmt.Errorf("unable to resolve cluster '%s'", target)
 	}
 }
