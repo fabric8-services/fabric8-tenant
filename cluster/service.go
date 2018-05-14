@@ -147,6 +147,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 			return errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
 		// verify the token
+		s.clientOptions = append(s.clientOptions, configuration.WithInsecureSkipTLSVerify())
 		_, err = openshift.WhoAmI(ctx, cluster.APIURL, clusterToken, s.clientOptions...)
 		if err != nil {
 			return errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
