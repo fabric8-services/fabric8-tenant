@@ -8,7 +8,7 @@ if [ ! -f .cico-prepare ]; then
     install_deps
     prepare
 
-    run_tests_without_coverage
+    run_tests_with_coverage
 
     touch .cico-prepare
 fi
