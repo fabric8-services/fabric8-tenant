@@ -132,6 +132,7 @@ func main() {
 		*saToken,
 		resolveToken,
 		token.NewGPGDecypter(config.GetTokenKey()),
+		configuration.WithInsecureSkipTLSVerify(),
 	)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

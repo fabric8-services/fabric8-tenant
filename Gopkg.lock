@@ -341,6 +341,11 @@
   version = "v1.2.1"
 
 [[projects]]
+  name = "github.com/wadey/gocovmerge"
+  packages = ["."]
+  revision = "master"
+
+[[projects]]
   branch = "master"
   name = "github.com/zach-klippenstein/goregen"
   packages = ["."]
@@ -393,7 +398,10 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/tools"
-  packages = ["go/ast/astutil"]
+  packages = [
+    "cover",
+    "go/ast/astutil"
+  ]
   revision = "8026fb003c560896db954319ee6d037f22a8d9c7"
 
 [[projects]]
@@ -415,6 +423,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "055eb5202bbcfa71bdbc69a829675a84c53d9579163b99a14c801611be53a2ab"
+  inputs-digest = "dc9c412ba8f5c4d139a78070a1472f499d437c507d2a8dcd3c456bad7821d277"
   solver-name = "gps-cdcl"
   solver-version = 1
