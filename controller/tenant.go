@@ -77,6 +77,13 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		}, "unable to initialize tenant")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+	err = c.tenantService.CreateTenant(&tenant.Tenant{ID: t.ID, Email: t.Email})
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to store tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
@@ -290,6 +297,7 @@ func (c *TenantController) resolveTenantConfig(ctx context.Context, mustExist bo
 	// create openshift config
 	return Tenant{
 			ID:          tenantToken.Subject(),
+			Email:       tenantToken.Email(),
 			Owner:       username,
 			AccessToken: token,
 		},
@@ -389,16 +397,15 @@ func newTenantCallBack(ctx context.Context, masterURL string, service tenant.Ser
 	}
 }
 
-func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
-	return "", nil
-}
-
 // Tenant some user info about the tenant (OS cluster)
 type Tenant struct {
 	ID          uuid.UUID
 	Owner       string
+	Email       string
 	AccessToken string
 }
+
+// TenantToken the tenant's token
 type TenantToken struct {
 	token *jwt.Token
 }
