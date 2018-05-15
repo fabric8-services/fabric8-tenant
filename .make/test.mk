@@ -417,7 +417,7 @@ $(eval COV_OUT_FILE := $(COV_DIR)/$(PACKAGE_NAME)/coverage.$(TEST_NAME).mode-$(C
 		-coverprofile $(COV_OUT_FILE) \
 		-coverpkg $(ALL_PKGS_COMMA_SEPARATED) \
 		-covermode=$(COVERAGE_MODE) \
-		-timeout 10m \
+		-timeout 30m \
 		$(EXTRA_TEST_PARAMS) \
 	|| echo $(PACKAGE_NAME) >> $(ERRORS_FILE)
 

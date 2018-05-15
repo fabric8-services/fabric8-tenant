@@ -1,4 +1,12 @@
-## Service for initializing and updating the tenant services in fabric8/openshift.io
+= Fabric8 Tenant Service
+
+image:https://ci.centos.org/buildStatus/icon?job=devtools-fabric8-tenant-build-master[Jenkins,link="https://ci.centos.org/view/Devtools/job/devtools-fabric8-tenant-build-master/lastBuild/"]
+image:https://goreportcard.com/badge/github.com/fabric8-services/fabric8-tenant[Go Report Card, link="https://goreportcard.com/report/github.com/fabric8-services/fabric8-tenant"]
+image:https://godoc.org/github.com/fabric8-services/fabric8-tenant?status.png[GoDoc,link="https://godoc.org/github.com/fabric8-services/fabric8-tenant"]
+image:https://codecov.io/gh/fabric8-services/fabric8-tenant/branch/master/graph/badge.svg[Codecov.io,link="https://codecov.io/gh/fabric8-services/fabric8-tenant"]
+
+
+== Service for initializing and updating the tenant services in fabric8/openshift.io
 
 The YAML for the tenant services is defined in the following projects:
 
@@ -6,7 +14,7 @@ The YAML for the tenant services is defined in the following projects:
 * jenkins : https://github.com/fabric8-services/fabric8-tenant-jenkins
 * team : https://github.com/fabric8-services/fabric8-tenant-team
 
-### Testing YAML
+=== Testing YAML
 
 When a PR is made on one of the above YAML repos you can test in production in your tenant via the following:
 
@@ -24,35 +32,12 @@ To go back to using the default YAML:
 * click `Update Profile`
 * now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] and you should be back to the default versions
 
-### Unit Testing Go
+=== Unit Testing Go
 
-Tips to running unit tests - this command seems to work on OS X:
-
-```
-make clean && make && make deps && glide update && make test-unit
-```
-
-
-
-### Rapid development on Minikube / Minishift
-
-If you run fabric8 in minikube or minishift then you can get rapid feedback of your code via the following:
-
- * run the app using the `:dev` docker image label:
+Tips to running unit tests:
 
 ```
-git clone https://github.com/fabric8io/fabric8-platform.git
-cd fabric8-platform
-cd apps/init-tenant
-mvn fabric8:deploy  -Pdev
+make clean && make deps && make test-unit-no-coverage
 ```
 
-* use the `kube-redeploy` make target whenever you want to create a new docker image and redeploy
-```
-make kube-redeploy
-```
-if the docker build fails you may need to type this first to point your local shell at the docker daemon inside minishift/minikube:
-```
-eval $(minishift docker-env)
-```
 
