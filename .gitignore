@@ -99,3 +99,6 @@ template/fabric8-tenant-jenkins-kubernetes.yml
 template/fabric8-tenant-team-kubernetes.yml
 template/fabric8-tenant-expose-kubernetes.yml
 
+# generated mock files
+*_mock.go
+

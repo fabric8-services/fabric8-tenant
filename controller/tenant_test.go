@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
+	testopenshift "github.com/fabric8-services/fabric8-tenant/test/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-tenant/user"
@@ -228,8 +229,58 @@ func (s *TenantControllerTestSuite) TestDeleteNamespace() {
 			test.DeleteNamespaceTenantNotFound(t, ctx, svc, ctrl, "unknown")
 		})
 	})
+}
+
+func (s *TenantControllerTestSuite) TestCleanTenant() {
+
+	s.T().Run("remove", func(t *testing.T) {
+		t.Run("external user", func(t *testing.T) {
+			// given
+			svc, ctrl, err := newTestTenantController(s.DB, "clean_tenant-1")
+			require.NoError(t, err)
+			tenantID := "83fdcae2-634f-4a52-958a-f723cb621700" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+			ctx, err := createValidUserContext(map[string]interface{}{
+				"sub":   tenantID,
+				"email": "user_foo@bar.com",
+			})
+			require.NoError(t, err)
+			namespaceCleaner := testopenshift.NewOCCommandExecutorMock(t)
+			namespaceCleaner.ExecCmdFunc = func(namespace string, opts openshift.ApplyOptions) (string, error) {
+				return "", nil
+			}
+			openshift.NamespaceCleaner = namespaceCleaner
+			openshift.NamespaceDeleter = testopenshift.NewOCCommandExecutorMock(t) // will fail if used
+			// when
+			test.CleanTenantNoContent(t, ctx, svc, ctrl, true)
+			// then
+			assert.Equal(t, uint64(5), namespaceCleaner.ExecCmdCounter)
+		})
+
+		t.Run("internal user", func(t *testing.T) {
+			// given
+			svc, ctrl, err := newTestTenantController(s.DB, "clean_tenant-2")
+			require.NoError(t, err)
+			tenantID := "95226717-a26c-4e9e-9850-ffb16c110002" // ok, well... we could probably use a random UUID and use it in a template based on "../test/data/controller/setup_tenant" to generate the actual cassette file to use with go-vcr...
+			ctx, err := createValidUserContext(map[string]interface{}{
+				"sub":   tenantID,
+				"email": "user_foo@bar.com",
+			})
+			require.NoError(t, err)
+			openshift.NamespaceCleaner = testopenshift.NewOCCommandExecutorMock(t) // will fail if used
+			namespaceDeleter := testopenshift.NewOCCommandExecutorMock(t)
+			namespaceDeleter.ExecCmdFunc = func(namespace string, opts openshift.ApplyOptions) (string, error) {
+				return "", nil
+			}
+			openshift.NamespaceDeleter = namespaceDeleter
+			// when
+			test.CleanTenantNoContent(t, ctx, svc, ctrl, true)
+			// then
+			assert.Equal(t, uint64(5), namespaceDeleter.ExecCmdCounter)
+		})
+	})
 
 }
+
 func newTestTenantController(db *gorm.DB, filename string) (*goa.Service, *TenantController, error) {
 	r, err := recorder.New(fmt.Sprintf("../test/data/controller/%s", filename), recorder.WithJWTMatcher())
 	if err != nil {
@@ -324,7 +375,7 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 	}
 }
 
-func Test_convertTenant(t *testing.T) {
+func TestConvertTenant(t *testing.T) {
 	ctx := context.Background()
 
 	tenantCreated := time.Now()

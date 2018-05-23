@@ -25,6 +25,8 @@ GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
 DOCKER_BIN := $(shell command -v $(DOCKER_BIN_NAME) 2> /dev/null)
 
+MINIMOCK_BIN=$(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock/minimock
+
 # This is a fix for a non-existing user in passwd file when running in a docker
 # container and trying to clone repos of dependencies
 GIT_COMMITTER_NAME ?= "user"
@@ -225,7 +227,18 @@ migrate-database: $(BINARY_SERVER_BIN)
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.
-generate: app/controllers.go migration/sqlbindata.go template/bindata.go
+generate: app/controllers.go migration/sqlbindata.go template/bindata.go generate-minimock
+
+$(MINIMOCK_BIN):
+	@echo "building the minimock binary..."
+	@cd $(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock && go build -v minimock.go
+	@echo "done."
+
+.PHONY: generate-minimock
+generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
+	@echo "Generating mocks..."
+	@-mkdir -p test/openshift
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-tenant/openshift.OCCommandExecutor -o ./test/openshift/occmd_mock.go -t OCCommandExecutorMock
 
 .PHONY: dev
 dev: prebuild-check deps generate $(FRESH_BIN)

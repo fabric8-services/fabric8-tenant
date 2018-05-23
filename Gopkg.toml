@@ -40,11 +40,13 @@ required = [
     "github.com/jteeuwen/go-bindata/go-bindata",
     "github.com/jstemmer/go-junit-report",
     "github.com/wadey/gocovmerge",
+    "github.com/gojuno/minimock/cmd/minimock",
     ]
 
 ignored = [
   "github.com/fabric8-services/fabric8-tenant/app", 
-  "github.com/fabric8-services/fabric8-tenant/auth/client"]
+  "github.com/fabric8-services/fabric8-tenant/auth/client",
+  ]
 
 [[constraint]]
   name = "github.com/dgrijalva/jwt-go"
@@ -76,9 +78,11 @@ ignored = [
 
 [[constraint]]
   name = "github.com/dnaeon/go-vcr"
-  #revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
-  source= "https://github.com/xcoulon/go-vcr/"
-  revision= "fd097d581a47517ee36686adfd3153d6f8eca367"
+  revision= "b68d3628568e385c2f706bf3f0db84f9c32fe610"
+
+[[constraint]]
+  name = "github.com/gojuno/minimock"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-auth"

@@ -64,8 +64,7 @@
     "cassette",
     "recorder"
   ]
-  revision = "fd097d581a47517ee36686adfd3153d6f8eca367"
-  source = "https://github.com/xcoulon/go-vcr/"
+  revision = "b68d3628568e385c2f706bf3f0db84f9c32fe610"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-auth"
@@ -124,6 +123,21 @@
   ]
   revision = "5646a430cdeb66983d5ace3384e0a667c185abc7"
   version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/generator"
+  packages = ["."]
+  revision = "2224a98ac05213f8dff340ea2a489217d2d8b965"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/minimock"
+  packages = [
+    ".",
+    "cmd/minimock"
+  ]
+  revision = "3815f8d1b952717b22f2905b1a91896dfa77fab1"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -341,6 +355,11 @@
   version = "v1.2.1"
 
 [[projects]]
+  name = "github.com/wadey/gocovmerge"
+  packages = ["."]
+  revision = "master"
+
+[[projects]]
   branch = "master"
   name = "github.com/zach-klippenstein/goregen"
   packages = ["."]
@@ -393,7 +412,14 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/tools"
-  packages = ["go/ast/astutil"]
+  packages = [
+    "cover",
+    "go/ast/astutil",
+    "go/buildutil",
+    "go/loader",
+    "imports",
+    "internal/fastwalk"
+  ]
   revision = "8026fb003c560896db954319ee6d037f22a8d9c7"
 
 [[projects]]
@@ -415,6 +441,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "68cef63e1308bbe821155b9b2bec888e8606298f1ea9b18b2852f636e70ae95f"
+  inputs-digest = "e36d9a1379debe3d97fef2c3c4ce97a6e3e43c36d3172d08dcfe2812e00c505a"
   solver-name = "gps-cdcl"
   solver-version = 1

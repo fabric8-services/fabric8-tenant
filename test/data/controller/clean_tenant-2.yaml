@@ -4,7 +4,7 @@ interactions:
 # requests to retrieve the user from auth service, given his/her ID
 - request:
     method: GET
-    url: http://authservice/api/users/83fdcae2-634f-4a52-958a-f723cb621700
+    url: http://authservice/api/users/95226717-a26c-4e9e-9850-ffb16c110002
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -15,7 +15,8 @@ interactions:
         "attributes": {
           "username": "user_foo",
           "email": "user_foo@bar.com",
-          "cluster": "https://api.cluster1/"
+          "cluster": "https://api.cluster1/",
+          "featurelevel": "internal"
         }
       }
     }'
@@ -61,7 +62,7 @@ interactions:
     method: GET
     url: http://authservice/api/token?for=https%3A%2F%2Fapi.cluster1%2F&force_pull=false
     headers:
-      sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
+      sub: ["95226717-a26c-4e9e-9850-ffb16c110002"] # will be compared against the `sub` claim in the incoming request's token
   response:
     status: 200 OK
     code: 200
@@ -90,52 +91,3 @@ interactions:
       "identities":[],
       "groups":[]
     }'
-# set requests for the init tenant API calls on the target (OSO) cluster for user 83fdcae2-634f-4a52-958a-f723cb621700
-- request:
-    method: POST
-    url: https://api.cluster1/oapi/v1/projectrequests
-    headers:
-      sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: https://api.cluster1/oapi/v1/namespaces/user-foo/rolebindingrestrictions
-    headers:
-      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: https://api.cluster1/api/v1/namespaces/user-foo/services
-    headers:
-      sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: https://api.cluster1/oapi/v1/namespaces/user-foo/rolebindings
-    headers:
-      sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: POST
-    url: https://api.cluster1/api/v1/namespaces/user-foo/configmaps
-    headers:
-      sub: ["83fdcae2-634f-4a52-958a-f723cb621700"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-- request:
-    method: DELETE
-    url: https://api.cluster1/oapi/v1/namespaces/user-foo/rolebindings/admin
-    headers:
-      sub: ["devtools-sre"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200

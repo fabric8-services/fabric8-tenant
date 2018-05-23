@@ -25,11 +25,12 @@ func CleanTenant(ctx context.Context, config Config, username string, templateVa
 	for key, val := range mapped {
 		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions, remove bool) {
 			defer wg.Done()
-			var clean cleanFunc = executeCleanNamespaceCMD
+			cleaner := NamespaceCleaner
 			if remove {
-				clean = executeDeleteNamespaceCMD
+				log.Info(ctx, map[string]interface{}{"namespace": namespace}, "deleting namespace")
+				cleaner = NamespaceDeleter
 			}
-			output, err := clean(
+			output, err := cleaner.ExecCmd(
 				namespace,
 				opts.WithNamespace(namespace),
 			)
@@ -53,12 +54,31 @@ func CleanTenant(ctx context.Context, config Config, username string, templateVa
 	return nil
 }
 
-type cleanFunc func(namespace string, opt ApplyOptions) (string, error)
+// OCCommandExecutor the interface for running a command
+type OCCommandExecutor interface {
+	ExecCmd(namespace string, opt ApplyOptions) (string, error)
+}
 
-func executeCleanNamespaceCMD(namespace string, opt ApplyOptions) (string, error) {
+// NamespaceCleaner the namespace cleaner implementation
+var NamespaceCleaner OCCommandExecutor = defaultNamespaceCleaner{}
+
+// NamespaceCleaner the default namespace cleaner
+type defaultNamespaceCleaner struct {
+}
+
+// ExecCmd executes the `oc delete...` command on the given namespace in the given cluster
+func (c defaultNamespaceCleaner) ExecCmd(namespace string, opt ApplyOptions) (string, error) {
 	return executeCMD(nil, []string{"-c", fmt.Sprintf("oc delete all,pvc,cm --all --now=true --namespace=%v --server=%v --token=%v", namespace, opt.MasterURL, opt.Token)})
 }
 
-func executeDeleteNamespaceCMD(namespace string, opt ApplyOptions) (string, error) {
+// NamespaceDeleter the current namespace deleter implementation
+var NamespaceDeleter OCCommandExecutor = defaultNamespaceDeleter{}
+
+// NamespaceDeleter the default namespace deleter implementation
+type defaultNamespaceDeleter struct {
+}
+
+// ExecCmd executes the `oc delete...` command on the given namespace in the given cluster
+func (c defaultNamespaceDeleter) ExecCmd(namespace string, opt ApplyOptions) (string, error) {
 	return executeCMD(nil, []string{"-c", fmt.Sprintf("oc delete project %v --server=%v --token=%v", namespace, opt.MasterURL, opt.Token)})
 }
