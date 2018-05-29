@@ -29,7 +29,7 @@ var tenantAttributes = a.Type("TenantAttributes", func() {
 	a.Attribute("profile", d.String, "User profile type", func() {
 		a.Example("Paid")
 	})
-	a.Attribute("oso-username", d.String, "The tenant's OpenShift Online username", func() {
+	a.Attribute("os-username", d.String, "The tenant's OpenShift username", func() {
 		a.Example("foobar")
 	})
 	a.Attribute("namespaces", a.ArrayOf(namespaceAttributes), "The tenant namespaces", func() {

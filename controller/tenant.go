@@ -101,9 +101,9 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 	tenant := &tenant.Tenant{
-		ID:          ttoken.Subject(),
-		Email:       ttoken.Email(),
-		OsoUsername: openshiftUsername,
+		ID:         ttoken.Subject(),
+		Email:      ttoken.Email(),
+		OSUsername: openshiftUsername,
 	}
 	err = c.tenantService.CreateTenant(tenant)
 	if err != nil {
@@ -147,7 +147,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
-	openshiftUsername := tenant.OsoUsername
+	openshiftUsername := tenant.OSUsername
 
 	// fetch the cluster the user belongs to
 	user, err := c.userService.GetUser(ctx, ttoken.Subject())
@@ -206,7 +206,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
-	openshiftUsername := tenant.OsoUsername
+	openshiftUsername := tenant.OSUsername
 
 	// fetch the cluster the user belongs to
 	user, err := c.userService.GetUser(ctx, ttoken.Subject())
