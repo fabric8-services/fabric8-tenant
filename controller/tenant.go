@@ -143,7 +143,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 	ttoken := &TenantToken{token: userToken}
-	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
+	_, err := c.tenantService.GetTenant(ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
@@ -180,6 +180,19 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
+
+	// update tenant config
+	tenant := &tenant.Tenant{
+		ID:         ttoken.Subject(),
+		Email:      ttoken.Email(),
+		OSUsername: openshiftUsername,
+	}
+	if err = c.tenantService.SaveTenant(tenant); err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to update tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
+	}
 
 	go func() {
 		ctx := ctx
