@@ -161,6 +161,6 @@ objects:
       deploymentconfig: f8tenant
 parameters:
 - name: IMAGE
-  value: registry.devshift.net/fabric8-services/fabric8-tenant
+  value: quay.io/openshiftio/rhel-fabric8-services-fabric8-tenant
 - name: IMAGE_TAG
   value: latest
