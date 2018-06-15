@@ -143,7 +143,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 	ttoken := &TenantToken{token: userToken}
-	_, err := c.tenantService.GetTenant(ttoken.Subject())
+	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
@@ -182,11 +182,8 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
 
 	// update tenant config
-	tenant := &tenant.Tenant{
-		ID:         ttoken.Subject(),
-		Email:      ttoken.Email(),
-		OSUsername: openshiftUsername,
-	}
+	tenant.OSUsername = openshiftUsername
+
 	if err = c.tenantService.SaveTenant(tenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
