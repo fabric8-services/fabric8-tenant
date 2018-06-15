@@ -47,12 +47,13 @@ const (
 
 // Tenant is the owning OpenShift account
 type Tenant struct {
-	ID        uuid.UUID `sql:"type:uuid" gorm:"primary_key"` // This is the ID PK field
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
-	Email     string
-	Profile   string
+	ID         uuid.UUID `sql:"type:uuid" gorm:"primary_key"` // This is the ID PK field
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	DeletedAt  *time.Time
+	Email      string
+	Profile    string
+	OSUsername string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

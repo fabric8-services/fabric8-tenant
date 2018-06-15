@@ -100,7 +100,11 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
-	tenant := &tenant.Tenant{ID: ttoken.Subject(), Email: ttoken.Email()}
+	tenant := &tenant.Tenant{
+		ID:         ttoken.Subject(),
+		Email:      ttoken.Email(),
+		OSUsername: openshiftUsername,
+	}
 	err = c.tenantService.CreateTenant(tenant)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -176,6 +180,16 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
+
+	// update tenant config
+	tenant.OSUsername = openshiftUsername
+
+	if err = c.tenantService.SaveTenant(tenant); err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to update tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
+	}
 
 	go func() {
 		ctx := ctx
