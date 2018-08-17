@@ -1,0 +1,4 @@
+skip_validation_for:
+  - 'JENKINS_VERSION'
+  - 'CHE_VERSION'
+  - 'TEAM_VERSION'
