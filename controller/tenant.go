@@ -147,6 +147,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
+	openshiftUsername := tenant.OSUsername
 
 	// fetch the cluster the user belongs to
 	user, err := c.userService.GetUser(ctx, ttoken.Subject())
@@ -157,16 +158,6 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if user.Cluster == nil {
 		log.Error(ctx, nil, "no cluster defined for tenant")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
-	}
-
-	// fetch the users cluster token
-	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.Cluster,
-		}, "unable to fetch tenant token from auth")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
 	}
 
 	cluster, err := c.resolveCluster(ctx, *user.Cluster)
@@ -221,6 +212,12 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 	ttoken := &TenantToken{token: userToken}
 
+	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
+	}
+	openshiftUsername := tenant.OSUsername
+
 	// fetch the cluster the user belongs to
 	user, err := c.userService.GetUser(ctx, ttoken.Subject())
 	if err != nil {
@@ -231,16 +228,6 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	removeFromCluster := false
 	if user.FeatureLevel != nil && *user.FeatureLevel == "internal" {
 		removeFromCluster = ctx.Remove
-	}
-
-	// fetch the users cluster token
-	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.Cluster,
-		}, "unable to fetch tenant token from auth")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
 	}
 
 	cluster, err := c.resolveCluster(ctx, *user.Cluster)
