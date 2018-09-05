@@ -56,6 +56,7 @@ metadata:
 			"Namespace":              `/api/v1/namespaces`,
 			"Project":                `/oapi/v1/projects`,
 			"ProjectRequest":         `/oapi/v1/projectrequests`,
+			"Role":                   `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes`,
@@ -73,6 +74,7 @@ metadata:
 		"PUT": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"Role":                   `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
@@ -90,6 +92,7 @@ metadata:
 		"PATCH": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"Role":                   `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
@@ -107,6 +110,7 @@ metadata:
 		"GET": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"Role":                   `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
@@ -124,6 +128,7 @@ metadata:
 		"DELETE": {
 			"Namespace":              `/api/v1/namespaces/{{ index . "metadata" "name"}}`,
 			"Project":                `/oapi/v1/projects/{{ index . "metadata" "name"}}`,
+			"Role":                   `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles/{{ index . "metadata" "name"}}`,
 			"RoleBinding":            `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`,
 			"RoleBindingRestriction": `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
 			"Route":                  `/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`,
@@ -450,12 +455,13 @@ var sortOrder = map[string]int{
 	"Secret":                 5,
 	"ServiceAccount":         6,
 	"Service":                7,
-	"RoleBinding":            8,
-	"PersistentVolumeClaim":  9,
-	"ConfigMap":              10,
-	"DeploymentConfig":       11,
-	"Route":                  12,
-	"Job":                    13,
+	"Role":                   8,
+	"RoleBinding":            9,
+	"PersistentVolumeClaim":  10,
+	"ConfigMap":              11,
+	"DeploymentConfig":       12,
+	"Route":                  13,
+	"Job":                    14,
 }
 
 // ByKind represents a list of Openshift objects sortable by Kind
