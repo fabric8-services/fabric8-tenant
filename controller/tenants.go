@@ -4,14 +4,13 @@ import (
 	"reflect"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/goadesign/goa"
 )
 
@@ -21,36 +20,33 @@ var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
 type TenantsController struct {
 	*goa.Controller
 	tenantService          tenant.Service
-	resolveTenant          tenant.Resolve
-	userService            user.Service
 	openshiftService       openshift.Service
-	resolveCluster         cluster.Resolve
+	clusterService         cluster.Service
+	authClientService      *auth.Service
 	defaultOpenshiftConfig openshift.Config
 }
 
 // NewTenantsController creates a tenants controller.
 func NewTenantsController(service *goa.Service,
 	tenantService tenant.Service,
-	userService user.Service,
+	clusterService cluster.Service,
+	authClientService *auth.Service,
 	openshiftService openshift.Service,
-	resolveTenant tenant.Resolve,
-	resolveCluster cluster.Resolve,
 	defaultOpenshiftConfig openshift.Config,
 ) *TenantsController {
 	return &TenantsController{
 		Controller:             service.NewController("TenantsController"),
 		tenantService:          tenantService,
-		resolveTenant:          resolveTenant,
-		userService:            userService,
+		clusterService:         clusterService,
 		openshiftService:       openshiftService,
-		resolveCluster:         resolveCluster,
+		authClientService:      authClientService,
 		defaultOpenshiftConfig: defaultOpenshiftConfig,
 	}
 }
 
 // Show runs the show action.
 func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
-	if !token.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
+	if !auth.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -65,13 +61,13 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)}
 	return ctx.OK(result)
 }
 
 // Search runs the search action.
 func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
-	if !token.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
+	if !auth.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 	tenant, err := c.tenantService.LookupTenantByClusterAndNamespace(ctx.MasterURL, ctx.Namespace)
@@ -86,7 +82,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 	result := app.TenantList{
 		Data: []*app.Tenant{
-			convertTenant(ctx, tenant, namespaces, c.resolveCluster),
+			convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster),
 		},
 		// skipping the paging links for now
 		Meta: &app.TenantListMeta{
@@ -98,7 +94,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 // Delete runs the `delete` action to deprovision a user
 func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
-	if !token.IsSpecificServiceAccount(ctx, "fabric8-auth") {
+	if !auth.IsSpecificServiceAccount(ctx, "fabric8-auth") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 	tenantID := ctx.TenantID
@@ -108,7 +104,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	}
 	for _, namespace := range namespaces {
 		// fetch the cluster info
-		clustr, err := c.resolveCluster(ctx, namespace.MasterURL)
+		clustr, err := c.clusterService.GetCluster(ctx, namespace.MasterURL)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,

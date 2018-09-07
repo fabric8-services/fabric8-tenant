@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -9,7 +8,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -20,12 +21,9 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
-	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
-	goalogrus "github.com/goadesign/goa/logging/logrus"
+	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -94,7 +92,14 @@ func main() {
 	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
 	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
-	publicKeys, err := token.GetPublicKeys(context.Background(), config.GetAuthURL())
+	authService, err := auth.NewAuthService(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to fetch service account token")
+	}
+
+	publicKeys, err := authService.GetPublicKeys()
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err":    err,
@@ -116,23 +121,8 @@ func main() {
 	service.Use(log.LogRequest(config.IsDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
-	// fetch service account token for tenant service
-	saTokenService := token.NewServiceAccountTokenService(config)
-	saToken, err := saTokenService.GetOAuthToken(context.Background())
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to fetch service account token")
-	}
-
-	resolveToken := token.NewResolve(config.GetAuthURL())
-	clusterService, err := cluster.NewService(
-		config.GetAuthURL(),
-		config.GetClustersRefreshDelay(),
-		*saToken,
-		resolveToken,
-		token.NewGPGDecypter(config.GetTokenKey()),
-	)
+	clusterService := cluster.NewClusterService(config.GetClustersRefreshDelay(), authService)
+	err = clusterService.Start()
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -140,15 +130,7 @@ func main() {
 	}
 	defer clusterService.Stop()
 
-	resolveCluster := cluster.NewResolve(clusterService)
-	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
-		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
-	}
-
 	openshiftService := openshift.NewService()
-
-	// create user profile client to get the user's cluster
-	userService := user.NewService(config.GetAuthURL(), *saToken)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -172,10 +154,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, resolveCluster, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, osTemplate, templateVars)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, userService, openshiftService, resolveTenant, resolveCluster, osTemplate)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService, osTemplate)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

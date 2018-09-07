@@ -50,11 +50,11 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 
-	varAuthURL              = "auth.url"
+	VarAuthURL              = "auth.url"
 	varClustersRefreshDelay = "cluster.refresh.delay"
 	varAuthClientID         = "service.account.id"
 	varClientSecret         = "service.account.secret"
-	varAuthTokenKey         = "auth.token.key"
+	VarAuthTokenKey         = "auth.token.key"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -126,7 +126,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakOpenshiftBroker, defaultKeycloakOpenshiftBroker)
 	c.v.SetDefault(varOpenshiftUseCurrentCluster, false)
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
-	c.v.SetDefault(varAuthURL, defaultAuthURL)
+	c.v.SetDefault(VarAuthURL, defaultAuthURL)
 	c.v.SetDefault(varClustersRefreshDelay, defaultClustersRefreshDelay)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varTogglesURL, defaultTogglesURL)
@@ -141,6 +141,10 @@ func (c *Data) setConfigDefaults() {
 	// ----
 	c.v.SetDefault(varAuthClientID, "c211f1bd-17a7-4f8c-9f80-0917d167889d")
 	c.v.SetDefault(varClientSecret, "tenantsecretNew")
+}
+
+func (c *Data) Set(key string, value interface{}) {
+	c.v.Set(key, value)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -280,7 +284,7 @@ func (c *Data) GetClientSecret() string {
 // GetTokenKey returns the encryption key/passphrase which will be used
 // to decrypt the cluster tokens stored in auth token mgm
 func (c *Data) GetTokenKey() string {
-	return c.v.GetString(varAuthTokenKey)
+	return c.v.GetString(VarAuthTokenKey)
 }
 
 // GetConsoleURL returns the fabric8-ui Console URL
@@ -293,7 +297,7 @@ func (c *Data) GetConsoleURL() string {
 
 // GetAuthURL returns Auth service URL
 func (c *Data) GetAuthURL() string {
-	return c.v.GetString(varAuthURL)
+	return c.v.GetString(VarAuthURL)
 }
 
 // GetClustersRefreshDelay returns delay of clusters refresh (in minutes)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	commonConfig "github.com/fabric8-services/fabric8-common/configuration"
 	"github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -15,11 +16,10 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
@@ -285,7 +285,8 @@ func createInvalidSAContext() context.Context {
 }
 
 func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *controller.TenantsController, error) {
-	r, err := recorder.New(fmt.Sprintf("../test/data/controller/%s", filename), recorder.WithJWTMatcher())
+	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
+	authService, r, err := testdoubles.NewAuthClientService(cassetteFile, "http://authservice", recorder.WithJWTMatcher)
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
@@ -301,35 +302,20 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 		fmt.Printf("error occurred: %v", err)
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
+	authService.SaToken = saToken.Raw
+	authService.Config.Set(configuration.VarAuthTokenKey, "foo")
 
-	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
-	clusterService, err := cluster.NewService(
-		authURL,
-		time.Hour,
-		saToken.Raw,
-		resolveToken,
-		token.NewGPGDecypter("foo"),
-		configuration.WithRoundTripper(r),
-	)
+	clusterService := cluster.NewClusterService(time.Hour, authService)
+	err = clusterService.Start()
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
 
-	resolveCluster := cluster.NewResolve(clusterService)
-	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
-		// log.Debug(ctx, map[string]interface{}{"user_token": userToken}, "attempting to resolve tenant for user...")
-		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
-	}
 	tenantService := tenant.NewDBService(db)
-	userService := user.NewService(
-		authURL,
-		saToken.Raw,
-		configuration.WithRoundTripper(r),
-	)
-	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
+
+	openshiftService := openshift.NewService(commonConfig.WithRoundTripper(r))
 	defaultOpenshiftConfig := openshift.Config{}
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenantService, userService, openshiftService, resolveTenant, resolveCluster, defaultOpenshiftConfig)
+	ctrl := controller.NewTenantsController(svc, tenantService, clusterService, authService, openshiftService, defaultOpenshiftConfig)
 	return svc, ctrl, nil
 }

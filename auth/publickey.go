@@ -1,4 +1,4 @@
-package token
+package auth
 
 import (
 	"context"
@@ -6,24 +6,22 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	errs "github.com/pkg/errors"
-	jose "gopkg.in/square/go-jose.v2"
+	"gopkg.in/square/go-jose.v2"
 )
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service
-func GetPublicKeys(ctx context.Context, authURL string, options ...configuration.HTTPClientOption) ([]*rsa.PublicKey, error) {
-	client, err := auth.NewClient(authURL, "", options...) // no need for a token when calling this endpoint
+func (s *Service) GetPublicKeys() ([]*rsa.PublicKey, error) {
+	client, err := s.newClient("") // no need for a token when calling this endpoint
 	if err != nil {
-		return nil, errs.Wrapf(err, "unable to retrieve public keys from %s", authURL)
+		return nil, errs.Wrapf(err, "unable to retrieve public keys from %s", s.GetAuthURL())
 	}
-	res, err := client.KeysToken(ctx, authclient.KeysTokenPath(), nil)
+	res, err := client.KeysToken(context.Background(), authclient.KeysTokenPath(), nil)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
+		log.Error(context.Background(), map[string]interface{}{
 			"err": err.Error(),
 		}, "unable to get public keys from the auth service")
 		return nil, errs.Wrap(err, "unable to get public keys from the auth service")
@@ -32,7 +30,7 @@ func GetPublicKeys(ctx context.Context, authURL string, options ...configuration
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
 		if err != nil {
-			log.Error(ctx, map[string]interface{}{
+			log.Error(context.Background(), map[string]interface{}{
 				"err": err.Error(),
 			}, "unable to read public keys from the auth service")
 			return nil, errs.Wrap(err, "unable to read public keys from the auth service")
