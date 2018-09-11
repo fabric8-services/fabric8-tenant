@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-common/sentry"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -23,9 +25,8 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
-	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
-	goalogrus "github.com/goadesign/goa/logging/logrus"
+	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -52,8 +53,13 @@ func main() {
 		}, "failed to setup the configuration")
 	}
 
-	// Initialized developer mode flag for the logger
-	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
+	haltSentry, err := initializeLogger(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the sentry client")
+	}
+	defer haltSentry()
 
 	db := connect(config)
 	defer db.Close()
@@ -251,4 +257,15 @@ func migrate(db *gorm.DB) {
 			"err": err,
 		}, "failed migration")
 	}
+}
+
+func initializeLogger(config *configuration.Data) (func(), error) {
+	// Initialized developer mode flag and log level for the logger
+	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
+
+	// Initialize sentry client
+	return sentry.InitializeSentryClient(
+		sentry.WithRelease(controller.Commit),
+		sentry.WithEnvironment(config.GetEnvironment()),
+	)
 }

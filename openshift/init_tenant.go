@@ -5,8 +5,8 @@ import (
 
 	"sync"
 
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-wit/log"
 	yaml "gopkg.in/yaml.v2"
 )
 

@@ -2,7 +2,7 @@ package test
 
 import (
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
 )
 
 // NewToken creates a new JWT using the given sub claim and signed with the private key in the given filename

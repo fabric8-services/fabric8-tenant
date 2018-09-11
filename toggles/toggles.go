@@ -8,7 +8,7 @@ import (
 	unleash "github.com/Unleash/unleash-client-go"
 	ucontext "github.com/Unleash/unleash-client-go/context"
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
