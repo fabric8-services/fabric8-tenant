@@ -7,33 +7,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var contextInfo = map[string]interface{}{
+	"tenantConfig": map[string]interface{}{
+		"templatesRepo":     "http://my.own.repo",
+		"templatesRepoBlob": "12345",
+		"templatesRepoDir":  "my/own/dir",
+	},
+}
+
 func TestTenantOverride(t *testing.T) {
 	internalFeatureLevel := "internal"
 	otherFeatureLevel := "producation"
-	config := Config{
-		CheVersion:     "che-version",
-		JenkinsVersion: "jenkins-version",
-		MavenRepoURL:   "maven-url",
-		TeamVersion:    "team-version",
-	}
+	config := Config{}
 
 	t.Run("override disabled", func(t *testing.T) {
 
 		t.Run("external user with config", func(t *testing.T) {
 			// given
 			user := &authclient.UserDataAttributes{
-				ContextInformation: map[string]interface{}{
-					"tenantConfig": map[string]interface{}{
-						"cheVersion":     "another-che-version",
-						"jenkinsVersion": "another-jenkins-version",
-						"teamVersion":    "another-team-version",
-						"mavenRepo":      "another-maven-url",
-					},
-				},
-				FeatureLevel: &otherFeatureLevel,
+				ContextInformation: contextInfo,
+				FeatureLevel:       &otherFeatureLevel,
 			}
 			// when
-			resultConfig := overrideTemplateVersions(user, config)
+			resultConfig := setTemplateRepoInfo(user, config)
 			// then
 			assert.Equal(t, config, resultConfig)
 		})
@@ -42,7 +38,7 @@ func TestTenantOverride(t *testing.T) {
 			// given
 			user := &authclient.UserDataAttributes{}
 			// when
-			resultConfig := overrideTemplateVersions(user, config)
+			resultConfig := setTemplateRepoInfo(user, config)
 			// then
 			assert.Equal(t, config, resultConfig)
 		})
@@ -53,26 +49,15 @@ func TestTenantOverride(t *testing.T) {
 		t.Run("internal user with config", func(t *testing.T) {
 			// given
 			user := &authclient.UserDataAttributes{
-				ContextInformation: map[string]interface{}{
-					"tenantConfig": map[string]interface{}{
-						"cheVersion":     "another-che-version",
-						"jenkinsVersion": "another-jenkins-version",
-						"teamVersion":    "another-team-version",
-						"mavenRepo":      "another-maven-url",
-					},
-				},
-				FeatureLevel: &internalFeatureLevel,
+				ContextInformation: contextInfo,
+				FeatureLevel:       &internalFeatureLevel,
 			}
 			// when
-			resultConfig := overrideTemplateVersions(user, config)
+			resultConfig := setTemplateRepoInfo(user, config)
 			// then
-			expectedOpenshiftConfig := Config{
-				CheVersion:     "another-che-version",
-				JenkinsVersion: "another-jenkins-version",
-				MavenRepoURL:   "another-maven-url",
-				TeamVersion:    "another-team-version",
-			}
-			assert.Equal(t, expectedOpenshiftConfig, resultConfig)
+			assert.Equal(t, resultConfig.TemplatesRepo, "http://my.own.repo")
+			assert.Equal(t, resultConfig.TemplatesRepoBlob, "12345")
+			assert.Equal(t, resultConfig.TemplatesRepoDir, "my/own/dir")
 		})
 
 		t.Run("internal user without config", func(t *testing.T) {
@@ -81,7 +66,7 @@ func TestTenantOverride(t *testing.T) {
 				FeatureLevel: &internalFeatureLevel,
 			}
 			// when
-			resultConfig := overrideTemplateVersions(user, config)
+			resultConfig := setTemplateRepoInfo(user, config)
 			// then
 			assert.Equal(t, config, resultConfig)
 		})

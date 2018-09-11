@@ -7,9 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
+	env "github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
@@ -19,19 +21,18 @@ import (
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	uuid "github.com/satori/go.uuid"
-	yaml "gopkg.in/yaml.v2"
+	"github.com/satori/go.uuid"
+	"gopkg.in/yaml.v2"
 )
 
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService          tenant.Service
-	resolveTenant          tenant.Resolve
-	userService            user.Service
-	resolveCluster         cluster.Resolve
-	defaultOpenshiftConfig openshift.Config
-	templateVars           map[string]string
+	tenantService  tenant.Service
+	resolveTenant  tenant.Resolve
+	userService    user.Service
+	resolveCluster cluster.Resolve
+	config         *configuration.Data
 }
 
 // NewTenantController creates a status controller.
@@ -41,17 +42,15 @@ func NewTenantController(
 	userService user.Service,
 	resolveTenant tenant.Resolve,
 	resolveCluster cluster.Resolve,
-	defaultOpenshiftConfig openshift.Config,
-	templateVars map[string]string) *TenantController {
+	config *configuration.Data) *TenantController {
 
 	return &TenantController{
-		Controller:             service.NewController("TenantController"),
-		tenantService:          tenantService,
-		userService:            userService,
-		resolveTenant:          resolveTenant,
-		resolveCluster:         resolveCluster,
-		defaultOpenshiftConfig: defaultOpenshiftConfig,
-		templateVars:           templateVars,
+		Controller:     service.NewController("TenantController"),
+		tenantService:  tenantService,
+		userService:    userService,
+		resolveTenant:  resolveTenant,
+		resolveCluster: resolveCluster,
+		config:         config,
 	}
 }
 
@@ -99,7 +98,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfig(c.config, user, cluster.User, cluster.Token, cluster.APIURL, Commit)
 	tenant := &tenant.Tenant{
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
@@ -121,8 +120,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
 			openshiftUsername,
-			openshiftUserToken,
-			c.templateVars)
+			openshiftUserToken)
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -179,7 +177,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfig(c.config, user, cluster.User, cluster.Token, cluster.APIURL, Commit)
 
 	// update tenant config
 	tenant.OSUsername = openshiftUsername
@@ -198,8 +196,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			ctx,
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			openshiftUsername,
-			c.templateVars)
+			openshiftUsername)
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -253,9 +250,9 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfig(c.config, user, cluster.User, cluster.Token, cluster.APIURL, Commit)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, c.templateVars, removeFromCluster)
+	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -300,34 +297,34 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			"status":      statusCode,
 			"method":      method,
 			"cluster_url": masterURL,
-			"namespace":   openshift.GetNamespace(request),
-			"name":        openshift.GetName(request),
-			"kind":        openshift.GetKind(request),
+			"namespace":   env.GetNamespace(request),
+			"name":        env.GetName(request),
+			"kind":        env.GetKind(request),
 			"request":     yamlString(request),
 			"response":    yamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
-			if openshift.GetKind(request) == openshift.ValKindNamespace {
+			if env.GetKind(request) == env.ValKindNamespace {
 				return "", nil
 			}
-			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
+			if env.GetKind(request) == env.ValKindProjectRequest {
 				return "", nil
 			}
-			if openshift.GetKind(request) == openshift.ValKindPersistenceVolumeClaim {
+			if env.GetKind(request) == env.ValKindPersistenceVolumeClaim {
 				return "", nil
 			}
-			if openshift.GetKind(request) == openshift.ValKindServiceAccount {
+			if env.GetKind(request) == env.ValKindServiceAccount {
 				return "", nil
 			}
 			return "DELETE", request
 		} else if statusCode == http.StatusCreated {
-			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
-				name := openshift.GetName(request)
+			if env.GetKind(request) == env.ValKindProjectRequest {
+				name := env.GetName(request)
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
-					Version:   openshift.GetLabelVersion(request),
+					Version:   env.GetLabelVersion(request),
 					Type:      tenant.GetNamespaceType(name),
 					MasterURL: masterURL,
 				})
@@ -336,17 +333,17 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 				// Should loop on a Check if allowed type of call instead
 				time.Sleep(time.Second * 5)
 
-			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
-				name := openshift.GetName(request)
+			} else if env.GetKind(request) == env.ValKindNamespace {
+				name := env.GetName(request)
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
-					Version:   openshift.GetLabelVersion(request),
+					Version:   env.GetLabelVersion(request),
 					Type:      tenant.GetNamespaceType(name),
 					MasterURL: masterURL,
 				})
-			} else if openshift.GetKind(request) == openshift.ValKindResourceQuota {
+			} else if env.GetKind(request) == env.ValKindResourceQuota {
 				// trigger a check status loop
 				time.Sleep(time.Millisecond * 50)
 				return "GET", response
@@ -356,9 +353,9 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			if method == "DELETE" {
 				return "POST", request
 			} else if method == "GET" {
-				if openshift.GetKind(request) == openshift.ValKindResourceQuota {
+				if env.GetKind(request) == env.ValKindResourceQuota {
 
-					if openshift.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
+					if env.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
 						return "", nil
 					}
 					atomic.AddInt32(&currentResourceQuotaStatusCheck, 1)
@@ -371,10 +368,10 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
 			"method":      method,
-			"namespace":   openshift.GetNamespace(request),
+			"namespace":   env.GetNamespace(request),
 			"cluster_url": masterURL,
-			"name":        openshift.GetName(request),
-			"kind":        openshift.GetKind(request),
+			"name":        env.GetName(request),
+			"kind":        env.GetKind(request),
 			"request":     yamlString(request),
 			"response":    yamlString(response),
 		}, "unhandled resource response")

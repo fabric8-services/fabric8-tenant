@@ -328,8 +328,7 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 		configuration.WithRoundTripper(r),
 	)
 	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
-	defaultOpenshiftConfig := openshift.Config{}
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenantService, userService, openshiftService, resolveTenant, resolveCluster, defaultOpenshiftConfig)
+	ctrl := controller.NewTenantsController(svc, tenantService, userService, openshiftService, resolveTenant, resolveCluster)
 	return svc, ctrl, nil
 }

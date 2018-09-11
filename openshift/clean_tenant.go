@@ -9,8 +9,8 @@ import (
 )
 
 // CleanTenant clean or remove
-func CleanTenant(ctx context.Context, config Config, username string, templateVars map[string]string, remove bool) error {
-	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
+func CleanTenant(ctx context.Context, config Config, username string, remove bool) error {
+	templs, err := LoadProcessedTemplates(ctx, config, username)
 	if err != nil {
 		return err
 	}

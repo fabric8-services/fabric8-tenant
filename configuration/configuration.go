@@ -36,15 +36,11 @@ const (
 	varKeycloakURL                     = "keycloak.url"
 	varTogglesURL                      = "toggles.url"
 	varConsoleURL                      = "console.url"
-	varOpenshiftCheVersion             = "openshift.che.version"
-	varOpenshiftJenkinsVersion         = "openshift.jenkins.version"
-	varOpenshiftTeamVersion            = "openshift.team.version"
-	varOpenshiftTemplateDir            = "openshift.template.dir"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
 	varTemplateJenkinsRootURL          = "template.jenkins.root.url"
-	varTemplateRecommenderExternalName = "template.recommender.external.name"
-	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
-	varTemplateDomain                  = "template.domain"
+	VarTemplateRecommenderExternalName = "template.recommender.external.name"
+	VarTemplateRecommenderAPIToken     = "template.recommender.api.token"
+	VarTemplateDomain                  = "template.domain"
 	varTemplateCheMultiTenantServer    = "template.che.multitenant.server"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
@@ -306,26 +302,6 @@ func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)
 }
 
-// GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant team namespaces and roles
-func (c *Data) GetOpenshiftTeamVersion() string {
-	return c.v.GetString(varOpenshiftTeamVersion)
-}
-
-// GetOpenshiftCheVersion returns the team version of YAML files used to provision tenant che
-func (c *Data) GetOpenshiftCheVersion() string {
-	return c.v.GetString(varOpenshiftCheVersion)
-}
-
-// GetOpenshiftJenkinsVersion returns the team version of YAML files used to provision tenant jenkins
-func (c *Data) GetOpenshiftJenkinsVersion() string {
-	return c.v.GetString(varOpenshiftJenkinsVersion)
-}
-
-// GetOpenshiftTemplateDir returns the directory containing the local team YAML files
-func (c *Data) GetOpenshiftTemplateDir() string {
-	return c.v.GetString(varOpenshiftTemplateDir)
-}
-
 // UseOpenshiftCurrentCluster returns if we should use the current cluster to provision tenant service
 func (c *Data) UseOpenshiftCurrentCluster() bool {
 	return c.v.GetBool(varOpenshiftUseCurrentCluster)
@@ -352,22 +328,26 @@ func (c *Data) IsLogJSON() bool {
 	return true
 }
 
+func (c *Data) Set(key string, value interface{}) {
+	c.v.Set(key, value)
+}
+
 // GetTemplateValues return a Map of additional variables used to process the templates
 func (c *Data) GetTemplateValues() (map[string]string, error) {
-	if !c.v.IsSet(varTemplateRecommenderExternalName) {
-		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderExternalName)
+	if !c.v.IsSet(VarTemplateRecommenderExternalName) {
+		return nil, fmt.Errorf("Missing required configuration %v", VarTemplateRecommenderExternalName)
 	}
-	if !c.v.IsSet(varTemplateRecommenderAPIToken) {
-		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderAPIToken)
+	if !c.v.IsSet(VarTemplateRecommenderAPIToken) {
+		return nil, fmt.Errorf("Missing required configuration %v", VarTemplateRecommenderAPIToken)
 	}
-	if !c.v.IsSet(varTemplateDomain) {
-		return nil, fmt.Errorf("Missing required configuration %v", varTemplateDomain)
+	if !c.v.IsSet(VarTemplateDomain) {
+		return nil, fmt.Errorf("Missing required configuration %v", VarTemplateDomain)
 	}
 
 	return map[string]string{
-		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
-		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
-		"DOMAIN":                    c.v.GetString(varTemplateDomain),
+		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(VarTemplateRecommenderExternalName),
+		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(VarTemplateRecommenderAPIToken))),
+		"DOMAIN":                    c.v.GetString(VarTemplateDomain),
 		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),

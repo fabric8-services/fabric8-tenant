@@ -4,52 +4,66 @@ import (
 	"fmt"
 	"net/http"
 
+	"crypto/tls"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 )
 
 // Config the configuration for the connection to Openshift and for the templates to apply
 // TODO: split the config in 2 parts to distinguish connection settings vs template settings ?
 type Config struct {
-	MasterURL      string
-	MasterUser     string
-	Token          string
-	HTTPTransport  http.RoundTripper
-	TemplateDir    string
-	MavenRepoURL   string
-	ConsoleURL     string
-	TeamVersion    string
-	CheVersion     string
-	JenkinsVersion string
-	LogCallback    LogCallback
+	OriginalConfig    *configuration.Data
+	MasterURL         string
+	MasterUser        string
+	Token             string
+	HTTPTransport     http.RoundTripper
+	ConsoleURL        string
+	LogCallback       LogCallback
+	Commit            string
+	TemplatesRepo     string
+	TemplatesRepoBlob string
+	TemplatesRepoDir  string
 }
 
 // NewConfig builds openshift config for every user request depending on the user profile
-func NewConfig(baseConfig Config, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL string) Config {
-	return overrideTemplateVersions(user, baseConfig.WithMasterUser(clusterUser).WithToken(clusterToken).WithMasterURL(clusterURL))
+func NewConfig(config *configuration.Data, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL, commit string) Config {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: config.APIServerInsecureSkipTLSVerify(),
+		},
+	}
+
+	conf := Config{
+		OriginalConfig: config,
+		ConsoleURL:     config.GetConsoleURL(),
+		HTTPTransport:  tr,
+		MasterUser:     clusterUser,
+		Token:          clusterToken,
+		MasterURL:      clusterURL,
+		Commit:         commit,
+	}
+	return setTemplateRepoInfo(user, conf)
 }
 
-// overrideTemplateVersions returns a new config in which the template versions have been overridden
-func overrideTemplateVersions(user *authclient.UserDataAttributes, config Config) Config {
+// setTemplateRepoInfo returns a new config in which the template repo info set
+func setTemplateRepoInfo(user *authclient.UserDataAttributes, config Config) Config {
 	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
 		return config
 	}
 	userContext := user.ContextInformation
 	if tc, found := userContext["tenantConfig"]; found {
 		if tenantConfig, ok := tc.(map[string]interface{}); ok {
-			find := func(key, defaultValue string) string {
+			find := func(key string) string {
 				if rawValue, found := tenantConfig[key]; found {
 					if value, ok := rawValue.(string); ok {
 						return value
 					}
 				}
-				return defaultValue
+				return ""
 			}
-			return config.WithUserSettings(
-				find("cheVersion", config.CheVersion),
-				find("jenkinsVersion", config.JenkinsVersion),
-				find("teamVersion", config.TeamVersion),
-				find("mavenRepo", config.MavenRepoURL),
-			)
+			config.TemplatesRepo = find("templatesRepo")
+			config.TemplatesRepoBlob = find("templatesRepoBlob")
+			config.TemplatesRepoDir = find("templatesRepoDir")
 		}
 	}
 	return config
@@ -71,39 +85,6 @@ func (c *Config) CreateHTTPClient() *http.Client {
 // WithToken returns a new config with an override of the token
 func (c Config) WithToken(token string) Config {
 	c.Token = token
-	return c
-}
-
-// WithUserSettings returns a new config with an override of the user settings
-func (c Config) WithUserSettings(cheVersion string, jenkinsVersion string, teamVersion string, mavenRepoURL string) Config {
-	if len(cheVersion) > 0 || len(jenkinsVersion) > 0 || len(teamVersion) > 0 || len(mavenRepoURL) > 0 {
-		copy := c
-		if cheVersion != "" {
-			copy.CheVersion = cheVersion
-		}
-		if jenkinsVersion != "" {
-			copy.JenkinsVersion = jenkinsVersion
-		}
-		if teamVersion != "" {
-			copy.TeamVersion = teamVersion
-		}
-		if mavenRepoURL != "" {
-			copy.MavenRepoURL = mavenRepoURL
-		}
-		return copy
-	}
-	return c
-}
-
-// WithMasterUser returns a new config with an override of the master user
-func (c Config) WithMasterUser(masterUser string) Config {
-	c.MasterUser = masterUser
-	return c
-}
-
-// WithMasterURL returns a new config with an override of the master URL
-func (c Config) WithMasterURL(masterURL string) Config {
-	c.MasterURL = masterURL
 	return c
 }
 

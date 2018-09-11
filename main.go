@@ -2,20 +2,16 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/fabric8-services/fabric8-tenant/app"
-	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
@@ -25,7 +21,7 @@ import (
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
-	goalogrus "github.com/goadesign/goa/logging/logrus"
+	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -64,35 +60,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if config.GetOpenshiftCheVersion() != "" {
-		log.Logger().Infof("Che Version: %s", config.GetOpenshiftCheVersion())
-	}
-	if config.GetOpenshiftJenkinsVersion() != "" {
-		log.Logger().Infof("Jenkins Version: %s", config.GetOpenshiftJenkinsVersion())
-	}
-	if config.GetOpenshiftTeamVersion() != "" {
-		log.Logger().Infof("Team Version: %s", config.GetOpenshiftTeamVersion())
-	}
-	if config.GetOpenshiftTemplateDir() != "" {
-		log.Logger().Infof("Template Dir: %s", config.GetOpenshiftTemplateDir())
-	}
-
 	toggles.Init("f8tenant", config.GetTogglesURL())
-
-	keycloakConfig := keycloak.Config{
-		BaseURL: config.GetKeycloakURL(),
-		Realm:   config.GetKeycloakRealm(),
-		Broker:  config.GetKeycloakOpenshiftBroker(),
-	}
-
-	templateVars, err := config.GetTemplateValues()
-	if err != nil {
-		panic(err)
-	}
-
-	templateVars["KEYCLOAK_URL"] = ""
-	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
-	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
 	publicKeys, err := token.GetPublicKeys(context.Background(), config.GetAuthURL())
 	if err != nil {
@@ -150,21 +118,6 @@ func main() {
 	// create user profile client to get the user's cluster
 	userService := user.NewService(config.GetAuthURL(), *saToken)
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: config.APIServerInsecureSkipTLSVerify(),
-		},
-	}
-
-	osTemplate := openshift.Config{
-		ConsoleURL:     config.GetConsoleURL(),
-		HTTPTransport:  tr,
-		CheVersion:     config.GetOpenshiftCheVersion(),
-		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
-		TeamVersion:    config.GetOpenshiftTeamVersion(),
-		TemplateDir:    config.GetOpenshiftTemplateDir(),
-	}
-
 	tenantService := tenant.NewDBService(db)
 
 	// Mount "status" controller
@@ -172,10 +125,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, resolveCluster, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, resolveCluster, config)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, userService, openshiftService, resolveTenant, resolveCluster, osTemplate)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, userService, openshiftService, resolveTenant, resolveCluster)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

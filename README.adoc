@@ -21,7 +21,7 @@ When a PR is made on one of the above YAML repos you can test in production in y
 * http://openshift.io/ and login
 * go to your Profile page (click the top right drop down and select `Profile`)
 * add `/_tenant` to your browsers address bar - so you will be looking at a URL like https://openshift.io/my-user-name/_tenant
-* enter the PR version number (it should be reported in a comment on the PR) along with the maven repo that the PR has been pushed to
+* enter the `sha` of the latest commit in your PR as a templates repository blob
 * click `Update Profile`
 * now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] - you're tenant should now be running the PR
 

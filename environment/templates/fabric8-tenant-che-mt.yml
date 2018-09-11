@@ -1,0 +1,118 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  labels:
+    app: fabric8-tenant-che-mt
+    provider: fabric8
+    version: ${COMMIT}
+  name: fabric8-tenant-che-mt
+objects:
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${USER_NAME} Che Environment
+      openshift.io/display-name: ${USER_NAME} Che
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      app: fabric8-tenant-che
+      provider: fabric8
+      version: ${COMMIT}
+    name: ${USER_NAME}-che
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-user-access
+    namespace: ${USER_NAME}-che
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: che
+    namespace: ${USER_NAME}-che
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: che-edit
+    namespace: ${USER_NAME}-che
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: che
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: user-edit
+    namespace: ${USER_NAME}-che
+  roleRef:
+    name: edit
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: user-view
+    namespace: ${USER_NAME}-che
+  roleRef:
+    name: view
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: claim-che-workspace
+    namespace: ${USER_NAME}-che
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+parameters:
+- name: USER_NAME
+  value: developer
+- name: PROJECT_USER
+  value: developer
+- name: CHE_MULTITENANT_SERVER
+  value: https://che.prod-preview.openshift.io
+- description: Migration Job ID
+  from: '[a-z0-9]{12}'
+  generate: expression
+  name: JOB_ID
+- name: COMMIT
+  value: 123abc

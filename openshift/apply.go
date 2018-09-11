@@ -7,37 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"reflect"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
-)
-
-const (
-	FieldKind                     = "kind"
-	FieldAPIVersion               = "apiVersion"
-	FieldObjects                  = "objects"
-	FieldSpec                     = "spec"
-	FieldTemplate                 = "template"
-	FieldItems                    = "items"
-	FieldMetadata                 = "metadata"
-	FieldLabels                   = "labels"
-	FieldReplicas                 = "replicas"
-	FieldVersion                  = "version"
-	FieldNamespace                = "namespace"
-	FieldName                     = "name"
-	FieldStatus                   = "status"
-	FieldResourceVersion          = "resourceVersion"
-	ValKindTemplate               = "Template"
-	ValKindNamespace              = "Namespace"
-	ValKindProjectRequest         = "ProjectRequest"
-	ValKindPersistenceVolumeClaim = "PersistentVolumeClaim"
-	ValKindServiceAccount         = "ServiceAccount"
-	ValKindRoleBindingRestriction = "RoleBindingRestriction"
-	ValKindRoleBinding            = "RoleBinding"
-	ValKindList                   = "List"
-	ValKindDeploymentConfig       = "DeploymentConfig"
-	ValKindResourceQuota          = "ResourceQuota"
+	env "github.com/fabric8-services/fabric8-tenant/environment"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -174,28 +147,7 @@ func (a *ApplyOptions) WithCallback(callback Callback) ApplyOptions {
 	}
 }
 
-// Apply a given template structure to a target API
-func Apply(source string, opts ApplyOptions) error {
-
-	objects, err := ParseObjects(source, opts.Namespace)
-	if err != nil {
-		return err
-	}
-
-	err = allKnownTypes(objects)
-	if err != nil {
-		return err
-	}
-
-	err = applyAll(objects, opts)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func ApplyProcessed(objects []map[interface{}]interface{}, opts ApplyOptions) error {
+func ApplyProcessed(objects env.Objects, opts ApplyOptions) error {
 
 	err := allKnownTypes(objects)
 	if err != nil {
@@ -210,7 +162,7 @@ func ApplyProcessed(objects []map[interface{}]interface{}, opts ApplyOptions) er
 	return nil
 }
 
-func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
+func applyAll(objects env.Objects, opts ApplyOptions) error {
 	for _, obj := range objects {
 		_, err := apply(obj, "POST", opts)
 		if err != nil {
@@ -220,9 +172,7 @@ func applyAll(objects []map[interface{}]interface{}, opts ApplyOptions) error {
 	return nil
 }
 
-func apply(object map[interface{}]interface{}, action string, opts ApplyOptions) (map[interface{}]interface{}, error) {
-	//fmt.Println("apply ", action, GetKind(object), GetName(object), opts.Callback)
-
+func apply(object env.Object, action string, opts ApplyOptions) (env.Object, error) {
 	body, err := yaml.Marshal(object)
 	if err != nil {
 		return nil, err
@@ -271,7 +221,7 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	buf.ReadFrom(resp.Body)
 	b := buf.Bytes()
 
-	var respType map[interface{}]interface{}
+	var respType env.Object
 	err = yaml.Unmarshal(b, &respType)
 	if err != nil {
 		return nil, err
@@ -287,135 +237,24 @@ func apply(object map[interface{}]interface{}, action string, opts ApplyOptions)
 	return respType, nil
 }
 
-func updateResourceVersion(source, target map[interface{}]interface{}) {
-	if sourceMeta, sourceMetaFound := source[FieldMetadata].(map[interface{}]interface{}); sourceMetaFound {
-		if sourceVersion, sourceVersionFound := sourceMeta[FieldResourceVersion]; sourceVersionFound {
-			if targetMeta, targetMetaFound := target[FieldMetadata].(map[interface{}]interface{}); targetMetaFound {
-				fmt.Println("setting v", sourceVersion, reflect.TypeOf(sourceVersion).Kind())
-				targetMeta[FieldResourceVersion] = sourceVersion
-			}
-		}
-	}
-}
-
-func HasValidStatus(obj map[interface{}]interface{}) bool {
-	return len(GetStatus(obj)) > 0
-}
-
-func GetStatus(obj map[interface{}]interface{}) map[interface{}]interface{} {
-	if status, statusFound := obj[FieldStatus].(map[interface{}]interface{}); statusFound {
-		return status
-	}
-	return nil
-}
-
-func GetName(obj map[interface{}]interface{}) string {
-	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
-		if name, nameFound := meta[FieldName].(string); nameFound {
-			return name
-		}
-	}
-	return ""
-}
-
-func GetNamespace(obj map[interface{}]interface{}) string {
-	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
-		if name, nameFound := meta[FieldNamespace].(string); nameFound {
-			return name
-		}
-	}
-	return ""
-}
-
-func GetKind(obj map[interface{}]interface{}) string {
-	if kind, kindFound := obj[FieldKind].(string); kindFound {
-		return kind
-	}
-	return ""
-}
-
-func GetLabelVersion(obj map[interface{}]interface{}) string {
-	return GetLabel(obj, FieldVersion)
-}
-
-func GetLabel(obj map[interface{}]interface{}, name string) string {
-	if meta, metaFound := obj[FieldMetadata].(map[interface{}]interface{}); metaFound {
-		if labels, labelsFound := meta[FieldLabels].(map[interface{}]interface{}); labelsFound {
-			if version, versionFound := labels[name].(string); versionFound {
-				return version
-			}
-		}
-	}
-	return ""
-}
-
-func GetSpec(obj map[interface{}]interface{}) map[interface{}]interface{} {
-	if spec, specFound := obj[FieldSpec].(map[interface{}]interface{}); specFound {
-		return spec
-	}
-	return map[interface{}]interface{}{}
-}
-
-func GetTemplate(obj map[interface{}]interface{}) map[interface{}]interface{} {
-	if template, templateFound := obj[FieldTemplate].(map[interface{}]interface{}); templateFound {
-		return template
-	}
-	return map[interface{}]interface{}{}
-}
-
-// ParseObjects return a string yaml and return a array of the objects/items from a Template/List kind
-func ParseObjects(source string, namespace string) ([]map[interface{}]interface{}, error) {
-	var template map[interface{}]interface{}
-
-	err := yaml.Unmarshal([]byte(source), &template)
-	if err != nil {
-		return nil, err
-	}
-
-	if GetKind(template) == ValKindTemplate || GetKind(template) == ValKindList {
-		var ts []interface{}
-		if GetKind(template) == ValKindTemplate {
-			ts = template[FieldObjects].([]interface{})
-		} else if GetKind(template) == ValKindList {
-			ts = template[FieldItems].([]interface{})
-		}
-		var objs []map[interface{}]interface{}
-		for _, obj := range ts {
-			objs = append(objs, obj.(map[interface{}]interface{}))
-		}
-		if namespace != "" {
-			for _, obj := range objs {
-				kind := GetKind(obj)
-				if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok && kind != ValKindProjectRequest && kind != ValKindNamespace {
-					if _, ok := val[FieldNamespace]; !ok {
-						val[FieldNamespace] = namespace
-					}
-				}
-			}
-		}
-		return objs, nil
-	}
-	return []map[interface{}]interface{}{template}, nil
-}
-
-func CreateAdminRoleBinding(namespace string) map[interface{}]interface{} {
-	objs, err := ParseObjects(adminRole, namespace)
+func CreateAdminRoleBinding(namespace string) env.Object {
+	objs, err := env.ParseObjects(adminRole)
 	if err == nil {
 		obj := objs[0]
-		if val, ok := obj[FieldMetadata].(map[interface{}]interface{}); ok {
-			val[FieldNamespace] = namespace
+		if val, ok := obj[env.FieldMetadata].(env.Object); ok {
+			val[env.FieldNamespace] = namespace
 		}
 		return obj
 	}
-	return map[interface{}]interface{}{}
+	return env.Object{}
 }
 
 // TODO: a bit off now that there are multiple Action methods
-func allKnownTypes(objects []map[interface{}]interface{}) error {
+func allKnownTypes(objects env.Objects) error {
 	m := multiError{}
 	for _, obj := range objects {
-		if _, ok := endpoints["POST"][GetKind(obj)]; !ok {
-			m.Errors = append(m.Errors, fmt.Errorf("Unknown type: %v", GetKind(obj)))
+		if _, ok := endpoints["POST"][env.GetKind(obj)]; !ok {
+			m.Errors = append(m.Errors, fmt.Errorf("unknown type: %v", env.GetKind(obj)))
 		}
 	}
 	if len(m.Errors) > 0 {
@@ -424,8 +263,8 @@ func allKnownTypes(objects []map[interface{}]interface{}) error {
 	return nil
 }
 
-func CreateURL(hostURL, action string, object map[interface{}]interface{}) (string, error) {
-	urlTemplate, found := endpoints[action][GetKind(object)]
+func CreateURL(hostURL, action string, object env.Object) (string, error) {
+	urlTemplate, found := endpoints[action][env.GetKind(object)]
 	if !found {
 		return "", nil
 	}
@@ -444,40 +283,4 @@ func CreateURL(hostURL, action string, object map[interface{}]interface{}) (stri
 	}
 
 	return hostURL + str, nil
-}
-
-var sortOrder = map[string]int{
-	"Namespace":              1,
-	"ProjectRequest":         1,
-	"RoleBindingRestriction": 2,
-	"LimitRange":             3,
-	"ResourceQuota":          4,
-	"Secret":                 5,
-	"ServiceAccount":         6,
-	"Service":                7,
-	"Role":                   8,
-	"RoleBinding":            9,
-	"PersistentVolumeClaim":  10,
-	"ConfigMap":              11,
-	"DeploymentConfig":       12,
-	"Route":                  13,
-	"Job":                    14,
-}
-
-// ByKind represents a list of Openshift objects sortable by Kind
-type ByKind []map[interface{}]interface{}
-
-func (a ByKind) Len() int      { return len(a) }
-func (a ByKind) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByKind) Less(i, j int) bool {
-	iO := 30
-	jO := 30
-
-	if val, ok := sortOrder[GetKind(a[i])]; ok {
-		iO = val
-	}
-	if val, ok := sortOrder[GetKind(a[j])]; ok {
-		jO = val
-	}
-	return iO < jO
 }

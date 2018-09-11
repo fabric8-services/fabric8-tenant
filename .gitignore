@@ -79,7 +79,7 @@ client/
 swagger/
 tool/cli/
 migration/sqlbindata.go
-template/bindata.go
+environment/generated/
 auth/client
 
 # Ignore artifacts directory

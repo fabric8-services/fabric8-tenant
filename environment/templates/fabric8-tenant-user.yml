@@ -1,0 +1,220 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  labels:
+    provider: fabric8
+    project: fabric8-tenant-user
+    version: ${COMMIT}
+  name: fabric8-tenant-user
+objects:
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${USER_NAME}
+      openshift.io/display-name: ${USER_NAME}
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      provider: fabric8
+      project: fabric8-tenant-user
+      version: ${COMMIT}
+    name: ${USER_NAME}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      fabric8.io/app-menu: development
+    labels:
+      app: jenkins
+      provider: fabric8
+      expose: "false"
+      version: ${COMMIT}
+    name: jenkins
+    namespace: ${USER_NAME}
+  spec:
+    externalName: jenkins.${USER_NAME}-jenkins
+    ports:
+    - name: http
+      port: 80
+    selector:
+      app: fabric8-tenant-user
+      provider: fabric8
+    type: ExternalName
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-edit
+    namespace: ${USER_NAME}
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${USER_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-view
+    namespace: ${USER_NAME}
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+  userNames:
+  - system:serviceaccount:${USER_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: user-edit
+    namespace: ${USER_NAME}
+  roleRef:
+    name: edit
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: user-view
+    namespace: ${USER_NAME}
+  roleRef:
+    name: view
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-access-users
+    namespace: ${USER_NAME}
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_ADMIN_USER}
+      - system:serviceaccount:${USER_NAME}-jenkins:jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-access-groups
+    namespace: ${USER_NAME}
+  spec:
+    grouprestriction:
+      groups:
+      - system:serviceaccounts:${USER_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-access-sa-ns
+    namespace: ${USER_NAME}
+  spec:
+    serviceaccountrestriction:
+      namespaces:
+      - ${USER_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-admin
+    namespace: ${USER_NAME}
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_ADMIN_USER}
+  userNames:
+  - ${PROJECT_ADMIN_USER}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    annotations:
+      description: Defines the environments used by your Continuous Delivery pipelines.
+      fabric8.console/iconUrl: https://cdn.rawgit.com/fabric8io/fabric8-console/master/app-kubernetes/src/main/fabric8/icon.svg
+    labels:
+      kind: environments
+      provider: fabric8
+      app: fabric8-tenant-user
+      version: ${COMMIT}
+    name: fabric8-environments
+    namespace: ${USER_NAME}
+  data:
+    test: |-
+      name: Test
+      namespace: ${USER_NAME}
+      order: 0
+    stage: |-
+      name: Stage
+      namespace: ${USER_NAME}-stage
+      order: 1
+    run: |-
+      name: Run
+      namespace: ${USER_NAME}-run
+      order: 2
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    annotations:
+      fabric8.io/target-platform: openshift
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: ${COMMIT}
+    name: fabric8-pipelines
+    namespace: ${USER_NAME}
+  data:
+    fabric8-console-url: ${FABRIC8_CONSOLE_URL}
+    keycloak-url: ${KEYCLOAK_URL}
+    ci-branch-patterns: '- PR-.*'
+    cd-branch-patterns: '- master'
+    disable-itests-cd: "false"
+    disable-itests-ci: "false"
+    use-docker-socket: "false"
+parameters:
+- name: USER_NAME
+  value: developer
+- name: PROJECT_ADMIN_USER
+  value: developer
+- name: PROJECT_REQUESTING_USER
+  value: system:admin
+- name: EXTERNAL_DOCKER_REGISTRY_URL
+- name: FABRIC8_CONSOLE_URL
+- name: KEYCLOAK_URL
+- name: COMMIT
+  value: 123abc

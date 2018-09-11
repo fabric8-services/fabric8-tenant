@@ -143,15 +143,6 @@ migration/sqlbindata.go: $(GO_BINDATA_BIN) $(wildcard migration/sql-files/*.sql)
 		-nocompress \
 		migration/sql-files
 
-template/bindata.go: $(GO_BINDATA_BIN) $(wildcard template/*.yml)
-	CHE_VERSION=$(CHE_VERSION) JENKINS_VERSION=$(JENKINS_VERSION) TEAM_VERSION=$(TEAM_VERSION) EXPOSCONTROLLER_VERSION=$(EXPOSCONTROLLER_VERSION) go generate template/generate.go
-	$(GO_BINDATA_BIN) \
-		-o template/bindata.go \
-		-pkg template \
-		-prefix '' \
-		-nocompress \
-		template
-
 # install dep (see https://golang.github.io/dep/docs/installation.html)
 $(DEP_BIN):
 	@echo "Installing 'dep' in $(GOPATH)/bin"
@@ -224,7 +215,8 @@ migrate-database: $(BINARY_SERVER_BIN)
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.
-generate: app/controllers.go migration/sqlbindata.go template/bindata.go
+generate: app/controllers.go migration/sqlbindata.go
+	go generate ./environment/...
 
 .PHONY: dev
 dev: prebuild-check deps generate $(FRESH_BIN)
