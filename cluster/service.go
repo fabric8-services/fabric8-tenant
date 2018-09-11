@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/pkg/errors"
 	"strings"
 )
