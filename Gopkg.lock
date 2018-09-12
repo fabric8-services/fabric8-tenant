@@ -86,24 +86,29 @@
   source = "https://github.com/xcoulon/go-vcr/"
 
 [[projects]]
-  digest = "1:258f52523a7a6ba109904e0d09865b7f10fa07c9a19c70dd93d109085a6f88e1"
+  digest = "1:71bde7ff755e0f2cdc372c89fccefc8a212242111df01e61fadd4d1521a7c920"
   name = "github.com/fabric8-services/fabric8-auth"
   packages = [
     "design",
     "errors",
+    "log",
+    "rest",
+    "token/jwk",
   ]
   pruneopts = "UT"
   revision = "19eb16aaf10758299c4a5360600af983b8470909"
 
 [[projects]]
   branch = "master"
-  digest = "1:68fab73b8729e1ffc54e8ef64d2eefea649d8c09b76bcdc13234afc62ae2015a"
+  digest = "1:a519fae5284f179a1f5040a64fc99c72a63bd7bd4436b08969f8e05ee6d16516"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "configuration",
     "errors",
     "httpsupport",
     "log",
+    "login/tokencontext",
+    "token",
   ]
   pruneopts = "UT"
   revision = "6bf6a04a0eda05ec4ae21bae8535b17b4f9d5c55"
@@ -552,6 +557,7 @@
     "github.com/fabric8-services/fabric8-common/configuration",
     "github.com/fabric8-services/fabric8-common/errors",
     "github.com/fabric8-services/fabric8-common/log",
+    "github.com/fabric8-services/fabric8-common/token",
     "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/log",

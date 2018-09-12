@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-common/token"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -46,7 +47,7 @@ func NewTenantsController(service *goa.Service,
 
 // Show runs the show action.
 func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
-	if !auth.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
+	if !token.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -67,7 +68,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 
 // Search runs the search action.
 func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
-	if !auth.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
+	if !token.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 	tenant, err := c.tenantService.LookupTenantByClusterAndNamespace(ctx.MasterURL, ctx.Namespace)
@@ -94,7 +95,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 // Delete runs the `delete` action to deprovision a user
 func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
-	if !auth.IsSpecificServiceAccount(ctx, "fabric8-auth") {
+	if !token.IsSpecificServiceAccount(ctx, "fabric8-auth") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 	tenantID := ctx.TenantID
