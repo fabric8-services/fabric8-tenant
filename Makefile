@@ -143,6 +143,14 @@ migration/sqlbindata.go: $(GO_BINDATA_BIN) $(wildcard migration/sql-files/*.sql)
 		-nocompress \
 		migration/sql-files
 
+environment/generated/templates.go: $(GO_BINDATA_BIN) $(wildcard environment/templates/*.yml)
+	$(GO_BINDATA_BIN) \
+		-o environment/generated/templates.go \
+		-pkg templates \
+		-prefix 'environment/templates' \
+		-nocompress \
+		environment/templates
+
 # install dep (see https://golang.github.io/dep/docs/installation.html)
 $(DEP_BIN):
 	@echo "Installing 'dep' in $(GOPATH)/bin"
@@ -215,8 +223,7 @@ migrate-database: $(BINARY_SERVER_BIN)
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.
-generate: app/controllers.go migration/sqlbindata.go
-	go generate ./environment/...
+generate: app/controllers.go migration/sqlbindata.go environment/generated/templates.go
 
 .PHONY: dev
 dev: prebuild-check deps generate $(FRESH_BIN)
