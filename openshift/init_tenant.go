@@ -22,8 +22,8 @@ const (
 	varKeycloakURL           = "KEYCLOAK_URL"
 )
 
-func RawInitTenant(ctx context.Context, config Config, callback Callback, username, usertoken string, templateVars map[string]string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, username, templateVars)
+func RawInitTenant(ctx context.Context, config Config, callback Callback, openshiftUsername, usertoken string, templateVars map[string]string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, openshiftUsername, templateVars)
 	if err != nil {
 		return err
 	}
@@ -36,8 +36,9 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, userna
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callback}
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
+	username := CreateName(openshiftUsername)
 	for key, val := range mapped {
-		namespaceType := tenant.GetNamespaceType(key)
+		namespaceType := tenant.GetNamespaceType(key, username)
 		if namespaceType == tenant.TypeUser {
 			go func(namespace string, objects []map[interface{}]interface{}, opts, userOpts ApplyOptions) {
 				defer wg.Done()
