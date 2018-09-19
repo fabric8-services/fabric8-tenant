@@ -2,7 +2,7 @@ package environment
 
 import (
 	"fmt"
-	authClient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"gopkg.in/yaml.v2"
@@ -150,7 +150,7 @@ func getVariables(config *configuration.Data) map[string]string {
 	}
 	templateVars[varKeycloakURL] = ""
 	templateVars[varKeycloakOsoEndpoint] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
-	templateVars[varKeycloakGHEndpoint] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authClient.RetrieveTokenPath())
+	templateVars[varKeycloakGHEndpoint] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
 	return templateVars
 }
