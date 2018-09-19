@@ -50,6 +50,7 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 	varEnvironment                     = "environment"
+	varSentryDSN                       = "sentry.dsn"
 
 	varAuthURL              = "auth.url"
 	varClustersRefreshDelay = "cluster.refresh.delay"
@@ -348,6 +349,11 @@ func (c *Data) GetLogLevel() string {
 // `F8_ENVIRONMENT` is set.
 func (c *Data) GetEnvironment() string {
 	return c.v.GetString(varEnvironment)
+}
+
+// GetSentryDSN returns the secret needed to securely communicate with https://errortracking.prod-preview.openshift.io/openshift_io/fabric8-tenant/
+func (c *Data) GetSentryDSN() string {
+	return c.v.GetString(varSentryDSN)
 }
 
 // IsLogJSON returns if we should log json format (as set via config file or environment variable)

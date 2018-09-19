@@ -25,6 +25,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
+	"github.com/getsentry/raven-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -52,14 +53,6 @@ func main() {
 			"err": err,
 		}, "failed to setup the configuration")
 	}
-
-	haltSentry, err := initializeLogger(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to setup the sentry client")
-	}
-	defer haltSentry()
 
 	db := connect(config)
 	defer db.Close()
@@ -155,6 +148,14 @@ func main() {
 
 	// create user profile client to get the user's cluster
 	userService := user.NewService(config.GetAuthURL(), *saToken)
+
+	haltSentry, err := initializeLogger(config, userService)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the sentry client")
+	}
+	defer haltSentry()
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -259,13 +260,41 @@ func migrate(db *gorm.DB) {
 	}
 }
 
-func initializeLogger(config *configuration.Data) (func(), error) {
+func initializeLogger(config *configuration.Data, userService user.Service) (func(), error) {
 	// Initialized developer mode flag and log level for the logger
 	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
+	sentryDSN := config.GetSentryDSN()
 
 	// Initialize sentry client
 	return sentry.InitializeSentryClient(
+		&sentryDSN,
 		sentry.WithRelease(controller.Commit),
 		sentry.WithEnvironment(config.GetEnvironment()),
-	)
+		sentry.WithUser(extractUserInfo(userService)))
+}
+
+func extractUserInfo(userService user.Service) func(ctx context.Context) (*raven.User, error) {
+	return func(ctx context.Context) (*raven.User, error) {
+		userToken := goajwt.ContextJWT(ctx)
+		if userToken == nil {
+			return nil, fmt.Errorf("no token found in context")
+		}
+		ttoken := &controller.TenantToken{Token: userToken}
+		user, err := userService.GetUser(ctx, ttoken.Subject())
+		if err != nil {
+			return nil, err
+		}
+		return &raven.User{
+			Username: value(user.Username),
+			Email:    value(user.Email),
+			ID:       value(user.IdentityID),
+		}, nil
+	}
+}
+
+func value(pointer *string) string {
+	if pointer == nil {
+		return ""
+	}
+	return *pointer
 }

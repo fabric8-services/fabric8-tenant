@@ -61,7 +61,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: userToken}
+	ttoken := &TenantToken{Token: userToken}
 	exists := c.tenantService.Exists(ttoken.Subject())
 	if exists {
 		return ctx.Conflict()
@@ -142,7 +142,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: userToken}
+	ttoken := &TenantToken{Token: userToken}
 	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
@@ -219,7 +219,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: userToken}
+	ttoken := &TenantToken{Token: userToken}
 
 	// fetch the cluster the user belongs to
 	user, err := c.userService.GetUser(ctx, ttoken.Subject())
@@ -275,7 +275,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 
-	ttoken := &TenantToken{token: token}
+	ttoken := &TenantToken{Token: token}
 	tenantID := ttoken.Subject()
 	tenant, err := c.tenantService.GetTenant(tenantID)
 	if err != nil {
@@ -388,12 +388,12 @@ func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string,
 
 // TenantToken the token on the tenant
 type TenantToken struct {
-	token *jwt.Token
+	Token *jwt.Token
 }
 
 // Subject returns the value of the `sub` claim in the token
 func (t TenantToken) Subject() uuid.UUID {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+	if claims, ok := t.Token.Claims.(jwt.MapClaims); ok {
 		id, err := uuid.FromString(claims["sub"].(string))
 		if err != nil {
 			return uuid.UUID{}
@@ -405,7 +405,7 @@ func (t TenantToken) Subject() uuid.UUID {
 
 // Username returns the value of the `preferred_username` claim in the token
 func (t TenantToken) Username() string {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+	if claims, ok := t.Token.Claims.(jwt.MapClaims); ok {
 		answer := claims["preferred_username"].(string)
 		if len(answer) == 0 {
 			answer = claims["username"].(string)
@@ -417,7 +417,7 @@ func (t TenantToken) Username() string {
 
 // Email returns the value of the `email` claim in the token
 func (t TenantToken) Email() string {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
+	if claims, ok := t.Token.Claims.(jwt.MapClaims); ok {
 		return claims["email"].(string)
 	}
 	return ""
