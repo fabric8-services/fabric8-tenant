@@ -106,7 +106,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		err = openshift.RawInitTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
 			user.OpenshiftUsername,
 			user.OpenshiftUserToken,
 			c.templateVars)
@@ -174,7 +174,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		err = openshift.RawUpdateTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
 			user.OpenshiftUsername,
 			c.templateVars)
 
@@ -259,9 +259,10 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
+func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant, openshiftUsername string) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32  // default is 0
+	username := openshift.CreateName(openshiftUsername)
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
@@ -295,7 +296,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   openshift.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name),
+					Type:      tenant.GetNamespaceType(name, username),
 					MasterURL: masterURL,
 				})
 
@@ -310,7 +311,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   openshift.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name),
+					Type:      tenant.GetNamespaceType(name, username),
 					MasterURL: masterURL,
 				})
 			} else if openshift.GetKind(request) == openshift.ValKindResourceQuota {

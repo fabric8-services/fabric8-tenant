@@ -43,6 +43,7 @@ const (
 	TypeStage   NamespaceType = "stage"
 	TypeRun     NamespaceType = "run"
 	TypeUser    NamespaceType = "user"
+	TypeCustom  NamespaceType = "custom"
 )
 
 // Tenant is the owning OpenShift account
@@ -83,7 +84,10 @@ func (m Namespace) TableName() string {
 }
 
 // GetNamespaceType attempts to extract the namespace type based on namespace name
-func GetNamespaceType(name string) NamespaceType {
+func GetNamespaceType(name, username string) NamespaceType {
+	if name == username {
+		return TypeUser
+	}
 	if strings.HasSuffix(name, "-jenkins") {
 		return TypeJenkins
 	}
@@ -99,5 +103,5 @@ func GetNamespaceType(name string) NamespaceType {
 	if strings.HasSuffix(name, "-run") {
 		return TypeRun
 	}
-	return TypeUser
+	return TypeCustom
 }
