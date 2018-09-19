@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 
 	"github.com/dgrijalva/jwt-go"
-	commonConfig "github.com/fabric8-services/fabric8-common/configuration"
-	commonErrors "github.com/fabric8-services/fabric8-common/errors"
+	commonconf "github.com/fabric8-services/fabric8-common/configuration"
+	commonerrs "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -18,12 +18,12 @@ import (
 
 type Service struct {
 	Config        *configuration.Data
-	ClientOptions []commonConfig.HTTPClientOption
+	ClientOptions []commonconf.HTTPClientOption
 	SaToken       string
 }
 
 // NewAuthService retrieves SA OAuth token and creates a service instance that is the main point for communication with auth service
-func NewAuthService(config *configuration.Data, options ...commonConfig.HTTPClientOption) (*Service, error) {
+func NewAuthService(config *configuration.Data, options ...commonconf.HTTPClientOption) (*Service, error) {
 	c := &Service{
 		Config:        config,
 		ClientOptions: options,
@@ -48,7 +48,7 @@ type User struct {
 func (s *Service) NewUser(ctx context.Context) (*User, error) {
 	userToken := goajwt.ContextJWT(ctx)
 	if userToken == nil {
-		return nil, commonErrors.NewUnauthorizedError("Missing JWT token")
+		return nil, commonerrs.NewUnauthorizedError("Missing JWT token")
 	}
 
 	// fetch the cluster the user belongs to
@@ -59,7 +59,7 @@ func (s *Service) NewUser(ctx context.Context) (*User, error) {
 
 	if userData.Cluster == nil {
 		log.Error(ctx, nil, "no cluster defined for tenant")
-		return nil, commonErrors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster"))
+		return nil, commonerrs.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster"))
 	}
 
 	// fetch the users cluster token
@@ -69,7 +69,7 @@ func (s *Service) NewUser(ctx context.Context) (*User, error) {
 			"err":         err,
 			"cluster_url": *userData.Cluster,
 		}, "unable to fetch tenant token from auth")
-		return nil, commonErrors.NewUnauthorizedError("Could not resolve user token")
+		return nil, commonerrs.NewUnauthorizedError("Could not resolve user token")
 	}
 
 	return &User{

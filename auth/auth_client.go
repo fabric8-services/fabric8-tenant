@@ -8,14 +8,14 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/errors"
 
-	commonConfig "github.com/fabric8-services/fabric8-common/configuration"
+	commonconf "github.com/fabric8-services/fabric8-common/configuration"
 	"github.com/fabric8-services/fabric8-common/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	goaclient "github.com/goadesign/goa/client"
 )
 
 // newClient returns a new auth client
-func newClient(authURL, token string, options ...commonConfig.HTTPClientOption) (*authclient.Client, error) {
+func newClient(authURL, token string, options ...commonconf.HTTPClientOption) (*authclient.Client, error) {
 	u, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err

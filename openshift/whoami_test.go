@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	commonConfig "github.com/fabric8-services/fabric8-common/configuration"
+	commonconf "github.com/fabric8-services/fabric8-common/configuration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
@@ -24,7 +24,7 @@ func TestWhoAmI(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		// when
-		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", tok.Raw, commonConfig.WithRoundTripper(r))
+		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", tok.Raw, commonconf.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "user_foo", username)
@@ -32,7 +32,7 @@ func TestWhoAmI(t *testing.T) {
 
 	t.Run("forbidden", func(t *testing.T) {
 		// when
-		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", "", commonConfig.WithRoundTripper(r))
+		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", "", commonconf.WithRoundTripper(r))
 		// then
 		require.Error(t, err)
 		assert.Equal(t, "", username)
