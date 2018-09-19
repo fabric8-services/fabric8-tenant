@@ -31,16 +31,16 @@ type Service struct {
 
 // NewAuthService retrieves SA OAuth token and creates a service instance that is the main point for communication with auth service
 func NewAuthService(config *configuration.Data, options ...commonconf.HTTPClientOption) (*Service, error) {
-	c := &Service{
+	service := &Service{
 		Config:        config,
 		ClientOptions: options,
 	}
-	saToken, err := c.getOAuthToken(context.Background())
+	saToken, err := service.getOAuthToken(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	c.SaToken = *saToken
-	return c, nil
+	service.SaToken = *saToken
+	return service, nil
 }
 
 // User contains user data retrieved from auth service and OS username and user token
@@ -113,7 +113,7 @@ func (s *Service) newClient(token string) (*authclient.Client, error) {
 }
 
 func (s *Service) getOAuthToken(ctx context.Context) (*string, error) {
-	c, err := s.newClient("") // no need to specify a token in this request
+	client, err := s.newClient("") // no need to specify a token in this request
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while initializing the auth client")
 	}
@@ -129,7 +129,7 @@ func (s *Service) getOAuthToken(ctx context.Context) (*string, error) {
 	}
 	contentType := "application/x-www-form-urlencoded"
 
-	res, err := c.ExchangeToken(ctx, path, payload, contentType)
+	res, err := client.ExchangeToken(ctx, path, payload, contentType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
 	}
@@ -138,11 +138,11 @@ func (s *Service) getOAuthToken(ctx context.Context) (*string, error) {
 		res.Body.Close()
 	}()
 
-	validationerror := ValidateResponse(ctx, c, res)
+	validationerror := ValidateResponse(ctx, client, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.Config.GetAuthURL())
 	}
-	token, err := c.DecodeOauthToken(res)
+	token, err := client.DecodeOauthToken(res)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error from server %q", s.Config.GetAuthURL())
 	}
@@ -208,12 +208,12 @@ func (s *Service) ResolveTargetToken(ctx context.Context, target, token string, 
 }
 
 func (s *Service) GetAuthUserData(ctx context.Context, userToken *jwt.Token) (*authclient.UserDataAttributes, error) {
-	c, err := s.NewSaClient()
+	client, err := s.NewSaClient()
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := c.ShowUsers(ctx, authclient.ShowUsersPath(subject(userToken)), nil, nil)
+	res, err := client.ShowUsers(ctx, authclient.ShowUsersPath(subject(userToken)), nil, nil)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
@@ -223,11 +223,11 @@ func (s *Service) GetAuthUserData(ctx context.Context, userToken *jwt.Token) (*a
 		res.Body.Close()
 	}()
 
-	validationerror := ValidateResponse(ctx, c, res)
+	validationerror := ValidateResponse(ctx, client, res)
 	if validationerror != nil {
 		return nil, errors.Wrapf(validationerror, "error from server %q", s.GetAuthURL())
 	}
-	user, err := c.DecodeUser(res)
+	user, err := client.DecodeUser(res)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error from server %q", s.GetAuthURL())
 	}
