@@ -218,7 +218,10 @@ func (s *Service) GetAuthUserData(ctx context.Context, userToken *jwt.Token) (*a
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
 	}
-	defer res.Body.Close()
+	defer func() {
+		ioutil.ReadAll(res.Body)
+		res.Body.Close()
+	}()
 
 	validationerror := ValidateResponse(ctx, c, res)
 	if validationerror != nil {
