@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
@@ -56,6 +56,7 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	authService, r, err := testdoubles.NewAuthClientService("../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
 	require.NoError(t, err)
 	defer r.Stop()
+	authService.Config.Set(configuration.VarAuthTokenKey, "foo")
 	tok, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -65,8 +66,10 @@ func TestResolveServiceAccountToken(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
+		// given
+		authService.SaToken = tok.Raw
 		// when
-		username, accessToken, err := authService.ResolveTargetToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, auth.PlainText)
+		username, accessToken, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "tenant_service", username)
@@ -75,26 +78,31 @@ func TestResolveServiceAccountToken(t *testing.T) {
 
 	t.Run("expired token", func(t *testing.T) {
 		// given
-		tok, err := testsupport.NewToken(map[string]interface{}{
+		expTok, err := testsupport.NewToken(map[string]interface{}{
 			"sub": "expired_tenant_service",
 		}, "../test/private_key.pem")
 		require.NoError(t, err)
+		authService.SaToken = expTok.Raw
 		// when
-		_, _, err = authService.ResolveTargetToken(context.Background(), "some_valid_openshift_resource", tok.Raw, true, auth.PlainText)
+		_, _, err = authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
 		require.Error(t, err)
 	})
 
 	t.Run("invalid resource", func(t *testing.T) {
+		// given
+		authService.SaToken = tok.Raw
 		// when
-		_, _, err := authService.ResolveTargetToken(context.Background(), "some_invalid_resource", tok.Raw, true, auth.PlainText)
+		_, _, err := authService.ResolveSaToken(context.Background(), "some_invalid_resource")
 		// then
 		require.Error(t, err)
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
+		// given
+		authService.SaToken = ""
 		// when
-		_, _, err := authService.ResolveTargetToken(context.Background(), "some_valid_openshift_resource", "", true, auth.PlainText)
+		_, _, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
 		require.Error(t, err)
 	})
