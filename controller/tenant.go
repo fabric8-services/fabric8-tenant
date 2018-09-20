@@ -405,7 +405,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				"err":         err,
 				"cluster_url": ns.MasterURL,
 			}, "unable to resolve cluster")
-			c = &cluster.Cluster{}
+			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
 		result.Attributes.Namespaces = append(

@@ -28,11 +28,11 @@ type Cluster struct {
 	Token string
 }
 
-type GetCluster func(ctx context.Context, target string) (*Cluster, error)
+type GetCluster func(ctx context.Context, target string) (Cluster, error)
 
 // Service the interface for the cluster service
 type Service interface {
-	GetCluster(ctx context.Context, target string) (*Cluster, error)
+	GetCluster(ctx context.Context, target string) (Cluster, error)
 	GetClusters(ctx context.Context) []Cluster
 	Start() error
 	Stop()
@@ -81,13 +81,13 @@ func (s *clusterService) Start() error {
 	return nil
 }
 
-func (s *clusterService) GetCluster(ctx context.Context, target string) (*Cluster, error) {
+func (s *clusterService) GetCluster(ctx context.Context, target string) (Cluster, error) {
 	for _, cluster := range s.GetClusters(ctx) {
 		if cleanURL(target) == cleanURL(cluster.APIURL) {
-			return &cluster, nil
+			return cluster, nil
 		}
 	}
-	return nil, fmt.Errorf("unable to resolve cluster")
+	return Cluster{}, fmt.Errorf("unable to resolve cluster")
 }
 
 func (s *clusterService) GetClusters(ctx context.Context) []Cluster {
