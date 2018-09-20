@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-common/log"
-	"github.com/fabric8-services/fabric8-common/sentry"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -20,12 +19,12 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
-	"github.com/getsentry/raven-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -149,7 +148,7 @@ func main() {
 	// create user profile client to get the user's cluster
 	userService := user.NewService(config.GetAuthURL(), *saToken)
 
-	haltSentry, err := initializeLogger(config, userService)
+	haltSentry, err := sentry.InitializeLogger(config, userService, controller.Commit)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -258,43 +257,4 @@ func migrate(db *gorm.DB) {
 			"err": err,
 		}, "failed migration")
 	}
-}
-
-func initializeLogger(config *configuration.Data, userService user.Service) (func(), error) {
-	// Initialized developer mode flag and log level for the logger
-	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
-	sentryDSN := config.GetSentryDSN()
-
-	// Initialize sentry client
-	return sentry.InitializeSentryClient(
-		&sentryDSN,
-		sentry.WithRelease(controller.Commit),
-		sentry.WithEnvironment(config.GetEnvironment()),
-		sentry.WithUser(extractUserInfo(userService)))
-}
-
-func extractUserInfo(userService user.Service) func(ctx context.Context) (*raven.User, error) {
-	return func(ctx context.Context) (*raven.User, error) {
-		userToken := goajwt.ContextJWT(ctx)
-		if userToken == nil {
-			return nil, fmt.Errorf("no token found in context")
-		}
-		ttoken := &controller.TenantToken{Token: userToken}
-		user, err := userService.GetUser(ctx, ttoken.Subject())
-		if err != nil {
-			return nil, err
-		}
-		return &raven.User{
-			Username: value(user.Username),
-			Email:    value(user.Email),
-			ID:       value(user.IdentityID),
-		}, nil
-	}
-}
-
-func value(pointer *string) string {
-	if pointer == nil {
-		return ""
-	}
-	return *pointer
 }
