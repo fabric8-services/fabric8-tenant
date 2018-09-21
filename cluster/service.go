@@ -75,12 +75,7 @@ func (s *clusterService) Start() error {
 	}
 	go func() {
 		for range s.cacheRefresher.C { // while the `cacheRefresh` ticker is running
-			err := s.refreshCache(context.Background())
-			if err != nil {
-				log.Error(nil, map[string]interface{}{
-					"err": err,
-				}, "failed to load the list of clusters")
-			}
+			s.refreshCache(context.Background())
 		}
 	}()
 	return nil
@@ -122,6 +117,9 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 	defer log.Debug(ctx, nil, "refreshed cached list of clusters.")
 	s.cacheRefreshes = s.cacheRefreshes + 1
 	client, err := s.authService.NewSaClient()
+	if err != nil {
+		return err
+	}
 
 	res, err := client.ShowClusters(ctx, authclient.ShowClustersPath())
 	if err != nil {
