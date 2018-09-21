@@ -1,6 +1,5 @@
 PROJECT_NAME=fabric8-tenant
 PACKAGE_NAME := github.com/fabric8-services/fabric8-tenant
-EXPOSCONTROLLER_VERSION=$(shell cat EXPOSCONTROLLER_VERSION)
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin
