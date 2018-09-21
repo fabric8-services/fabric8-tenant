@@ -83,8 +83,9 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 
 			templates = templateNames["che-mt"]
 			templates[0].DefaultParams = cheMtParams
+		} else {
+			templates = templateNames[envType]
 		}
-		templates = templateNames[envType]
 	} else {
 		templates = templateNames[envType]
 	}
