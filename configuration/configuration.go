@@ -50,7 +50,7 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 
-	VarAuthURL              = "auth.url"
+	varAuthURL              = "auth.url"
 	varClustersRefreshDelay = "cluster.refresh.delay"
 	varAuthClientID         = "service.account.id"
 	varClientSecret         = "service.account.secret"
@@ -126,7 +126,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakOpenshiftBroker, defaultKeycloakOpenshiftBroker)
 	c.v.SetDefault(varOpenshiftUseCurrentCluster, false)
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
-	c.v.SetDefault(VarAuthURL, defaultAuthURL)
+	c.v.SetDefault(varAuthURL, defaultAuthURL)
 	c.v.SetDefault(varClustersRefreshDelay, defaultClustersRefreshDelay)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varTogglesURL, defaultTogglesURL)
@@ -297,7 +297,7 @@ func (c *Data) GetConsoleURL() string {
 
 // GetAuthURL returns Auth service URL
 func (c *Data) GetAuthURL() string {
-	return c.v.GetString(VarAuthURL)
+	return c.v.GetString(varAuthURL)
 }
 
 // GetClustersRefreshDelay returns delay of clusters refresh (in minutes)

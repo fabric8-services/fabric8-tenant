@@ -28,7 +28,7 @@ func NewAuthClientService(cassetteFile, authURL string, recorderOptions ...recor
 	if err != nil {
 		return nil, r, err
 	}
-	config.Set(configuration.VarAuthURL, authURL)
+	config.Set("auth.url", authURL)
 	authService := &auth.Service{
 		Config:        config,
 		ClientOptions: options,
