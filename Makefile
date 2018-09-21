@@ -1,8 +1,5 @@
 PROJECT_NAME=fabric8-tenant
 PACKAGE_NAME := github.com/fabric8-services/fabric8-tenant
-CHE_VERSION=$(shell cat CHE_VERSION)
-JENKINS_VERSION=$(shell cat JENKINS_VERSION)
-TEAM_VERSION=$(shell cat TEAM_VERSION)
 EXPOSCONTROLLER_VERSION=$(shell cat EXPOSCONTROLLER_VERSION)
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
@@ -192,7 +189,7 @@ clean-generated:
 	-rm -rf ./client
 	-rm -rf ./swagger/
 	-rm -f ./migration/sqlbindata.go
-	-rm -f ./template/bindata.go
+	-rm -f ./environment/generated/templates.go
 	-rm -rf ./auth/client
 
 CLEAN_TARGETS += clean-vendor
