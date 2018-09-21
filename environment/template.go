@@ -166,8 +166,8 @@ func CollectVars(user, masterUser, commit string, config *configuration.Data) ma
 }
 
 // RetrieveUserName returns a safe namespace basename based on a username
-func RetrieveUserName(username string) string {
-	return regexp.MustCompile("[^a-z0-9]").ReplaceAllString(strings.Split(username, "@")[0], "-")
+func RetrieveUserName(openshiftUsername string) string {
+	return regexp.MustCompile("[^a-z0-9]").ReplaceAllString(strings.Split(openshiftUsername, "@")[0], "-")
 }
 
 func getVariables(config *configuration.Data) map[string]string {
