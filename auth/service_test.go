@@ -154,7 +154,7 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			user, err := authClientService.NewUser(goajwt.WithJWT(context.Background(), userToken))
+			user, err := authClientService.GetUser(goajwt.WithJWT(context.Background(), userToken))
 
 			// then
 			if testData.wantErr {

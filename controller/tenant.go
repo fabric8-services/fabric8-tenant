@@ -65,7 +65,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.authClientService.NewUser(ctx)
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -136,7 +136,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.authClientService.NewUser(ctx)
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -199,7 +199,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	ttoken := &TenantToken{token: userToken}
 
 	// fetch the cluster the user belongs to
-	user, err := c.authClientService.NewUser(ctx)
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

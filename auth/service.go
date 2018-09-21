@@ -50,9 +50,9 @@ type User struct {
 	OpenshiftUserToken string
 }
 
-// NewUser retrieves user data from auth service related to JWT token stored in the given context.
+// GetUser retrieves user data from auth service related to JWT token stored in the given context.
 // It also retrieves OS username and user token for the user's cluster.
-func (s *Service) NewUser(ctx context.Context) (*User, error) {
+func (s *Service) GetUser(ctx context.Context) (*User, error) {
 	userToken := goajwt.ContextJWT(ctx)
 	if userToken == nil {
 		return nil, commonerrs.NewUnauthorizedError("Missing JWT token")
