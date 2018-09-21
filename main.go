@@ -96,7 +96,7 @@ func main() {
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
-		}, "failed to fetch service account token")
+		}, "failed to initialize the auth.Service component")
 	}
 
 	publicKeys, err := authService.GetPublicKeys()

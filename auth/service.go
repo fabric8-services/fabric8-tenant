@@ -37,7 +37,7 @@ func NewAuthService(config *configuration.Data, options ...commonconf.HTTPClient
 	}
 	saToken, err := service.getOAuthToken(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch service account token. The cause was: %s", err)
 	}
 	service.SaToken = *saToken
 	return service, nil
