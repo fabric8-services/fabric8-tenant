@@ -38,9 +38,9 @@ const (
 	varConsoleURL                      = "console.url"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
 	varTemplateJenkinsRootURL          = "template.jenkins.root.url"
-	VarTemplateRecommenderExternalName = "template.recommender.external.name"
-	VarTemplateRecommenderAPIToken     = "template.recommender.api.token"
-	VarTemplateDomain                  = "template.domain"
+	varTemplateRecommenderExternalName = "template.recommender.external.name"
+	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
+	varTemplateDomain                  = "template.domain"
 	varTemplateCheMultiTenantServer    = "template.che.multitenant.server"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
@@ -334,20 +334,20 @@ func (c *Data) Set(key string, value interface{}) {
 
 // GetTemplateValues return a Map of additional variables used to process the templates
 func (c *Data) GetTemplateValues() (map[string]string, error) {
-	if !c.v.IsSet(VarTemplateRecommenderExternalName) {
-		return nil, fmt.Errorf("Missing required configuration %v", VarTemplateRecommenderExternalName)
+	if !c.v.IsSet(varTemplateRecommenderExternalName) {
+		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderExternalName)
 	}
-	if !c.v.IsSet(VarTemplateRecommenderAPIToken) {
-		return nil, fmt.Errorf("Missing required configuration %v", VarTemplateRecommenderAPIToken)
+	if !c.v.IsSet(varTemplateRecommenderAPIToken) {
+		return nil, fmt.Errorf("Missing required configuration %v", varTemplateRecommenderAPIToken)
 	}
-	if !c.v.IsSet(VarTemplateDomain) {
-		return nil, fmt.Errorf("Missing required configuration %v", VarTemplateDomain)
+	if !c.v.IsSet(varTemplateDomain) {
+		return nil, fmt.Errorf("Missing required configuration %v", varTemplateDomain)
 	}
 
 	return map[string]string{
-		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(VarTemplateRecommenderExternalName),
-		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(VarTemplateRecommenderAPIToken))),
-		"DOMAIN":                    c.v.GetString(VarTemplateDomain),
+		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
+		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
+		"DOMAIN":                    c.v.GetString(varTemplateDomain),
 		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),

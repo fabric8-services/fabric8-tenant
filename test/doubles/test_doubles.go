@@ -6,8 +6,8 @@ import (
 
 func LoadTestConfig() (*configuration.Data, error) {
 	data, err := configuration.GetData()
-	data.Set(configuration.VarTemplateRecommenderExternalName, "recommender.api.prod-preview.openshift.io")
-	data.Set(configuration.VarTemplateRecommenderAPIToken, "xxxx")
-	data.Set(configuration.VarTemplateDomain, "d800.free-int.openshiftapps.com")
+	data.Set("template.recommender.external.name", "recommender.api.prod-preview.openshift.io")
+	data.Set("template.recommender.api.token", "xxxx")
+	data.Set("template.domain", "d800.free-int.openshiftapps.com")
 	return data, err
 }
