@@ -148,7 +148,7 @@ func main() {
 	// create user profile client to get the user's cluster
 	userService := user.NewService(config.GetAuthURL(), *saToken)
 
-	haltSentry, err := sentry.InitializeLogger(config, userService, controller.Commit)
+	haltSentry, err := sentry.InitializeLogger(config, controller.Commit)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,

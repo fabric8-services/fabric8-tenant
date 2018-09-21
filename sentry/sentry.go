@@ -7,13 +7,12 @@ import (
 	"github.com/fabric8-services/fabric8-common/sentry"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/getsentry/raven-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
 // InitializeLogger initializes sentry client
-func InitializeLogger(config *configuration.Data, userService user.Service, commit string) (func(), error) {
+func InitializeLogger(config *configuration.Data, commit string) (func(), error) {
 	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
 	sentryDSN := config.GetSentryDSN()
 
@@ -21,33 +20,22 @@ func InitializeLogger(config *configuration.Data, userService user.Service, comm
 		&sentryDSN,
 		sentry.WithRelease(commit),
 		sentry.WithEnvironment(config.GetEnvironment()),
-		sentry.WithUser(extractUserInfo(userService)))
+		sentry.WithUser(extractUserInfo()))
 }
 
-func extractUserInfo(userService user.Service) func(ctx context.Context) (*raven.User, error) {
+func extractUserInfo() func(ctx context.Context) (*raven.User, error) {
 	return func(ctx context.Context) (*raven.User, error) {
 		userToken := goajwt.ContextJWT(ctx)
 		if userToken == nil {
 			return nil, fmt.Errorf("no token found in context")
 		}
 		ttoken := &token.TenantToken{Token: userToken}
-		user, err := userService.GetUser(ctx, ttoken.Subject())
-		if err != nil {
-			return nil, err
-		}
 		return &raven.User{
-			Username: value(user.Username),
-			Email:    value(user.Email),
-			ID:       value(user.IdentityID),
+			Username: ttoken.Username(),
+			Email:    ttoken.Email(),
+			ID:       ttoken.Subject().String(),
 		}, nil
 	}
-}
-
-func value(pointer *string) string {
-	if pointer == nil {
-		return ""
-	}
-	return *pointer
 }
 
 // LogError logs the given error and reports it to sentry
