@@ -43,6 +43,6 @@ func LogError(ctx context.Context, fields map[string]interface{}, err error, mes
 	sentryError := fmt.Errorf("an error occured with a message: \n%s\n with fields: \n%s\n and caused by: \n%s", message, fields, err)
 	sentry.Sentry().CaptureError(ctx, sentryError)
 
-	fields["error"] = err
+	fields["err"] = err
 	log.Error(ctx, fields, message)
 }
