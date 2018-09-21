@@ -61,7 +61,6 @@ type EnvData struct {
 	NsType    string
 	Name      string
 	Templates []*Template
-	ExpiresAt *time.Time
 }
 
 func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, error) {
