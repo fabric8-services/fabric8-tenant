@@ -25,6 +25,7 @@ const (
 	FieldName            = "name"
 	FieldStatus          = "status"
 	FieldResourceVersion = "resourceVersion"
+	FieldParameters      = "parameters"
 
 	ValKindTemplate               = "Template"
 	ValKindNamespace              = "Namespace"
@@ -98,12 +99,44 @@ func newTemplate(filename string, defaultParams map[string]string) *Template {
 func (t *Template) Process(vars map[string]string) (Objects, error) {
 	var objects Objects
 	templateVars := merge(vars, t.DefaultParams)
+	paramsFromTemplate, err := t.getParamsFromTemplate()
+	if err != nil {
+		return objects, err
+	}
+	if paramsFromTemplate != nil {
+		templateVars = merge(paramsFromTemplate, templateVars)
+	}
 	pt, err := t.ReplaceVars(templateVars)
 	if err != nil {
 		return objects, err
 	}
 	t.Version = vars[varCommit]
 	return ParseObjects(pt)
+}
+
+func (t *Template) getParamsFromTemplate() (map[string]string, error) {
+	var template Object
+
+	err := yaml.Unmarshal([]byte(t.Content), &template)
+	if err != nil {
+		return nil, err
+	}
+	if paramsPart, exist := template[FieldParameters]; exist {
+		templateParams := make(map[string]string)
+		if params, ok := paramsPart.([]interface{}); ok {
+			for _, paramObj := range params {
+				if param, ok := paramObj.(Object); ok {
+					if name, exist := param["name"]; exist {
+						if value, exist := param["value"]; exist {
+							templateParams[fmt.Sprint(name)] = fmt.Sprint(value)
+						}
+					}
+				}
+			}
+			return templateParams, nil
+		}
+	}
+	return nil, nil
 }
 
 // Process takes a K8/Openshift Template as input and resolves the variable expresions
@@ -254,8 +287,8 @@ func GetLabelVersion(obj Object) string {
 func GetLabel(obj Object, name string) string {
 	if meta, metaFound := obj[FieldMetadata].(Object); metaFound {
 		if labels, labelsFound := meta[FieldLabels].(Object); labelsFound {
-			if version, versionFound := labels[name].(string); versionFound {
-				return version
+			if label, labelFound := labels[name]; labelFound {
+				return fmt.Sprint(label)
 			}
 		}
 	}

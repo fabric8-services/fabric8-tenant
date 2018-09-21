@@ -702,7 +702,7 @@ objects:
       spec:
         containers:
         - env:
-          - name: USER_NAME
+          - name: PROJECT_NAMESPACE
             value: ${USER_NAME}
           - name: KUBERNETES_NAMESPACE
             valueFrom:

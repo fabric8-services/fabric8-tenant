@@ -122,6 +122,36 @@ objects:
     name: aslak-test
 `
 
+var templateWithParams = `
+apiVersion: v1
+kind: Template
+objects:
+- apiVersion: v1
+  kind: Project
+  metadata:
+    labels:
+      user_name: ${USER_NAME}
+      jenkins_openshift_version: ${JENKINS_OPENSHIFT_VERSION}
+      project_user: ${PROJECT_USER}
+      project_displayname: ${PROJECT_DISPLAYNAME}
+      commit: ${COMMIT}
+`
+
+var templateParams = `
+parameters:
+- name: USER_NAME
+  value: developer
+- name: JENKINS_OPENSHIFT_VERSION
+  value: 9865421
+- name: PROJECT_USER
+  value: developer
+- name: PROJECT_DESCRIPTION
+- name: PROJECT_DISPLAYNAME
+- name: JENKINS_ROOT_URL
+- name: COMMIT
+  value: abc
+`
+
 func TestSort(t *testing.T) {
 	// given
 	data, err := testdoubles.LoadTestConfig()
@@ -212,4 +242,27 @@ func TestProcessVariables(t *testing.T) {
 	t.Run("Verify non replaced markers are left", func(t *testing.T) {
 		assert.Contains(t, processed, "${KUBERNETES_CREDENTIALS}", "missing")
 	})
+}
+
+func TestUseTemplateParams(t *testing.T) {
+	// given
+	vars := map[string]string{
+		"USER_NAME":           "Aslak",
+		"COMMIT":              "12345",
+		"PROJECT_DISPLAYNAME": "Test-Project-Name",
+	}
+	template := environment.Template{Content: templateWithParams + templateParams}
+
+	// when
+	objects, err := template.Process(vars)
+
+	// then
+	require.NoError(t, err)
+
+	assert.Len(t, objects, 1)
+	assert.Equal(t, "Aslak", environment.GetLabel(objects[0], "user_name"))
+	assert.Equal(t, "12345", environment.GetLabel(objects[0], "commit"))
+	assert.Equal(t, "Test-Project-Name", environment.GetLabel(objects[0], "project_displayname"))
+	assert.Equal(t, "9865421", environment.GetLabel(objects[0], "jenkins_openshift_version"))
+
 }
