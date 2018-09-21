@@ -44,15 +44,13 @@ func tmpls(defaultParams map[string]string, filenames ...string) []*Template {
 }
 
 type Service struct {
-	ctx               context.Context
 	templatesRepo     string
 	templatesRepoBlob string
 	templatesRepoDir  string
 }
 
-func NewService(ctx context.Context, templatesRepo, templatesRepoBlob, templatesRepoDir string) *Service {
+func NewService(templatesRepo, templatesRepoBlob, templatesRepoDir string) *Service {
 	return &Service{
-		ctx:               ctx,
 		templatesRepo:     templatesRepo,
 		templatesRepoBlob: templatesRepoBlob,
 		templatesRepoDir:  templatesRepoDir,
@@ -66,11 +64,11 @@ type EnvData struct {
 	ExpiresAt *time.Time
 }
 
-func (s *Service) GetEnvData(envType string) (*EnvData, error) {
+func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, error) {
 	var templates []*Template
 	if envType == "che" {
-		if toggles.IsEnabled(s.ctx, "deploy.che-multi-tenant", false) {
-			token := goajwt.ContextJWT(s.ctx)
+		if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
+			token := goajwt.ContextJWT(ctx)
 			var cheMtParams map[string]string
 			if token != nil {
 				cheMtParams["OSIO_TOKEN"] = token.Raw
@@ -80,7 +78,7 @@ func (s *Service) GetEnvData(envType string) (*EnvData, error) {
 				}
 				cheMtParams["IDENTITY_ID"] = id.(string)
 			}
-			cheMtParams["REQUEST_ID"] = log.ExtractRequestID(s.ctx)
+			cheMtParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
 			unixNano := time.Now().UnixNano()
 			cheMtParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
 

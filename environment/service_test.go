@@ -37,11 +37,11 @@ objects:
 
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
-	service := environment.NewService(context.Background(), "", "", "")
+	service := environment.NewService("", "", "")
 
 	for _, envType := range environment.DefaultEnvTypes {
 		// when
-		env, err := service.GetEnvData(envType)
+		env, err := service.GetEnvData(context.Background(), envType)
 
 		// then
 		require.NoError(t, err)
@@ -72,10 +72,10 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 		Reply(200).
 		BodyString(defaultLocationTempl)
 
-	service := environment.NewService(context.Background(), "", "123abc", "")
+	service := environment.NewService("", "123abc", "")
 
 	// when
-	envData, err := service.GetEnvData("run")
+	envData, err := service.GetEnvData(context.Background(), "run")
 
 	// then
 	require.NoError(t, err)
@@ -97,10 +97,10 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 		Reply(200).
 		BodyString(customLocationTempl)
 
-	service := environment.NewService(context.Background(), "http://my.git.com/my-services/my-tenant", "123abc", "any/path")
+	service := environment.NewService("http://my.git.com/my-services/my-tenant", "123abc", "any/path")
 
 	// when
-	envData, err := service.GetEnvData("run")
+	envData, err := service.GetEnvData(context.Background(), "run")
 
 	// then
 	require.NoError(t, err)

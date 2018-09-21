@@ -45,12 +45,12 @@ func IsNotOfKind(kinds ...string) FilterFunc {
 
 func LoadProcessedTemplates(ctx context.Context, config Config, username string) (environment.Objects, error) {
 
-	envService := environment.NewService(ctx, config.TemplatesRepo, config.TemplatesRepoBlob, config.TemplatesRepoDir)
+	envService := environment.NewService(config.TemplatesRepo, config.TemplatesRepoBlob, config.TemplatesRepoDir)
 	vars := environment.CollectVars(username, config.MasterUser, config.Commit, config.OriginalConfig)
 	var objs environment.Objects
 
 	for _, envType := range environment.DefaultEnvTypes {
-		env, err := envService.GetEnvData(envType)
+		env, err := envService.GetEnvData(ctx, envType)
 		if err != nil {
 			return nil, err
 		}
