@@ -68,7 +68,7 @@ type TenantToken struct {
 // Subject returns the value of the `sub` claim in the token
 func (t TenantToken) Subject() uuid.UUID {
 	if claims, ok := t.Token.Claims.(jwt.MapClaims); ok {
-		id, err := uuid.FromString(claims["sub"].(string))
+		id, err := uuid.FromString(fmt.Sprint(claims["sub"]))
 		if err != nil {
 			return uuid.UUID{}
 		}
@@ -80,9 +80,9 @@ func (t TenantToken) Subject() uuid.UUID {
 // Username returns the value of the `preferred_username` claim in the token
 func (t TenantToken) Username() string {
 	if claims, ok := t.Token.Claims.(jwt.MapClaims); ok {
-		answer := claims["preferred_username"].(string)
+		answer := fmt.Sprint(claims["preferred_username"])
 		if len(answer) == 0 {
-			answer = claims["username"].(string)
+			answer = fmt.Sprint(claims["username"])
 		}
 		return answer
 	}
@@ -92,7 +92,7 @@ func (t TenantToken) Username() string {
 // Email returns the value of the `email` claim in the token
 func (t TenantToken) Email() string {
 	if claims, ok := t.Token.Claims.(jwt.MapClaims); ok {
-		return claims["email"].(string)
+		return fmt.Sprint(claims["email"])
 	}
 	return ""
 }
