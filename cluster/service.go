@@ -75,7 +75,12 @@ func (s *clusterService) Start() error {
 	}
 	go func() {
 		for range s.cacheRefresher.C { // while the `cacheRefresh` ticker is running
-			s.refreshCache(context.Background())
+			err := s.refreshCache(context.Background())
+			if err != nil {
+				log.Error(nil, map[string]interface{}{
+					"err": err,
+				}, "failed to load the list of clusters")
+			}
 		}
 	}()
 	return nil
