@@ -97,11 +97,13 @@ func (s *clusterService) GetCluster(ctx context.Context, target string) (Cluster
 
 func (s *clusterService) GetClusters(ctx context.Context) []Cluster {
 	s.cacheRefreshLock.RLock()
+	defer func() {
+		s.cacheRefreshLock.RUnlock()
+		log.Debug(ctx, nil, "read lock released")
+	}()
 	log.Debug(ctx, nil, "read lock acquired")
 	clusters := make([]Cluster, len(s.cachedClusters))
 	copy(clusters, s.cachedClusters)
-	s.cacheRefreshLock.RUnlock()
-	log.Debug(ctx, nil, "read lock released")
 	return clusters
 
 }
@@ -172,9 +174,11 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 	}
 	// lock to avoid concurrent writes
 	s.cacheRefreshLock.Lock()
+	defer func() {
+		s.cacheRefreshLock.Unlock()
+		log.Debug(ctx, nil, "write lock released")
+	}()
 	log.Debug(ctx, nil, "write lock acquired")
 	s.cachedClusters = cls // only replace at the end of this function and within a Write lock scope, i.e., when all retrieved clusters have been processed
-	s.cacheRefreshLock.Unlock()
-	log.Debug(ctx, nil, "write lock released")
 	return nil
 }
