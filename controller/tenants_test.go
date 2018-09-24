@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	commonConfig "github.com/fabric8-services/fabric8-common/configuration"
 	"github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -313,7 +312,7 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 
 	tenantService := tenant.NewDBService(db)
 
-	openshiftService := openshift.NewService(commonConfig.WithRoundTripper(r))
+	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
 	defaultOpenshiftConfig := openshift.Config{}
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantsController(svc, tenantService, clusterService, authService, openshiftService, defaultOpenshiftConfig)

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-common/configuration"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )

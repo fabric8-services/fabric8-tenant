@@ -7,7 +7,6 @@ import (
 
 	"crypto/rsa"
 	"github.com/dgrijalva/jwt-go"
-	commonconf "github.com/fabric8-services/fabric8-common/configuration"
 	commonerrs "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
@@ -25,12 +24,12 @@ import (
 
 type Service struct {
 	Config        *configuration.Data
-	ClientOptions []commonconf.HTTPClientOption
+	ClientOptions []configuration.HTTPClientOption
 	SaToken       string
 }
 
 // NewAuthService retrieves SA OAuth token and creates a service instance that is the main point for communication with auth service
-func NewAuthService(config *configuration.Data, options ...commonconf.HTTPClientOption) (*Service, error) {
+func NewAuthService(config *configuration.Data, options ...configuration.HTTPClientOption) (*Service, error) {
 	service := &Service{
 		Config:        config,
 		ClientOptions: options,
