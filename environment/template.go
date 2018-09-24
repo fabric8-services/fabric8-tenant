@@ -84,9 +84,11 @@ type Template struct {
 }
 
 var (
-	stageParams = map[string]string{"DEPLOY_TYPE": "stage"}
-	runParams   = map[string]string{"DEPLOY_TYPE": "run"}
-	noParams    map[string]string
+	stageParams       = map[string]string{"DEPLOY_TYPE": "stage"}
+	runParams         = map[string]string{"DEPLOY_TYPE": "run"}
+	noParams          map[string]string
+	specialCharRegexp = regexp.MustCompile("[^a-z0-9]")
+	variableRegexp    = regexp.MustCompile(`\${([A-Z_0-9]+)}`)
 )
 
 func newTemplate(filename string, defaultParams map[string]string) *Template {
@@ -141,8 +143,7 @@ func (t *Template) getParamsFromTemplate() (map[string]string, error) {
 
 // Process takes a K8/Openshift Template as input and resolves the variable expresions
 func (t *Template) ReplaceVars(variables map[string]string) (string, error) {
-	reg := regexp.MustCompile(`\${([A-Z_0-9]+)}`)
-	return string(reg.ReplaceAllFunc([]byte(t.Content), func(found []byte) []byte {
+	return string(variableRegexp.ReplaceAllFunc([]byte(t.Content), func(found []byte) []byte {
 		variableName := toVariableName(string(found))
 		if variable, ok := variables[variableName]; ok {
 			return []byte(variable)
@@ -167,7 +168,7 @@ func CollectVars(user, masterUser, commit string, config *configuration.Data) ma
 
 // RetrieveUserName returns a safe namespace basename based on a username
 func RetrieveUserName(openshiftUsername string) string {
-	return regexp.MustCompile("[^a-z0-9]").ReplaceAllString(strings.Split(openshiftUsername, "@")[0], "-")
+	return specialCharRegexp.ReplaceAllString(strings.Split(openshiftUsername, "@")[0], "-")
 }
 
 func getVariables(config *configuration.Data) map[string]string {
