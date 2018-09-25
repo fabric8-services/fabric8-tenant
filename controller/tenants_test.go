@@ -23,7 +23,6 @@ import (
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +54,7 @@ var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, 
 func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	// given
-	svc, ctrl, err := newTestTenantsController(s.DB, "show-tenants")
+	svc, ctrl, err := s.newTestTenantsController("show-tenants")
 	require.NoError(s.T(), err)
 
 	s.T().Run("OK", func(t *testing.T) {
@@ -95,7 +94,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
-	svc, ctrl, err := newTestTenantsController(s.DB, "search-tenants")
+	svc, ctrl, err := s.newTestTenantsController("search-tenants")
 	require.NoError(s.T(), err)
 
 	s.T().Run("OK", func(t *testing.T) {
@@ -161,7 +160,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-204")
+			svc, ctrl, err := s.newTestTenantsController("delete-tenants-204")
 			require.NoError(t, err)
 			// when
 			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -195,7 +194,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-403")
+			svc, ctrl, err := s.newTestTenantsController("delete-tenants-403")
 			require.NoError(t, err)
 			// when
 			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -211,7 +210,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 
 	s.T().Run("Failures", func(t *testing.T) {
 
-		svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-204")
+		svc, ctrl, err := s.newTestTenantsController("delete-tenants-204")
 		require.NoError(t, err)
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
@@ -252,7 +251,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-500")
+			svc, ctrl, err := s.newTestTenantsController("delete-tenants-500")
 			require.NoError(t, err)
 			// when
 			test.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -283,13 +282,12 @@ func createInvalidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *controller.TenantsController, error) {
+func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (*goa.Service, *controller.TenantsController, error) {
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
 	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
-	authService, r, err := testdoubles.NewAuthClientService(cassetteFile, "http://authservice", recorder.WithJWTMatcher)
-	if err != nil {
-		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
-	}
-	defer r.Stop()
+	authService, r, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", recorder.WithJWTMatcher)
+	defer cleanup()
 
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
@@ -302,7 +300,6 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
 	authService.SaToken = saToken.Raw
-	authService.Config.Set(configuration.VarAuthTokenKey, "foo")
 
 	clusterService := cluster.NewClusterService(time.Hour, authService)
 	err = clusterService.Start()
@@ -310,7 +307,7 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
 
-	tenantService := tenant.NewDBService(db)
+	tenantService := tenant.NewDBService(s.DB)
 
 	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
 	defaultOpenshiftConfig := openshift.Config{}

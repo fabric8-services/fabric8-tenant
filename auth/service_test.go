@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
@@ -16,9 +15,8 @@ import (
 
 func TestResolveUserToken(t *testing.T) {
 	// given
-	authService, r, err := testdoubles.NewAuthClientService("../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
-	require.NoError(t, err)
-	defer r.Stop()
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
+	defer cleanup()
 	tok, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "user_foo",
@@ -53,10 +51,11 @@ func TestResolveUserToken(t *testing.T) {
 
 func TestResolveServiceAccountToken(t *testing.T) {
 	// given
-	authService, r, err := testdoubles.NewAuthClientService("../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
-	require.NoError(t, err)
-	defer r.Stop()
-	authService.Config.Set(configuration.VarAuthTokenKey, "foo")
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
+	defer cleanup()
+
 	tok, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -131,8 +130,8 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 		},
 	}
 
-	authClientService, _, err := testdoubles.NewAuthClientService("../test/data/token/auth_resolve_user", "http://authservice", recorder.WithJWTMatcher)
-	require.NoError(t, err)
+	authClientService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_user", "http://authservice", recorder.WithJWTMatcher)
+	defer cleanup()
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -172,9 +171,8 @@ func TestPublicKeys(t *testing.T) {
 
 	t.Run("valid keys", func(t *testing.T) {
 		//given
-		authService, r, err := testdoubles.NewAuthClientService("../test/data/token/auth_get_keys", "http://authservice")
-		require.NoError(t, err)
-		defer r.Stop()
+		authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_get_keys", "http://authservice")
+		defer cleanup()
 		// when
 		result, err := authService.GetPublicKeys()
 		// then
@@ -184,10 +182,10 @@ func TestPublicKeys(t *testing.T) {
 
 	t.Run("invalid url", func(t *testing.T) {
 		//given
-		authService, _, err := testdoubles.NewAuthClientService("", "http://google.com")
-		assert.NoError(t, err)
+		authService, cleanup := testdoubles.NewAuthService(t, "", "http://google.com")
+		defer cleanup()
 		// when
-		_, err = authService.GetPublicKeys()
+		_, err := authService.GetPublicKeys()
 		// then
 		assert.Error(t, err)
 	})

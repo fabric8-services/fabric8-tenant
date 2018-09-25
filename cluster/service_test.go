@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
@@ -19,10 +18,11 @@ import (
 func TestResolveCluster(t *testing.T) {
 
 	// given
-	authService, r, err := testdoubles.NewAuthClientService("../test/data/cluster/resolve_cluster.fast", "http://fast.authservice", recorder.WithJWTMatcher)
-	require.NoError(t, err)
-	defer r.Stop()
-	authService.Config.Set(configuration.VarAuthTokenKey, "foo")
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.fast", "http://fast.authservice", recorder.WithJWTMatcher)
+	defer cleanup()
+
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -80,10 +80,10 @@ func TestResolveCluster(t *testing.T) {
 
 func TestGetClusters(t *testing.T) {
 	// given
-	authService, r, err := testdoubles.NewAuthClientService("../test/data/cluster/resolve_cluster.slow", "http://slow.authservice", recorder.WithJWTMatcher)
-	require.NoError(t, err)
-	defer r.Stop()
-	authService.Config.Set(configuration.VarAuthTokenKey, "foo")
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.slow", "http://slow.authservice", recorder.WithJWTMatcher)
+	defer cleanup()
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
