@@ -146,10 +146,6 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varClientSecret, "tenantsecretNew")
 }
 
-func (c *Data) Set(key string, value interface{}) {
-	c.v.Set(key, value)
-}
-
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
 func (c *Data) GetPostgresHost() string {
 	return c.v.GetString(varPostgresHost)
