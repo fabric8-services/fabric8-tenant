@@ -154,8 +154,8 @@ parameters:
 
 func TestSort(t *testing.T) {
 	// given
-	data, err := testdoubles.LoadTestConfig()
-	require.NoError(t, err)
+	data, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
 
 	template := environment.Template{Content: sortTemplate}
 	objects, err := template.Process(environment.CollectVars("developer", "master", "123", data))
@@ -174,8 +174,8 @@ func TestSort(t *testing.T) {
 
 func TestParseNamespace(t *testing.T) {
 	// given
-	data, err := testdoubles.LoadTestConfig()
-	require.NoError(t, err)
+	data, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
 
 	template := environment.Template{Content: parseNamespaceTemplate}
 

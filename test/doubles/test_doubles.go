@@ -2,12 +2,39 @@ package testdoubles
 
 import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/stretchr/testify/require"
+	"os"
+	"testing"
 )
 
-func LoadTestConfig() (*configuration.Data, error) {
+func LoadTestConfig(t *testing.T) (*configuration.Data, func()) {
+	reset := SetEnvironments(
+		Env("F8_TEMPLATE_RECOMMENDER_EXTERNAL_NAME", "recommender.api.prod-preview.openshift.io"),
+		Env("F8_TEMPLATE_RECOMMENDER_API_TOKEN", "xxxx"),
+		Env("F8_TEMPLATE_DOMAIN", "d800.free-int.openshiftapps.com"))
 	data, err := configuration.GetData()
-	data.Set("template.recommender.external.name", "recommender.api.prod-preview.openshift.io")
-	data.Set("template.recommender.api.token", "xxxx")
-	data.Set("template.domain", "d800.free-int.openshiftapps.com")
-	return data, err
+	require.NoError(t, err)
+	return data, reset
+}
+
+func Env(key, value string) Environment {
+	return Environment{key: key, value: value}
+}
+
+type Environment struct {
+	key, value string
+}
+
+func SetEnvironments(environments ...Environment) func() {
+	originalValues := make([]Environment, len(environments))
+
+	for _, env := range environments {
+		originalValues = append(originalValues, Env(env.key, os.Getenv(env.key)))
+		os.Setenv(env.key, env.value)
+	}
+	return func() {
+		for _, env := range originalValues {
+			os.Setenv(env.key, env.value)
+		}
+	}
 }

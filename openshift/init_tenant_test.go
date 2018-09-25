@@ -18,7 +18,11 @@ var emptyCallback = func(statusCode int, method string, request, response map[in
 
 func TestNumberOfCallsToCluster(t *testing.T) {
 	// given
-	defer gock.OffAll()
+	data, reset := testdoubles.LoadTestConfig(t)
+	defer func() {
+		gock.OffAll()
+		reset()
+	}()
 	calls := 0
 	gock.New("http://my.cluster").
 		SetMatcher(SpyOnCalls(&calls)).
@@ -28,14 +32,12 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 		BodyString("{}")
 
 	user := &client.UserDataAttributes{}
-	data, err := testdoubles.LoadTestConfig()
-	require.NoError(t, err)
 	config := openshift.NewConfig(data, user, "clusterUser", "clusterToken", "http://my.cluster", "1a2b")
 	config.HTTPTransport = http.DefaultTransport
-	objectsInTemplates := tmplObjects(t)
+	objectsInTemplates := tmplObjects(t, data)
 
 	// when
-	err = openshift.RawInitTenant(context.Background(), config, emptyCallback, "developer", "12345")
+	err := openshift.RawInitTenant(context.Background(), config, emptyCallback, "developer", "12345")
 
 	// then
 	require.NoError(t, err)

@@ -3,6 +3,7 @@ package openshift_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
@@ -64,7 +65,9 @@ func TestMain(m *testing.M) {
 
 func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
 	// given
-	objects, opts := prepareObjectsAndOpts(t, templateHeader+projectRequestObject+roleBindingRestrictionObject)
+	config, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	objects, opts := prepareObjectsAndOpts(t, templateHeader+projectRequestObject+roleBindingRestrictionObject, config)
 
 	gock.New("http://starter.com").
 		Post("/oapi/v1/projectrequests").
@@ -88,7 +91,9 @@ func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
 
 func TestDeleteIfThereIsConflict(t *testing.T) {
 	// given
-	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject)
+	config, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject, config)
 
 	gock.New("http://starter.com").
 		Post("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions").
@@ -115,7 +120,9 @@ func TestDeleteIfThereIsConflict(t *testing.T) {
 
 func TestDeleteAndGet(t *testing.T) {
 	// given
-	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject)
+	config, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject, config)
 
 	gock.New("http://starter.com").
 		Delete("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
@@ -131,9 +138,7 @@ func TestDeleteAndGet(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func prepareObjectsAndOpts(t *testing.T, content string) (environment.Objects, openshift.ApplyOptions) {
-	config, err := testdoubles.LoadTestConfig()
-	require.NoError(t, err)
+func prepareObjectsAndOpts(t *testing.T, content string, config *configuration.Data) (environment.Objects, openshift.ApplyOptions) {
 	template := environment.Template{Content: content}
 	objects, err := template.Process(environment.CollectVars("aslak", "master", "123", config))
 	require.NoError(t, err)

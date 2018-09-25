@@ -328,10 +328,6 @@ func (c *Data) IsLogJSON() bool {
 	return true
 }
 
-func (c *Data) Set(key string, value interface{}) {
-	c.v.Set(key, value)
-}
-
 // GetTemplateValues return a Map of additional variables used to process the templates
 func (c *Data) GetTemplateValues() (map[string]string, error) {
 	if !c.v.IsSet(varTemplateRecommenderExternalName) {

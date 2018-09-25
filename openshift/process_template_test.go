@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"strings"
 )
 
 func TestPresenceOfTemplateObjects(t *testing.T) {
-	templateObjects := tmplObjects(t)
+	data, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	templateObjects := tmplObjects(t, data)
 
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
 		assert.NoError(t,
@@ -78,8 +80,11 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 	})
 
 	t.Run("verify resource quotas are not present when DISABLE_OSO_QUOTAS is true", func(t *testing.T) {
-		os.Setenv("DISABLE_OSO_QUOTAS", "true")
-		templateObjects := tmplObjects(t)
+		resetEnv := testdoubles.SetEnvironments(testdoubles.Env("DISABLE_OSO_QUOTAS", "true"))
+		defer resetEnv()
+		data, reset := testdoubles.LoadTestConfig(t)
+		defer reset()
+		templateObjects := tmplObjects(t, data)
 
 		assert.Error(t,
 			contain(templateObjects,
@@ -97,9 +102,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 	})
 }
 
-func tmplObjects(t *testing.T) environment.Objects {
-	data, err := testdoubles.LoadTestConfig()
-	assert.NoError(t, err)
+func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
 	config := openshift.Config{OriginalConfig: data, MasterUser: "master"}
 	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, "developer")
 	assert.NoError(t, err)
