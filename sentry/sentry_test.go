@@ -29,14 +29,34 @@ func TestInitializeSentryLoggerAndSendRecord(t *testing.T) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 	ctx := goajwt.WithJWT(context.Background(), token)
+	testError := errors.New("test error")
 
-	// when
-	haltSentry, err := InitializeLogger(config, "123abc")
-	sentry.Sentry().CaptureError(ctx, errors.New("test error"))
-	defer haltSentry()
+	t.Run("use directly sentry method to send a record", func(t *testing.T) {
+		// when
+		haltSentry, err := InitializeLogger(config, "123abc")
+		defer haltSentry()
+		sentry.Sentry().CaptureError(ctx, testError)
+		// then
+		require.NoError(t, err)
+	})
 
-	// then
-	require.NoError(t, err)
+	t.Run("use log error wrapper to send a record", func(t *testing.T) {
+		// given
+		fields := map[string]interface{}{
+			"namespace": "developer-che",
+		}
+
+		// when
+		haltSentry, err := InitializeLogger(config, "123abc")
+		defer haltSentry()
+		LogError(ctx, fields, testError, "test message")
+
+		// then
+		require.NoError(t, err)
+		assert.Len(t, fields, 2)
+		assert.Equal(t, fields["namespace"], "developer-che")
+		assert.Equal(t, fields["err"], testError)
+	})
 }
 
 func TestExtractUserInfo(t *testing.T) {
@@ -82,5 +102,6 @@ func TestExtractUserInfo(t *testing.T) {
 
 		// then
 		require.Error(t, err)
+		assert.Equal(t, err.Error(), "no token found in context")
 	})
 }
