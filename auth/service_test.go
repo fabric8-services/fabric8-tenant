@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveUserToken(t *testing.T) {
@@ -189,4 +190,26 @@ func TestPublicKeys(t *testing.T) {
 		// then
 		assert.Error(t, err)
 	})
+}
+
+func TestInitializeAuthServiceAndGetSaToken(t *testing.T) {
+	// given
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_URL", "http://authservice"))
+	defer reset()
+	record, err := recorder.New("../test/data/token/auth_resolve_target_token")
+	defer func() {
+		err := record.Stop()
+		require.NoError(t, err)
+	}()
+	require.NoError(t, err)
+	config, err := configuration.GetData()
+	require.NoError(t, err)
+
+	// when
+	authService, err := auth.NewAuthService(config, configuration.WithRoundTripper(record))
+
+	// then
+	require.NoError(t, err)
+	expSaToken := "jA0ECQMC5AvXo6Jyrj5g0kcBv6Qp8ZTWCgYD6TESuc2OxSDZ1lic1tmV6g4IcQUBlohjT3gyQX2oTa1bWfNkk8xY6wyPq8CUK3ReOnnDK/yo661f6LXgvA=="
+	assert.Equal(t, authService.SaToken, expSaToken)
 }
