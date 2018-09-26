@@ -33,11 +33,18 @@ func WithContext(ctx context.Context) unleash.FeatureOption {
 	token := goajwt.ContextJWT(ctx)
 	if token != nil {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			uctx.UserId = fmt.Sprint(claims["sub"])
-			uctx.SessionId = fmt.Sprint(claims["session_state"])
+			uctx.UserId = toString(claims["sub"])
+			uctx.SessionId = toString(claims["session_state"])
 		}
 	}
 	return unleash.WithContext(uctx)
+}
+
+func toString(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprint(value)
 }
 
 // IsEnabled wraps unleash for a simpler API
