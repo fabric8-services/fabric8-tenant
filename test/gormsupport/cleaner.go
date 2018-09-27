@@ -3,7 +3,7 @@ package gormsupport
 import (
 	"database/sql"
 
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
 	uuid "github.com/satori/go.uuid"
 
 	"fmt"

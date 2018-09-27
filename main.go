@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -19,7 +20,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
-	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -47,9 +47,6 @@ func main() {
 			"err": err,
 		}, "failed to setup the configuration")
 	}
-
-	// Initialized developer mode flag for the logger
-	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
 
 	db := connect(config)
 	defer db.Close()

@@ -26,7 +26,7 @@ type Environment struct {
 }
 
 func SetEnvironments(environments ...Environment) func() {
-	originalValues := make([]Environment, len(environments))
+	originalValues := make([]Environment, 0, len(environments))
 
 	for _, env := range environments {
 		originalValues = append(originalValues, Env(env.key, os.Getenv(env.key)))

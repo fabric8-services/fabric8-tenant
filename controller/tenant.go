@@ -7,21 +7,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	env "github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
 	"gopkg.in/yaml.v2"
 )
 
@@ -60,7 +60,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: userToken}
+	ttoken := &token.TenantToken{Token: userToken}
 	exists := c.tenantService.Exists(ttoken.Subject())
 	if exists {
 		return ctx.Conflict()
@@ -123,10 +123,9 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			openshiftUserToken)
 
 		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":     err,
+			sentry.LogError(ctx, map[string]interface{}{
 				"os_user": openshiftUsername,
-			}, "unable initialize tenant")
+			}, err, "unable initialize tenant")
 		}
 	}()
 
@@ -140,7 +139,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: userToken}
+	ttoken := &token.TenantToken{Token: userToken}
 	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
@@ -199,10 +198,9 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			openshiftUsername)
 
 		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":     err,
+			sentry.LogError(ctx, map[string]interface{}{
 				"os_user": openshiftUsername,
-			}, "unable initialize tenant")
+			}, err, "unable initialize tenant")
 		}
 	}()
 
@@ -216,7 +214,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &TenantToken{token: userToken}
+	ttoken := &token.TenantToken{Token: userToken}
 
 	// fetch the cluster the user belongs to
 	user, err := c.userService.GetUser(ctx, ttoken.Subject())
@@ -267,12 +265,12 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 
 // Show runs the setup action.
 func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
-	token := goajwt.ContextJWT(ctx)
-	if token == nil {
+	userToken := goajwt.ContextJWT(ctx)
+	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 
-	ttoken := &TenantToken{token: token}
+	ttoken := &token.TenantToken{Token: userToken}
 	tenantID := ttoken.Subject()
 	tenant, err := c.tenantService.GetTenant(tenantID)
 	if err != nil {
@@ -378,47 +376,6 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		}, "unhandled resource response")
 		return "", nil
 	}
-}
-
-func OpenshiftToken(openshiftConfig openshift.Config, token *jwt.Token) (string, error) {
-	return "", nil
-}
-
-// TenantToken the token on the tenant
-type TenantToken struct {
-	token *jwt.Token
-}
-
-// Subject returns the value of the `sub` claim in the token
-func (t TenantToken) Subject() uuid.UUID {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		id, err := uuid.FromString(claims["sub"].(string))
-		if err != nil {
-			return uuid.UUID{}
-		}
-		return id
-	}
-	return uuid.UUID{}
-}
-
-// Username returns the value of the `preferred_username` claim in the token
-func (t TenantToken) Username() string {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		answer := claims["preferred_username"].(string)
-		if len(answer) == 0 {
-			answer = claims["username"].(string)
-		}
-		return answer
-	}
-	return ""
-}
-
-// Email returns the value of the `email` claim in the token
-func (t TenantToken) Email() string {
-	if claims, ok := t.token.Claims.(jwt.MapClaims); ok {
-		return claims["email"].(string)
-	}
-	return ""
 }
 
 func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, resolveCluster cluster.Resolve) *app.Tenant {

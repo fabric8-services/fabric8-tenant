@@ -5,9 +5,10 @@ import (
 
 	"sync"
 
+	"github.com/fabric8-services/fabric8-common/log"
 	env "github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-wit/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -33,24 +34,21 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 				defer wg.Done()
 				err := ApplyProcessed(Filter(objects, IsOfKind(env.ValKindProjectRequest, env.ValKindNamespace)), userOpts)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{
+					sentry.LogError(ctx, map[string]interface{}{
 						"namespace": namespace,
-						"err":       err,
-					}, "error init user project, ProjectRequest")
+					}, err, "error init user project, ProjectRequest")
 				}
 				err = ApplyProcessed(Filter(objects, IsOfKind(env.ValKindRoleBindingRestriction)), opts)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{
+					sentry.LogError(ctx, map[string]interface{}{
 						"namespace": namespace,
-						"err":       err,
-					}, "error init user project, RoleBindingRestrictions")
+					}, err, "error init user project, RoleBindingRestrictions")
 				}
 				err = ApplyProcessed(Filter(objects, IsNotOfKind(env.ValKindProjectRequest, env.ValKindNamespace, env.ValKindRoleBindingRestriction)), userOpts)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{
+					sentry.LogError(ctx, map[string]interface{}{
 						"namespace": namespace,
-						"err":       err,
-					}, "error init user project, Other")
+					}, err, "error init user project, Other")
 				}
 				_, err = apply(
 					CreateAdminRoleBinding(namespace),
@@ -69,10 +67,9 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 					),
 				)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{
+					sentry.LogError(ctx, map[string]interface{}{
 						"namespace": namespace,
-						"err":       err,
-					}, "error unable to delete Admin role from project")
+					}, err, "error unable to delete Admin role from project")
 				}
 			}(key, val, masterOpts, userOpts)
 		} else {
@@ -80,10 +77,9 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 				defer wg.Done()
 				err := ApplyProcessed(objects, opts)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{
+					sentry.LogError(ctx, map[string]interface{}{
 						"namespace": namespace,
-						"err":       err,
-					}, "error dsaas project")
+					}, err, "error dsaas project")
 				}
 			}(key, val, masterOpts)
 		}
@@ -118,11 +114,10 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, user
 				opts.WithNamespace(namespace),
 			)
 			if err != nil {
-				log.Error(ctx, map[string]interface{}{
+				sentry.LogError(ctx, map[string]interface{}{
 					"output":    output,
 					"namespace": namespace,
-					"error":     err,
-				}, "failed")
+				}, err, "ns update failed")
 				return
 			}
 			log.Info(ctx, map[string]interface{}{

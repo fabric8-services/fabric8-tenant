@@ -3,10 +3,10 @@ package gormsupport
 import (
 	"os"
 
+	"github.com/fabric8-services/fabric8-common/log"
 	config "github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
-	"github.com/fabric8-services/fabric8-wit/log"
 
 	"context"
 

@@ -5,10 +5,11 @@ import (
 	"os"
 	"time"
 
+	"fmt"
 	unleash "github.com/Unleash/unleash-client-go"
 	ucontext "github.com/Unleash/unleash-client-go/context"
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
@@ -32,11 +33,18 @@ func WithContext(ctx context.Context) unleash.FeatureOption {
 	token := goajwt.ContextJWT(ctx)
 	if token != nil {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			uctx.UserId = claims["sub"].(string)
-			uctx.SessionId = claims["session_state"].(string)
+			uctx.UserId = toString(claims["sub"])
+			uctx.SessionId = toString(claims["session_state"])
 		}
 	}
 	return unleash.WithContext(uctx)
+}
+
+func toString(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprint(value)
 }
 
 // IsEnabled wraps unleash for a simpler API
