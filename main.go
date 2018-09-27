@@ -19,6 +19,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
@@ -49,9 +50,6 @@ func main() {
 			"err": err,
 		}, "failed to setup the configuration")
 	}
-
-	// Initialized developer mode flag for the logger
-	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
 
 	db := connect(config)
 	defer db.Close()
@@ -131,6 +129,14 @@ func main() {
 	defer clusterService.Stop()
 
 	openshiftService := openshift.NewService()
+
+	haltSentry, err := sentry.InitializeLogger(config, controller.Commit)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the sentry client")
+	}
+	defer haltSentry()
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{

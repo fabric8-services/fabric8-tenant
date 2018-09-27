@@ -2,17 +2,16 @@ package cluster
 
 import (
 	"context"
-	"io/ioutil"
-	"sync"
-	"time"
-
 	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Cluster a cluster

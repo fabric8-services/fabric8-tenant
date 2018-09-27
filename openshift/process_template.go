@@ -17,9 +17,9 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/template"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
-	"github.com/fabric8-services/fabric8-wit/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 )
