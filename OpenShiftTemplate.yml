@@ -128,10 +128,10 @@ objects:
                 name: f8tenant
                 key: sentry.dsn
           - name: F8_ENVIRONMENT
-              valueFrom:
-                configMapKeyRef:
-                  name: f8tenant
-                  key: environment
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: environment
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
