@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-wit/log"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	errs "github.com/pkg/errors"
 	jose "gopkg.in/square/go-jose.v2"

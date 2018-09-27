@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 )
 
 // CleanTenant clean or remove
@@ -34,12 +35,11 @@ func CleanTenant(ctx context.Context, config Config, username string, templateVa
 				opts.WithNamespace(namespace),
 			)
 			if err != nil {
-				log.Error(ctx, map[string]interface{}{
+				sentry.LogError(ctx, map[string]interface{}{
 					"output":      output,
 					"cluster_url": opts.MasterURL,
 					"namespace":   namespace,
-					"error":       err,
-				}, "clean failed")
+				}, err, "clean failed")
 				return
 			}
 			log.Info(ctx, map[string]interface{}{

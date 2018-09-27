@@ -9,8 +9,8 @@ import (
 	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/dnaeon/go-vcr/recorder"
+	"github.com/fabric8-services/fabric8-common/log"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
-	"github.com/fabric8-services/fabric8-wit/log"
 	errs "github.com/pkg/errors"
 )
 
