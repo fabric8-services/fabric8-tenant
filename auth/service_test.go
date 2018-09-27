@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
@@ -39,14 +40,15 @@ func TestResolveUserToken(t *testing.T) {
 		// when
 		_, _, err := authService.ResolveUserToken(context.Background(), "some_invalid_resource", tok.Raw)
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err, testsupport.IsOfType(errors.InternalError{}),
+			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"))
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
 		// when
 		_, _, err := authService.ResolveUserToken(context.Background(), "some_valid_openshift_resource", "")
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err, testsupport.HasMessage("token must not be empty"))
 	})
 }
 
@@ -86,7 +88,8 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		// when
 		_, _, err = authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining("error while resolving the token for some_valid_openshift_resource"))
 	})
 
 	t.Run("invalid resource", func(t *testing.T) {
@@ -95,7 +98,8 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		// when
 		_, _, err := authService.ResolveSaToken(context.Background(), "some_invalid_resource")
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"))
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
@@ -104,7 +108,7 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		// when
 		_, _, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err, testsupport.HasMessage("token must not be empty"))
 	})
 }
 
@@ -112,21 +116,21 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 	tests := []struct {
 		name    string
 		user    string
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name:    "normal input to see if cluster is parsed",
-			wantErr: false,
+			wantErr: "",
 			user:    "normal_user",
 		},
 		{
 			name:    "bad status code",
-			wantErr: true,
+			wantErr: "Not Found error: 404 not_found",
 			user:    "bad_status_code_user",
 		},
 		{
 			name:    "make code fail on parsing output",
-			wantErr: true,
+			wantErr: "invalid character",
 			user:    "wrong_output_user",
 		},
 	}
@@ -157,8 +161,10 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			user, err := authClientService.GetUser(goajwt.WithJWT(context.Background(), userToken))
 
 			// then
-			if testData.wantErr {
-				require.Error(t, err)
+			if testData.wantErr != "" {
+				testsupport.AssertError(t, err,
+					testsupport.HasMessageContaining("error from server \"http://authservice\""),
+					testsupport.HasMessageContaining(testData.wantErr))
 				return
 			}
 			require.NoError(t, err)
@@ -188,7 +194,8 @@ func TestPublicKeys(t *testing.T) {
 		// when
 		_, err := authService.GetPublicKeys()
 		// then
-		assert.Error(t, err)
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining("unable to get public keys from the auth service"))
 	})
 }
 

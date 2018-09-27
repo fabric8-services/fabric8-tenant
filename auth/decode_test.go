@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/auth"
+	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +26,7 @@ func TestDecryptSuccess(t *testing.T) {
 		// when
 		_, err := auth.NewGPGDecypter("foo2")(testEncryptedMessage)
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err, testsupport.HasMessage("unable to decrypt token with given key"))
 	})
 
 }

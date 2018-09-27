@@ -6,20 +6,19 @@ import (
 	"io/ioutil"
 
 	"crypto/rsa"
+	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	commonerrs "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-wit/rest"
 	goaclient "github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
+	errs "github.com/pkg/errors"
 	"gopkg.in/square/go-jose.v2"
 	"net/http"
-
-	"encoding/json"
-	"github.com/fabric8-services/fabric8-wit/rest"
-	errs "github.com/pkg/errors"
 )
 
 type Service struct {
@@ -257,12 +256,10 @@ func (s *Service) GetPublicKeys() ([]*rsa.PublicKey, error) {
 	defer res.Body.Close()
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
-		if err != nil {
-			log.Error(context.Background(), map[string]interface{}{
-				"err": err.Error(),
-			}, "unable to read public keys from the auth service")
-			return nil, errs.Wrap(err, "unable to read public keys from the auth service")
-		}
+		log.Error(context.Background(), map[string]interface{}{
+			"response_status": res.Status,
+		}, "unable to get public keys from the auth service")
+		return nil, errors.New("unable to get public keys from the auth service")
 	}
 	keys, err := unmarshalKeys([]byte(bodyString))
 	if err != nil {
