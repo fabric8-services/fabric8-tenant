@@ -81,7 +81,7 @@ func TestFoundCheMultiTenant(t *testing.T) {
 	require.NoError(t, err)
 	params, ok := template["parameters"].([]interface{})
 	require.True(t, ok)
-	assert.Equal(t, 6, len(params), "unknown number of parameters")
+	assert.Equal(t, 7, len(params), "unknown number of parameters")
 }
 
 func TestFoundCheMultiTenantKnownTypes(t *testing.T) {
