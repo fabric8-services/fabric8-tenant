@@ -1,9 +1,10 @@
-package token_test
+package auth_test
 
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-tenant/token"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,7 @@ func TestDecryptSuccess(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		// when
-		txt, err := token.NewGPGDecypter("foo")(testEncryptedMessage)
+		txt, err := auth.NewGPGDecypter("foo")(testEncryptedMessage)
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, txt)
@@ -23,9 +24,9 @@ func TestDecryptSuccess(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// when
-		_, err := token.NewGPGDecypter("foo2")(testEncryptedMessage)
+		_, err := auth.NewGPGDecypter("foo2")(testEncryptedMessage)
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err, testsupport.HasMessage("unable to decrypt token with given key"))
 	})
 
 }
