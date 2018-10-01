@@ -15,16 +15,14 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -56,7 +54,7 @@ var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, 
 func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	// given
-	svc, ctrl, err := newTestTenantsController(s.DB, "show-tenants")
+	svc, ctrl, err := s.newTestTenantsController("show-tenants")
 	require.NoError(s.T(), err)
 
 	s.T().Run("OK", func(t *testing.T) {
@@ -96,7 +94,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
-	svc, ctrl, err := newTestTenantsController(s.DB, "search-tenants")
+	svc, ctrl, err := s.newTestTenantsController("search-tenants")
 	require.NoError(s.T(), err)
 
 	s.T().Run("OK", func(t *testing.T) {
@@ -162,7 +160,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-204")
+			svc, ctrl, err := s.newTestTenantsController("delete-tenants-204")
 			require.NoError(t, err)
 			// when
 			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -196,7 +194,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-403")
+			svc, ctrl, err := s.newTestTenantsController("delete-tenants-403")
 			require.NoError(t, err)
 			// when
 			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -212,7 +210,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 
 	s.T().Run("Failures", func(t *testing.T) {
 
-		svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-204")
+		svc, ctrl, err := s.newTestTenantsController("delete-tenants-204")
 		require.NoError(t, err)
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
@@ -253,7 +251,7 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := newTestTenantsController(s.DB, "delete-tenants-500")
+			svc, ctrl, err := s.newTestTenantsController("delete-tenants-500")
 			require.NoError(t, err)
 			// when
 			test.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -284,12 +282,12 @@ func createInvalidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *controller.TenantsController, error) {
-	r, err := recorder.New(fmt.Sprintf("../test/data/controller/%s", filename), recorder.WithJWTMatcher())
-	if err != nil {
-		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
-	}
-	defer r.Stop()
+func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (*goa.Service, *controller.TenantsController, error) {
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
+	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
+	authService, r, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", recorder.WithJWTMatcher)
+	defer cleanup()
 
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
@@ -301,35 +299,19 @@ func newTestTenantsController(db *gorm.DB, filename string) (*goa.Service, *cont
 		fmt.Printf("error occurred: %v", err)
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
+	authService.SaToken = saToken.Raw
 
-	authURL := "http://authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
-	clusterService, err := cluster.NewService(
-		authURL,
-		time.Hour,
-		saToken.Raw,
-		resolveToken,
-		token.NewGPGDecypter("foo"),
-		configuration.WithRoundTripper(r),
-	)
+	clusterService := cluster.NewClusterService(time.Hour, authService)
+	err = clusterService.Start()
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
 
-	resolveCluster := cluster.NewResolve(clusterService)
-	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
-		// log.Debug(ctx, map[string]interface{}{"user_token": userToken}, "attempting to resolve tenant for user...")
-		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
-	}
-	tenantService := tenant.NewDBService(db)
-	userService := user.NewService(
-		authURL,
-		saToken.Raw,
-		configuration.WithRoundTripper(r),
-	)
+	tenantService := tenant.NewDBService(s.DB)
+
 	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
 	defaultOpenshiftConfig := openshift.Config{}
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenantService, userService, openshiftService, resolveTenant, resolveCluster, defaultOpenshiftConfig)
+	ctrl := controller.NewTenantsController(svc, tenantService, clusterService, authService, openshiftService, defaultOpenshiftConfig)
 	return svc, ctrl, nil
 }

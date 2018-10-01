@@ -9,7 +9,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // WhoAmI checks with OSO who owns the current token.

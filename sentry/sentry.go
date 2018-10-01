@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-common/sentry"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/getsentry/raven-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
@@ -29,7 +29,7 @@ func extractUserInfo() func(ctx context.Context) (*raven.User, error) {
 		if userToken == nil {
 			return nil, fmt.Errorf("no token found in context")
 		}
-		ttoken := &token.TenantToken{Token: userToken}
+		ttoken := &auth.TenantToken{Token: userToken}
 		return &raven.User{
 			Username: ttoken.Username(),
 			Email:    ttoken.Email(),

@@ -14,12 +14,8 @@ import (
 	goaclient "github.com/goadesign/goa/client"
 )
 
-type clientImpl struct {
-	client authclient.Client
-}
-
-// NewClient returns a new auth client
-func NewClient(authURL, token string, options ...configuration.HTTPClientOption) (*authclient.Client, error) {
+// newClient returns a new auth client
+func newClient(authURL, token string, options ...configuration.HTTPClientOption) (*authclient.Client, error) {
 	u, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err

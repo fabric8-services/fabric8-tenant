@@ -49,14 +49,14 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=true
+    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
     status: 200 OK
     code: 200
     body: '{ 
-			"access_token": "an_openshift_token",
+			"access_token": "jA0ECQMC5AvXo6Jyrj5g0kcBv6Qp8ZTWCgYD6TESuc2OxSDZ1lic1tmV6g4IcQUBlohjT3gyQX2oTa1bWfNkk8xY6wyPq8CUK3ReOnnDK/yo661f6LXgvA==",
 			"token_type": "bearer",
 			"username": "tenant_service"
 		}'
@@ -111,3 +111,18 @@ interactions:
         }
       ]
     }'
+- request:
+    method: POST
+    url: http://authservice/api/token
+    body: '{
+        "grant_type":"client_credentials",
+        "client_id":"c211f1bd-17a7-4f8c-9f80-0917d167889d",
+        "client_secret":"tenantsecretNew"
+      }'
+  response:
+    status: 200 OK
+    code: 200
+    body: '{
+               "access_token": "jA0ECQMC5AvXo6Jyrj5g0kcBv6Qp8ZTWCgYD6TESuc2OxSDZ1lic1tmV6g4IcQUBlohjT3gyQX2oTa1bWfNkk8xY6wyPq8CUK3ReOnnDK/yo661f6LXgvA==",
+               "token_type": "bearer"
+           }'

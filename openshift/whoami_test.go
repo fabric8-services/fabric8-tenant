@@ -14,7 +14,7 @@ import (
 
 func TestWhoAmI(t *testing.T) {
 	// given
-	r, err := recorder.New("../test/data/openshift/whoami", recorder.WithJWTMatcher())
+	r, err := recorder.New("../test/data/openshift/whoami", recorder.WithJWTMatcher)
 	require.NoError(t, err)
 	defer r.Stop()
 	tok, err := testsupport.NewToken(map[string]interface{}{

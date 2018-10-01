@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/dnaeon/go-vcr/recorder"
@@ -25,10 +25,8 @@ func WithMatcher(matcher cassette.Matcher) Option {
 }
 
 // WithJWTMatcher an option to specify the JWT matcher for the recorder
-func WithJWTMatcher() Option {
-	return func(r *recorder.Recorder) {
-		r.SetMatcher(JWTMatcher())
-	}
+func WithJWTMatcher(r *recorder.Recorder) {
+	r.SetMatcher(JWTMatcher())
 }
 
 // New creates a new recorder

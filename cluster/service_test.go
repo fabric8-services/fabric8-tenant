@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
-	"github.com/fabric8-services/fabric8-tenant/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,11 +18,11 @@ import (
 func TestResolveCluster(t *testing.T) {
 
 	// given
-	r, err := recorder.New("../test/data/cluster/resolve_cluster.fast", recorder.WithJWTMatcher())
-	require.NoError(t, err)
-	defer r.Stop()
-	authURL := "http://fast.authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.fast", "http://fast.authservice", recorder.WithJWTMatcher)
+	defer cleanup()
+
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -31,23 +30,18 @@ func TestResolveCluster(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-	clusterService, err := cluster.NewService(
-		authURL,
-		time.Hour, // make sure the refresher does not interfer
-		saToken.Raw,
-		resolveToken,
-		token.NewGPGDecypter("foo"),
-		configuration.WithRoundTripper(r),
-	)
+	authService.SaToken = saToken.Raw
+	clusterService := cluster.NewClusterService(time.Hour, authService)
+	err = clusterService.Start()
+
 	require.NoError(t, err)
 	defer clusterService.Stop()
 
 	t.Run("cluster - end slash", func(t *testing.T) {
 		// given
 		target := "http://api.cluster1"
-		resolve := cluster.NewResolve(clusterService)
 		// when
-		found, err := resolve(context.Background(), target)
+		found, err := clusterService.GetCluster(context.Background(), target)
 		// then
 		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
@@ -56,9 +50,8 @@ func TestResolveCluster(t *testing.T) {
 	t.Run("cluster - no end slash", func(t *testing.T) {
 		// given
 		target := "https://api.cluster2"
-		resolve := cluster.NewResolve(clusterService)
 		// when
-		found, err := resolve(context.Background(), target+"/")
+		found, err := clusterService.GetCluster(context.Background(), target+"/")
 		// then
 		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
@@ -67,9 +60,8 @@ func TestResolveCluster(t *testing.T) {
 	t.Run("both slash", func(t *testing.T) {
 		// given
 		target := "http://api.cluster1/"
-		resolve := cluster.NewResolve(clusterService)
 		// when
-		found, err := resolve(context.Background(), target)
+		found, err := clusterService.GetCluster(context.Background(), target)
 		// then
 		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
@@ -78,9 +70,8 @@ func TestResolveCluster(t *testing.T) {
 	t.Run("no slash", func(t *testing.T) {
 		// given
 		target := "https://api.cluster2"
-		resolve := cluster.NewResolve(clusterService)
 		// when
-		found, err := resolve(context.Background(), target)
+		found, err := clusterService.GetCluster(context.Background(), target)
 		// then
 		require.NoError(t, err)
 		assert.Contains(t, found.APIURL, target)
@@ -89,11 +80,10 @@ func TestResolveCluster(t *testing.T) {
 
 func TestGetClusters(t *testing.T) {
 	// given
-	r, err := recorder.New("../test/data/cluster/resolve_cluster.slow", recorder.WithJWTMatcher())
-	require.NoError(t, err)
-	defer r.Stop()
-	authURL := "http://slow.authservice"
-	resolveToken := token.NewResolve(authURL, configuration.WithRoundTripper(r))
+	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	defer reset()
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.slow", "http://slow.authservice", recorder.WithJWTMatcher)
+	defer cleanup()
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -101,23 +91,17 @@ func TestGetClusters(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
+	authService.SaToken = saToken.Raw
 
 	t.Run("ok", func(t *testing.T) {
-		// given
-		clusterService, err := cluster.NewService(
-			authURL,
-			time.Hour, // don't want to interfer with the refresher here
-			saToken.Raw,
-			resolveToken,
-			token.NewGPGDecypter("foo"),
-			configuration.WithRoundTripper(r),
-		)
+
+		clusterService := cluster.NewClusterService(time.Hour, authService)
+		err := clusterService.Start()
 		require.NoError(t, err)
 		defer clusterService.Stop()
 		// when
-		clusters, err := clusterService.GetClusters(context.Background())
+		clusters := clusterService.GetClusters(context.Background())
 		// then
-		require.NoError(t, err)
 		require.Len(t, clusters, 2)
 		assert.Equal(t, "http://api.cluster1/", clusters[0].APIURL)
 		assert.Equal(t, "foo", clusters[0].AppDNS)
@@ -132,15 +116,8 @@ func TestGetClusters(t *testing.T) {
 	t.Run("cache", func(t *testing.T) {
 
 		t.Run("concurrent reads", func(t *testing.T) {
-			// given
-			clusterService, err := cluster.NewService(
-				authURL,
-				time.Second, // make sure the refresher does not interfer
-				saToken.Raw,
-				resolveToken,
-				token.NewGPGDecypter("foo"),
-				configuration.WithRoundTripper(r),
-			)
+			clusterService := cluster.NewClusterService(time.Second, authService)
+			err := clusterService.Start()
 			require.NoError(t, err)
 			defer clusterService.Stop()
 			// when 5 requests arrive at the same time (more or less)
@@ -153,9 +130,8 @@ func TestGetClusters(t *testing.T) {
 					defer wg.Done()
 					// wait a random amount of time
 					time.Sleep(time.Duration(rand.Intn(3000)) * time.Millisecond)
-					clusters, err := clusterService.GetClusters(context.Background())
+					clusters := clusterService.GetClusters(context.Background())
 					// then
-					require.NoError(t, err)
 					results <- len(clusters)
 					require.Len(t, clusters, 2)
 				}()
