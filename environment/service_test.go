@@ -3,6 +3,7 @@ package environment_test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -60,6 +61,38 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 
 		for _, template := range env.Templates {
 			assert.NotEmpty(t, template.Content)
+		}
+	}
+}
+
+func TestAllTemplatesHaveNecessaryData(t *testing.T) {
+	// given
+	service := environment.NewService("", "", "")
+	vars := map[string]string{
+		"USER_NAME": "dev",
+		"COMMIT":    "123",
+	}
+
+	for _, envType := range environment.DefaultEnvTypes {
+		nsName := "dev-" + envType
+		if envType == string(tenant.TypeUser) {
+			nsName = "dev"
+		}
+
+		// when
+		env, err := service.GetEnvData(context.Background(), envType)
+		require.NoError(t, err)
+		objects, err := env.Templates[0].Process(vars)
+		require.NoError(t, err)
+
+		//then
+		for _, obj := range objects {
+			assert.Equal(t, "123", environment.GetLabelVersion(obj))
+			if environment.GetKind(obj) != environment.ValKindProjectRequest {
+				assert.Contains(t, environment.GetNamespace(obj), nsName)
+			} else {
+				assert.Contains(t, environment.GetName(obj), nsName)
+			}
 		}
 	}
 }

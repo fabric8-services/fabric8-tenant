@@ -26,7 +26,7 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 	calls := 0
 	gock.New("http://my.cluster").
 		SetMatcher(SpyOnCalls(&calls)).
-		//Times(73).
+		Times(78).
 		Persist().
 		Reply(200).
 		BodyString("{}")
