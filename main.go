@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"net/http"
 	"os"
@@ -9,16 +8,16 @@ import (
 
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -59,7 +58,14 @@ func main() {
 
 	toggles.Init("f8tenant", config.GetTogglesURL())
 
-	publicKeys, err := token.GetPublicKeys(context.Background(), config.GetAuthURL())
+	authService, err := auth.NewAuthService(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to initialize the auth.Service component")
+	}
+
+	publicKeys, err := authService.GetPublicKeys()
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err":    err,
@@ -81,23 +87,8 @@ func main() {
 	service.Use(log.LogRequest(config.IsDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, goajwt.New(publicKeys, nil, app.NewJWTSecurity()))
 
-	// fetch service account token for tenant service
-	saTokenService := token.NewServiceAccountTokenService(config)
-	saToken, err := saTokenService.GetOAuthToken(context.Background())
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to fetch service account token")
-	}
-
-	resolveToken := token.NewResolve(config.GetAuthURL())
-	clusterService, err := cluster.NewService(
-		config.GetAuthURL(),
-		config.GetClustersRefreshDelay(),
-		*saToken,
-		resolveToken,
-		token.NewGPGDecypter(config.GetTokenKey()),
-	)
+	clusterService := cluster.NewClusterService(config.GetClustersRefreshDelay(), authService)
+	err = clusterService.Start()
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -105,15 +96,15 @@ func main() {
 	}
 	defer clusterService.Stop()
 
-	resolveCluster := cluster.NewResolve(clusterService)
-	resolveTenant := func(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
-		return resolveToken(ctx, target, userToken, false, token.PlainText) // no need to use "forcePull=true" to validate the user's token on the target.
-	}
-
 	openshiftService := openshift.NewService()
 
-	// create user profile client to get the user's cluster
-	userService := user.NewService(config.GetAuthURL(), *saToken)
+	haltSentry, err := sentry.InitializeLogger(config, controller.Commit)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the sentry client")
+	}
+	defer haltSentry()
 
 	tenantService := tenant.NewDBService(db)
 
@@ -122,10 +113,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, userService, resolveTenant, resolveCluster, config)
+	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, config)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, userService, openshiftService, resolveTenant, resolveCluster)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

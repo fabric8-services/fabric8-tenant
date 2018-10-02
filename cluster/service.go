@@ -2,19 +2,16 @@ package cluster
 
 import (
 	"context"
+	"fmt"
+	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/fabric8-services/fabric8-common/log"
-	"github.com/fabric8-services/fabric8-tenant/auth"
-	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	goaclient "github.com/goadesign/goa/client"
-	"github.com/pkg/errors"
 )
 
 // Cluster a cluster
@@ -30,17 +27,13 @@ type Cluster struct {
 	Token string
 }
 
-func cleanURL(url string) string {
-	if !strings.HasSuffix(url, "/") {
-		return url + "/"
-	}
-	return url
-}
+type GetCluster func(ctx context.Context, target string) (Cluster, error)
 
 // Service the interface for the cluster service
 type Service interface {
-	GetClusters(context.Context) ([]Cluster, error)
-	Stats() Stats
+	GetCluster(ctx context.Context, target string) (Cluster, error)
+	GetClusters(ctx context.Context) []Cluster
+	Start() error
 	Stop()
 }
 
@@ -51,74 +44,88 @@ type Stats struct {
 	CacheRefreshes int
 }
 
-// NewService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewService(authURL string, clustersRefreshDelay time.Duration, serviceToken string, resolveToken token.Resolve, decode token.Decode, options ...configuration.HTTPClientOption) (Service, error) {
-	// setup a ticker to refresh the cluster cache at regular intervals
-	cacheRefresher := time.NewTicker(clustersRefreshDelay)
-	s := &clusterService{
-		authURL:          authURL,
-		serviceToken:     serviceToken,
-		resolveToken:     resolveToken,
-		decode:           decode,
-		cacheRefresher:   cacheRefresher,
-		cacheRefreshLock: &sync.RWMutex{},
-		clientOptions:    options}
-	// immediately load the list of clusters before returning
-	err := s.refreshCache(context.Background())
-	if err != nil {
-		log.Error(nil, map[string]interface{}{"error_message": err}, "failed to load the list of clusters during service initialization")
-		return nil, err
-	}
-	go func() {
-		for range cacheRefresher.C { // while the `cacheRefresh` ticker is running
-			s.refreshCache(context.Background())
-		}
-	}()
-	return s, nil
-}
-
 type clusterService struct {
-	authURL          string
-	serviceToken     string
-	resolveToken     token.Resolve
+	authService      *auth.Service
 	cacheRefresher   *time.Ticker
 	cacheRefreshLock *sync.RWMutex
 	cacheHits        int
 	cacheMissed      int
 	cacheRefreshes   int
 	cachedClusters   []Cluster
-	decode           token.Decode
-	clientOptions    []configuration.HTTPClientOption
 }
 
-func (s *clusterService) GetClusters(ctx context.Context) ([]Cluster, error) {
+// NewClusterService creates an instance of service that using the Auth service retrieves information about clusters
+func NewClusterService(refreshInt time.Duration, authService *auth.Service) Service {
+	// setup a ticker to refresh the cluster cache at regular intervals
+	cacheRefresher := time.NewTicker(refreshInt)
+	service := &clusterService{
+		authService:      authService,
+		cacheRefresher:   cacheRefresher,
+		cacheRefreshLock: &sync.RWMutex{},
+	}
+	return service
+}
+
+func (s *clusterService) Start() error {
+	//immediately load the list of clusters before returning
+	err := s.refreshCache(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to load the list of clusters during service initialization: %s", err)
+	}
+	go func() {
+		for range s.cacheRefresher.C { // while the `cacheRefresh` ticker is running
+			err := s.refreshCache(context.Background())
+			if err != nil {
+				log.Error(nil, map[string]interface{}{
+					"err": err,
+				}, "failed to load the list of clusters")
+			}
+		}
+	}()
+	return nil
+}
+
+func (s *clusterService) GetCluster(ctx context.Context, target string) (Cluster, error) {
+	for _, cluster := range s.GetClusters(ctx) {
+		if cleanURL(target) == cleanURL(cluster.APIURL) {
+			return cluster, nil
+		}
+	}
+	return Cluster{}, fmt.Errorf("unable to resolve cluster")
+}
+
+func (s *clusterService) GetClusters(ctx context.Context) []Cluster {
 	s.cacheRefreshLock.RLock()
+	defer func() {
+		s.cacheRefreshLock.RUnlock()
+		log.Debug(ctx, nil, "read lock released")
+	}()
 	log.Debug(ctx, nil, "read lock acquired")
 	clusters := make([]Cluster, len(s.cachedClusters))
 	copy(clusters, s.cachedClusters)
-	s.cacheRefreshLock.RUnlock()
-	log.Debug(ctx, nil, "read lock released")
-	return clusters, nil // return a copy of the cached clusters
+	return clusters
+
 }
 
 func (s *clusterService) Stop() {
 	s.cacheRefresher.Stop()
 }
 
+func cleanURL(url string) string {
+	if !strings.HasSuffix(url, "/") {
+		return url + "/"
+	}
+	return url
+}
+
 func (s *clusterService) refreshCache(ctx context.Context) error {
 	log.Debug(ctx, nil, "refreshing cached list of clusters...")
 	defer log.Debug(ctx, nil, "refreshed cached list of clusters.")
 	s.cacheRefreshes = s.cacheRefreshes + 1
-	client, err := auth.NewClient(s.authURL, s.serviceToken, s.clientOptions...)
+	client, err := s.authService.NewSaClient()
 	if err != nil {
 		return err
 	}
-	client.SetJWTSigner(
-		&goaclient.JWTSigner{
-			TokenSource: &goaclient.StaticTokenSource{
-				StaticToken: &goaclient.StaticToken{
-					Value: s.serviceToken,
-					Type:  "Bearer"}}})
 
 	res, err := client.ShowClusters(ctx, authclient.ShowClustersPath())
 	if err != nil {
@@ -131,23 +138,23 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 
 	validationerror := auth.ValidateResponse(ctx, client, res)
 	if validationerror != nil {
-		return errors.Wrapf(validationerror, "error from server %q", s.authURL)
+		return errors.Wrapf(validationerror, "error from server %q", s.authService.GetAuthURL())
 	}
 
 	clusters, err := client.DecodeClusterList(res)
 	if err != nil {
-		return errors.Wrapf(err, "error from server %q", s.authURL)
+		return errors.Wrapf(err, "error from server %q", s.authService.GetAuthURL())
 	}
 
 	var cls []Cluster
 	for _, cluster := range clusters.Data {
 		// resolve/obtain the cluster token
-		clusterUser, clusterToken, err := s.resolveToken(ctx, cluster.APIURL, s.serviceToken, false, s.decode) // can't use "forcePull=true" to validate the `tenant service account` token since it's encrypted on auth
+		clusterUser, clusterToken, err := s.authService.ResolveSaToken(ctx, cluster.APIURL)
 		if err != nil {
 			return errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
 		// verify the token
-		_, err = openshift.WhoAmI(ctx, cluster.APIURL, clusterToken, s.clientOptions...)
+		_, err = openshift.WhoAmI(ctx, cluster.APIURL, clusterToken, s.authService.ClientOptions...)
 		if err != nil {
 			return errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
 		}
@@ -166,17 +173,11 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 	}
 	// lock to avoid concurrent writes
 	s.cacheRefreshLock.Lock()
+	defer func() {
+		s.cacheRefreshLock.Unlock()
+		log.Debug(ctx, nil, "write lock released")
+	}()
 	log.Debug(ctx, nil, "write lock acquired")
 	s.cachedClusters = cls // only replace at the end of this function and within a Write lock scope, i.e., when all retrieved clusters have been processed
-	s.cacheRefreshLock.Unlock()
-	log.Debug(ctx, nil, "write lock released")
 	return nil
-}
-
-func (s *clusterService) Stats() Stats {
-	return Stats{
-		CacheHits:      s.cacheHits,
-		CacheMissed:    s.cacheMissed,
-		CacheRefreshes: s.cacheRefreshes,
-	}
 }

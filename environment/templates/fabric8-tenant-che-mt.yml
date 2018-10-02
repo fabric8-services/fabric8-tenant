@@ -43,6 +43,31 @@ objects:
     name: che
     namespace: ${USER_NAME}-che
 - apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: che-workspace
+    namespace: ${USER_NAME}-che
+- apiVersion: v1
+  kind: Role
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: exec
+    namespace: ${USER_NAME}-che
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - pods/exec
+    verbs:
+    - create
+- apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
@@ -79,6 +104,23 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+    name: user-exec
+    namespace: ${USER_NAME}-che
+  roleRef:
+    name: exec
+    namespace: ${USER_NAME}-che
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
     name: user-view
     namespace: ${USER_NAME}-che
   roleRef:
@@ -88,6 +130,35 @@ objects:
     name: ${PROJECT_USER}
   userNames:
   - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: workspace-exec
+    namespace: ${USER_NAME}-che
+  roleRef:
+    name: exec
+    namespace: ${USER_NAME}-che
+  subjects:
+  - kind: ServiceAccount
+    name: che-workspace
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: ${COMMIT}
+    name: workspace-view
+    namespace: ${USER_NAME}-che
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: che-workspace
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:

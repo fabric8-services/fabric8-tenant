@@ -94,25 +94,30 @@
   source = "https://github.com/xcoulon/go-vcr/"
 
 [[projects]]
-  digest = "1:258f52523a7a6ba109904e0d09865b7f10fa07c9a19c70dd93d109085a6f88e1"
+  digest = "1:71bde7ff755e0f2cdc372c89fccefc8a212242111df01e61fadd4d1521a7c920"
   name = "github.com/fabric8-services/fabric8-auth"
   packages = [
     "design",
     "errors",
+    "log",
+    "rest",
+    "token/jwk",
   ]
   pruneopts = "UT"
   revision = "19eb16aaf10758299c4a5360600af983b8470909"
 
 [[projects]]
   branch = "master"
-  digest = "1:dbc3666b46857f9af91d78ba27ad3c261e84ae69947556f8cad094b3b7390236"
+  digest = "1:9d44048273ce4560f36e69544e3a035189af84597d3a08402d12f57700a1f995"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "configuration",
     "errors",
     "httpsupport",
     "log",
+    "login/tokencontext",
     "sentry",
+    "token",
   ]
   pruneopts = "UT"
   revision = "48ce8f91a726c3d628ef372cf543a33325bf6294"
@@ -574,8 +579,10 @@
     "github.com/dnaeon/go-vcr/recorder",
     "github.com/fabric8-services/fabric8-auth/design",
     "github.com/fabric8-services/fabric8-auth/errors",
+    "github.com/fabric8-services/fabric8-common/errors",
     "github.com/fabric8-services/fabric8-common/log",
     "github.com/fabric8-services/fabric8-common/sentry",
+    "github.com/fabric8-services/fabric8-common/token",
     "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/resource",
@@ -608,7 +615,6 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
-    "github.com/spf13/cobra",
     "github.com/spf13/viper",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",

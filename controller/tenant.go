@@ -9,6 +9,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	env "github.com/fabric8-services/fabric8-tenant/environment"
@@ -16,8 +17,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
@@ -28,29 +27,26 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService  tenant.Service
-	resolveTenant  tenant.Resolve
-	userService    user.Service
-	resolveCluster cluster.Resolve
-	config         *configuration.Data
+	tenantService     tenant.Service
+	clusterService    cluster.Service
+	authClientService *auth.Service
+	config            *configuration.Data
 }
 
 // NewTenantController creates a status controller.
 func NewTenantController(
 	service *goa.Service,
 	tenantService tenant.Service,
-	userService user.Service,
-	resolveTenant tenant.Resolve,
-	resolveCluster cluster.Resolve,
+	clusterService cluster.Service,
+	authClientService *auth.Service,
 	config *configuration.Data) *TenantController {
 
 	return &TenantController{
-		Controller:     service.NewController("TenantController"),
-		tenantService:  tenantService,
-		userService:    userService,
-		resolveTenant:  resolveTenant,
-		resolveCluster: resolveCluster,
-		config:         config,
+		Controller:        service.NewController("TenantController"),
+		tenantService:     tenantService,
+		clusterService:    clusterService,
+		authClientService: authClientService,
+		config:            config,
 	}
 }
 
@@ -60,49 +56,39 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &token.TenantToken{Token: userToken}
+	ttoken := &auth.TenantToken{Token: userToken}
 	exists := c.tenantService.Exists(ttoken.Subject())
 	if exists {
 		return ctx.Conflict()
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.GetUser(ctx, ttoken.Subject())
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if user.Cluster == nil {
+	if user.UserData.Cluster == nil {
 		log.Error(ctx, nil, "no cluster defined for tenant")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
 	}
 
-	// fetch the users cluster token
-	openshiftUsername, openshiftUserToken, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.Cluster,
-		}, "unable to fetch tenant token from auth")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
-	}
-
 	// fetch the cluster info
-	cluster, err := c.resolveCluster(ctx, *user.Cluster)
+	cluster, err := c.clusterService.GetCluster(ctx, *user.UserData.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
-			"cluster_url": *user.Cluster,
+			"cluster_url": *user.UserData.Cluster,
 		}, "unable to fetch cluster")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user, cluster.User, cluster.Token, cluster.APIURL, Commit)
+	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL, Commit)
 	tenant := &tenant.Tenant{
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
-		OSUsername: openshiftUsername,
+		OSUsername: user.OpenshiftUsername,
 	}
 	err = c.tenantService.CreateTenant(tenant)
 	if err != nil {
@@ -118,13 +104,13 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		err = openshift.RawInitTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, openshiftUsername),
-			openshiftUsername,
-			openshiftUserToken)
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
+			user.OpenshiftUsername,
+			user.OpenshiftUserToken)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": openshiftUsername,
+				"os_user": user.OpenshiftUsername,
 			}, err, "unable initialize tenant")
 		}
 	}()
@@ -139,47 +125,37 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &token.TenantToken{Token: userToken}
+	ttoken := &auth.TenantToken{Token: userToken}
 	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
 	}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.GetUser(ctx, ttoken.Subject())
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if user.Cluster == nil {
+	if user.UserData.Cluster == nil {
 		log.Error(ctx, nil, "no cluster defined for tenant")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
 	}
 
-	// fetch the users cluster token
-	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
+	cluster, err := c.clusterService.GetCluster(ctx, *user.UserData.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
-			"cluster_url": *user.Cluster,
-		}, "unable to fetch tenant token from auth")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
-	}
-
-	cluster, err := c.resolveCluster(ctx, *user.Cluster)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.Cluster,
+			"cluster_url": *user.UserData.Cluster,
 		}, "unable to fetch cluster")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user, cluster.User, cluster.Token, cluster.APIURL, Commit)
+	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL, Commit)
 
 	// update tenant config
-	tenant.OSUsername = openshiftUsername
+	tenant.OSUsername = user.OpenshiftUsername
 
 	if err = c.tenantService.SaveTenant(tenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -194,12 +170,12 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		err = openshift.RawUpdateTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, openshiftUsername),
-			openshiftUsername)
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
+			user.OpenshiftUsername)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": openshiftUsername,
+				"os_user": user.OpenshiftUsername,
 			}, err, "unable initialize tenant")
 		}
 	}()
@@ -214,43 +190,33 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	if userToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
-	ttoken := &token.TenantToken{Token: userToken}
+	ttoken := &auth.TenantToken{Token: userToken}
 
 	// fetch the cluster the user belongs to
-	user, err := c.userService.GetUser(ctx, ttoken.Subject())
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// restrict deprovision from cluster to internal users only
 	removeFromCluster := false
-	if user.FeatureLevel != nil && *user.FeatureLevel == "internal" {
+	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == "internal" {
 		removeFromCluster = ctx.Remove
 	}
 
-	// fetch the users cluster token
-	openshiftUsername, _, err := c.resolveTenant(ctx, *user.Cluster, userToken.Raw)
+	cluster, err := c.clusterService.GetCluster(ctx, *user.UserData.Cluster)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
-			"cluster_url": *user.Cluster,
-		}, "unable to fetch tenant token from auth")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Could not resolve user token"))
-	}
-
-	cluster, err := c.resolveCluster(ctx, *user.Cluster)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.Cluster,
+			"cluster_url": *user.UserData.Cluster,
 		}, "unable to fetch cluster")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user, cluster.User, cluster.Token, cluster.APIURL, Commit)
+	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL, Commit)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, openshiftUsername, removeFromCluster)
+	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenshiftUsername, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -270,7 +236,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
 	}
 
-	ttoken := &token.TenantToken{Token: userToken}
+	ttoken := &auth.TenantToken{Token: userToken}
 	tenantID := ttoken.Subject()
 	tenant, err := c.tenantService.GetTenant(tenantID)
 	if err != nil {
@@ -282,7 +248,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)}
 	return ctx.OK(result)
 }
 
@@ -378,7 +344,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 	}
 }
 
-func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, resolveCluster cluster.Resolve) *app.Tenant {
+func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, resolveCluster cluster.GetCluster) *app.Tenant {
 	result := app.Tenant{
 		ID:   &tenant.ID,
 		Type: "tenants",

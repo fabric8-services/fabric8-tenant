@@ -77,7 +77,7 @@ assets/js/
 bindata_assetfs.go
 client/
 swagger/
-tool/cli/
+tool/
 migration/sqlbindata.go
 environment/generated/
 auth/client

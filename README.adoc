@@ -32,12 +32,80 @@ To go back to using the default YAML:
 * click `Update Profile`
 * now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] and you should be back to the default versions
 
-=== Unit Testing Go
+=== Development
 
-Tips to running unit tests:
+==== Prerequisites
 
+* git
+* make
+* go (tested with go 1.10.2)
+
+==== How to build
+
+Get the project:
 ```
-make clean && make deps && make test-unit-no-coverage
+$ git clone https://github.com/fabric8-services/fabric8-tenant $GOPATH/src/github.com/fabric8-services/fabric8-tenant
+$ cd $GOPATH/src/github.com/fabric8-services/fabric8-tenant
+```
+Build the project:
+```
+$ make
 ```
 
+==== Run unit tests
 
+
+Clean and generate objects (to have the latest version of the generated files in case of any changes since the last run):
+```
+$ make clean && make generate
+```
+
+Check any dependency changes:
+```
+$ make deps
+```
+
+Run tests (without code coverage):
+```
+$ make test-unit-no-coverage
+```
+
+==== Run integration tests
+
+You can do the same clean, generate and fetch the dependencies as it is suggested for unit tests:
+```
+$ make clean && make generate && make deps
+```
+
+Integration tests need to have a DB running. To use that we need to use a docker image for the build. For now just start it:
+```
+$ make docker-start
+```
+
+And start the DB:
+```
+$ make integration-test-env-prepare
+```
+
+Run all integration tests inside of the docker container (without code coverage):
+```
+$ make docker-test-migration && make docker-test-integration-no-coverage && make docker-test-remote-no-coverage
+```
+
+To stop containers:
+```
+$ make integration-test-env-tear-down
+$ make docker-rm
+```
+
+==== Code formatting
+
+To check if the code is properly formatted run:
+```
+$ make check-go-format
+```
+
+To format the code:
+```
+$ make format-go-code
+```

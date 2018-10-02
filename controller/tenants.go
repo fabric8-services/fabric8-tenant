@@ -4,13 +4,13 @@ import (
 	"reflect"
 
 	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-common/token"
 	"github.com/fabric8-services/fabric8-tenant/app"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/token"
-	"github.com/fabric8-services/fabric8-tenant/user"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/goadesign/goa"
 )
@@ -20,28 +20,25 @@ var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
 // TenantsController implements the tenants resource.
 type TenantsController struct {
 	*goa.Controller
-	tenantService    tenant.Service
-	resolveTenant    tenant.Resolve
-	userService      user.Service
-	openshiftService openshift.Service
-	resolveCluster   cluster.Resolve
+	tenantService     tenant.Service
+	openshiftService  openshift.Service
+	clusterService    cluster.Service
+	authClientService *auth.Service
 }
 
 // NewTenantsController creates a tenants controller.
 func NewTenantsController(service *goa.Service,
 	tenantService tenant.Service,
-	userService user.Service,
+	clusterService cluster.Service,
+	authClientService *auth.Service,
 	openshiftService openshift.Service,
-	resolveTenant tenant.Resolve,
-	resolveCluster cluster.Resolve,
 ) *TenantsController {
 	return &TenantsController{
-		Controller:       service.NewController("TenantsController"),
-		tenantService:    tenantService,
-		resolveTenant:    resolveTenant,
-		userService:      userService,
-		openshiftService: openshiftService,
-		resolveCluster:   resolveCluster,
+		Controller:        service.NewController("TenantsController"),
+		tenantService:     tenantService,
+		clusterService:    clusterService,
+		openshiftService:  openshiftService,
+		authClientService: authClientService,
 	}
 }
 
@@ -62,7 +59,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.resolveCluster)}
+	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)}
 	return ctx.OK(result)
 }
 
@@ -83,7 +80,7 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 
 	result := app.TenantList{
 		Data: []*app.Tenant{
-			convertTenant(ctx, tenant, namespaces, c.resolveCluster),
+			convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster),
 		},
 		// skipping the paging links for now
 		Meta: &app.TenantListMeta{
@@ -105,7 +102,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	}
 	for _, namespace := range namespaces {
 		// fetch the cluster info
-		clustr, err := c.resolveCluster(ctx, namespace.MasterURL)
+		clustr, err := c.clusterService.GetCluster(ctx, namespace.MasterURL)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
