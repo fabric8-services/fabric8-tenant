@@ -82,7 +82,7 @@ items:
       persistentvolumeclaims: "2"
       replicationcontrollers: "20"
       secrets: "20"
-      services: "5"
+      services: "15"
 parameters:
 - name: USER_NAME
   value: developer
