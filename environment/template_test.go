@@ -158,7 +158,7 @@ func TestSort(t *testing.T) {
 	defer reset()
 
 	template := environment.Template{Content: sortTemplate}
-	objects, err := template.Process(environment.CollectVars("developer", "master", "123", data))
+	objects, err := template.Process(environment.CollectVars("developer", "master", data))
 
 	// when
 	sort.Sort(environment.ByKind(objects))
@@ -180,7 +180,7 @@ func TestParseNamespace(t *testing.T) {
 	template := environment.Template{Content: parseNamespaceTemplate}
 
 	// when
-	objects, err := template.Process(environment.CollectVars("developer", "master", "123", data))
+	objects, err := template.Process(environment.CollectVars("developer", "master", data))
 
 	// then
 	require.NoError(t, err)

@@ -32,7 +32,7 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 		BodyString("{}")
 
 	user := &client.UserDataAttributes{}
-	config := openshift.NewConfig(data, user, "clusterUser", "clusterToken", "http://my.cluster", "1a2b")
+	config := openshift.NewConfig(data, user, "clusterUser", "clusterToken", "http://my.cluster")
 	config.HTTPTransport = http.DefaultTransport
 	objectsInTemplates := tmplObjects(t, data)
 

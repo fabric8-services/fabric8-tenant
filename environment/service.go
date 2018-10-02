@@ -24,15 +24,35 @@ const (
 	templatesDirectory     = "environment/templates/"
 )
 
-var DefaultEnvTypes = []string{"che", "jenkins", "user", "run", "stage"}
+var (
+	VersionFabric8TenantUserFile    string
+	VersionFabric8TenantCheMtFile   string
+	VersionFabric8TenantJenkinsFile string
+	VersionFabric8TenantCheFile     string
+	VersionFabric8TenantDeployFile  string
+	DefaultEnvTypes                 = []string{"che", "jenkins", "user", "run", "stage"}
+)
 
-var templateNames = map[string][]*Template{
-	"run":     tmpls(runParams, "fabric8-tenant-deploy.yml"),
-	"stage":   tmpls(stageParams, "fabric8-tenant-deploy.yml"),
-	"che-mt":  tmpls(noParams, "fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
-	"che":     tmpls(noParams, "fabric8-tenant-che.yml", "fabric8-tenant-che-quotas.yml"),
-	"jenkins": tmpls(noParams, "fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
-	"user":    tmpls(noParams, "fabric8-tenant-user.yml"),
+func retrieveMappedTemplates() map[string][]*Template {
+	return map[string][]*Template{
+		"run":     tmpls(deploy("run"), "fabric8-tenant-deploy.yml"),
+		"stage":   tmpls(deploy("stage"), "fabric8-tenant-deploy.yml"),
+		"che-mt":  tmpls(version(VersionFabric8TenantCheMtFile), "fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
+		"che":     tmpls(version(VersionFabric8TenantCheFile), "fabric8-tenant-che.yml", "fabric8-tenant-che-quotas.yml"),
+		"jenkins": tmpls(version(VersionFabric8TenantJenkinsFile), "fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
+		"user":    tmpls(version(VersionFabric8TenantUserFile), "fabric8-tenant-user.yml"),
+	}
+}
+
+func version(version string) map[string]string {
+	return map[string]string{varCommit: version}
+}
+
+func deploy(stage string) map[string]string {
+	return map[string]string{
+		varCommit:     VersionFabric8TenantDeployFile,
+		varDeployType: stage,
+	}
 }
 
 func tmpls(defaultParams map[string]string, filenames ...string) []*Template {
@@ -65,19 +85,20 @@ type EnvData struct {
 
 func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, error) {
 	var templates []*Template
+	var mappedTemplates = retrieveMappedTemplates()
 	if envType == "che" {
 		if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
 			cheMtParams, err := getCheMtParams(ctx)
 			if err != nil {
 				return nil, err
 			}
-			templates = templateNames["che-mt"]
+			templates = mappedTemplates["che-mt"]
 			templates[0].DefaultParams = cheMtParams
 		} else {
-			templates = templateNames[envType]
+			templates = mappedTemplates[envType]
 		}
 	} else {
-		templates = templateNames[envType]
+		templates = mappedTemplates[envType]
 	}
 
 	err := s.retrieveTemplates(templates)
@@ -119,6 +140,7 @@ func (s *Service) retrieveTemplates(tmpls []*Template) error {
 		if s.templatesRepoBlob != "" {
 			fileURL := fmt.Sprintf(rawFileURLTemplate, s.getRepo(), s.templatesRepoBlob, s.getPath(template))
 			content, err = utils.DownloadFile(fileURL)
+			template.DefaultParams[varCommit] = s.templatesRepoBlob
 		} else {
 			content, err = templates.Asset(template.Filename)
 		}

@@ -126,17 +126,40 @@ GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS
 # executed.
 #-------------------------------------------------------------------------------
 
+# Verifies flag for a template version - the version should equal to latest commit sha that changes the file
+define verify-flag
+$(eval FLAG=$(1))
+@if [[ ${FLAG} != "-X" ]]; then \
+  TEMPLATE_VAR=`echo ${FLAG} | cut -d'=' -f1 | grep -oP '\.Version\K.*?(?=File)' | sed 's/[A-Z]/-\l&/g;s/.//'`; \
+  TEMPLATE_SHA=`echo ${FLAG} | cut -d'=' -f2`; \
+  TEMPLATE_FILE=`find ${SOURCE_DIR}/environment -name "$${TEMPLATE_VAR}.yml" -type f`; \
+  if [[ -z "$${TEMPLATE_FILE}" ]]; then \
+    >&2 echo ERROR: there was no file found for the flag ${FLAG}; \
+    exit 1; \
+  fi; \
+  DIFF=`git diff $${TEMPLATE_SHA}..HEAD $${TEMPLATE_FILE}`; \
+  if [[ "$${DIFF}" != "" ]]; then \
+  	>&2 echo ERROR: the sha $${TEMPLATE_SHA} of the file $${TEMPLATE_FILE} is not the latest one; \
+  	exit 1; \
+  fi; \
+fi;
+endef
+
 .PHONY: test-all
 ## Runs test-unit and test-integration targets.
 test-all: prebuild-check test-unit test-integration test-remote
 
+test-templates-flags:
+	$(info INFO: Test getting sha of the latest commit for all templates)
+	@$(foreach flag,$(LDFLAGS_FOR_TEMPLATES), $(call verify-flag,$(flag)))
+
 .PHONY: test-unit
 ## Runs the unit tests and produces coverage files for each package.
-test-unit: prebuild-check clean-coverage-unit $(COV_PATH_UNIT)
+test-unit: test-templates-flags prebuild-check clean-coverage-unit $(COV_PATH_UNIT)
 
 .PHONY: test-unit-no-coverage
 ## Runs the unit tests and WITHOUT producing coverage files for each package.
-test-unit-no-coverage: prebuild-check $(SOURCES)
+test-unit-no-coverage: test-templates-flags test-templates-flags prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_UNIT_TEST=1 go test -v $(TEST_PACKAGES)
