@@ -544,8 +544,7 @@
   name = "gopkg.in/h2non/gock.v1"
   packages = ["."]
   pruneopts = "UT"
-  revision = "db9916111f9d238f7fe98f34dfde20f11142475b"
-  version = "v1.0.10"
+  revision = "v1.0.10"
 
 [[projects]]
   digest = "1:02d2c5be9a35ce750536e74af0d98aca806f225913a3ab28f285843d6283c70d"
@@ -615,6 +614,7 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
+    "github.com/spf13/cobra",
     "github.com/spf13/viper",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
