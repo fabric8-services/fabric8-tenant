@@ -1,11 +1,9 @@
-package environment
+package environment_test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	testsupport "github.com/fabric8-services/fabric8-tenant/test"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -40,9 +38,9 @@ objects:
 
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
-	service := NewService("", "", "")
+	service := environment.NewService("", "", "")
 
-	for _, envType := range DefaultEnvTypes {
+	for _, envType := range environment.DefaultEnvTypes {
 		// when
 		env, err := service.GetEnvData(context.Background(), envType)
 
@@ -69,13 +67,13 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 
 func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 	// given
-	service := NewService("", "", "")
+	service := environment.NewService("", "", "")
 	vars := map[string]string{
 		"USER_NAME": "dev",
 		"COMMIT":    "123",
 	}
 
-	for _, envType := range DefaultEnvTypes {
+	for _, envType := range environment.DefaultEnvTypes {
 		nsName := "dev-" + envType
 		if envType == string(tenant.TypeUser) {
 			nsName = "dev"
@@ -89,11 +87,11 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 
 		//then
 		for _, obj := range objects {
-			assert.Equal(t, "123", GetLabelVersion(obj))
-			if GetKind(obj) != ValKindProjectRequest {
-				assert.Contains(t, GetNamespace(obj), nsName)
+			assert.Equal(t, "123", environment.GetLabelVersion(obj))
+			if environment.GetKind(obj) != environment.ValKindProjectRequest {
+				assert.Contains(t, environment.GetNamespace(obj), nsName)
 			} else {
-				assert.Contains(t, GetName(obj), nsName)
+				assert.Contains(t, environment.GetName(obj), nsName)
 			}
 		}
 	}
@@ -107,7 +105,7 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 		Reply(200).
 		BodyString(defaultLocationTempl)
 
-	service := NewService("", "123abc", "")
+	service := environment.NewService("", "123abc", "")
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "run")
@@ -121,7 +119,7 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 	objects, err := envData.Templates[0].Process(vars)
 	require.NoError(t, err)
 	assert.Len(t, objects, 1)
-	assert.Equal(t, GetLabel(objects[0], "test"), "default-location")
+	assert.Equal(t, environment.GetLabel(objects[0], "test"), "default-location")
 }
 
 func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
@@ -132,7 +130,7 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 		Reply(200).
 		BodyString(customLocationTempl)
 
-	service := NewService("http://my.git.com/my-services/my-tenant", "123abc", "any/path")
+	service := environment.NewService("http://my.git.com/my-services/my-tenant", "123abc", "any/path")
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "run")
@@ -146,7 +144,7 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 	objects, err := envData.Templates[0].Process(vars)
 	require.NoError(t, err)
 	assert.Len(t, objects, 1)
-	assert.Equal(t, GetLabel(objects[0], "test"), "custom-location")
+	assert.Equal(t, environment.GetLabel(objects[0], "test"), "custom-location")
 }
 
 var dnsRegExp = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
@@ -167,58 +165,6 @@ func TestCreateUsername(t *testing.T) {
 }
 
 func assertName(t *testing.T, expected, username string) {
-	assert.Regexp(t, dnsRegExp, RetrieveUserName(username))
-	assert.Equal(t, expected, RetrieveUserName(username))
-}
-
-func TestRetrieveCheMtParams(t *testing.T) {
-	// given
-	sub := uuid.NewV4().String()
-	token, err := testsupport.NewToken(
-		map[string]interface{}{
-			"sub": sub,
-		},
-		"../test/private_key.pem",
-	)
-	require.NoError(t, err)
-
-	ctx := goajwt.WithJWT(context.Background(), token)
-
-	// when
-	cheMtParams, err := getCheMtParams(ctx)
-
-	// then
-	require.NoError(t, err)
-	assert.NotEmpty(t, cheMtParams["JOB_ID"])
-	assert.Equal(t, token.Raw, cheMtParams["OSIO_TOKEN"])
-	assert.Equal(t, sub, cheMtParams["IDENTITY_ID"])
-	assert.Empty(t, cheMtParams["REQUEST_ID"])
-}
-
-func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
-	// given
-	token, err := testsupport.NewToken(
-		map[string]interface{}{},
-		"../test/private_key.pem",
-	)
-	require.NoError(t, err)
-	ctx := goajwt.WithJWT(context.Background(), token)
-
-	// when
-	_, err = getCheMtParams(ctx)
-
-	// then
-	testsupport.AssertError(t, err, testsupport.HasMessage("missing sub in JWT token"))
-}
-
-func TestRetrieveCheMtParamsWhenTokenIsMissing(t *testing.T) {
-	// when
-	cheMtParams, err := getCheMtParams(context.Background())
-
-	// then
-	require.NoError(t, err)
-	assert.NotEmpty(t, cheMtParams["JOB_ID"])
-	assert.Empty(t, cheMtParams["OSIO_TOKEN"])
-	assert.Empty(t, cheMtParams["IDENTITY_ID"])
-	assert.Empty(t, cheMtParams["REQUEST_ID"])
+	assert.Regexp(t, dnsRegExp, environment.RetrieveUserName(username))
+	assert.Equal(t, expected, environment.RetrieveUserName(username))
 }
