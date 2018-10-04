@@ -11,6 +11,8 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
+	env "github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
@@ -25,11 +27,10 @@ import (
 // TenantController implements the status resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService          tenant.Service
-	clusterService         cluster.Service
-	authClientService      *auth.Service
-	defaultOpenshiftConfig openshift.Config
-	templateVars           map[string]string
+	tenantService     tenant.Service
+	clusterService    cluster.Service
+	authClientService *auth.Service
+	config            *configuration.Data
 }
 
 // NewTenantController creates a status controller.
@@ -38,16 +39,14 @@ func NewTenantController(
 	tenantService tenant.Service,
 	clusterService cluster.Service,
 	authClientService *auth.Service,
-	defaultOpenshiftConfig openshift.Config,
-	templateVars map[string]string) *TenantController {
+	config *configuration.Data) *TenantController {
 
 	return &TenantController{
-		Controller:             service.NewController("TenantController"),
-		tenantService:          tenantService,
-		clusterService:         clusterService,
-		authClientService:      authClientService,
-		defaultOpenshiftConfig: defaultOpenshiftConfig,
-		templateVars:           templateVars,
+		Controller:        service.NewController("TenantController"),
+		tenantService:     tenantService,
+		clusterService:    clusterService,
+		authClientService: authClientService,
+		config:            config,
 	}
 }
 
@@ -85,7 +84,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL, Commit)
 	tenant := &tenant.Tenant{
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
@@ -107,8 +106,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
 			user.OpenshiftUsername,
-			user.OpenshiftUserToken,
-			c.templateVars)
+			user.OpenshiftUserToken)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
@@ -154,7 +152,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL, Commit)
 
 	// update tenant config
 	tenant.OSUsername = user.OpenshiftUsername
@@ -173,8 +171,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			ctx,
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
-			user.OpenshiftUsername,
-			c.templateVars)
+			user.OpenshiftUsername)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
@@ -217,9 +214,9 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.defaultOpenshiftConfig, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL, Commit)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenshiftUsername, c.templateVars, removeFromCluster)
+	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenshiftUsername, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -259,40 +256,40 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant, openshiftUsername string) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32  // default is 0
-	username := openshift.CreateName(openshiftUsername)
+	username := env.RetrieveUserName(openshiftUsername)
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
 			"method":      method,
 			"cluster_url": masterURL,
-			"namespace":   openshift.GetNamespace(request),
-			"name":        openshift.GetName(request),
-			"kind":        openshift.GetKind(request),
+			"namespace":   env.GetNamespace(request),
+			"name":        env.GetName(request),
+			"kind":        env.GetKind(request),
 			"request":     yamlString(request),
 			"response":    yamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict {
-			if openshift.GetKind(request) == openshift.ValKindNamespace {
+			if env.GetKind(request) == env.ValKindNamespace {
 				return "", nil
 			}
-			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
+			if env.GetKind(request) == env.ValKindProjectRequest {
 				return "", nil
 			}
-			if openshift.GetKind(request) == openshift.ValKindPersistenceVolumeClaim {
+			if env.GetKind(request) == env.ValKindPersistenceVolumeClaim {
 				return "", nil
 			}
-			if openshift.GetKind(request) == openshift.ValKindServiceAccount {
+			if env.GetKind(request) == env.ValKindServiceAccount {
 				return "", nil
 			}
 			return "DELETE", request
 		} else if statusCode == http.StatusCreated {
-			if openshift.GetKind(request) == openshift.ValKindProjectRequest {
-				name := openshift.GetName(request)
+			if env.GetKind(request) == env.ValKindProjectRequest {
+				name := env.GetName(request)
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
-					Version:   openshift.GetLabelVersion(request),
+					Version:   env.GetLabelVersion(request),
 					Type:      tenant.GetNamespaceType(name, username),
 					MasterURL: masterURL,
 				})
@@ -301,17 +298,17 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 				// Should loop on a Check if allowed type of call instead
 				time.Sleep(time.Second * 5)
 
-			} else if openshift.GetKind(request) == openshift.ValKindNamespace {
-				name := openshift.GetName(request)
+			} else if env.GetKind(request) == env.ValKindNamespace {
+				name := env.GetName(request)
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
-					Version:   openshift.GetLabelVersion(request),
+					Version:   env.GetLabelVersion(request),
 					Type:      tenant.GetNamespaceType(name, username),
 					MasterURL: masterURL,
 				})
-			} else if openshift.GetKind(request) == openshift.ValKindResourceQuota {
+			} else if env.GetKind(request) == env.ValKindResourceQuota {
 				// trigger a check status loop
 				time.Sleep(time.Millisecond * 50)
 				return "GET", response
@@ -321,9 +318,9 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			if method == "DELETE" {
 				return "POST", request
 			} else if method == "GET" {
-				if openshift.GetKind(request) == openshift.ValKindResourceQuota {
+				if env.GetKind(request) == env.ValKindResourceQuota {
 
-					if openshift.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
+					if env.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
 						return "", nil
 					}
 					atomic.AddInt32(&currentResourceQuotaStatusCheck, 1)
@@ -336,10 +333,10 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
 			"method":      method,
-			"namespace":   openshift.GetNamespace(request),
+			"namespace":   env.GetNamespace(request),
 			"cluster_url": masterURL,
-			"name":        openshift.GetName(request),
-			"kind":        openshift.GetKind(request),
+			"name":        env.GetName(request),
+			"kind":        env.GetKind(request),
 			"request":     yamlString(request),
 			"response":    yamlString(response),
 		}, "unhandled resource response")

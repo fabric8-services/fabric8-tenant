@@ -310,8 +310,7 @@ func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (
 	tenantService := tenant.NewDBService(s.DB)
 
 	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
-	defaultOpenshiftConfig := openshift.Config{}
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenantService, clusterService, authService, openshiftService, defaultOpenshiftConfig)
+	ctrl := controller.NewTenantsController(svc, tenantService, clusterService, authService, openshiftService)
 	return svc, ctrl, nil
 }

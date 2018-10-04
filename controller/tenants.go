@@ -20,11 +20,10 @@ var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
 // TenantsController implements the tenants resource.
 type TenantsController struct {
 	*goa.Controller
-	tenantService          tenant.Service
-	openshiftService       openshift.Service
-	clusterService         cluster.Service
-	authClientService      *auth.Service
-	defaultOpenshiftConfig openshift.Config
+	tenantService     tenant.Service
+	openshiftService  openshift.Service
+	clusterService    cluster.Service
+	authClientService *auth.Service
 }
 
 // NewTenantsController creates a tenants controller.
@@ -33,15 +32,13 @@ func NewTenantsController(service *goa.Service,
 	clusterService cluster.Service,
 	authClientService *auth.Service,
 	openshiftService openshift.Service,
-	defaultOpenshiftConfig openshift.Config,
 ) *TenantsController {
 	return &TenantsController{
-		Controller:             service.NewController("TenantsController"),
-		tenantService:          tenantService,
-		clusterService:         clusterService,
-		openshiftService:       openshiftService,
-		authClientService:      authClientService,
-		defaultOpenshiftConfig: defaultOpenshiftConfig,
+		Controller:        service.NewController("TenantsController"),
+		tenantService:     tenantService,
+		clusterService:    clusterService,
+		openshiftService:  openshiftService,
+		authClientService: authClientService,
 	}
 }
 

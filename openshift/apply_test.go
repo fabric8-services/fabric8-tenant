@@ -1,15 +1,18 @@
 package openshift_test
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/stretchr/testify/assert"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/h2non/gock.v1"
+	"os"
 )
 
-var applyTemplate = `
+var templateHeader = `
 ---
 apiVersion: v1
 kind: Template
@@ -21,128 +24,129 @@ metadata:
     group: io.fabric8.online.packages
   name: fabric8-tenant-team-envi
 objects:
-- apiVersion: v1
-  kind: Project
-  metadata:
-    annotations:
-      openshift.io/description: Test-Project-Description
-      openshift.io/display-name: Test-Project-Name
-      openshift.io/requester: Aslak-User
-    labels:
-      provider: fabric8
-      project: fabric8-tenant-team-environments
-      version: 1.0.58
-      group: io.fabric8.online.packages
-    name: aslak-test
 `
-
-var parseNamespaceTemplate = `
----
-apiVersion: v1
-kind: Template
-metadata:
-  labels:
-    provider: fabric8
-    project: fabric8-tenant-team-environments
-    version: 1.0.58
-    group: io.fabric8.online.packages
-  name: fabric8-tenant-team-envi
-objects:
-- apiVersion: v1
-  kind: Namespace
-  metadata:
-    annotations:
-      openshift.io/description: Test-Project-Description
-      openshift.io/display-name: Test-Project-Name
-      openshift.io/requester: Aslak-User
-    labels:
-      provider: fabric8
-      project: fabric8-tenant-team-environments
-      version: 1.0.58
-      group: io.fabric8.online.packages
-    name: aslak-test
-`
-
-var sortTemplate = `
----
-apiVersion: v1
-kind: Template
-objects:
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    name: aslak-test
+var projectRequestObject = `
 - apiVersion: v1
   kind: ProjectRequest
   metadata:
-    name: aslak-test
-- apiVersion: v1
-  kind: ServiceAccount
-  metadata:
-    name: aslak-test
-- apiVersion: v1
-  kind: RoleBinding
-  metadata:
-    name: aslak-test
+    annotations:
+      openshift.io/description: Test-Project-Description
+      openshift.io/display-name: Test-Project-Name
+      openshift.io/requester: Aslak-User
+    labels:
+      provider: fabric8
+      project: fabric8-tenant-team-environments
+      version: 1.0.58
+      group: io.fabric8.online.packages
+    name: ${USER_NAME}-test
+`
+var roleBindingRestrictionObject = `
 - apiVersion: v1
   kind: RoleBindingRestriction
   metadata:
-    name: aslak-test
-- apiVersion: v1
-  kind: ResourceQuota
-  metadata:
-    name: aslak-test
-- apiVersion: v1
-  kind: LimitRange
-  metadata:
-    name: aslak-test
+    labels:
+      app: fabric8-tenant-che-mt
+      provider: fabric8
+      version: 2.0.85
+      group: io.fabric8.tenant.packages
+    name: dsaas-user-access
+    namespace: ${USER_NAME}-test
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
 `
 
-// Ignore for now. Need vcr setup to record openshift interactions
-func xTestApply(t *testing.T) {
+func TestMain(m *testing.M) {
+	defer gock.Off()
+	retCode := m.Run()
+	os.Exit(retCode)
+}
+
+func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
+	// given
+	config, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	objects, opts := prepareObjectsAndOpts(t, templateHeader+projectRequestObject+roleBindingRestrictionObject, config)
+
+	gock.New("http://starter.com").
+		Post("/oapi/v1/projectrequests").
+		Reply(200)
+	gock.New("http://starter.com").
+		Get("/api/v1/namespaces/aslak-test").
+		Reply(200)
+	gock.New("http://starter.com").
+		Post("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions").
+		Reply(200)
+	gock.New("http://starter.com").
+		Get("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
+		Reply(200)
+
+	// when
+	err := openshift.ApplyProcessed(objects, opts)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteIfThereIsConflict(t *testing.T) {
+	// given
+	config, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject, config)
+
+	gock.New("http://starter.com").
+		Post("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions").
+		Reply(409)
+	gock.New("http://starter.com").
+		Delete("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
+		Reply(200)
+	gock.New("http://starter.com").
+		Get("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
+		Reply(404)
+	gock.New("http://starter.com").
+		Post("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions").
+		Reply(200)
+	gock.New("http://starter.com").
+		Get("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
+		Reply(200)
+
+	// when
+	err := openshift.ApplyProcessed(objects, opts)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteAndGet(t *testing.T) {
+	// given
+	config, reset := testdoubles.LoadTestConfig(t)
+	defer reset()
+	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject, config)
+
+	gock.New("http://starter.com").
+		Delete("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
+		Reply(200)
+	gock.New("http://starter.com").
+		Get("/oapi/v1/namespaces/aslak-test/rolebindingrestrictions/dsaas-user-access").
+		Reply(404)
+
+	// when
+	err := openshift.ApplyProcessed(objects, opts)
+
+	// then
+	require.NoError(t, err)
+}
+
+func prepareObjectsAndOpts(t *testing.T, content string, config *configuration.Data) (environment.Objects, openshift.ApplyOptions) {
+	template := environment.Template{Content: content}
+	objects, err := template.Process(environment.CollectVars("aslak", "master", "123", config))
+	require.NoError(t, err)
 	opts := openshift.ApplyOptions{
 		Config: openshift.Config{
-			MasterURL: "https://tsrv.devshift.net:8443",
+			MasterURL: "http://starter.com",
 			Token:     "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8",
 		},
 	}
-
-	t.Run("apply single project", func(t *testing.T) {
-		result := openshift.Apply(applyTemplate, opts)
-		assert.NoError(t, result, "apply error")
-	})
-
-}
-
-func xTestSort(t *testing.T) {
-	l, err := openshift.ParseObjects(sortTemplate, "")
-	require.NoError(t, err)
-
-	assert.Equal(t, "ProjectRequest", kind(l[0]))
-	assert.Equal(t, "RoleBindingRestriction", kind(l[1]))
-	assert.Equal(t, "LimitRange", kind(l[2]))
-	assert.Equal(t, "ResourceQuota", kind(l[3]))
-}
-
-func TestParseNamespace(t *testing.T) {
-	l, err := openshift.ParseObjects(parseNamespaceTemplate, "")
-	require.NoError(t, err)
-
-	assert.Equal(t, "Namespace", kind(l[0]))
-}
-
-func kind(object map[interface{}]interface{}) string {
-	return object["kind"].(string)
-}
-
-func TestA(t *testing.T) {
-	opts := &openshift.ApplyOptions{Callback: A}
-	fmt.Println(opts.Callback)
-	opts2 := opts.WithNamespace("a")
-	fmt.Println(opts2.Callback)
-}
-
-func A(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
-	fmt.Println("A")
-	return "", nil
+	return objects, opts
 }

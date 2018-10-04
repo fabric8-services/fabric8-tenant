@@ -1,9 +1,7 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -11,12 +9,10 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
-	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
@@ -60,35 +56,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if config.GetOpenshiftCheVersion() != "" {
-		log.Logger().Infof("Che Version: %s", config.GetOpenshiftCheVersion())
-	}
-	if config.GetOpenshiftJenkinsVersion() != "" {
-		log.Logger().Infof("Jenkins Version: %s", config.GetOpenshiftJenkinsVersion())
-	}
-	if config.GetOpenshiftTeamVersion() != "" {
-		log.Logger().Infof("Team Version: %s", config.GetOpenshiftTeamVersion())
-	}
-	if config.GetOpenshiftTemplateDir() != "" {
-		log.Logger().Infof("Template Dir: %s", config.GetOpenshiftTemplateDir())
-	}
-
 	toggles.Init("f8tenant", config.GetTogglesURL())
-
-	keycloakConfig := keycloak.Config{
-		BaseURL: config.GetKeycloakURL(),
-		Realm:   config.GetKeycloakRealm(),
-		Broker:  config.GetKeycloakOpenshiftBroker(),
-	}
-
-	templateVars, err := config.GetTemplateValues()
-	if err != nil {
-		panic(err)
-	}
-
-	templateVars["KEYCLOAK_URL"] = ""
-	templateVars["KEYCLOAK_OSO_ENDPOINT"] = keycloakConfig.CustomBrokerTokenURL("openshift-v3")
-	templateVars["KEYCLOAK_GITHUB_ENDPOINT"] = fmt.Sprintf("%s%s?for=https://github.com", config.GetAuthURL(), authclient.RetrieveTokenPath())
 
 	authService, err := auth.NewAuthService(config)
 	if err != nil {
@@ -138,21 +106,6 @@ func main() {
 	}
 	defer haltSentry()
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: config.APIServerInsecureSkipTLSVerify(),
-		},
-	}
-
-	osTemplate := openshift.Config{
-		ConsoleURL:     config.GetConsoleURL(),
-		HTTPTransport:  tr,
-		CheVersion:     config.GetOpenshiftCheVersion(),
-		JenkinsVersion: config.GetOpenshiftJenkinsVersion(),
-		TeamVersion:    config.GetOpenshiftTeamVersion(),
-		TemplateDir:    config.GetOpenshiftTemplateDir(),
-	}
-
 	tenantService := tenant.NewDBService(db)
 
 	// Mount "status" controller
@@ -160,10 +113,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, osTemplate, templateVars)
+	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, config)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService, osTemplate)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

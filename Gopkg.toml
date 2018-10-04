@@ -97,6 +97,10 @@ ignored = [
   revision = "master"
 
 [[constraint]]
+  name = "gopkg.in/h2non/gock.v1"
+  revision = "v1.0.10"
+
+[[constraint]]
   name = "github.com/wadey/gocovmerge"
   revision = "master"
 

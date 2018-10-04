@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: LimitRange
+  metadata:
+    labels:
+      app: fabric8-tenant-che-quotas
+      provider: fabric8
+      version: ${COMMIT}
+    name: resource-limits
+    namespace: ${USER_NAME}-che
+  spec:
+    limits:
+    - max:
+        cpu: 6000m
+        memory: 3Gi
+      min:
+        cpu: 29m
+        memory: 150Mi
+      type: Pod
+    - default:
+        cpu: "1"
+        memory: 512Mi
+      defaultRequest:
+        cpu: 60m
+        memory: 307Mi
+      max:
+        cpu: 6000m
+        memory: 3Gi
+      min:
+        cpu: 29m
+        memory: 150Mi
+      type: Container
+    - max:
+        storage: 1Gi
+      min:
+        storage: 1Gi
+      type: PersistentVolumeClaim
+- apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    labels:
+      app: fabric8-tenant-che-quotas
+      provider: fabric8
+      version: ${COMMIT}
+    name: compute-resources
+    namespace: ${USER_NAME}-che
+  spec:
+    hard:
+      limits.cpu: "6"
+      limits.memory: 3Gi
+    scopes:
+    - NotTerminating
+- apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    labels:
+      app: fabric8-tenant-che-quotas
+      provider: fabric8
+      version: ${COMMIT}
+    name: compute-resources-timebound
+    namespace: ${USER_NAME}-che
+  spec:
+    hard:
+      limits.cpu: "6"
+      limits.memory: 3Gi
+    scopes:
+    - Terminating
+- apiVersion: v1
+  kind: ResourceQuota
+  metadata:
+    labels:
+      app: fabric8-tenant-che-quotas
+      provider: fabric8
+      version: ${COMMIT}
+    name: object-counts
+    namespace: ${USER_NAME}-che
+  spec:
+    hard:
+      persistentvolumeclaims: "2"
+      replicationcontrollers: "20"
+      secrets: "20"
+      services: "15"
+parameters:
+- name: USER_NAME
+  value: developer

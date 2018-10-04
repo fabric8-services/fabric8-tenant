@@ -36,10 +36,6 @@ const (
 	varKeycloakURL                     = "keycloak.url"
 	varTogglesURL                      = "toggles.url"
 	varConsoleURL                      = "console.url"
-	varOpenshiftCheVersion             = "openshift.che.version"
-	varOpenshiftJenkinsVersion         = "openshift.jenkins.version"
-	varOpenshiftTeamVersion            = "openshift.team.version"
-	varOpenshiftTemplateDir            = "openshift.template.dir"
 	varOpenshiftUseCurrentCluster      = "openshift.use.current.cluster"
 	varTemplateJenkinsRootURL          = "template.jenkins.root.url"
 	varTemplateRecommenderExternalName = "template.recommender.external.name"
@@ -307,26 +303,6 @@ func (c *Data) GetClustersRefreshDelay() time.Duration {
 // GetTogglesURL returns Toggle service URL
 func (c *Data) GetTogglesURL() string {
 	return c.v.GetString(varTogglesURL)
-}
-
-// GetOpenshiftTeamVersion returns the team version of YAML files used to provision tenant team namespaces and roles
-func (c *Data) GetOpenshiftTeamVersion() string {
-	return c.v.GetString(varOpenshiftTeamVersion)
-}
-
-// GetOpenshiftCheVersion returns the team version of YAML files used to provision tenant che
-func (c *Data) GetOpenshiftCheVersion() string {
-	return c.v.GetString(varOpenshiftCheVersion)
-}
-
-// GetOpenshiftJenkinsVersion returns the team version of YAML files used to provision tenant jenkins
-func (c *Data) GetOpenshiftJenkinsVersion() string {
-	return c.v.GetString(varOpenshiftJenkinsVersion)
-}
-
-// GetOpenshiftTemplateDir returns the directory containing the local team YAML files
-func (c *Data) GetOpenshiftTemplateDir() string {
-	return c.v.GetString(varOpenshiftTemplateDir)
 }
 
 // UseOpenshiftCurrentCluster returns if we should use the current cluster to provision tenant service

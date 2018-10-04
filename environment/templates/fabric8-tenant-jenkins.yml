@@ -1,0 +1,824 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  labels:
+    app: fabric8-tenant-jenkins
+    provider: fabric8
+    version: ${COMMIT}
+  name: fabric8-tenant-jenkins
+objects:
+- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: ${USER_NAME} Jenkins Environment
+      openshift.io/display-name: ${USER_NAME} Jenkins
+      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: ${USER_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-access-sa-ns
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    serviceaccountrestriction:
+      namespaces:
+      - ${USER_NAME}-jenkins
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: dsaas-user-access
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-docker-cfg
+    namespace: ${USER_NAME}-jenkins
+  data:
+    config.json: ""
+  type: fabric8.io/jenkins-docker-cfg
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-git-ssh
+    namespace: ${USER_NAME}-jenkins
+  data:
+    ssh-key: ""
+    ssh-key.pub: ""
+  type: fabric8.io/jenkins-git-ssh
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-hub-api-token
+    namespace: ${USER_NAME}-jenkins
+  data:
+    hub: ""
+  type: fabric8.io/jenkins-hub-api-token
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-maven-settings
+    namespace: ${USER_NAME}-jenkins
+  data:
+    settings.xml: PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHNldHRpbmdzPgogICA8IS0tIHNldHMgdGhlIGxvY2FsIG1hdmVuIHJlcG9zaXRvcnkgb3V0c2lkZSBvZiB0aGUgfi8ubTIgZm9sZGVyIGZvciBlYXNpZXIgbW91bnRpbmcgb2Ygc2VjcmV0cyBhbmQgcmVwbyAtLT4KICAgPGxvY2FsUmVwb3NpdG9yeT4ke3VzZXIuaG9tZX0vLm12bnJlcG9zaXRvcnk8L2xvY2FsUmVwb3NpdG9yeT4KICAgPCEtLSBsZXRzIGRpc2FibGUgdGhlIGRvd25sb2FkIHByb2dyZXNzIGluZGljYXRvciB0aGF0IGZpbGxzIHVwIGxvZ3MgLS0+CiAgIDxpbnRlcmFjdGl2ZU1vZGU+ZmFsc2U8L2ludGVyYWN0aXZlTW9kZT4KICAgPHNlcnZlcnM+CiAgICAgIDxzZXJ2ZXI+CiAgICAgICAgIDxpZD5vc3Mtc29uYXR5cGUtc3RhZ2luZzwvaWQ+CiAgICAgICAgIDx1c2VybmFtZSAvPgogICAgICAgICA8cGFzc3dvcmQgLz4KICAgICAgPC9zZXJ2ZXI+CiAgIDwvc2VydmVycz4KICAgPHByb2ZpbGVzPgogICAgICA8cHJvZmlsZT4KICAgICAgICAgPGlkPm5leHVzPC9pZD4KICAgICAgICAgPHJlcG9zaXRvcmllcz4KICAgICAgICAgICAgPHJlcG9zaXRvcnk+CiAgICAgICAgICAgICAgIDxpZD5jZW50cmFsPC9pZD4KICAgICAgICAgICAgICAgPHVybD5odHRwOi8vcmVwby5tYXZlbi5hcGFjaGUub3JnL21hdmVuMi88L3VybD4KICAgICAgICAgICAgICAgPHJlbGVhc2VzPgogICAgICAgICAgICAgICAgICA8ZW5hYmxlZD50cnVlPC9lbmFibGVkPgogICAgICAgICAgICAgICA8L3JlbGVhc2VzPgogICAgICAgICAgICA8L3JlcG9zaXRvcnk+CiAgICAgICAgIDwvcmVwb3NpdG9yaWVzPgogICAgICAgICA8cGx1Z2luUmVwb3NpdG9yaWVzPgogICAgICAgICAgICA8cGx1Z2luUmVwb3NpdG9yeT4KICAgICAgICAgICAgICAgPGlkPmNlbnRyYWw8L2lkPgogICAgICAgICAgICAgICA8dXJsPmh0dHA6Ly9yZXBvLm1hdmVuLmFwYWNoZS5vcmcvbWF2ZW4yLzwvdXJsPgogICAgICAgICAgICAgICA8cmVsZWFzZXM+CiAgICAgICAgICAgICAgICAgIDxlbmFibGVkPnRydWU8L2VuYWJsZWQ+CiAgICAgICAgICAgICAgIDwvcmVsZWFzZXM+CiAgICAgICAgICAgIDwvcGx1Z2luUmVwb3NpdG9yeT4KICAgICAgICAgPC9wbHVnaW5SZXBvc2l0b3JpZXM+CiAgICAgIDwvcHJvZmlsZT4KICAgICAgPHByb2ZpbGU+CiAgICAgICAgIDxpZD5yZWxlYXNlPC9pZD4KICAgICAgICAgPHByb3BlcnRpZXM+CiAgICAgICAgICAgIDxncGcuZXhlY3V0YWJsZT5ncGc8L2dwZy5leGVjdXRhYmxlPgogICAgICAgICAgICA8Z3BnLnBhc3NwaHJhc2U+bXlzZWNyZXRwYXNzcGhyYXNlPC9ncGcucGFzc3BocmFzZT4KICAgICAgICAgPC9wcm9wZXJ0aWVzPgogICAgICA8L3Byb2ZpbGU+CiAgIDwvcHJvZmlsZXM+CiAgIDxhY3RpdmVQcm9maWxlcz4KICAgICAgPCEtLW1ha2UgdGhlIHByb2ZpbGUgYWN0aXZlIGFsbCB0aGUgdGltZSAtLT4KICAgICAgPGFjdGl2ZVByb2ZpbGU+bmV4dXM8L2FjdGl2ZVByb2ZpbGU+CiAgIDwvYWN0aXZlUHJvZmlsZXM+Cjwvc2V0dGluZ3M+
+  type: fabric8.io/secret-maven-settings
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-recommender-api-token
+    namespace: ${USER_NAME}-jenkins
+  data:
+    token: ${RECOMMENDER_API_TOKEN}
+  type: fabric8.io/jenkins-recommender-api-token
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-release-gpg
+    namespace: ${USER_NAME}-jenkins
+  data:
+    trustdb.gpg: ""
+    pubring.gpg: ""
+    gpg.conf: ""
+    secring.gpg: ""
+  type: fabric8.io/jenkins-release-gpg
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-ssh-config
+    namespace: ${USER_NAME}-jenkins
+  data:
+    config: ""
+  type: fabric8.io/jenkins-ssh-config
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: cd-bot
+    namespace: ${USER_NAME}-jenkins
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    annotations:
+      serviceaccounts.openshift.io/oauth-redirectreference.jenkins: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"jenkins"}}'
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins
+    namespace: ${USER_NAME}-jenkins
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      expose: "false"
+      app: bayesian-link
+      provider: fabric8
+      version: ${COMMIT}
+    name: bayesian-link
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    externalName: ${RECOMMENDER_EXTERNAL_NAME}
+    ports:
+    - port: 80
+    selector:
+      app: bayesian-link
+      provider: fabric8
+    type: ExternalName
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      fabric8.io/app-menu: development
+    labels:
+      app: jenkins
+      provider: fabric8
+      expose: "true"
+      version: ${COMMIT}
+    name: jenkins
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: jenkins
+      provider: fabric8
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      expose: "false"
+      version: ${COMMIT}
+    name: jenkins-jnlp
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    ports:
+    - name: agent
+      port: 50000
+      protocol: TCP
+      targetPort: 50000
+    selector:
+      app: jenkins
+      provider: fabric8
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: edit-jenkins
+    namespace: ${USER_NAME}-jenkins
+  roleRef:
+    name: edit
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: view
+    namespace: ${USER_NAME}-jenkins
+  roleRef:
+    name: view
+  subjects:
+  - kind: User
+    name: ${PROJECT_USER}
+  userNames:
+  - ${PROJECT_USER}
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: view-cd-bot
+    namespace: ${USER_NAME}-jenkins
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: cd-bot
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: view-jenkins
+    namespace: ${USER_NAME}-jenkins
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: jenkins
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins-home
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    labels:
+      fabric8.io/kind: package
+      provider: fabric8.io
+      version: ${COMMIT}
+      app: fabric8-tenant-jenkins
+    name: fabric8-online-jenkins
+    namespace: ${USER_NAME}-jenkins
+  data:
+    metadata-url: http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/maven-metadata.xml
+    package-url-prefix: http://central.maven.org/maven2/io/fabric8/online/packages/fabric8-online-jenkins/%[1]s/fabric8-online-jenkins-%[1]s-
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    annotations:
+      description: Links this namespace to the Space that contains all the environments
+    labels:
+      fabric8.io/kind: space-link
+      provider: fabric8.io
+      version: ${COMMIT}
+      app: fabric8-tenant-jenkins
+    name: fabric8-space-link
+    namespace: ${USER_NAME}-jenkins
+  data:
+    space: ${USER_NAME}
+    fabric8-console-url: ${FABRIC8_CONSOLE_URL}
+    keycloak-url: ${KEYCLOAK_URL}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins
+    namespace: ${USER_NAME}-jenkins
+  data:
+    credentials.xml.tpl: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <com.cloudbees.plugins.credentials.SystemCredentialsProvider plugin="credentials@1.23">
+        <domainCredentialsMap class="hudson.util.CopyOnWriteMap$Hash">
+          ${KUBERNETES_CREDENTIALS}
+        </domainCredentialsMap>
+      </com.cloudbees.plugins.credentials.SystemCredentialsProvider>
+    org.jenkinsci.plugins.updatebot.GlobalPluginConfiguration.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <org.jenkinsci.plugins.updatebot.GlobalPluginConfiguration plugin="updatebot@1.0.0-SNAPSHOT">
+        <credentialsId>cd-github</credentialsId>
+        <useAnsiColor>true</useAnsiColor>
+        <jenkinsfileLibraryGitCloneURL></jenkinsfileLibraryGitCloneURL>
+      </org.jenkinsci.plugins.updatebot.GlobalPluginConfiguration>
+    hudson.tasks.Maven.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <hudson.tasks.Maven_-DescriptorImpl>
+        <installations>
+          <hudson.tasks.Maven_-MavenInstallation>
+            <name>maven</name>
+            <properties>
+              <hudson.tools.InstallSourceProperty>
+                <installers>
+                  <hudson.tasks.Maven_-MavenInstaller>
+                    <id>3.5.0</id>
+                  </hudson.tasks.Maven_-MavenInstaller>
+                </installers>
+              </hudson.tools.InstallSourceProperty>
+            </properties>
+          </hudson.tasks.Maven_-MavenInstallation>
+        </installations>
+      </hudson.tasks.Maven_-DescriptorImpl>
+    jenkins.plugins.nodejs.tools.NodeJSInstallation.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <jenkins.plugins.nodejs.tools.NodeJSInstallation_-DescriptorImpl plugin="nodejs@1.2.4">
+        <installations class="jenkins.plugins.nodejs.tools.NodeJSInstallation-array">
+          <jenkins.plugins.nodejs.tools.NodeJSInstallation>
+            <name>nodejs</name>
+            <properties>
+              <hudson.tools.InstallSourceProperty>
+                <installers>
+                  <jenkins.plugins.nodejs.tools.NodeJSInstaller>
+                    <id>8.6.0</id>
+                    <npmPackagesRefreshHours>72</npmPackagesRefreshHours>
+                  </jenkins.plugins.nodejs.tools.NodeJSInstaller>
+                </installers>
+              </hudson.tools.InstallSourceProperty>
+            </properties>
+          </jenkins.plugins.nodejs.tools.NodeJSInstallation>
+        </installations>
+      </jenkins.plugins.nodejs.tools.NodeJSInstallation_-DescriptorImpl>
+    io.fabric8.jenkins.openshiftsync.GlobalPluginConfiguration.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <io.fabric8.jenkins.openshiftsync.GlobalPluginConfiguration plugin="openshift-sync@0.1-SNAPSHOT">
+        <enabled>true</enabled>
+        <jobNamePattern>.*</jobNamePattern>
+        <namespace>${USER_NAME}</namespace>
+        <cancelPRBuildOnUpdate>true</cancelPRBuildOnUpdate>
+      </io.fabric8.jenkins.openshiftsync.GlobalPluginConfiguration>
+    org.jenkinsci.main.modules.sshd.SSHD.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <org.jenkinsci.main.modules.sshd.SSHD>
+        <port>-1</port>
+      </org.jenkinsci.main.modules.sshd.SSHD>
+    scriptApproval.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <scriptApproval plugin="script-security@1.15">
+        <approvedScriptHashes>
+        </approvedScriptHashes>
+        <approvedSignatures>
+          <string>field hudson.plugins.git.GitSCM GIT_BRANCH</string>
+          <string>field hudson.plugins.git.GitSCMBackwardCompatibility branch</string>
+          <string>field hudson.plugins.git.GitSCMBackwardCompatibility source</string>
+          <string>field java.util.ArrayList size</string>
+          <string>method groovy.json.JsonBuilder toPrettyString</string>
+          <string>method groovy.json.JsonSlurper parse java.io.Reader</string>
+          <string>method groovy.json.JsonSlurperClassic parse java.io.Reader</string>
+          <string>method groovy.json.JsonSlurperClassic parseText java.lang.String</string>
+          <string>method groovy.lang.GString plus java.lang.String</string>
+          <string>method groovy.lang.GroovyObject getProperty java.lang.String</string>
+          <string>method groovy.lang.GroovyObject invokeMethod java.lang.String java.lang.Object</string>
+          <string>method groovy.util.ConfigSlurper parse java.net.URL</string>
+          <string>method groovy.util.ConfigSlurper parse java.util.Properties</string>
+          <string>method groovy.util.XmlSlurper parse java.lang.String</string>
+          <string>method groovy.util.XmlSlurper parseText java.lang.String</string>
+          <string>method groovy.util.slurpersupport.GPathResult text</string>
+          <string>method groovy.xml.DOMBuilder parseText java.lang.String</string>
+          <string>method hudson.model.Actionable getAction java.lang.Class</string>
+          <string>method hudson.model.Job getBuildByNumber int</string>
+          <string>method hudson.model.Job getProperty java.lang.Class</string>
+          <string>method hudson.model.Run getCause java.lang.Class</string>
+          <string>method hudson.scm.SCM getBrowser</string>
+          <string>method io.fabric8.jenkins.openshiftsync.BuildCause getName</string>
+          <string>method io.fabric8.jenkins.openshiftsync.BuildConfigProjectProperty getName</string>
+          <string>method io.fabric8.kubernetes.api.model.ConfigMap getData</string>
+          <string>method io.fabric8.kubernetes.api.model.Doneable done</string>
+          <string>method io.fabric8.kubernetes.api.model.HasMetadata getMetadata</string>
+          <string>method io.fabric8.kubernetes.api.model.KubernetesResourceList getItems</string>
+          <string>method io.fabric8.kubernetes.api.model.ObjectMeta getLabels</string>
+          <string>method io.fabric8.kubernetes.api.model.ObjectMeta getName</string>
+          <string>method io.fabric8.kubernetes.api.model.ObjectMetaFluent addToAnnotations java.lang.String java.lang.String</string>
+          <string>method io.fabric8.kubernetes.api.model.ObjectMetaFluent withName java.lang.String</string>
+          <string>method io.fabric8.kubernetes.api.pipelines.PipelineConfiguration getUseDockerSocketFlag</string>
+          <string>method io.fabric8.kubernetes.api.pipelines.PipelineConfiguration isUseDockerSocket</string>
+          <string>method io.fabric8.kubernetes.client.Client adapt java.lang.Class</string>
+          <string>method io.fabric8.kubernetes.client.Client getNamespace</string>
+          <string>method io.fabric8.kubernetes.client.Client isAdaptable java.lang.Class</string>
+          <string>method io.fabric8.kubernetes.client.KubernetesClient configMaps</string>
+          <string>method io.fabric8.kubernetes.client.KubernetesClient namespaces</string>
+          <string>method io.fabric8.kubernetes.client.KubernetesClient nodes</string>
+          <string>method io.fabric8.kubernetes.client.KubernetesClient services</string>
+          <string>method io.fabric8.kubernetes.client.dsl.Createable createNew</string>
+          <string>method io.fabric8.kubernetes.client.dsl.Editable edit</string>
+          <string>method io.fabric8.kubernetes.client.dsl.Gettable get</string>
+          <string>method io.fabric8.kubernetes.client.dsl.KubernetesDSL nodes</string>
+          <string>method io.fabric8.kubernetes.client.dsl.Listable list</string>
+          <string>method io.fabric8.kubernetes.client.dsl.Nameable withName java.lang.String</string>
+          <string>method io.fabric8.kubernetes.client.dsl.Namespaceable inNamespace java.lang.String</string>
+          <string>method io.fabric8.openshift.api.model.BuildFluent editMetadata</string>
+          <string>method io.fabric8.openshift.api.model.BuildFluent$MetadataNested endMetadata</string>
+          <string>method io.fabric8.openshift.api.model.ImageStream getStatus</string>
+          <string>method io.fabric8.openshift.api.model.ImageStreamStatus getTags</string>
+          <string>method io.fabric8.openshift.api.model.NamedTagEventList getItems</string>
+          <string>method io.fabric8.openshift.api.model.ProjectRequestFluent withDisplayName java.lang.String</string>
+          <string>method io.fabric8.openshift.api.model.ProjectRequestFluent withNewMetadata</string>
+          <string>method io.fabric8.openshift.api.model.ProjectRequestFluent$MetadataNested endMetadata</string>
+          <string>method io.fabric8.openshift.api.model.Route getSpec</string>
+          <string>method io.fabric8.openshift.api.model.TagEvent getImage</string>
+          <string>method io.fabric8.openshift.client.OpenShiftClient builds</string>
+          <string>method io.fabric8.openshift.client.OpenShiftClient imageStreams</string>
+          <string>method io.fabric8.openshift.client.OpenShiftClient projectrequests</string>
+          <string>method io.fabric8.openshift.client.OpenShiftClient projects</string>
+          <string>method io.fabric8.openshift.client.OpenShiftClient supportsOpenShiftAPIGroup</string>
+          <string>method io.fabric8.openshift.client.OpenShiftClient supportsOpenShiftAPIGroup java.lang.String</string>
+          <string>method java.io.File close</string>
+          <string>method java.io.File exists</string>
+          <string>method java.io.File newOutputStream</string>
+          <string>method java.io.File toURL</string>
+          <string>method java.io.Flushable flush</string>
+          <string>method java.io.Writer write java.lang.String</string>
+          <string>method java.lang.AutoCloseable close</string>
+          <string>method java.lang.Class getPackage</string>
+          <string>method java.lang.Class isInstance java.lang.Object</string>
+          <string>method java.lang.ClassLoader loadClass java.lang.String</string>
+          <string>method java.lang.Object getClass</string>
+          <string>method java.lang.Package getImplementationVersion</string>
+          <string>method java.lang.Package getSpecificationTitle</string>
+          <string>method java.lang.Package getSpecificationVersion</string>
+          <string>method java.lang.String isEmpty</string>
+          <string>method java.lang.String replaceAll java.lang.String java.lang.String</string>
+          <string>method java.lang.String substring int</string>
+          <string>method java.lang.Thread getContextClassLoader</string>
+          <string>method java.lang.Throwable printStackTrace</string>
+          <string>method java.net.HttpURLConnection disconnect</string>
+          <string>method java.net.HttpURLConnection getResponseCode</string>
+          <string>method java.net.HttpURLConnection setRequestMethod java.lang.String</string>
+          <string>method java.net.URL openConnection</string>
+          <string>method java.net.URL openStream</string>
+          <string>method java.net.URLConnection connect</string>
+          <string>method java.net.URLConnection getInputStream</string>
+          <string>method java.net.URLConnection getOutputStream</string>
+          <string>method java.net.URLConnection setDoInput boolean</string>
+          <string>method java.net.URLConnection setDoOutput boolean</string>
+          <string>method java.net.URLConnection setRequestProperty java.lang.String java.lang.String</string>
+          <string>method java.util.Collection toArray</string>
+          <string>method java.util.LinkedHashMap$LinkedHashIterator hasNext</string>
+          <string>method java.util.Properties load java.io.InputStream</string>
+          <string>method java.util.Scanner useDelimiter java.lang.String</string>
+          <string>method java.util.regex.Matcher group java.lang.String</string>
+          <string>method java.util.regex.Matcher matches</string>
+          <string>method java.util.regex.Pattern matcher java.lang.CharSequence</string>
+          <string>method jenkins.model.Jenkins getCloud java.lang.String</string>
+          <string>method jenkins.model.Jenkins getItemByFullName java.lang.String</string>
+          <string>method org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction getEnvironment</string>
+          <string>method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild</string>
+          <string>method org.w3c.dom.Document getDocumentElement</string>
+          <string>method org.w3c.dom.Document getElementsByTagName java.lang.String</string>
+          <string>method org.w3c.dom.Element getElementsByTagName java.lang.String</string>
+          <string>method org.w3c.dom.Node getChildNodes</string>
+          <string>method org.w3c.dom.Node getNodeName</string>
+          <string>method org.w3c.dom.Node getTextContent</string>
+          <string>method org.w3c.dom.Node setTextContent java.lang.String</string>
+          <string>method org.w3c.dom.NodeList getLength</string>
+          <string>method org.w3c.dom.NodeList item int</string>
+          <string>new groovy.json.JsonBuilder java.lang.Object</string>
+          <string>new groovy.json.JsonSlurper</string>
+          <string>new groovy.json.JsonSlurperClassic</string>
+          <string>new groovy.util.ConfigSlurper</string>
+          <string>new groovy.util.XmlSlurper</string>
+          <string>new io.fabric8.kubernetes.client.DefaultKubernetesClient</string>
+          <string>new io.fabric8.openshift.client.DefaultOpenShiftClient</string>
+          <string>new java.io.File java.lang.String</string>
+          <string>new java.io.FileInputStream java.io.File</string>
+          <string>new java.io.InputStreamReader java.io.InputStream</string>
+          <string>new java.io.InputStreamReader java.io.InputStream java.lang.String</string>
+          <string>new java.io.OutputStreamWriter java.io.OutputStream</string>
+          <string>new java.lang.String java.lang.String</string>
+          <string>new java.lang.StringBuilder</string>
+          <string>new java.util.LinkedHashMap java.util.Map</string>
+          <string>new java.util.Properties</string>
+          <string>new java.util.Scanner java.io.InputStream java.lang.String</string>
+          <string>new java.util.Scanner java.lang.Readable</string>
+          <string>new org.csanchez.jenkins.plugins.kubernetes.PodAnnotation java.lang.String java.lang.String</string>
+          <string>staticField groovy.io.FileType FILES</string>
+          <string>staticMethod groovy.xml.DOMBuilder newInstance</string>
+          <string>staticMethod groovy.xml.XmlUtil serialize org.w3c.dom.Element</string>
+          <string>staticMethod io.fabric8.kubernetes.api.KubernetesHelper getServiceURL io.fabric8.kubernetes.client.DefaultKubernetesClient java.lang.String java.lang.String java.lang.String boolean</string>
+          <string>staticMethod io.fabric8.kubernetes.api.KubernetesHelper getServiceURL io.fabric8.kubernetes.client.KubernetesClient java.lang.String java.lang.String java.lang.String boolean</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments load</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments load io.fabric8.kubernetes.client.DefaultKubernetesClient java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments load io.fabric8.kubernetes.client.KubernetesClient java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments load java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments namespaceForEnvironment io.fabric8.kubernetes.client.DefaultKubernetesClient java.lang.String java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments namespaceForEnvironment io.fabric8.kubernetes.client.KubernetesClient java.lang.String java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments namespaceForEnvironment java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.environments.Environments namespaceForEnvironment java.lang.String java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.PipelineConfiguration loadPipelineConfiguration</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.PipelineConfiguration loadPipelineConfiguration io.fabric8.kubernetes.client.DefaultKubernetesClient java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.PipelineConfiguration loadPipelineConfiguration io.fabric8.kubernetes.client.KubernetesClient java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.PipelineConfiguration loadPipelineConfiguration java.lang.String</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.Pipelines getPipeline io.fabric8.kubernetes.client.DefaultKubernetesClient java.lang.String io.fabric8.kubernetes.api.pipelines.JobEnvironment</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.Pipelines getPipeline io.fabric8.kubernetes.client.DefaultKubernetesClient java.lang.String java.util.Map</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.Pipelines getPipeline io.fabric8.kubernetes.client.KubernetesClient java.lang.String io.fabric8.kubernetes.api.pipelines.JobEnvironment</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.Pipelines getPipeline io.fabric8.kubernetes.client.KubernetesClient java.lang.String java.util.Map</string>
+          <string>staticMethod io.fabric8.kubernetes.api.pipelines.Pipelines getPipeline java.lang.String java.util.Map</string>
+          <string>staticMethod io.fabric8.kubernetes.client.Adapters get java.lang.Class</string>
+          <string>staticMethod io.fabric8.utils.Strings isNotBlank java.lang.String</string>
+          <string>staticMethod java.lang.Double parseDouble java.lang.String</string>
+          <string>staticMethod java.lang.String valueOf int</string>
+          <string>staticMethod java.lang.System getProperty java.lang.String</string>
+          <string>staticMethod java.lang.System getenv</string>
+          <string>staticMethod java.lang.Thread currentThread</string>
+          <string>staticMethod java.lang.Thread sleep long</string>
+          <string>staticMethod java.util.UUID randomUUID</string>
+          <string>staticMethod java.util.regex.Pattern compile java.lang.String</string>
+          <string>staticMethod jenkins.model.Jenkins getActiveInstance</string>
+          <string>staticMethod jenkins.model.Jenkins getInstance</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods count java.lang.String java.lang.String</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods each java.lang.Object groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachDirRecurse java.io.File groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachFile java.io.File groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachFileMatch java.io.File java.lang.Object groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachFileRecurse java.io.File groovy.io.FileType groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachFileRecurse java.io.File groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachLine java.io.File groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachLine java.lang.String groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods eachWithIndex java.lang.Object groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods flatten java.util.List</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods get java.util.Map java.lang.Object java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods getAt java.lang.Object java.lang.String</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods getCount java.util.regex.Matcher</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods getText java.net.URL</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods invokeMethod java.lang.Object java.lang.String java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods isNumber java.lang.String</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods leftShift java.io.OutputStream java.io.InputStream</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods leftShift java.io.OutputStream java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods leftShift java.util.Collection java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods minus java.lang.String java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods minus java.util.List java.lang.Iterable</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods minus java.util.List java.util.Collection</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods newReader java.net.URL</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods println groovy.lang.Closure java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods readLine java.io.Reader</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods removeAll java.util.Collection java.lang.Object[]</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods size java.lang.Object[]</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods take java.lang.CharSequence int</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods toInteger java.lang.String</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods use java.lang.Object java.lang.Class groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods withInputStream java.io.File groovy.lang.Closure</string>
+          <string>staticMethod org.codehaus.groovy.runtime.ScriptBytecodeAdapter bitwiseNegate java.lang.Object</string>
+          <string>staticMethod org.codehaus.groovy.runtime.ScriptBytecodeAdapter compareGreaterThan java.lang.Object java.lang.Object</string>
+          <string>staticMethod org.kohsuke.groovy.sandbox.impl.Checker checkedCall java.lang.Object boolean boolean java.lang.String java.lang.Object[]</string>
+          <string>staticMethod org.kohsuke.groovy.sandbox.impl.Checker checkedConstructor java.lang.Class java.lang.Object[]</string>
+        </approvedSignatures>
+        <aclApprovedSignatures>
+        </aclApprovedSignatures>
+        <approvedClasspathEntries/>
+        <pendingScripts/>
+        <pendingSignatures/>
+        <pendingClasspathEntries/>
+      </scriptApproval>
+    config.xml.tpl: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <hudson>
+        <disabledAdministrativeMonitors/>
+        <version>2.7.3</version>
+        <numExecutors>5</numExecutors>
+        <mode>NORMAL</mode>
+        <useSecurity>true</useSecurity>
+        <authorizationStrategy class="hudson.security.GlobalMatrixAuthorizationStrategy">
+          <permission>hudson.model.Computer.Configure:admin</permission>
+          <permission>hudson.model.Computer.Delete:admin</permission>
+          <permission>hudson.model.Hudson.Administer:admin</permission>
+          <permission>hudson.model.Hudson.Read:admin</permission>
+          <permission>hudson.model.Item.Build:admin</permission>
+          <permission>hudson.model.Item.Configure:admin</permission>
+          <permission>hudson.model.Item.Create:admin</permission>
+          <permission>hudson.model.Item.Delete:admin</permission>
+          <permission>hudson.model.Item.Read:admin</permission>
+          <permission>hudson.model.Item.Workspace:admin</permission>
+          <permission>hudson.model.Run.Delete:admin</permission>
+          <permission>hudson.model.Run.Update:admin</permission>
+          <permission>hudson.model.View.Configure:admin</permission>
+          <permission>hudson.model.View.Create:admin</permission>
+          <permission>hudson.model.View.Delete:admin</permission>
+          <permission>hudson.scm.SCM.Tag:admin</permission>
+        </authorizationStrategy>
+        <securityRealm class="hudson.security.HudsonPrivateSecurityRealm">
+          <disableSignup>true</disableSignup>
+          <enableCaptcha>false</enableCaptcha>
+        </securityRealm>
+        <disableRememberMe>false</disableRememberMe>
+        <workspaceDir>${ITEM_ROOTDIR}/workspace</workspaceDir>
+        <buildsDir>${ITEM_ROOTDIR}/builds</buildsDir>
+        <jdks/>
+        <viewsTabBar class="hudson.views.DefaultViewsTabBar"/>
+        <myViewsTabBar class="hudson.views.DefaultMyViewsTabBar"/>
+        <clouds>
+          ${KUBERNETES_CONFIG}
+        </clouds>
+        <quietPeriod>1</quietPeriod>
+        <scmCheckoutRetryCount>0</scmCheckoutRetryCount>
+        <views>
+          <hudson.model.AllView>
+            <owner class="hudson" reference="../../.."/>
+            <name>All</name>
+            <filterExecutors>false</filterExecutors>
+            <filterQueue>false</filterQueue>
+            <properties/>
+          </hudson.model.AllView>
+        </views>
+        <primaryView>All</primaryView>
+        <slaveAgentPort>${JNLP_PORT}</slaveAgentPort>
+        <label>master</label>
+        <nodeProperties/>
+        <globalNodeProperties/>
+        <noUsageStatistics>true</noUsageStatistics>
+      </hudson>
+    hudson.plugins.buildblocker.BuildBlockerProperty.xml: |-
+      <?xml version='1.0' encoding='UTF-8'?>
+      <hudson.plugins.buildblocker.BuildBlockerProperty_-DescriptorImpl plugin="build-blocker-plugin@1.7.4-SNAPSHOT">
+          <useBuildBlocker>true</useBuildBlocker>
+          <blockLevel>GLOBAL</blockLevel>
+          <scanQueueFor>DISABLED</scanQueueFor>
+          <blockingJobs>.*</blockingJobs>
+      </hudson.plugins.buildblocker.BuildBlockerProperty_-DescriptorImpl>
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      configmap.fabric8.io/update-on-change: jenkins
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 2
+    selector:
+      app: jenkins
+      provider: fabric8
+    strategy:
+      recreateParams:
+        timeoutSeconds: 10000
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          configmap.fabric8.io/update-on-change: jenkins
+        labels:
+          app: jenkins
+          provider: fabric8
+          version: ${COMMIT}
+      spec:
+        containers:
+        - env:
+          - name: PROJECT_NAMESPACE
+            value: ${USER_NAME}
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: GIT_COMMITTER_EMAIL
+            value: fabric8@googlegroups.com
+          - name: GIT_COMMITTER_NAME
+            value: fabric8
+          - name: OPENSHIFT_ENABLE_OAUTH
+            value: "true"
+          - name: OPENSHIFT_ENABLE_REDIRECT_PROMPT
+            value: "true"
+          - name: KUBERNETES_TRUST_CERTIFICATES
+            value: "true"
+          - name: KUBERNETES_MASTER
+            value: https://kubernetes.default:443
+          - name: JAVA_GC_OPTS
+            value: -XX:+UseParallelGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10
+              -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90
+          - name: JAVA_OPTS
+            value: -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap
+              -Dsun.zip.disableMemoryMapping=true
+          - name: OPENSHIFT_JENKINS_JVM_ARCH
+            value: i686
+          - name: CONTAINER_CORE_LIMIT
+            value: "2"
+          - name: CONTAINER_INITIAL_PERCENT
+            value: "0.60"
+          - name: JENKINS_OPTS
+            value: -Dgroovy.use.classvalue=true
+          - name: JAVA_HOME
+            value: /etc/alternatives/java_sdk
+          - name: MAVEN_OPTS
+            value: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
+          - name: RECOMMENDER_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: token
+                name: jenkins-recommender-api-token
+          - name: JENKINS_ROOT_URL
+            value: ${JENKINS_ROOT_URL}
+          - name: K8S_PIPELINE_SERVICE_PATCH
+            value: enabled
+          image: fabric8/jenkins-openshift:${JENKINS_OPENSHIFT_VERSION}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 420
+            timeoutSeconds: 10
+          name: jenkins
+          ports:
+          - containerPort: 50000
+            name: slave
+          - containerPort: 8080
+            name: http
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            timeoutSeconds: 240
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: "2"
+            requests:
+              cpu: "0"
+          volumeMounts:
+          - mountPath: /var/lib/jenkins
+            name: jenkins-home
+            readOnly: false
+          - mountPath: /opt/openshift/configuration/
+            name: jenkins-config
+        serviceAccountName: jenkins
+        volumes:
+        - name: jenkins-home
+          persistentVolumeClaim:
+            claimName: jenkins-home
+        - configMap:
+            name: jenkins
+          name: jenkins-config
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+    name: jenkins
+    namespace: ${USER_NAME}-jenkins
+  spec:
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge
+    to:
+      kind: Service
+      name: jenkins
+parameters:
+- name: USER_NAME
+  value: developer
+- name: JENKINS_OPENSHIFT_VERSION
+  value: v7e8de2d
+- name: PROJECT_USER
+  value: developer
+- name: RECOMMENDER_EXTERNAL_NAME
+  value: recommender.api.prod-preview.openshift.io
+- name: RECOMMENDER_API_TOKEN
+- name: KEYCLOAK_URL
+- name: FABRIC8_CONSOLE_URL
+- name: JENKINS_ROOT_URL
+- name: COMMIT
+  value: 123abc
