@@ -1,3 +1,6 @@
+ # Use bash syntax
+SHELL := /bin/bash
+
 BINARY_SERVER_BIN=$(INSTALL_PREFIX)/fabric8-tenant
 DEP_BIN=dep
 GOAGEN_BIN=$(VENDOR_DIR)/github.com/goadesign/goa/goagen/goagen
