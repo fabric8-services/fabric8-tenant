@@ -159,7 +159,7 @@ test-unit: test-templates-flags prebuild-check clean-coverage-unit $(COV_PATH_UN
 
 .PHONY: test-unit-no-coverage
 ## Runs the unit tests and WITHOUT producing coverage files for each package.
-test-unit-no-coverage: test-templates-flags test-templates-flags prebuild-check $(SOURCES)
+test-unit-no-coverage: test-templates-flags prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_UNIT_TEST=1 go test -v $(TEST_PACKAGES)
