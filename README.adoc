@@ -8,29 +8,37 @@ image:https://codecov.io/gh/fabric8-services/fabric8-tenant/branch/master/graph/
 
 == Service for initializing and updating the tenant services in fabric8/openshift.io
 
-The YAML for the tenant services is defined in the following projects:
+=== Template YAML files
 
-* che : https://github.com/fabric8-services/fabric8-tenant-che
-* jenkins : https://github.com/fabric8-services/fabric8-tenant-jenkins
-* team : https://github.com/fabric8-services/fabric8-tenant-team
+All template YAML files and YAML files containing resource quotas and limits are located in link:environment/templates/[] directory.
+Every template uses the same versioning system - the version is stored as a label called `version` and is equal to a short version of `SHA` of the latest commit that changes the particular file.
+Both link:environment/templates/fabric8-tenant-jenkins.yml[jenkins] and link:environment/templates/fabric8-tenant-che.yml[single-tenant-che] templates contain also versions of imagines to be deployed - these versions are stored as a template parameter. In case of jenkins the parameter is `JENKINS_OPENSHIFT_VERSION` and in case of che `CHE_SERVER_VERSION`
 
-=== Testing YAML
+==== In-production testing
 
-When a PR is made on one of the above YAML repos you can test in production in your tenant via the following:
+===== Pull request
+
+When a PR is made on one of the YAML files you can test in production in your tenant via the following:
 
 * http://openshift.io/ and login
-* go to your Profile page (click the top right drop down and select `Profile`)
-* add `/_tenant` to your browsers address bar - so you will be looking at a URL like https://openshift.io/my-user-name/_tenant
-* enter the `sha` of the latest commit in your PR as a templates repository blob
-* click `Update Profile`
-* now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] - you're tenant should now be running the PR
+* go to https://openshift.io/_profile/_tenant
+* enter the `SHA` of the latest commit in your PR as the "Repository blob SHA"
+* check `Auto-update your tenant`
+* click `Save and Update Tenant` - your tenant should now be updating/running namespaces using the files from your PR
+* the version (label) inside of the updated tenant namespaces is set to the blob `SHA` that was set in the form
+
+===== Without creating a pull request
+
+If it is needed to test templates without submitting a PR, you can do in a similar way as in case of PR, but on the https://openshift.io/_profile/_tenant page, you have to also specify the name of the repository and path to the directory where the templates are stored. The blob SHA is mandatory even if it should be taken from the master branch.
+
+===== Reset back
 
 To go back to using the default YAML:
 
-* go back to your tenant page like https://openshift.io/my-user-name/_tenant
+* go back to your tenant page like https://openshift.io/_profile/_tenant
 * click `Clear Values`
-* click `Update Profile`
-* now https://github.com/openshiftio/openshift.io/wiki/FAQ#how-do-i-update-my-tenant-[Update Tenant] and you should be back to the default versions
+* check `Auto-update your tenant`
+* click `Save and Update Tenant` - and you should be back to the default versions
 
 === Development
 
@@ -77,9 +85,9 @@ You can do the same clean, generate and fetch the dependencies as it is suggeste
 $ make clean && make generate && make deps
 ```
 
-Integration tests need to have a DB running. To use that we need to use a docker image for the build. For now just start it:
+Integration tests need to have a DB running. To use that we need to use a docker image for the build. For now just start it and install all necessary binaries in it:
 ```
-$ make docker-start
+$ make docker-start-local && make docker-prebuild-check
 ```
 
 And start the DB:
@@ -96,6 +104,13 @@ To stop containers:
 ```
 $ make integration-test-env-tear-down
 $ make docker-rm
+```
+
+==== Run all tests
+
+Expecting that the docker container is running as well as the DB (see <<Run integration tests>>) you can trigger all tests by a command:
+```
+make docker-test-all
 ```
 
 ==== Code formatting
