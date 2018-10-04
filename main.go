@@ -166,24 +166,38 @@ func checkTemplateVersions() string {
 	errorMsg := ""
 	if environment.VersionFabric8TenantUserFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantUserFile")
+	} else {
+		logVersionInfo("fabric8-tenant-user.yml", environment.VersionFabric8TenantUserFile)
 	}
 	if environment.VersionFabric8TenantJenkinsFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantJenkinsFile")
+	} else {
+		logVersionInfo("fabric8-tenant-jenkins.yml", environment.VersionFabric8TenantJenkinsFile)
 	}
 	if environment.VersionFabric8TenantDeployFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantDeployFile")
+	} else {
+		logVersionInfo("fabric8-tenant-deploy.yml", environment.VersionFabric8TenantDeployFile)
 	}
 	if environment.VersionFabric8TenantCheMtFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheMtFile")
+	} else {
+		logVersionInfo("fabric8-tenant-che-mt.yml", environment.VersionFabric8TenantCheMtFile)
 	}
 	if environment.VersionFabric8TenantCheFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheFile")
+	} else {
+		logVersionInfo("fabric8-tenant-che.yml", environment.VersionFabric8TenantCheFile)
 	}
 	return errorMsg
 }
 
 func createNotSetVersionError(variable string) string {
 	return fmt.Sprintf("The variable %s representing a template version is not set.\n", variable)
+}
+
+func logVersionInfo(target, version string) {
+	log.Logger().Infof("Using %s of version: %s", target, version)
 }
 
 func connect(config *configuration.Data) *gorm.DB {
