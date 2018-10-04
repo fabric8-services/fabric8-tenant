@@ -67,20 +67,10 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 	var templates []*Template
 	if envType == "che" {
 		if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
-			token := goajwt.ContextJWT(ctx)
-			var cheMtParams map[string]string
-			if token != nil {
-				cheMtParams["OSIO_TOKEN"] = token.Raw
-				id := token.Claims.(jwt.MapClaims)["sub"]
-				if id == nil {
-					return nil, errors.New("missing sub in JWT token")
-				}
-				cheMtParams["IDENTITY_ID"] = id.(string)
+			cheMtParams, err := getCheMtParams(ctx)
+			if err != nil {
+				return nil, err
 			}
-			cheMtParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
-			unixNano := time.Now().UnixNano()
-			cheMtParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
-
 			templates = templateNames["che-mt"]
 			templates[0].DefaultParams = cheMtParams
 		} else {
@@ -100,7 +90,24 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 		Name:      envType,
 		NsType:    envType,
 	}, nil
+}
 
+func getCheMtParams(ctx context.Context) (map[string]string, error) {
+	token := goajwt.ContextJWT(ctx)
+	cheMtParams := map[string]string{}
+	if token != nil {
+		cheMtParams["OSIO_TOKEN"] = token.Raw
+		id := token.Claims.(jwt.MapClaims)["sub"]
+		if id == nil {
+			return nil, errors.New("missing sub in JWT token")
+		}
+		cheMtParams["IDENTITY_ID"] = id.(string)
+	}
+	cheMtParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
+	unixNano := time.Now().UnixNano()
+	cheMtParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
+
+	return cheMtParams, nil
 }
 
 func (s *Service) retrieveTemplates(tmpls []*Template) error {
