@@ -6,12 +6,14 @@ import (
 	"os"
 	"time"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/migration"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
@@ -45,6 +47,11 @@ func main() {
 		logrus.Panic(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to setup the configuration")
+	}
+
+	errorMsg := checkTemplateVersions()
+	if errorMsg != "" {
+		log.Panic(nil, map[string]interface{}{}, errorMsg)
 	}
 
 	db := connect(config)
@@ -153,6 +160,30 @@ func main() {
 		}, "unable to connect to server")
 		service.LogError("startup", "err", err)
 	}
+}
+
+func checkTemplateVersions() string {
+	errorMsg := ""
+	if environment.VersionFabric8TenantUserFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantUserFile")
+	}
+	if environment.VersionFabric8TenantJenkinsFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantJenkinsFile")
+	}
+	if environment.VersionFabric8TenantDeployFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantDeployFile")
+	}
+	if environment.VersionFabric8TenantCheMtFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheMtFile")
+	}
+	if environment.VersionFabric8TenantCheFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheFile")
+	}
+	return errorMsg
+}
+
+func createNotSetVersionError(variable string) string {
+	return fmt.Sprintf("The variable %s representing a template version is not set.\n", variable)
 }
 
 func connect(config *configuration.Data) *gorm.DB {
