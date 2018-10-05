@@ -142,6 +142,7 @@ $(eval FLAG=$(1))
   	>&2 echo ERROR: the sha $${TEMPLATE_SHA} of the file $${TEMPLATE_FILE} is not the latest one; \
   	exit 1; \
   fi; \
+  echo SHA of $${TEMPLATE_FILE}: $${TEMPLATE_SHA}; \
 fi;
 endef
 
