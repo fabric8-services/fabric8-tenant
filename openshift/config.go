@@ -19,14 +19,13 @@ type Config struct {
 	HTTPTransport     http.RoundTripper
 	ConsoleURL        string
 	LogCallback       LogCallback
-	Commit            string
 	TemplatesRepo     string
 	TemplatesRepoBlob string
 	TemplatesRepoDir  string
 }
 
 // NewConfig builds openshift config for every user request depending on the user profile
-func NewConfig(config *configuration.Data, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL, commit string) Config {
+func NewConfig(config *configuration.Data, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL string) Config {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: config.APIServerInsecureSkipTLSVerify(),
@@ -40,7 +39,6 @@ func NewConfig(config *configuration.Data, user *authclient.UserDataAttributes, 
 		MasterUser:     clusterUser,
 		Token:          clusterToken,
 		MasterURL:      clusterURL,
-		Commit:         commit,
 	}
 	return setTemplateRepoInfo(user, conf)
 }

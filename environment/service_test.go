@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -39,10 +41,16 @@ objects:
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
 	service := environment.NewService("", "", "")
+	setTemplateVersions()
+	vars := map[string]string{
+		"USER_NAME": "dev",
+	}
 
 	for _, envType := range environment.DefaultEnvTypes {
 		// when
 		env, err := service.GetEnvData(context.Background(), envType)
+		require.NoError(t, err)
+		objects, err := env.Templates[0].Process(vars)
 
 		// then
 		require.NoError(t, err)
@@ -51,12 +59,23 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 			assert.Len(t, env.Templates, 2)
 			assert.Contains(t, env.Templates[0].Filename, envType)
 			assert.Contains(t, env.Templates[1].Filename, "quotas")
+			if envType == "jenkins" {
+				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
+			} else {
+				if strings.Contains(env.Templates[0].Filename, "mt") {
+					assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
+				} else {
+					assert.Equal(t, "123abc", environment.GetLabelVersion(objects[0]))
+				}
+			}
 		} else if envType == "user" {
 			assert.Len(t, env.Templates, 1)
 			assert.Contains(t, env.Templates[0].Filename, envType)
+			assert.Equal(t, "345cde", environment.GetLabelVersion(objects[0]))
 		} else {
 			assert.Len(t, env.Templates, 1)
 			assert.Contains(t, env.Templates[0].Filename, "deploy")
+			assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
 		}
 
 		for _, template := range env.Templates {
@@ -67,10 +86,10 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 
 func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 	// given
+	setTemplateVersions()
 	service := environment.NewService("", "", "")
 	vars := map[string]string{
 		"USER_NAME": "dev",
-		"COMMIT":    "123",
 	}
 
 	for _, envType := range environment.DefaultEnvTypes {
@@ -87,7 +106,7 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 
 		//then
 		for _, obj := range objects {
-			assert.Equal(t, "123", environment.GetLabelVersion(obj))
+			assert.Regexp(t, regexp.MustCompile(`[1-7]{3}[a-g]{3}`), environment.GetLabelVersion(obj))
 			if environment.GetKind(obj) != environment.ValKindProjectRequest {
 				assert.Contains(t, environment.GetNamespace(obj), nsName)
 			} else {
@@ -97,15 +116,23 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 	}
 }
 
+func setTemplateVersions() {
+	environment.VersionFabric8TenantCheFile = "123abc"
+	environment.VersionFabric8TenantCheMtFile = "234bcd"
+	environment.VersionFabric8TenantUserFile = "345cde"
+	environment.VersionFabric8TenantDeployFile = "456def"
+	environment.VersionFabric8TenantJenkinsFile = "567efg"
+}
+
 func TestDownloadFromGivenBlob(t *testing.T) {
 	// given
 	defer gock.OffAll()
 	gock.New("https://github.com").
-		Get("fabric8-services/fabric8-tenant/blob/123abc/environment/templates/fabric8-tenant-deploy.yml").
+		Get("fabric8-services/fabric8-tenant/blob/987654321/environment/templates/fabric8-tenant-deploy.yml").
 		Reply(200).
 		BodyString(defaultLocationTempl)
-
-	service := environment.NewService("", "123abc", "")
+	setTemplateVersions()
+	service := environment.NewService("", "987654321", "")
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "run")
@@ -114,23 +141,23 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 	require.NoError(t, err)
 	vars := map[string]string{
 		"USER_NAME": "dev",
-		"COMMIT":    "123",
 	}
 	objects, err := envData.Templates[0].Process(vars)
 	require.NoError(t, err)
 	assert.Len(t, objects, 1)
 	assert.Equal(t, environment.GetLabel(objects[0], "test"), "default-location")
+	assert.Equal(t, environment.GetLabelVersion(objects[0]), "987654321")
 }
 
 func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 	// given
 	defer gock.OffAll()
 	gock.New("http://my.git.com").
-		Get("my-services/my-tenant/blob/123abc/any/path/fabric8-tenant-deploy.yml").
+		Get("my-services/my-tenant/blob/987cba/any/path/fabric8-tenant-deploy.yml").
 		Reply(200).
 		BodyString(customLocationTempl)
-
-	service := environment.NewService("http://my.git.com/my-services/my-tenant", "123abc", "any/path")
+	setTemplateVersions()
+	service := environment.NewService("http://my.git.com/my-services/my-tenant", "987cba", "any/path")
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "run")
@@ -139,12 +166,12 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 	require.NoError(t, err)
 	vars := map[string]string{
 		"USER_NAME": "dev",
-		"COMMIT":    "123",
 	}
 	objects, err := envData.Templates[0].Process(vars)
 	require.NoError(t, err)
 	assert.Len(t, objects, 1)
 	assert.Equal(t, environment.GetLabel(objects[0], "test"), "custom-location")
+	assert.Equal(t, environment.GetLabelVersion(objects[0]), "987cba")
 }
 
 var dnsRegExp = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
