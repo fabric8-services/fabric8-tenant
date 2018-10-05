@@ -52,6 +52,7 @@ const (
 	varProjectAdminUser      = "PROJECT_ADMIN_USER"
 	varKeycloakURL           = "KEYCLOAK_URL"
 	varCommit                = "COMMIT"
+	varDeployType            = "DEPLOY_TYPE"
 	varKeycloakOsoEndpoint   = "KEYCLOAK_OSO_ENDPOINT"
 	varKeycloakGHEndpoint    = "KEYCLOAK_GITHUB_ENDPOINT"
 )
@@ -84,9 +85,6 @@ type Template struct {
 }
 
 var (
-	stageParams       = map[string]string{"DEPLOY_TYPE": "stage"}
-	runParams         = map[string]string{"DEPLOY_TYPE": "run"}
-	noParams          map[string]string
 	specialCharRegexp = regexp.MustCompile("[^a-z0-9]")
 	variableRegexp    = regexp.MustCompile(`\${([A-Z_0-9]+)}`)
 )
@@ -152,7 +150,7 @@ func (t *Template) ReplaceVars(variables map[string]string) (string, error) {
 	})), nil
 }
 
-func CollectVars(user, masterUser, commit string, config *configuration.Data) map[string]string {
+func CollectVars(user, masterUser string, config *configuration.Data) map[string]string {
 	userName := RetrieveUserName(user)
 
 	vars := map[string]string{
@@ -160,7 +158,6 @@ func CollectVars(user, masterUser, commit string, config *configuration.Data) ma
 		varProjectUser:           user,
 		varProjectRequestingUser: user,
 		varProjectAdminUser:      masterUser,
-		varCommit:                commit,
 	}
 
 	return merge(vars, getVariables(config))

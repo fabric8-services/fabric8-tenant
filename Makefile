@@ -13,6 +13,7 @@ SOURCE_DIR ?= .
 SOURCES := $(shell find $(SOURCE_DIR) -path $(SOURCE_DIR)/vendor -prune -o -name '*.go' -print)
 DESIGN_DIR=design
 DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -prune -o -name '*.go' -print)
+TEMPLATES := $(shell find $(SOURCE_DIR)/environment/templates -type f ! -name *quotas*)
 
 # Find all required tools:
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
@@ -39,7 +40,16 @@ BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
 CLEAN_TARGETS =
 
 # Pass in build time variables to main
-LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/controller.Commit=${COMMIT} -X ${PACKAGE_NAME}/controller.BuildTime=${BUILD_TIME}"
+LDFLAGS_FOR_TEMPLATES=$(foreach template-path, $(TEMPLATES), $(call set-latest-commit-sha,$(template-path)))
+LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/controller.Commit=${COMMIT} -X ${PACKAGE_NAME}/controller.BuildTime=${BUILD_TIME} $(LDFLAGS_FOR_TEMPLATES)"
+
+define set-latest-commit-sha
+-X ${PACKAGE_NAME}/environment.$(call get-variable-name, $(1))=$(shell git log -n 1 --pretty=format:%h -- $(1))
+endef
+
+define get-variable-name
+Version$(shell echo $(notdir $(basename $(1))) | sed -r 's/(^|-)([a-z])/\U\2/g')File
+endef
 
 # Call this function with $(call log-info,"Your message")
 define log-info =
