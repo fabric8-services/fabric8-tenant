@@ -2,12 +2,13 @@ package environment
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"gopkg.in/yaml.v2"
-	"regexp"
-	"strings"
 )
 
 const (
@@ -58,9 +59,9 @@ const (
 )
 
 var sortOrder = map[string]int{
-	"Namespace":              1,
-	"ProjectRequest":         1,
-	"Role":                   2,
+	"Namespace":      1,
+	"ProjectRequest": 1,
+	"Role":           2,
 	"RoleBindingRestriction": 3,
 	"LimitRange":             4,
 	"ResourceQuota":          5,
