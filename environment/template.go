@@ -2,12 +2,13 @@ package environment
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
 	"gopkg.in/yaml.v2"
-	"regexp"
-	"strings"
 )
 
 const (
@@ -58,20 +59,21 @@ const (
 )
 
 var sortOrder = map[string]int{
-	"Namespace":              1,
-	"ProjectRequest":         1,
-	"RoleBindingRestriction": 2,
-	"LimitRange":             3,
-	"ResourceQuota":          4,
-	"Secret":                 5,
-	"ServiceAccount":         6,
-	"Service":                7,
-	"RoleBinding":            8,
-	"PersistentVolumeClaim":  9,
-	"ConfigMap":              10,
-	"DeploymentConfig":       11,
-	"Route":                  12,
-	"Job":                    13,
+	"Namespace":      1,
+	"ProjectRequest": 1,
+	"Role":           2,
+	"RoleBindingRestriction": 3,
+	"LimitRange":             4,
+	"ResourceQuota":          5,
+	"Secret":                 6,
+	"ServiceAccount":         7,
+	"Service":                8,
+	"RoleBinding":            9,
+	"PersistentVolumeClaim":  10,
+	"ConfigMap":              11,
+	"DeploymentConfig":       12,
+	"Route":                  13,
+	"Job":                    14,
 }
 
 type Objects []map[interface{}]interface{}
