@@ -19,6 +19,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: ${USER_NAME}-che
 - apiVersion: v1
   kind: RoleBindingRestriction
@@ -27,6 +28,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: dsaas-user-access
     namespace: ${USER_NAME}-che
   spec:
@@ -40,6 +42,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che-recommender-api-token
     namespace: ${USER_NAME}-che
   data:
@@ -52,6 +55,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che
     namespace: ${USER_NAME}-che
 - apiVersion: v1
@@ -64,6 +68,7 @@ objects:
       provider: fabric8
       expose: "false"
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che-host
     namespace: ${USER_NAME}-che
   spec:
@@ -82,6 +87,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che
     namespace: ${USER_NAME}-che
   roleRef:
@@ -96,6 +102,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: user-edit
     namespace: ${USER_NAME}-che
   roleRef:
@@ -112,6 +119,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: user-view
     namespace: ${USER_NAME}-che
   roleRef:
@@ -128,6 +136,7 @@ objects:
       app: che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che-data-volume
     namespace: ${USER_NAME}-che
   spec:
@@ -143,6 +152,7 @@ objects:
       app: che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: claim-che-workspace
     namespace: ${USER_NAME}-che
   spec:
@@ -158,6 +168,7 @@ objects:
       app: che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che
     namespace: ${USER_NAME}-che
   data:
@@ -204,6 +215,7 @@ objects:
       fabric8.io/kind: package
       provider: fabric8.io
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
       app: fabric8-tenant-che
     name: fabric8-online-che
     namespace: ${USER_NAME}-che
@@ -217,6 +229,7 @@ objects:
       app: che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che
     namespace: ${USER_NAME}-che
   spec:
@@ -235,6 +248,7 @@ objects:
           app: che
           provider: fabric8
           version: ${COMMIT}
+          version-quotas: ${COMMIT_QUOTAS}
       spec:
         containers:
         - env:
@@ -446,6 +460,7 @@ objects:
       app: che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che
     namespace: ${USER_NAME}-che
   spec:
@@ -478,4 +493,6 @@ parameters:
 - name: CHE_KEYCLOAK_CLIENT__ID
   value: openshiftio-public
 - name: COMMIT
+  value: 123abc
+- name: COMMIT_QUOTAS
   value: 123abc
