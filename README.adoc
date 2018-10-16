@@ -87,7 +87,7 @@ $ make clean && make generate && make deps
 
 Integration tests need to have a DB running. To use that we need to use a docker image for the build. For now just start it and install all necessary binaries in it:
 ```
-$ make docker-start-local && make docker-prebuild-check
+$ make docker-start && make docker-prebuild-check
 ```
 
 And start the DB:

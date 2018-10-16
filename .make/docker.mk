@@ -30,14 +30,8 @@ PACKAGE_PATH=$(GOPATH_IN_CONTAINER)/src/$(PACKAGE_NAME)
 .PHONY: docker-image-builder
 ## Builds the docker image used to build the software.
 docker-image-builder:
-	@echo "Building docker image $(DOCKER_IMAGE_CORE) from Dockerfile.builder"
+	@echo "Building docker image $(DOCKER_IMAGE_CORE)"
 	docker build -t $(DOCKER_IMAGE_CORE) -f $(CUR_DIR)/Dockerfile.builder $(CUR_DIR)
-
-.PHONY: docker-image-builder-local
-## Builds the docker image used to build the software for local usage.
-docker-image-builder-local:
-	@echo "Building docker image $(DOCKER_IMAGE_CORE) from Dockerfile.builder.local"
-	docker build -t $(DOCKER_IMAGE_CORE) -f $(CUR_DIR)/Dockerfile.builder.local $(CUR_DIR)
 
 .PHONY: docker-image-deploy
 ## Creates a runnable image using the artifacts from the bin directory.
@@ -74,9 +68,6 @@ clean-docker-build-dir:
 	@echo "Cleaning build directory $(BUILD_DIR)"
 	-rm -rf $(DOCKER_BUILD_DIR)
 
-.PHONY: docker-start-local
-docker-start-local:	docker-build-dir docker-image-builder-local docker-run
-
 .PHONY: docker-start
 ## Starts the docker build container in the background (detached mode).
 ## After calling this command you can invoke all the make targets from the
@@ -84,10 +75,7 @@ docker-start-local:	docker-build-dir docker-image-builder-local docker-run
 ## by prefixing them with "docker-". For example to execute "make deps"
 ## inside the build container, just run "make docker-deps".
 ## To remove the container when no longer needed, call "make docker-rm".
-docker-start: docker-build-dir docker-image-builder docker-run
-
-.PHONY: docker-run
-docker-run:
+docker-start: docker-build-dir docker-image-builder
 ifneq ($(strip $(shell docker ps -qa --filter "name=$(DOCKER_CONTAINER_NAME)" 2>/dev/null)),)
 	@echo "Docker container \"$(DOCKER_CONTAINER_NAME)\" already exists. To recreate, run \"make docker-rm\"."
 else

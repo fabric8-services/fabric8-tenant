@@ -19,4 +19,6 @@ RUN mkdir -p /tmp/go/bin
 ENV GOPATH /tmp/go
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh && mv /tmp/go/bin/dep /usr/bin
 
+RUN chmod -R a+rwx ${GOPATH}
+
 ENTRYPOINT ["/bin/bash"]
