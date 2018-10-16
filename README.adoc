@@ -16,6 +16,12 @@ Both link:environment/templates/fabric8-tenant-jenkins.yml[jenkins] and link:env
 
 ==== In-production testing
 
+To be able to use the in-production testing feature, you need to have the `Internal Experimental Features` toggle activated. To do that:
+
+* visit http://openshift.io/ and login
+* go to https://openshift.io/_profile/_settings/feature-opt-in
+* check `Internal Experimental Features` option
+
 ===== Pull request
 
 When a PR is made on one of the YAML files you can test in production in your tenant via the following:
