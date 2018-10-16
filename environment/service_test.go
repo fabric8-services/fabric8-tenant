@@ -145,11 +145,37 @@ func setTemplateVersions() {
 	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
 }
 
+// Ignored because it downloads files directly from GitHub
+func XTestDownloadFromExistingLocation(t *testing.T) {
+	// given
+	setTemplateVersions()
+	service := environment.NewService("", "29541ca", "")
+	vars := map[string]string{
+		"USER_NAME": "dev",
+	}
+
+	for _, envType := range environment.DefaultEnvTypes {
+		// when
+		env, err := service.GetEnvData(context.Background(), envType)
+		require.NoError(t, err)
+
+		for _, template := range env.Templates {
+			objects, err := template.Process(vars)
+			require.NoError(t, err)
+
+			//then
+			for _, obj := range objects {
+				assert.Equal(t, "29541ca", environment.GetLabelVersion(obj), template.Filename)
+			}
+		}
+	}
+}
+
 func TestDownloadFromGivenBlob(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	gock.New("https://github.com").
-		Get("fabric8-services/fabric8-tenant/blob/987654321/environment/templates/fabric8-tenant-deploy.yml").
+	gock.New("https://raw.githubusercontent.com").
+		Get("fabric8-services/fabric8-tenant/987654321/environment/templates/fabric8-tenant-deploy.yml").
 		Reply(200).
 		BodyString(defaultLocationTempl)
 	setTemplateVersions()
@@ -173,16 +199,16 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	gock.New("http://my.git.com").
-		Get("my-services/my-tenant/blob/987cba/any/path/fabric8-tenant-jenkins.yml").
+	gock.New("http://raw.githubusercontent.com").
+		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins.yml").
 		Reply(200).
 		BodyString(customLocationTempl)
-	gock.New("http://my.git.com").
-		Get("my-services/my-tenant/blob/987cba/any/path/fabric8-tenant-jenkins-quotas.yml").
+	gock.New("http://raw.githubusercontent.com").
+		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins-quotas.yml").
 		Reply(200).
 		BodyString(customLocationQuotas)
 	setTemplateVersions()
-	service := environment.NewService("http://my.git.com/my-services/my-tenant", "987cba", "any/path")
+	service := environment.NewService("http://github.com/my-services/my-tenant", "987cba", "any/path")
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "jenkins")
