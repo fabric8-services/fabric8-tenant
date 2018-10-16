@@ -75,7 +75,7 @@ func (s *Service) GetUser(ctx context.Context) (*User, error) {
 			"err":         err,
 			"cluster_url": *userData.Cluster,
 		}, "unable to fetch tenant token from auth")
-		return nil, commonerrs.NewUnauthorizedError("Could not resolve user token")
+		return nil, commonerrs.NewUnauthorizedError("could not resolve user token. Caused by: " + err.Error())
 	}
 
 	return &User{
