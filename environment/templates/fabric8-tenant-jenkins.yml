@@ -460,6 +460,7 @@ objects:
           <string>method io.fabric8.openshift.client.OpenShiftClient supportsOpenShiftAPIGroup java.lang.String</string>
           <string>method java.io.File close</string>
           <string>method java.io.File exists</string>
+          <string>method java.io.File isDirectory</string>
           <string>method java.io.File newOutputStream</string>
           <string>method java.io.File toURL</string>
           <string>method java.io.Flushable flush</string>
