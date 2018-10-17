@@ -19,6 +19,7 @@ objects:
       app: fabric8-tenant-che
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: ${USER_NAME}-che
 - apiVersion: v1
   kind: RoleBindingRestriction
@@ -27,6 +28,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: dsaas-user-access
     namespace: ${USER_NAME}-che
   spec:
@@ -40,6 +42,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che
     namespace: ${USER_NAME}-che
 - apiVersion: v1
@@ -49,6 +52,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che-workspace
     namespace: ${USER_NAME}-che
 - apiVersion: v1
@@ -58,6 +62,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: exec
     namespace: ${USER_NAME}-che
   rules:
@@ -74,6 +79,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: che-edit
     namespace: ${USER_NAME}-che
   roleRef:
@@ -88,6 +94,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: user-edit
     namespace: ${USER_NAME}-che
   roleRef:
@@ -104,6 +111,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: user-exec
     namespace: ${USER_NAME}-che
   roleRef:
@@ -121,6 +129,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: user-view
     namespace: ${USER_NAME}-che
   roleRef:
@@ -137,6 +146,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: workspace-exec
     namespace: ${USER_NAME}-che
   roleRef:
@@ -152,6 +162,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: workspace-view
     namespace: ${USER_NAME}-che
   roleRef:
@@ -166,6 +177,7 @@ objects:
       app: fabric8-tenant-che-mt
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: claim-che-workspace
     namespace: ${USER_NAME}-che
   spec:
@@ -186,4 +198,6 @@ parameters:
   generate: expression
   name: JOB_ID
 - name: COMMIT
+  value: 123abc
+- name: COMMIT_QUOTAS
   value: 123abc

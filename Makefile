@@ -13,7 +13,7 @@ SOURCE_DIR ?= .
 SOURCES := $(shell find $(SOURCE_DIR) -path $(SOURCE_DIR)/vendor -prune -o -name '*.go' -print)
 DESIGN_DIR=design
 DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -prune -o -name '*.go' -print)
-TEMPLATES := $(shell find $(SOURCE_DIR)/environment/templates -type f ! -name *quotas*)
+TEMPLATES := $(shell find $(SOURCE_DIR)/environment/templates -type f)
 
 # Find all required tools:
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)

@@ -25,27 +25,32 @@ const (
 )
 
 var (
-	VersionFabric8TenantUserFile    string
-	VersionFabric8TenantCheMtFile   string
-	VersionFabric8TenantJenkinsFile string
-	VersionFabric8TenantCheFile     string
-	VersionFabric8TenantDeployFile  string
-	DefaultEnvTypes                 = []string{"che", "jenkins", "user", "run", "stage"}
+	VersionFabric8TenantUserFile          string
+	VersionFabric8TenantCheMtFile         string
+	VersionFabric8TenantJenkinsFile       string
+	VersionFabric8TenantJenkinsQuotasFile string
+	VersionFabric8TenantCheFile           string
+	VersionFabric8TenantCheQuotasFile     string
+	VersionFabric8TenantDeployFile        string
+	DefaultEnvTypes                       = []string{"che", "jenkins", "user", "run", "stage"}
 )
 
 func retrieveMappedTemplates() map[string][]*Template {
 	return map[string][]*Template{
-		"run":     tmpls(deploy("run"), "fabric8-tenant-deploy.yml"),
-		"stage":   tmpls(deploy("stage"), "fabric8-tenant-deploy.yml"),
-		"che-mt":  tmpls(version(VersionFabric8TenantCheMtFile), "fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
-		"che":     tmpls(version(VersionFabric8TenantCheFile), "fabric8-tenant-che.yml", "fabric8-tenant-che-quotas.yml"),
-		"jenkins": tmpls(version(VersionFabric8TenantJenkinsFile), "fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
-		"user":    tmpls(version(VersionFabric8TenantUserFile), "fabric8-tenant-user.yml"),
+		"run":   tmpls(deploy("run"), "fabric8-tenant-deploy.yml"),
+		"stage": tmpls(deploy("stage"), "fabric8-tenant-deploy.yml"),
+		"che-mt": tmpls(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
+			"fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
+		"che": tmpls(versions(VersionFabric8TenantCheFile, VersionFabric8TenantCheQuotasFile),
+			"fabric8-tenant-che.yml", "fabric8-tenant-che-quotas.yml"),
+		"jenkins": tmpls(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
+			"fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
+		"user": tmpls(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
 	}
 }
 
-func version(version string) map[string]string {
-	return map[string]string{varCommit: version}
+func versions(version, quotasVersion string) map[string]string {
+	return map[string]string{varCommit: version, varCommitQuotas: quotasVersion}
 }
 
 func deploy(stage string) map[string]string {
@@ -141,6 +146,7 @@ func (s *Service) retrieveTemplates(tmpls []*Template) error {
 			fileURL := fmt.Sprintf(rawFileURLTemplate, s.getRepo(), s.templatesRepoBlob, s.getPath(template))
 			content, err = utils.DownloadFile(fileURL)
 			template.DefaultParams[varCommit] = s.templatesRepoBlob
+			template.DefaultParams[varCommitQuotas] = s.templatesRepoBlob
 		} else {
 			content, err = templates.Asset(template.Filename)
 		}

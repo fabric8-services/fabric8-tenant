@@ -22,6 +22,7 @@ const (
 	FieldLabels          = "labels"
 	FieldReplicas        = "replicas"
 	FieldVersion         = "version"
+	FieldVersionQuotas   = "version-quotas"
 	FieldNamespace       = "namespace"
 	FieldName            = "name"
 	FieldStatus          = "status"
@@ -53,6 +54,7 @@ const (
 	varProjectAdminUser      = "PROJECT_ADMIN_USER"
 	varKeycloakURL           = "KEYCLOAK_URL"
 	varCommit                = "COMMIT"
+	varCommitQuotas          = "COMMIT_QUOTAS"
 	varDeployType            = "DEPLOY_TYPE"
 	varKeycloakOsoEndpoint   = "KEYCLOAK_OSO_ENDPOINT"
 	varKeycloakGHEndpoint    = "KEYCLOAK_GITHUB_ENDPOINT"
@@ -83,7 +85,6 @@ type Template struct {
 	Filename      string
 	DefaultParams map[string]string
 	Content       string
-	Version       string
 }
 
 var (
@@ -112,7 +113,6 @@ func (t *Template) Process(vars map[string]string) (Objects, error) {
 	if err != nil {
 		return objects, err
 	}
-	t.Version = vars[varCommit]
 	return ParseObjects(pt)
 }
 

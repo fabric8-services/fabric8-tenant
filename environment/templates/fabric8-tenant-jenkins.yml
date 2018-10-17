@@ -19,6 +19,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: ${USER_NAME}-jenkins
 - apiVersion: v1
   kind: RoleBindingRestriction
@@ -27,6 +28,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: dsaas-access-sa-ns
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -40,6 +42,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: dsaas-user-access
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -53,6 +56,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-docker-cfg
     namespace: ${USER_NAME}-jenkins
   data:
@@ -65,6 +69,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-git-ssh
     namespace: ${USER_NAME}-jenkins
   data:
@@ -78,6 +83,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-hub-api-token
     namespace: ${USER_NAME}-jenkins
   data:
@@ -90,6 +96,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-maven-settings
     namespace: ${USER_NAME}-jenkins
   data:
@@ -102,6 +109,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-recommender-api-token
     namespace: ${USER_NAME}-jenkins
   data:
@@ -114,6 +122,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-release-gpg
     namespace: ${USER_NAME}-jenkins
   data:
@@ -129,6 +138,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-ssh-config
     namespace: ${USER_NAME}-jenkins
   data:
@@ -141,6 +151,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: cd-bot
     namespace: ${USER_NAME}-jenkins
 - apiVersion: v1
@@ -152,6 +163,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins
     namespace: ${USER_NAME}-jenkins
 - apiVersion: v1
@@ -162,6 +174,7 @@ objects:
       app: bayesian-link
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: bayesian-link
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -182,6 +195,7 @@ objects:
       provider: fabric8
       expose: "true"
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -201,6 +215,7 @@ objects:
       provider: fabric8
       expose: "false"
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-jnlp
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -219,6 +234,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: edit-jenkins
     namespace: ${USER_NAME}-jenkins
   roleRef:
@@ -233,6 +249,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: view
     namespace: ${USER_NAME}-jenkins
   roleRef:
@@ -249,6 +266,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: view-cd-bot
     namespace: ${USER_NAME}-jenkins
   roleRef:
@@ -263,6 +281,7 @@ objects:
       app: fabric8-tenant-jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: view-jenkins
     namespace: ${USER_NAME}-jenkins
   roleRef:
@@ -277,6 +296,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins-home
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -292,6 +312,7 @@ objects:
       fabric8.io/kind: package
       provider: fabric8.io
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
       app: fabric8-tenant-jenkins
     name: fabric8-online-jenkins
     namespace: ${USER_NAME}-jenkins
@@ -307,6 +328,7 @@ objects:
       fabric8.io/kind: space-link
       provider: fabric8.io
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
       app: fabric8-tenant-jenkins
     name: fabric8-space-link
     namespace: ${USER_NAME}-jenkins
@@ -321,6 +343,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins
     namespace: ${USER_NAME}-jenkins
   data:
@@ -679,9 +702,11 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins
     namespace: ${USER_NAME}-jenkins
   spec:
+    triggers: []
     replicas: 1
     revisionHistoryLimit: 2
     selector:
@@ -699,6 +724,7 @@ objects:
           app: jenkins
           provider: fabric8
           version: ${COMMIT}
+          version-quotas: ${COMMIT_QUOTAS}
       spec:
         containers:
         - env:
@@ -796,6 +822,7 @@ objects:
       app: jenkins
       provider: fabric8
       version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
     name: jenkins
     namespace: ${USER_NAME}-jenkins
   spec:
@@ -819,4 +846,6 @@ parameters:
 - name: FABRIC8_CONSOLE_URL
 - name: JENKINS_ROOT_URL
 - name: COMMIT
+  value: 123abc
+- name: COMMIT_QUOTAS
   value: 123abc
