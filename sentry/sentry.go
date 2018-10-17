@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/getsentry/raven-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/pkg/errors"
 )
 
 // InitializeLogger initializes sentry client
@@ -40,7 +41,7 @@ func extractUserInfo() func(ctx context.Context) (*raven.User, error) {
 
 // LogError logs the given error and reports it to sentry
 func LogError(ctx context.Context, fields map[string]interface{}, err error, message string) {
-	sentryError := fmt.Errorf("an error occured with a message: \n%s\n with fields: \n%s\n and caused by: \n%s", message, fields, err)
+	sentryError := errors.Wrapf(err, "an error occurred with a message: \n%s\n and with fields: \n%s\n", message, fields)
 	sentry.Sentry().CaptureError(ctx, sentryError)
 
 	fields["err"] = err
