@@ -19,8 +19,8 @@ import (
 //go:generate go-bindata -prefix "./templates/" -pkg templates -o ./generated/templates.go ./templates/...
 
 const (
-	f8TenantServiceRepoUrl = "https://github.com/fabric8-services/fabric8-tenant"
-	rawFileURLTemplate     = "%s/blob/%s/%s"
+	f8TenantServiceRepoUrl = "https://raw.githubusercontent.com/fabric8-services/fabric8-tenant"
+	rawFileURLTemplate     = "%s/%s/%s"
 	templatesDirectory     = "environment/templates/"
 )
 
@@ -153,16 +153,20 @@ func (s *Service) retrieveTemplates(tmpls []*Template) error {
 }
 
 func (s *Service) getRepo() string {
-	return get(s.templatesRepo, f8TenantServiceRepoUrl)
+	repo := strings.TrimSpace(s.templatesRepo)
+	if repo == "" {
+		return f8TenantServiceRepoUrl
+	}
+	if strings.Contains(repo, "github.com") {
+		return strings.Replace(repo, "github.com", "raw.githubusercontent.com", 1)
+	}
+	return repo
 }
 
 func (s *Service) getPath(template *Template) string {
-	return path.Clean(get(s.templatesRepoDir, templatesDirectory) + "/" + template.Filename)
-}
-
-func get(value, defaultValue string) string {
-	if strings.TrimSpace(value) == "" {
-		return defaultValue
+	directory := strings.TrimSpace(s.templatesRepoDir)
+	if directory == "" {
+		directory = templatesDirectory
 	}
-	return value
+	return path.Clean(directory + "/" + template.Filename)
 }

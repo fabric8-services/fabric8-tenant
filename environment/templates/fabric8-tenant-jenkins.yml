@@ -789,8 +789,6 @@ objects:
         - configMap:
             name: jenkins
           name: jenkins-config
-    triggers:
-    - type: ConfigChange
 - apiVersion: v1
   kind: Route
   metadata:
