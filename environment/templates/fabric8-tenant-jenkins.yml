@@ -706,7 +706,8 @@ objects:
     name: jenkins
     namespace: ${USER_NAME}-jenkins
   spec:
-    triggers: []
+    triggers: 
+    - type: ConfigChange    
     replicas: 1
     revisionHistoryLimit: 2
     selector:
