@@ -89,7 +89,7 @@ else
 		-e GOPATH=$(GOPATH_IN_CONTAINER) \
 		-w $(PACKAGE_PATH) \
 		$(DOCKER_IMAGE_CORE)
-		@echo "Docker container \"$(DOCKER_CONTAINER_NAME)\" created. Continue with \"make docker-deps\"."
+		@echo "Docker container \"$(DOCKER_CONTAINER_NAME)\" created. Continue with \"make docker-prebuild-check\"."
 endif
 
 .PHONY: docker-rm
