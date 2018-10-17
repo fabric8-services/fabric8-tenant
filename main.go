@@ -174,6 +174,11 @@ func checkTemplateVersions() string {
 	} else {
 		logVersionInfo("fabric8-tenant-jenkins.yml", environment.VersionFabric8TenantJenkinsFile)
 	}
+	if environment.VersionFabric8TenantJenkinsQuotasFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantJenkinsQuotasFile")
+	} else {
+		logVersionInfo("fabric8-tenant-jenkins-quotas.yml", environment.VersionFabric8TenantJenkinsQuotasFile)
+	}
 	if environment.VersionFabric8TenantDeployFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantDeployFile")
 	} else {
@@ -188,6 +193,11 @@ func checkTemplateVersions() string {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheFile")
 	} else {
 		logVersionInfo("fabric8-tenant-che.yml", environment.VersionFabric8TenantCheFile)
+	}
+	if environment.VersionFabric8TenantCheQuotasFile == "" {
+		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheQuotasFile")
+	} else {
+		logVersionInfo("fabric8-tenant-che-quotas.yml", environment.VersionFabric8TenantCheQuotasFile)
 	}
 	return errorMsg
 }

@@ -28,7 +28,7 @@ objects:
 var customLocationTempl = `apiVersion: v1
 kind: Template
 metadata:
-  name: fabric8-tenant-${DEPLOY_TYPE}
+  name: fabric8-tenant-jenkins
 objects:
 - apiVersion: v1
   kind: ProjectRequest
@@ -36,7 +36,21 @@ objects:
     labels:
       test: custom-location
       version: ${COMMIT}
-    name: ${USER_NAME}-${DEPLOY_TYPE}`
+      version-quotas: ${COMMIT_QUOTAS}
+    name: ${USER_NAME}-jenkins`
+
+var customLocationQuotas = `apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: LimitRange
+  metadata:
+    labels:
+      app: fabric8-tenant-jenkins-quotas
+      provider: fabric8
+      version: ${COMMIT_QUOTAS}
+    name: resource-limits
+    namespace: ${USER_NAME}-jenkins`
 
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
@@ -61,21 +75,26 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 			assert.Contains(t, env.Templates[1].Filename, "quotas")
 			if envType == "jenkins" {
 				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
+				assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 			} else {
 				if strings.Contains(env.Templates[0].Filename, "mt") {
 					assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
+					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 				} else {
 					assert.Equal(t, "123abc", environment.GetLabelVersion(objects[0]))
+					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 				}
 			}
 		} else if envType == "user" {
 			assert.Len(t, env.Templates, 1)
 			assert.Contains(t, env.Templates[0].Filename, envType)
 			assert.Equal(t, "345cde", environment.GetLabelVersion(objects[0]))
+			assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 		} else {
 			assert.Len(t, env.Templates, 1)
 			assert.Contains(t, env.Templates[0].Filename, "deploy")
 			assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
+			assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 		}
 
 		for _, template := range env.Templates {
@@ -119,9 +138,11 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 func setTemplateVersions() {
 	environment.VersionFabric8TenantCheFile = "123abc"
 	environment.VersionFabric8TenantCheMtFile = "234bcd"
+	environment.VersionFabric8TenantCheQuotasFile = "zyx098"
 	environment.VersionFabric8TenantUserFile = "345cde"
 	environment.VersionFabric8TenantDeployFile = "456def"
 	environment.VersionFabric8TenantJenkinsFile = "567efg"
+	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
 }
 
 // Ignored because it downloads files directly from GitHub
@@ -179,24 +200,36 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 	// given
 	defer gock.OffAll()
 	gock.New("http://raw.githubusercontent.com").
-		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-deploy.yml").
+		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins.yml").
 		Reply(200).
 		BodyString(customLocationTempl)
+	gock.New("http://raw.githubusercontent.com").
+		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins-quotas.yml").
+		Reply(200).
+		BodyString(customLocationQuotas)
 	setTemplateVersions()
 	service := environment.NewService("http://github.com/my-services/my-tenant", "987cba", "any/path")
 
 	// when
-	envData, err := service.GetEnvData(context.Background(), "run")
+	envData, err := service.GetEnvData(context.Background(), "jenkins")
 
 	// then
 	require.NoError(t, err)
 	vars := map[string]string{
 		"USER_NAME": "dev",
 	}
+	assert.Len(t, envData.Templates, 2)
 	objects, err := envData.Templates[0].Process(vars)
 	require.NoError(t, err)
 	assert.Len(t, objects, 1)
 	assert.Equal(t, environment.GetLabel(objects[0], "test"), "custom-location")
+	assert.Equal(t, environment.GetLabelVersion(objects[0]), "987cba")
+	assert.Equal(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas), "987cba")
+
+	objects, err = envData.Templates[1].Process(vars)
+	require.NoError(t, err)
+	assert.Len(t, objects, 1)
+	assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 	assert.Equal(t, environment.GetLabelVersion(objects[0]), "987cba")
 }
 

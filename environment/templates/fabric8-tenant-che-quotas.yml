@@ -8,7 +8,7 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT}
+      version: ${COMMIT_QUOTAS}
     name: resource-limits
     namespace: ${USER_NAME}-che
   spec:
@@ -44,7 +44,7 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT}
+      version: ${COMMIT_QUOTAS}
     name: compute-resources
     namespace: ${USER_NAME}-che
   spec:
@@ -59,7 +59,7 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT}
+      version: ${COMMIT_QUOTAS}
     name: compute-resources-timebound
     namespace: ${USER_NAME}-che
   spec:
@@ -74,7 +74,7 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT}
+      version: ${COMMIT_QUOTAS}
     name: object-counts
     namespace: ${USER_NAME}-che
   spec:
@@ -86,3 +86,5 @@ items:
 parameters:
 - name: USER_NAME
   value: developer
+- name: COMMIT_QUOTAS
+  value: 123abc
