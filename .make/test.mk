@@ -197,6 +197,8 @@ test-integration-no-coverage: prebuild-check migrate-database $(SOURCES)
 test-contract-auth-consumers:
 	cd $(CONTRACT_TESTS)/auth && \
 	PACT_DIR=$(CONTRACT_TESTS)/pacts \
+	PACT_VERSION=$(PACT_VERSION) \
+	PACT_BROKER_URL=$(PACT_BROKER_URL) \
 	./consumer-contracts.sh
 
 .PHONY: test-contract-auth-publish

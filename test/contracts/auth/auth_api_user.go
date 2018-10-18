@@ -73,7 +73,8 @@ type MissingToken struct {
 	} `json:"errors"`
 }
 
-const JWSRegex = "[a-zA-Z0-9\\-_]+?\\.?[a-zA-Z0-9\\-_]+?\\.?([a-zA-Z0-9\\-_]+)?"
+const jwsRegex = "[a-zA-Z0-9\\-_]+?\\.?[a-zA-Z0-9\\-_]+?\\.?([a-zA-Z0-9\\-_]+)?"
+const userNameRegex = "[a-zA-Z\\-0-9]+"
 
 // AuthAPIUserByNameConsumer defines contract of /api/users?filter[username]=<user_name> endpoint
 func AuthAPIUserByNameConsumer(t *testing.T, pact *dsl.Pact) {
@@ -106,7 +107,7 @@ func AuthAPIUserByNameConsumer(t *testing.T, pact *dsl.Pact) {
 			Query: dsl.MapMatcher{
 				"filter[username]": dsl.Term(
 					userName,
-					".*",
+					userNameRegex,
 				),
 			},
 			Headers: dsl.MapMatcher{"Content-Type": dsl.String("application/json")},
@@ -152,7 +153,7 @@ func AuthAPIUserByIDConsumer(t *testing.T, pact *dsl.Pact) {
 			Method: "GET",
 			Path: dsl.Term(
 				fmt.Sprintf("/api/users/%s", userID),
-				"/api/users/.*",
+				fmt.Sprintf("/api/users/%s", userNameRegex),
 			),
 			Headers: dsl.MapMatcher{"Content-Type": dsl.String("application/json")},
 		}).
@@ -203,7 +204,7 @@ func AuthAPIUserInvalidToken(t *testing.T, pact *dsl.Pact) {
 				"Content-Type": dsl.String("application/json"),
 				"Authorization": dsl.Term(
 					fmt.Sprintf("Bearer %s", invalidToken),
-					fmt.Sprintf("^Bearer %s$", JWSRegex),
+					fmt.Sprintf("^Bearer %s$", jwsRegex),
 				),
 			},
 		}).

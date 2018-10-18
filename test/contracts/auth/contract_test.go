@@ -14,6 +14,7 @@ func TestAuthAPI(t *testing.T) {
 	pact := &dsl.Pact{
 		Consumer:          os.Getenv("PACT_CONSUMER"),
 		Provider:          os.Getenv("PACT_PROVIDER"),
+		PactDir:           os.Getenv("PACT_DIR"),
 		Host:              "localhost",
 		PactFileWriteMode: "merge",
 	}
