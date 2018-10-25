@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/log"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/environment/generated"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-tenant/utils"
@@ -32,7 +33,7 @@ var (
 	VersionFabric8TenantCheFile           string
 	VersionFabric8TenantCheQuotasFile     string
 	VersionFabric8TenantDeployFile        string
-	DefaultEnvTypes                       = []string{"che", "jenkins", "user", "run", "stage"}
+	DefaultEnvTypes                       = []Type{TypeChe, TypeJenkins, TypeRun, TypeStage, TypeUser}
 )
 
 func retrieveMappedTemplates() map[string][]*Template {
@@ -74,24 +75,44 @@ type Service struct {
 	templatesRepoDir  string
 }
 
-func NewService(templatesRepo, templatesRepoBlob, templatesRepoDir string) *Service {
-	return &Service{
-		templatesRepo:     templatesRepo,
-		templatesRepoBlob: templatesRepoBlob,
-		templatesRepoDir:  templatesRepoDir,
+func NewService() *Service {
+	return &Service{}
+}
+
+func NewServiceForUserData(user *authclient.UserDataAttributes) *Service {
+	service := NewService()
+	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
+		return service
 	}
+	userContext := user.ContextInformation
+	if tc, found := userContext["tenantConfig"]; found {
+		if tenantConfig, ok := tc.(map[string]interface{}); ok {
+			find := func(key string) string {
+				if rawValue, found := tenantConfig[key]; found {
+					if value, ok := rawValue.(string); ok {
+						return value
+					}
+				}
+				return ""
+			}
+			service.templatesRepo = find("templatesRepo")
+			service.templatesRepoBlob = find("templatesRepoBlob")
+			service.templatesRepoDir = find("templatesRepoDir")
+		}
+	}
+	return service
 }
 
 type EnvData struct {
-	NsType    string
-	Name      string
+	EnvType   Type
 	Templates []*Template
+	Version   string
 }
 
-func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, error) {
+func (s *Service) GetEnvData(ctx context.Context, envType Type) (*EnvData, error) {
 	var templates []*Template
 	var mappedTemplates = retrieveMappedTemplates()
-	if envType == "che" {
+	if envType == TypeChe {
 		if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
 			cheMtParams, err := getCheMtParams(ctx)
 			if err != nil {
@@ -100,10 +121,10 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 			templates = mappedTemplates["che-mt"]
 			templates[0].DefaultParams = cheMtParams
 		} else {
-			templates = mappedTemplates[envType]
+			templates = mappedTemplates[envType.String()]
 		}
 	} else {
-		templates = mappedTemplates[envType]
+		templates = mappedTemplates[envType.String()]
 	}
 
 	err := s.retrieveTemplates(templates)
@@ -113,8 +134,7 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 
 	return &EnvData{
 		Templates: templates,
-		Name:      envType,
-		NsType:    envType,
+		EnvType:   envType,
 	}, nil
 }
 

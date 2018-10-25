@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,4 +24,23 @@ func DownloadFile(url string) ([]byte, error) {
 	}()
 
 	return ioutil.ReadAll(resp.Body)
+}
+
+func ReadBody(response *http.Response) (func() []byte, func()) {
+	if response == nil {
+		return func() []byte {
+			return []byte{}
+		}, func() {}
+	}
+	toDefer := func() {
+		ioutil.ReadAll(response.Body)
+		response.Body.Close()
+	}
+
+	readBody := func() []byte {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(response.Body)
+		return buf.Bytes()
+	}
+	return readBody, toDefer
 }

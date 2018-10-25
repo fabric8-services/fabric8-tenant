@@ -42,6 +42,7 @@ const (
 	varTemplateRecommenderAPIToken     = "template.recommender.api.token"
 	varTemplateDomain                  = "template.domain"
 	varTemplateCheMultiTenantServer    = "template.che.multitenant.server"
+	varAPIServerUseTLS                 = "api.server.use.tls"
 	varAPIServerInsecureSkipTLSVerify  = "api.server.insecure.skip.tls.verify"
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
@@ -124,6 +125,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakOpenshiftBroker, defaultKeycloakOpenshiftBroker)
 	c.v.SetDefault(varOpenshiftUseCurrentCluster, false)
 	c.v.SetDefault(varAPIServerInsecureSkipTLSVerify, false)
+	c.v.SetDefault(varAPIServerUseTLS, true)
 	c.v.SetDefault(varAuthURL, defaultAuthURL)
 	c.v.SetDefault(varClustersRefreshDelay, defaultClustersRefreshDelay)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
@@ -308,6 +310,11 @@ func (c *Data) GetTogglesURL() string {
 // UseOpenshiftCurrentCluster returns if we should use the current cluster to provision tenant service
 func (c *Data) UseOpenshiftCurrentCluster() bool {
 	return c.v.GetBool(varOpenshiftUseCurrentCluster)
+}
+
+// APIServerUseTLS returns if the server uses secured HTTPS connections.
+func (c *Data) APIServerUseTLS() bool {
+	return c.v.GetBool(varAPIServerUseTLS)
 }
 
 // APIServerInsecureSkipTLSVerify returns if the server's certificate should be checked for validity. This will make your HTTPS connections insecure.

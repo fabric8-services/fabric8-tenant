@@ -33,6 +33,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:e41ddf5fafc2748d592f87ad010f6447b72360e833199cc97d6dfaf3b3a74afe"
+  name = "github.com/arquillian/ike-prow-plugins"
+  packages = ["pkg/retry"]
+  pruneopts = "UT"
+  revision = "6898b38307dc30b0b91edd0bb3a40aaa78a6b72e"
+
+[[projects]]
+  branch = "master"
   digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -124,6 +132,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:036274611a8920f938120e8d5e18db3c66f906a5873842bd3033d0a089dc7c9a"
+  name = "github.com/fabric8-services/fabric8-oso-proxy"
+  packages = ["log"]
+  pruneopts = "UT"
+  revision = "601744c8bb872c675ad60359661017a2d0c7b0a4"
+
+[[projects]]
+  branch = "master"
   digest = "1:546d79a41abc78bdefca3b525775454a17daaf2f66ff303c0bb218179d29411d"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = [
@@ -151,6 +167,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "master"
+
+[[projects]]
+  digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
+  name = "github.com/ghodss/yaml"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:5d894fc1aab279156862831645e0fd24623a6b9010d459c239c1e4392c5752fb"
@@ -572,6 +596,7 @@
   input-imports = [
     "github.com/Unleash/unleash-client-go",
     "github.com/Unleash/unleash-client-go/context",
+    "github.com/arquillian/ike-prow-plugins/pkg/retry",
     "github.com/dgrijalva/jwt-go",
     "github.com/dgrijalva/jwt-go/request",
     "github.com/dnaeon/go-vcr/cassette",
@@ -582,11 +607,13 @@
     "github.com/fabric8-services/fabric8-common/log",
     "github.com/fabric8-services/fabric8-common/sentry",
     "github.com/fabric8-services/fabric8-common/token",
+    "github.com/fabric8-services/fabric8-oso-proxy/log",
     "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/resource",
     "github.com/fabric8-services/fabric8-wit/rest",
     "github.com/getsentry/raven-go",
+    "github.com/ghodss/yaml",
     "github.com/goadesign/goa",
     "github.com/goadesign/goa/client",
     "github.com/goadesign/goa/cors",

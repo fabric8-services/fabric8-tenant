@@ -16,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/migration"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
@@ -103,8 +102,6 @@ func main() {
 	}
 	defer clusterService.Stop()
 
-	openshiftService := openshift.NewService()
-
 	haltSentry, err := sentry.InitializeLogger(config, controller.Commit)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -120,10 +117,10 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "tenant" controller
-	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, config)
+	tenantCtrl := controller.NewTenantController(service, clusterService, authService, config, tenantService)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, config)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

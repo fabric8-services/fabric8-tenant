@@ -1,49 +1,16 @@
 package tenant
 
 import (
-	"database/sql/driver"
-	"errors"
-	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/satori/go.uuid"
 )
 
-// NamespaceType describes which type of namespace this is
-type NamespaceType string
-
-// Value - Implementation of valuer for database/sql
-func (ns NamespaceType) Value() (driver.Value, error) {
-	return string(ns), nil
-}
-
-// Scan - Implement the database/sql scanner interface
-func (ns *NamespaceType) Scan(value interface{}) error {
-	if value == nil {
-		*ns = NamespaceType("")
-		return nil
-	}
-	if bv, err := driver.String.ConvertValue(value); err == nil {
-		// if this is a bool type
-		if v, ok := bv.(string); ok {
-			// set the value of the pointer yne to YesNoEnum(v)
-			*ns = NamespaceType(v)
-			return nil
-		}
-	}
-	// otherwise, return an error
-	return errors.New("failed to scan NamespaceType")
-}
-
-// Represents the namespace type
 const (
-	TypeChe     NamespaceType = "che"
-	TypeJenkins NamespaceType = "jenkins"
-	TypeTest    NamespaceType = "test"
-	TypeStage   NamespaceType = "stage"
-	TypeRun     NamespaceType = "run"
-	TypeUser    NamespaceType = "user"
-	TypeCustom  NamespaceType = "custom"
+	tenantTableName    = "tenants"
+	namespaceTableName = "namespaces"
 )
 
 // Tenant is the owning OpenShift account
@@ -59,8 +26,8 @@ type Tenant struct {
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
-func (m Tenant) TableName() string {
-	return "tenants"
+func (m *Tenant) TableName() string {
+	return tenantTableName
 }
 
 // Namespace represent a single namespace owned by an Tenant
@@ -72,36 +39,23 @@ type Namespace struct {
 	DeletedAt *time.Time
 	Name      string
 	MasterURL string
-	Type      NamespaceType
+	Type      environment.Type
 	Version   string
-	State     string
+	State     NamespaceState
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
-func (m Namespace) TableName() string {
-	return "namespaces"
+func (m *Namespace) TableName() string {
+	return namespaceTableName
 }
 
-// GetNamespaceType attempts to extract the namespace type based on namespace name
-func GetNamespaceType(name, username string) NamespaceType {
-	if name == username {
-		return TypeUser
+func (n *Namespace) UpdateData(env *environment.EnvData, cluster *cluster.Cluster, state NamespaceState) {
+	if n.Name == "" {
+		n.Name = string(env.EnvType)
 	}
-	if strings.HasSuffix(name, "-jenkins") {
-		return TypeJenkins
-	}
-	if strings.HasSuffix(name, "-che") {
-		return TypeChe
-	}
-	if strings.HasSuffix(name, "-test") {
-		return TypeTest
-	}
-	if strings.HasSuffix(name, "-stage") {
-		return TypeStage
-	}
-	if strings.HasSuffix(name, "-run") {
-		return TypeRun
-	}
-	return TypeCustom
+	n.State = state
+	n.Version = env.Version
+	n.MasterURL = cluster.APIURL
+	n.Type = env.EnvType
 }

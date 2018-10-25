@@ -10,6 +10,7 @@ import (
 
 	"context"
 
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq" // need to import postgres driver
 	"github.com/stretchr/testify/suite"
@@ -29,35 +30,48 @@ type DBTestSuite struct {
 	configFile    string
 	Configuration *config.Data
 	DB            *gorm.DB
+	Repo          tenant.Service
 	clean         func()
 	Ctx           context.Context
 }
 
 // SetupSuite implements suite.SetupAllSuite
 func (s *DBTestSuite) SetupSuite() {
-	resource.Require(s.T(), resource.Database)
-	configuration, err := config.NewData()
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to setup the configuration")
-	}
-	s.Configuration = configuration
-	if _, c := os.LookupEnv(resource.Database); c != false {
-		s.DB, err = gorm.Open("postgres", s.Configuration.GetPostgresConfigString())
+	ready, _ := resource.IsReady(resource.Database)
+	if ready {
+		configuration, err := config.NewData()
 		if err != nil {
 			log.Panic(nil, map[string]interface{}{
-				"err":             err,
-				"postgres_config": configuration.GetPostgresConfigString(),
-			}, "failed to connect to the database")
+				"err": err,
+			}, "failed to setup the configuration")
 		}
+		s.Configuration = configuration
+		if _, c := os.LookupEnv(resource.Database); c != false {
+			s.DB, err = gorm.Open("postgres", s.Configuration.GetPostgresConfigString())
+			if err != nil {
+				log.Panic(nil, map[string]interface{}{
+					"err":             err,
+					"postgres_config": configuration.GetPostgresConfigString(),
+				}, "failed to connect to the database")
+			}
+		}
+		s.Ctx = migration.NewMigrationContext(context.Background())
 	}
-	s.Ctx = migration.NewMigrationContext(context.Background())
 }
 
 // SetupTest implements suite.SetupTest
 func (s *DBTestSuite) SetupTest() {
-	s.clean = DeleteCreatedEntities(s.DB)
+	if s.DB != nil {
+		s.clean = DeleteCreatedEntities(s.DB)
+		s.Repo = tenant.NewDBService(s.DB)
+	} else {
+		repo, _ := NewEmptyDBServiceStub()
+		s.Repo = repo
+		s.clean = func() {
+			repo, _ := NewEmptyDBServiceStub()
+			s.Repo = repo
+		}
+	}
 }
 
 // TearDownTest implements suite.TearDownTest
@@ -67,7 +81,9 @@ func (s *DBTestSuite) TearDownTest() {
 
 // TearDownSuite implements suite.TearDownAllSuite
 func (s *DBTestSuite) TearDownSuite() {
-	s.DB.Close()
+	if s.DB != nil {
+		s.DB.Close()
+	}
 }
 
 // DisableGormCallbacks will turn off gorm's automatic setting of `created_at`

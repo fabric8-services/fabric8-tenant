@@ -3,392 +3,243 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"sync/atomic"
-	"time"
-
+	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	env "github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"gopkg.in/yaml.v2"
 )
 
-// TenantController implements the status resource.
+// TenantController implements the tenant resource.
 type TenantController struct {
 	*goa.Controller
-	tenantService     tenant.Service
+	config            *configuration.Data
 	clusterService    cluster.Service
 	authClientService *auth.Service
-	config            *configuration.Data
+	tenantRepository  tenant.Service
 }
 
-// NewTenantController creates a status controller.
+// NewTenantController creates a tenant controller.
 func NewTenantController(
 	service *goa.Service,
-	tenantService tenant.Service,
 	clusterService cluster.Service,
 	authClientService *auth.Service,
-	config *configuration.Data) *TenantController {
+	config *configuration.Data,
+	tenantRepository tenant.Service) *TenantController {
 
 	return &TenantController{
-		Controller:        service.NewController("TenantController"),
-		tenantService:     tenantService,
+		Controller:        service.NewController("TenantsController"),
+		config:            config,
 		clusterService:    clusterService,
 		authClientService: authClientService,
-		config:            config,
+		tenantRepository:  tenantRepository,
 	}
 }
 
-// Setup runs the setup action.
-func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
-	userToken := goajwt.ContextJWT(ctx)
-	if userToken == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	}
-	ttoken := &auth.TenantToken{Token: userToken}
-	exists := c.tenantService.Exists(ttoken.Subject())
-	if exists {
-		return ctx.Conflict()
-	}
-
-	// fetch the cluster the user belongs to
+// Clean runs the clean action.
+func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
+	// gets user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if user.UserData.Cluster == nil {
-		log.Error(ctx, nil, "no cluster defined for tenant")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
+	// gets list of existing namespaces in DB
+	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	// fetch the cluster info
-	cluster, err := c.clusterService.GetCluster(ctx, *user.UserData.Cluster)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.UserData.Cluster,
-		}, "unable to fetch cluster")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	// checks if the namespaces should be only cleaned or totally removed - restrict deprovision from cluster to internal users only
+	removeFromCluster := false
+	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == "internal" {
+		removeFromCluster = ctx.Remove
 	}
 
-	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
-	tenant := &tenant.Tenant{
-		ID:         ttoken.Subject(),
-		Email:      ttoken.Email(),
-		OSUsername: user.OpenShiftUsername,
-	}
-	err = c.tenantService.CreateTenant(tenant)
+	// creates openshift services
+	openShiftService, err := c.newOpenShiftService(ctx, user)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to store tenant configuration")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	// perform delete method on the list of existing namespaces
+	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster).ApplyAll()
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.NoContent()
+}
+
+// Setup runs the setup action.
+func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
+	// gets user info
+	user, err := c.authClientService.GetUser(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	var dbTenant *tenant.Tenant
+	var namespaces []*tenant.Namespace
+	// check if tenant already exists
+	if c.tenantRepository.Exists(user.ID) {
+		// if exists, then check existing namespace (if all of them are created or if any is missing)
+		namespaces, err = c.tenantRepository.GetNamespaces(user.ID)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+	} else {
+		// if does not exist then create a new tenant
+		dbTenant = &tenant.Tenant{
+			ID:         user.ID,
+			Email:      *user.UserData.Email,
+			OSUsername: user.OpenShiftUsername,
+		}
+		err = c.tenantRepository.CreateTenant(dbTenant)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "unable to store tenant configuration")
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+	}
+
+	// check if any environment type is missing - should be provisioned
+	missing, _ := filterMissingAndExisting(namespaces)
+	if len(missing) == 0 {
 		return ctx.Conflict()
 	}
 
-	go func() {
-		ctx := ctx
-		t := tenant
-		err = openshift.RawInitTenant(
-			ctx,
-			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenShiftUsername),
-			user.OpenShiftUsername,
-			user.OpenShiftUserToken)
+	// create openshift service
+	service, err := c.newOpenShiftService(ctx, user)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
-		if err != nil {
-			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": user.OpenShiftUsername,
-			}, err, "unable initialize tenant")
-		}
-	}()
+	// perform post method on the list of missing environment types
+	err = service.WithPostMethod().ApplyAll(missing...)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 
-// Update runs the setup action.
-func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
-	userToken := goajwt.ContextJWT(ctx)
-	if userToken == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	}
-	ttoken := &auth.TenantToken{Token: userToken}
-	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
+// Show runs the show action.
+func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
+	// get user info
+	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
+		return err
 	}
 
-	// fetch the cluster the user belongs to
+	// gets tenant from DB
+	tenant, err := c.tenantRepository.GetTenant(user.ID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", user.ID.String()))
+	}
+
+	// gets tenant's namespaces
+	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.OK(&app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)})
+}
+
+// Update runs the update action.
+func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
+	// get user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if user.UserData.Cluster == nil {
-		log.Error(ctx, nil, "no cluster defined for tenant")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to provision to undefined cluster")))
-	}
-
-	cluster, err := c.clusterService.GetCluster(ctx, *user.UserData.Cluster)
+	// getting tenant from DB
+	tenant, err := c.tenantRepository.GetTenant(user.ID)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"cluster_url": *user.UserData.Cluster,
-		}, "unable to fetch cluster")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return errors.NewNotFoundError("tenant", *user.UserData.IdentityID)
 	}
 
-	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	// get tenant's namespaces
+	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
-	// update tenant config
+	// update tenant OS username
 	tenant.OSUsername = user.OpenShiftUsername
-
-	if err = c.tenantService.SaveTenant(tenant); err != nil {
+	if err = c.tenantRepository.SaveTenant(tenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to update tenant configuration")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
 	}
 
-	go func() {
-		ctx := ctx
-		t := tenant
-		err = openshift.RawUpdateTenant(
-			ctx,
-			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenShiftUsername),
-			user.OpenShiftUsername)
+	// create openshift service
+	openShiftService, err := c.newOpenShiftService(ctx, user)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
-		if err != nil {
-			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": user.OpenShiftUsername,
-			}, err, "unable initialize tenant")
-		}
-	}()
+	// perform patch method on the list of exiting namespaces
+	err = openShiftService.WithPatchMethod(namespaces).ApplyAll()
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 
-// Clean runs the setup action for the tenant namespaces.
-func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
-	userToken := goajwt.ContextJWT(ctx)
-	if userToken == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
-	}
-	ttoken := &auth.TenantToken{Token: userToken}
-
-	// fetch the cluster the user belongs to
-	user, err := c.authClientService.GetUser(ctx)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	// restrict deprovision from cluster to internal users only
-	removeFromCluster := false
-	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == "internal" {
-		removeFromCluster = ctx.Remove
-	}
-
-	cluster, err := c.clusterService.GetCluster(ctx, *user.UserData.Cluster)
+func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User) (*openshift.ServiceBuilder, error) {
+	clusterNsMapping, err := c.clusterService.GetUserClusterForType(ctx, user)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
+			"tenant":      user.ID,
 			"cluster_url": *user.UserData.Cluster,
-		}, "unable to fetch cluster")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}, "unable to fetch cluster for tenant")
+		return nil, jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	nsRepo := c.tenantRepository.NewTenantRepository(user.ID)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenShiftUsername, removeFromCluster)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if removeFromCluster {
-		err = c.tenantService.DeleteAll(ttoken.Subject())
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+	envService := environment.NewServiceForUserData(user.UserData)
+
+	serviceContext := openshift.NewServiceContext(ctx, c.config, clusterNsMapping, user.OpenShiftUsername, user.OpenShiftUserToken)
+	return openshift.NewService(serviceContext, nsRepo, envService), nil
+}
+
+func filterMissingAndExisting(namespaces []*tenant.Namespace) (missing []environment.Type, existing []environment.Type) {
+	exitingTypes := GetNamespaceByType(namespaces)
+
+	missingNamespaces := make([]environment.Type, 0)
+	existingNamespaces := make([]environment.Type, 0)
+	for _, nsType := range environment.DefaultEnvTypes {
+		_, exits := exitingTypes[nsType]
+		if !exits {
+			missingNamespaces = append(missingNamespaces, nsType)
+		} else {
+			existingNamespaces = append(existingNamespaces, nsType)
 		}
 	}
-	return ctx.NoContent()
+	return missingNamespaces, existingNamespaces
 }
 
-// Show runs the setup action.
-func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
-	userToken := goajwt.ContextJWT(ctx)
-	if userToken == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Missing JWT token"))
+func GetNamespaceByType(namespaces []*tenant.Namespace) map[environment.Type]*tenant.Namespace {
+	var nsTypes map[environment.Type]*tenant.Namespace
+	for _, namespace := range namespaces {
+		nsTypes[namespace.Type] = namespace
 	}
-
-	ttoken := &auth.TenantToken{Token: userToken}
-	tenantID := ttoken.Subject()
-	tenant, err := c.tenantService.GetTenant(tenantID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", tenantID.String()))
-	}
-
-	namespaces, err := c.tenantService.GetNamespaces(tenantID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)}
-	return ctx.OK(result)
-}
-
-// InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant, openshiftUsername string) openshift.Callback {
-	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
-	var currentResourceQuotaStatusCheck int32  // default is 0
-	username := env.RetrieveUserName(openshiftUsername)
-	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
-		log.Info(ctx, map[string]interface{}{
-			"status":      statusCode,
-			"method":      method,
-			"cluster_url": masterURL,
-			"namespace":   env.GetNamespace(request),
-			"name":        env.GetName(request),
-			"kind":        env.GetKind(request),
-			"request":     yamlString(request),
-			"response":    yamlString(response),
-		}, "resource requested")
-		if statusCode == http.StatusConflict {
-			if env.GetKind(request) == env.ValKindNamespace {
-				return "", nil
-			}
-			if env.GetKind(request) == env.ValKindProjectRequest {
-				return "", nil
-			}
-			if env.GetKind(request) == env.ValKindPersistenceVolumeClaim {
-				return "", nil
-			}
-			if env.GetKind(request) == env.ValKindServiceAccount {
-				return "", nil
-			}
-			return "DELETE", request
-		} else if statusCode == http.StatusCreated {
-			if env.GetKind(request) == env.ValKindProjectRequest {
-				name := env.GetName(request)
-				service.SaveNamespace(&tenant.Namespace{
-					TenantID:  currentTenant.ID,
-					Name:      name,
-					State:     "created",
-					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, username),
-					MasterURL: masterURL,
-				})
-
-				// HACK to workaround osio applying some dsaas-user permissions async
-				// Should loop on a Check if allowed type of call instead
-				time.Sleep(time.Second * 5)
-
-			} else if env.GetKind(request) == env.ValKindNamespace {
-				name := env.GetName(request)
-				service.SaveNamespace(&tenant.Namespace{
-					TenantID:  currentTenant.ID,
-					Name:      name,
-					State:     "created",
-					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, username),
-					MasterURL: masterURL,
-				})
-			} else if env.GetKind(request) == env.ValKindResourceQuota {
-				// trigger a check status loop
-				time.Sleep(time.Millisecond * 50)
-				return "GET", response
-			}
-			return "", nil
-		} else if statusCode == http.StatusOK {
-			if method == "DELETE" {
-				return "POST", request
-			} else if method == "GET" {
-				if env.GetKind(request) == env.ValKindResourceQuota {
-
-					if env.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
-						return "", nil
-					}
-					atomic.AddInt32(&currentResourceQuotaStatusCheck, 1)
-					time.Sleep(time.Millisecond * 50)
-					return "GET", response
-				}
-			}
-			return "", nil
-		}
-		log.Info(ctx, map[string]interface{}{
-			"status":      statusCode,
-			"method":      method,
-			"namespace":   env.GetNamespace(request),
-			"cluster_url": masterURL,
-			"name":        env.GetName(request),
-			"kind":        env.GetKind(request),
-			"request":     yamlString(request),
-			"response":    yamlString(response),
-		}, "unhandled resource response")
-		return "", nil
-	}
-}
-
-func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, resolveCluster cluster.GetCluster) *app.Tenant {
-	result := app.Tenant{
-		ID:   &tenant.ID,
-		Type: "tenants",
-		Attributes: &app.TenantAttributes{
-			CreatedAt:  &tenant.CreatedAt,
-			Email:      &tenant.Email,
-			Profile:    &tenant.Profile,
-			Namespaces: []*app.NamespaceAttributes{},
-		},
-	}
-	for _, ns := range namespaces {
-		c, err := resolveCluster(ctx, ns.MasterURL)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"cluster_url": ns.MasterURL,
-			}, "unable to resolve cluster")
-			c = cluster.Cluster{}
-		}
-		tenantType := string(ns.Type)
-		result.Attributes.Namespaces = append(
-			result.Attributes.Namespaces,
-			&app.NamespaceAttributes{
-				CreatedAt:         &ns.CreatedAt,
-				UpdatedAt:         &ns.UpdatedAt,
-				ClusterURL:        &ns.MasterURL,
-				ClusterAppDomain:  &c.AppDNS,
-				ClusterConsoleURL: &c.ConsoleURL,
-				ClusterMetricsURL: &c.MetricsURL,
-				ClusterLoggingURL: &c.LoggingURL,
-				Name:              &ns.Name,
-				Type:              &tenantType,
-				Version:           &ns.Version,
-				State:             &ns.State,
-				ClusterCapacityExhausted: &c.CapacityExhausted,
-			})
-	}
-	return &result
-}
-
-func yamlString(data map[interface{}]interface{}) string {
-	b, err := yaml.Marshal(data)
-	if err != nil {
-		return fmt.Sprintf("Could not marshal yaml %v", data)
-	}
-	return string(b)
+	return nsTypes
 }

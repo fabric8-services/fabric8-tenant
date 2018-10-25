@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"strings"
@@ -27,11 +28,13 @@ type Cluster struct {
 }
 
 type GetCluster func(ctx context.Context, target string) (Cluster, error)
+type ForType func(envType environment.Type) Cluster
 
 // Service the interface for the cluster service
 type Service interface {
 	GetCluster(ctx context.Context, target string) (Cluster, error)
 	GetClusters(ctx context.Context) []Cluster
+	GetUserClusterForType(ctx context.Context, user *auth.User) (ForType, error)
 	Start() error
 	Stop()
 }
@@ -82,6 +85,25 @@ func (s *clusterService) Start() error {
 		}
 	}()
 	return nil
+}
+
+func (s *clusterService) GetUserClusterForType(ctx context.Context, user *auth.User) (ForType, error) {
+	mapping := make(map[environment.Type]Cluster, len(environment.DefaultEnvTypes))
+	cluster, err := s.GetCluster(ctx, *user.UserData.Cluster)
+	if err != nil {
+		return nil, err
+	}
+	for _, envType := range environment.DefaultEnvTypes {
+		mapping[envType] = cluster
+	}
+
+	return ForTypeMapping(mapping), nil
+}
+
+func ForTypeMapping(mapping map[environment.Type]Cluster) ForType {
+	return func(envType environment.Type) Cluster {
+		return mapping[envType]
+	}
 }
 
 func (s *clusterService) GetCluster(ctx context.Context, target string) (Cluster, error) {

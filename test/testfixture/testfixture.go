@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -19,7 +18,7 @@ import (
 // Don't create one on your own!
 type TestFixture struct {
 	info             map[kind]*createInfo
-	db               *gorm.DB
+	tenantService    tenant.Service
 	isolatedCreation bool
 	ctx              context.Context
 	checkFuncs       []func() error
@@ -51,19 +50,23 @@ type TestFixture struct {
 // a tenant. The NewFixture function does take care of recursively resolving those
 // dependencies first.
 //
-func NewFixture(db *gorm.DB, recipeFuncs ...RecipeFunction) (*TestFixture, error) {
-	return newFixture(db, false, recipeFuncs...)
+func NewFixture(tenantService tenant.Service, recipeFuncs ...RecipeFunction) (*TestFixture, error) {
+	return newFixture(tenantService, false, recipeFuncs...)
 }
 
 // NewTestFixture does the same as NewFixture except that it automatically
 // fails the given test if the fixture could not be created correctly.
-func NewTestFixture(t testing.TB, db *gorm.DB, recipeFuncs ...RecipeFunction) *TestFixture {
-	resource.Require(t, resource.Database)
-
-	tc, err := NewFixture(db, recipeFuncs...)
+func NewTestFixture(t testing.TB, tenantService tenant.Service, recipeFuncs ...RecipeFunction) *TestFixture {
+	tc, err := NewFixture(tenantService, recipeFuncs...)
 	require.Nil(t, err)
 	require.NotNil(t, tc)
 	return tc
+}
+
+// NewTestFixture does the same as NewFixture except that it automatically
+// fails the given test if the fixture could not be created correctly.
+func NewTestFixtureWithDB(t testing.TB, db *gorm.DB, recipeFuncs ...RecipeFunction) *TestFixture {
+	return NewTestFixture(t, tenant.NewDBService(db), recipeFuncs...)
 }
 
 // NewFixtureIsolated will create a test fixture by executing the recipies from
@@ -78,8 +81,8 @@ func NewTestFixture(t testing.TB, db *gorm.DB, recipeFuncs ...RecipeFunction) *T
 //     NewFixtureIsolated(t, db, Namespaces(2), Tenants(1))
 // on the other hand, we will only create a tenant, two namespaces for it, and
 // nothing more.
-func NewFixtureIsolated(db *gorm.DB, setupFuncs ...RecipeFunction) (*TestFixture, error) {
-	return newFixture(db, true, setupFuncs...)
+func NewFixtureIsolated(tenantService tenant.Service, setupFuncs ...RecipeFunction) (*TestFixture, error) {
+	return newFixture(tenantService, true, setupFuncs...)
 }
 
 // Check runs all check functions that each recipe-function has registered to
@@ -145,11 +148,11 @@ func (fxt *TestFixture) setupInfo(n int, k kind, fns ...CustomizeEntityFunc) err
 	return nil
 }
 
-func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunction) (*TestFixture, error) {
+func newFixture(tenantService tenant.Service, isolatedCreation bool, recipeFuncs ...RecipeFunction) (*TestFixture, error) {
 	fxt := TestFixture{
 		checkFuncs:       []func() error{},
 		info:             map[kind]*createInfo{},
-		db:               db,
+		tenantService:    tenantService,
 		isolatedCreation: isolatedCreation,
 		ctx:              context.Background(),
 	}

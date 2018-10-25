@@ -7,9 +7,9 @@
 package resource
 
 import (
+	"fmt"
 	"os"
 	"strconv"
-	"testing"
 )
 
 const (
@@ -30,11 +30,11 @@ const (
 	StSkipReasonParseError = "Unable to parse value of environment variable %s as bool: %s"
 )
 
-// Require checks if all the given environment variables ("envVars") are set
-// and if one is not set it will skip the test ("t"). The only exception is
+// IsReady checks if all the given environment variables ("envVars") are set
+// and if one is not set it will return false and the reason. The only exception is
 // that the unit test resource is always considered to be available unless
 // is is explicitly set to false (e.g. "no", "0", "false").
-func Require(t testing.TB, envVars ...string) {
+func IsReady(envVars ...string) (bool, string) {
 	for _, envVar := range envVars {
 		v, isSet := os.LookupEnv(envVar)
 
@@ -47,19 +47,17 @@ func Require(t testing.TB, envVars ...string) {
 
 		// Skip test if environment variable is not set.
 		if !isSet {
-			t.Skipf(StSkipReasonNotSet, envVar)
-			return
+			return false, fmt.Sprintf(StSkipReasonNotSet, envVar)
 		}
 		// Try to convert to boolean value
 		isTrue, err := strconv.ParseBool(v)
 		if err != nil {
-			t.Skipf(StSkipReasonParseError, envVar, v)
-			return
+			return false, fmt.Sprintf(StSkipReasonParseError, envVar, v)
 		}
 
 		if !isTrue {
-			t.Skipf(StSkipReasonValueFalse, envVar, v)
-			return
+			return false, fmt.Sprintf(StSkipReasonValueFalse, envVar, v)
 		}
 	}
+	return true, ""
 }

@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fabric8-services/fabric8-oso-proxy/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
@@ -41,6 +42,7 @@ const (
 	ValKindServiceAccount         = "ServiceAccount"
 	ValKindRoleBindingRestriction = "RoleBindingRestriction"
 	ValKindRoleBinding            = "RoleBinding"
+	ValKindRole                   = "Role"
 	ValKindRoute                  = "Route"
 	ValKindJob                    = "Job"
 	ValKindList                   = "List"
@@ -78,8 +80,35 @@ var sortOrder = map[string]int{
 	"Job":                    14,
 }
 
+var userNsSortOrder = map[string]int{
+	"Namespace":              1,
+	"ProjectRequest":         1,
+	"RoleBindingRestriction": 2,
+	"Role":                  3,
+	"LimitRange":            4,
+	"ResourceQuota":         5,
+	"Secret":                6,
+	"ServiceAccount":        7,
+	"Service":               8,
+	"RoleBinding":           9,
+	"PersistentVolumeClaim": 10,
+	"ConfigMap":             11,
+	"DeploymentConfig":      12,
+	"Route":                 13,
+	"Job":                   14,
+}
+
 type Objects []map[interface{}]interface{}
 type Object map[interface{}]interface{}
+
+func (o Object) ToString() string {
+	out, err := yaml.Marshal(o)
+	if err != nil {
+		log.Error(err)
+		return fmt.Sprintf("%s", o)
+	}
+	return string(out)
+}
 
 type Template struct {
 	Filename      string
@@ -295,19 +324,30 @@ func GetLabel(obj Object, name string) string {
 	return ""
 }
 
-// ByKind represents a list of Openshift objects sortable by Kind
-type ByKind Objects
+func ByKind(objects Objects) ByKindSorter {
+	return ByKindSorter{objects: objects, sortOrder: sortOrder}
+}
 
-func (a ByKind) Len() int      { return len(a) }
-func (a ByKind) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByKind) Less(i, j int) bool {
+func UserNsByKind(objects Objects) ByKindSorter {
+	return ByKindSorter{objects: objects, sortOrder: userNsSortOrder}
+}
+
+// ByKind represents a list of Openshift objects sortable by Kind
+type ByKindSorter struct {
+	objects   Objects
+	sortOrder map[string]int
+}
+
+func (a ByKindSorter) Len() int      { return len(a.objects) }
+func (a ByKindSorter) Swap(i, j int) { a.objects[i], a.objects[j] = a.objects[j], a.objects[i] }
+func (a ByKindSorter) Less(i, j int) bool {
 	iO := 30
 	jO := 30
 
-	if val, ok := sortOrder[GetKind(a[i])]; ok {
+	if val, ok := a.sortOrder[GetKind(a.objects[i])]; ok {
 		iO = val
 	}
-	if val, ok := sortOrder[GetKind(a[j])]; ok {
+	if val, ok := a.sortOrder[GetKind(a.objects[j])]; ok {
 		jO = val
 	}
 	return iO < jO
