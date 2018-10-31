@@ -54,7 +54,7 @@ func TestResolveUserToken(t *testing.T) {
 
 func TestResolveServiceAccountToken(t *testing.T) {
 	// given
-	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
 	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
 	defer cleanup()
@@ -201,7 +201,7 @@ func TestPublicKeys(t *testing.T) {
 
 func TestInitializeAuthServiceAndGetSaToken(t *testing.T) {
 	// given
-	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_URL", "http://authservice"))
+	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_URL", "http://authservice"))
 	defer reset()
 	record, err := recorder.New("../test/data/token/auth_resolve_target_token")
 	defer func() {
