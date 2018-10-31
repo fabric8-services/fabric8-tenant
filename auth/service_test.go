@@ -116,22 +116,26 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 	tests := []struct {
 		name    string
 		user    string
+		uuid    string
 		wantErr string
 	}{
 		{
 			name:    "normal input to see if cluster is parsed",
 			wantErr: "",
 			user:    "normal_user",
+			uuid:    "4450a269-492e-45ec-939a-7766a4ee82de",
 		},
 		{
 			name:    "bad status code",
 			wantErr: "Not Found error: 404 not_found",
 			user:    "bad_status_code_user",
+			uuid:    "e4b8f368-bc45-4aa7-95d1-6a90dbbc8873",
 		},
 		{
 			name:    "make code fail on parsing output",
 			wantErr: "invalid character",
 			user:    "wrong_output_user",
+			uuid:    "7c094c6e-b62e-4f83-a9a3-695a048bb845",
 		},
 	}
 
@@ -151,11 +155,11 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 			// given
 			userToken, err := testsupport.NewToken(
 				map[string]interface{}{
-					"sub": testData.user,
+					"sub": testData.uuid,
 				},
 				"../test/private_key.pem",
 			)
-			require.NoError(t, err)
+			require.NoError(t, err, testData.user)
 
 			// when
 			user, err := authClientService.GetUser(goajwt.WithJWT(context.Background(), userToken))
@@ -167,9 +171,9 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 					testsupport.HasMessageContaining(testData.wantErr))
 				return
 			}
-			require.NoError(t, err)
-			require.NotNil(t, user)
-			assert.Equal(t, "fake-cluster.com", *user.UserData.Cluster)
+			require.NoError(t, err, testData.user)
+			require.NotNil(t, user, testData.user)
+			assert.Equal(t, "fake-cluster.com", *user.UserData.Cluster, testData.user)
 		})
 	}
 }
