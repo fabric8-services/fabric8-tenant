@@ -44,9 +44,10 @@ func NewAuthService(config *configuration.Data, options ...configuration.HTTPCli
 
 // User contains user data retrieved from auth service and OS username and user token
 type User struct {
+	ID                 uuid.UUID
 	UserData           *authclient.UserDataAttributes
-	OpenshiftUsername  string
-	OpenshiftUserToken string
+	OpenShiftUsername  string
+	OpenShiftUserToken string
 }
 
 // GetUser retrieves user data from auth service related to JWT token stored in the given context.
@@ -56,9 +57,10 @@ func (s *Service) GetUser(ctx context.Context) (*User, error) {
 	if userToken == nil {
 		return nil, commonerrs.NewUnauthorizedError("Missing JWT token")
 	}
+	tenantToken := TenantToken{Token: userToken}
 
 	// fetch the cluster the user belongs to
-	userData, err := s.GetAuthUserData(ctx, userToken)
+	userData, err := s.GetAuthUserData(ctx, tenantToken)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +81,10 @@ func (s *Service) GetUser(ctx context.Context) (*User, error) {
 	}
 
 	return &User{
+		ID:                 tenantToken.Subject(),
 		UserData:           userData,
-		OpenshiftUsername:  openshiftUsername,
-		OpenshiftUserToken: openshiftUserToken,
+		OpenShiftUsername:  openshiftUsername,
+		OpenShiftUserToken: openshiftUserToken,
 	}, nil
 }
 
@@ -206,13 +209,13 @@ func (s *Service) ResolveTargetToken(ctx context.Context, target, token string, 
 	return externalToken.Username, t, err
 }
 
-func (s *Service) GetAuthUserData(ctx context.Context, userToken *jwt.Token) (*authclient.UserDataAttributes, error) {
+func (s *Service) GetAuthUserData(ctx context.Context, tenantToken TenantToken) (*authclient.UserDataAttributes, error) {
 	client, err := s.NewSaClient()
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := client.ShowUsers(ctx, authclient.ShowUsersPath(subject(userToken)), nil, nil)
+	res, err := client.ShowUsers(ctx, authclient.ShowUsersPath(tenantToken.Subject().String()), nil, nil)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
@@ -232,13 +235,6 @@ func (s *Service) GetAuthUserData(ctx context.Context, userToken *jwt.Token) (*a
 	}
 
 	return user.Data.Attributes, nil
-}
-
-func subject(token *jwt.Token) string {
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		return claims["sub"].(string)
-	}
-	return ""
 }
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service

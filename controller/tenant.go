@@ -88,7 +88,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	tenant := &tenant.Tenant{
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
-		OSUsername: user.OpenshiftUsername,
+		OSUsername: user.OpenShiftUsername,
 	}
 	err = c.tenantService.CreateTenant(tenant)
 	if err != nil {
@@ -104,13 +104,13 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		err = openshift.RawInitTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
-			user.OpenshiftUsername,
-			user.OpenshiftUserToken)
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenShiftUsername),
+			user.OpenShiftUsername,
+			user.OpenShiftUserToken)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": user.OpenshiftUsername,
+				"os_user": user.OpenShiftUsername,
 			}, err, "unable initialize tenant")
 		}
 	}()
@@ -155,7 +155,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 
 	// update tenant config
-	tenant.OSUsername = user.OpenshiftUsername
+	tenant.OSUsername = user.OpenShiftUsername
 
 	if err = c.tenantService.SaveTenant(tenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -170,12 +170,12 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		err = openshift.RawUpdateTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenshiftUsername),
-			user.OpenshiftUsername)
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenShiftUsername),
+			user.OpenShiftUsername)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": user.OpenshiftUsername,
+				"os_user": user.OpenShiftUsername,
 			}, err, "unable initialize tenant")
 		}
 	}()
@@ -216,7 +216,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenshiftUsername, removeFromCluster)
+	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenShiftUsername, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

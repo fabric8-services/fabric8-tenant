@@ -3,7 +3,7 @@ version: 1
 interactions:
 - request:
     method: GET
-    url: http://authservice/api/users/normal_user
+    url: http://authservice/api/users/4450a269-492e-45ec-939a-7766a4ee82de
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -20,18 +20,18 @@ interactions:
     method: GET
     url: http://authservice/api/token?for=fake-cluster.com&force_pull=false
     headers:
-      sub: ["normal_user"] # will be compared against the `sub` claim in the incoming request's token
+      sub: ["4450a269-492e-45ec-939a-7766a4ee82de"] # will be compared against the `sub` claim in the incoming request's token
   response:
     status: 200 OK
     code: 200
-    body: '{ 
+    body: '{
 			"access_token": "an_openshift_token",
 			"token_type": "bearer",
 			"username": "user_foo"
 		}'
 - request:
     method: GET
-    url: http://authservice/api/users/bad_status_code_user
+    url: http://authservice/api/users/e4b8f368-bc45-4aa7-95d1-6a90dbbc8873
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -47,7 +47,7 @@ interactions:
         }'
 - request:
     method: GET
-    url: http://authservice/api/users/wrong_output_user
+    url: http://authservice/api/users/7c094c6e-b62e-4f83-a9a3-695a048bb845
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
