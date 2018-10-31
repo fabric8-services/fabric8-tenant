@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/fabric8-services/fabric8-tenant/cluster"
 )
 
 func TestWhoAmI(t *testing.T) {
