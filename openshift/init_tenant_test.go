@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -18,7 +18,7 @@ var emptyCallback = func(statusCode int, method string, request, response map[in
 
 func TestNumberOfCallsToCluster(t *testing.T) {
 	// given
-	data, reset := testdoubles.LoadTestConfig(t)
+	data, reset := test.LoadTestConfig(t)
 	defer func() {
 		gock.OffAll()
 		reset()

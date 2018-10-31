@@ -6,7 +6,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/sentry"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +16,7 @@ import (
 
 func TestInitializeSentryLoggerAndSendRecord(t *testing.T) {
 	// given
-	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_SENTRY_DSN", "https://abcdef123:abcde123@sentry.instance.server.io/1"))
+	reset := test.SetEnvironments(test.Env("F8_SENTRY_DSN", "https://abcdef123:abcde123@sentry.instance.server.io/1"))
 	defer reset()
 	config, err := configuration.NewData()
 	require.NoError(t, err)
