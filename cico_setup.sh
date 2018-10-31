@@ -97,6 +97,17 @@ function run_tests_with_coverage() {
   echo "CICO: ran tests and uploaded coverage"
 }
 
+function addCommentToPullRequest() {
+    link="[OpenShift.io](https://openshift.io/_profile/_tenant?templatesRepoBlob=${ghprbActualCommit})"
+    message="This PR changes one or more of the template files. These changes are now available for testing: Launch in ${link} and click the update tenant button"
+    url="https://api.github.com/repos/fabric8-services/fabric8-tenant/issues/${ghprbPullId}/comments"
+
+    set +x
+    echo curl -X POST -s -L -H "Authorization: XXXX|base64 --decode)" ${url} -d "{\"body\": \"${message}\"}"
+    curl -X POST -s -L -H "Authorization: token $(echo ${FABRIC8_HUB_TOKEN}|base64 --decode)" ${url} -d "{\"body\": \"${message}\"}"
+    set -x
+}
+
 function tag_push() {
   local tag=$1
   docker tag fabric8-tenant-deploy $tag
@@ -130,5 +141,8 @@ function deploy() {
 function cico_setup() {
   load_jenkins_vars;
   install_deps;
+  if [[ -n `git diff --name-only ${ghprbActualCommit}..master | grep "environment/templates/"` ]]; then
+    addCommentToPullRequest;
+  fi
   prepare;
 }
