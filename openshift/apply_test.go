@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"os"
@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 
 func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
 	// given
-	config, reset := testdoubles.LoadTestConfig(t)
+	config, reset := test.LoadTestConfig(t)
 	defer reset()
 	objects, opts := prepareObjectsAndOpts(t, templateHeader+projectRequestObject+roleBindingRestrictionObject, config)
 
@@ -91,7 +91,7 @@ func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
 
 func TestDeleteIfThereIsConflict(t *testing.T) {
 	// given
-	config, reset := testdoubles.LoadTestConfig(t)
+	config, reset := test.LoadTestConfig(t)
 	defer reset()
 	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject, config)
 
@@ -120,7 +120,7 @@ func TestDeleteIfThereIsConflict(t *testing.T) {
 
 func TestDeleteAndGet(t *testing.T) {
 	// given
-	config, reset := testdoubles.LoadTestConfig(t)
+	config, reset := test.LoadTestConfig(t)
 	defer reset()
 	objects, opts := prepareObjectsAndOpts(t, templateHeader+roleBindingRestrictionObject, config)
 

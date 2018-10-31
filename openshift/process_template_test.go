@@ -8,13 +8,13 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
 	"strings"
 )
 
 func TestPresenceOfTemplateObjects(t *testing.T) {
-	data, reset := testdoubles.LoadTestConfig(t)
+	data, reset := test.LoadTestConfig(t)
 	defer reset()
 	templateObjects := tmplObjects(t, data)
 
@@ -80,9 +80,9 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 	})
 
 	t.Run("verify resource quotas are not present when DISABLE_OSO_QUOTAS is true", func(t *testing.T) {
-		resetEnv := testdoubles.SetEnvironments(testdoubles.Env("DISABLE_OSO_QUOTAS", "true"))
+		resetEnv := test.SetEnvironments(test.Env("DISABLE_OSO_QUOTAS", "true"))
 		defer resetEnv()
-		data, reset := testdoubles.LoadTestConfig(t)
+		data, reset := test.LoadTestConfig(t)
 		defer reset()
 		templateObjects := tmplObjects(t, data)
 
