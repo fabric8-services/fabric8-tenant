@@ -2,7 +2,7 @@ package environment_test
 
 import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"regexp"
@@ -154,7 +154,7 @@ parameters:
 
 func TestSort(t *testing.T) {
 	// given
-	data, reset := testdoubles.LoadTestConfig(t)
+	data, reset := test.LoadTestConfig(t)
 	defer reset()
 
 	template := environment.Template{Content: sortTemplate}
@@ -174,7 +174,7 @@ func TestSort(t *testing.T) {
 
 func TestParseNamespace(t *testing.T) {
 	// given
-	data, reset := testdoubles.LoadTestConfig(t)
+	data, reset := test.LoadTestConfig(t)
 	defer reset()
 
 	template := environment.Template{Content: parseNamespaceTemplate}

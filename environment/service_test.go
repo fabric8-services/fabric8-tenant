@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -55,7 +56,7 @@ items:
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
 	service := environment.NewService("", "", "")
-	setTemplateVersions()
+	testdoubles.SetTemplateVersions()
 	vars := map[string]string{
 		"USER_NAME": "dev",
 	}
@@ -105,7 +106,7 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 
 func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 	// given
-	setTemplateVersions()
+	testdoubles.SetTemplateVersions()
 	service := environment.NewService("", "", "")
 	vars := map[string]string{
 		"USER_NAME": "dev",
@@ -135,20 +136,10 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 	}
 }
 
-func setTemplateVersions() {
-	environment.VersionFabric8TenantCheFile = "123abc"
-	environment.VersionFabric8TenantCheMtFile = "234bcd"
-	environment.VersionFabric8TenantCheQuotasFile = "zyx098"
-	environment.VersionFabric8TenantUserFile = "345cde"
-	environment.VersionFabric8TenantDeployFile = "456def"
-	environment.VersionFabric8TenantJenkinsFile = "567efg"
-	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
-}
-
 // Ignored because it downloads files directly from GitHub
 func XTestDownloadFromExistingLocation(t *testing.T) {
 	// given
-	setTemplateVersions()
+	testdoubles.SetTemplateVersions()
 	service := environment.NewService("", "29541ca", "")
 	vars := map[string]string{
 		"USER_NAME": "dev",
@@ -178,7 +169,7 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 		Get("fabric8-services/fabric8-tenant/987654321/environment/templates/fabric8-tenant-deploy.yml").
 		Reply(200).
 		BodyString(defaultLocationTempl)
-	setTemplateVersions()
+	testdoubles.SetTemplateVersions()
 	service := environment.NewService("", "987654321", "")
 
 	// when
@@ -207,7 +198,7 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins-quotas.yml").
 		Reply(200).
 		BodyString(customLocationQuotas)
-	setTemplateVersions()
+	testdoubles.SetTemplateVersions()
 	service := environment.NewService("http://github.com/my-services/my-tenant", "987cba", "any/path")
 
 	// when

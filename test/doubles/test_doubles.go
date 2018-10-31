@@ -4,43 +4,12 @@ import (
 	vcrrecorder "github.com/dnaeon/go-vcr/recorder"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 )
-
-func LoadTestConfig(t *testing.T) (*configuration.Data, func()) {
-	reset := SetEnvironments(
-		Env("F8_TEMPLATE_RECOMMENDER_EXTERNAL_NAME", "recommender.api.prod-preview.openshift.io"),
-		Env("F8_TEMPLATE_RECOMMENDER_API_TOKEN", "xxxx"),
-		Env("F8_TEMPLATE_DOMAIN", "d800.free-int.openshiftapps.com"))
-	data, err := configuration.GetData()
-	require.NoError(t, err)
-	return data, reset
-}
-
-func Env(key, value string) Environment {
-	return Environment{key: key, value: value}
-}
-
-type Environment struct {
-	key, value string
-}
-
-func SetEnvironments(environments ...Environment) func() {
-	originalValues := make([]Environment, 0, len(environments))
-
-	for _, env := range environments {
-		originalValues = append(originalValues, Env(env.key, os.Getenv(env.key)))
-		os.Setenv(env.key, env.value)
-	}
-	return func() {
-		for _, env := range originalValues {
-			os.Setenv(env.key, env.value)
-		}
-	}
-}
 
 func NewAuthService(t *testing.T, cassetteFile, authURL string, options ...recorder.Option) (*auth.Service, func()) {
 	authService, _, cleanup := NewAuthServiceWithRecorder(t, cassetteFile, authURL, options...)
@@ -56,7 +25,7 @@ func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL string, opti
 		require.NoError(t, err)
 		clientOptions = append(clientOptions, configuration.WithRoundTripper(r))
 	}
-	resetBack := SetEnvironments(Env("F8_AUTH_URL", authURL))
+	resetBack := test.SetEnvironments(test.Env("F8_AUTH_URL", authURL))
 	config, err := configuration.GetData()
 	require.NoError(t, err)
 
@@ -71,4 +40,14 @@ func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL string, opti
 		}
 		resetBack()
 	}
+}
+
+func SetTemplateVersions() {
+	environment.VersionFabric8TenantCheFile = "123abc"
+	environment.VersionFabric8TenantCheMtFile = "234bcd"
+	environment.VersionFabric8TenantCheQuotasFile = "zyx098"
+	environment.VersionFabric8TenantUserFile = "345cde"
+	environment.VersionFabric8TenantDeployFile = "456def"
+	environment.VersionFabric8TenantJenkinsFile = "567efg"
+	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
 }

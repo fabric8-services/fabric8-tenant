@@ -283,7 +283,7 @@ func createInvalidSAContext() context.Context {
 }
 
 func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (*goa.Service, *controller.TenantsController, error) {
-	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
 	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
 	authService, r, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", recorder.WithJWTMatcher)

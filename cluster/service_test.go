@@ -18,7 +18,7 @@ import (
 func TestResolveCluster(t *testing.T) {
 
 	// given
-	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
 	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.fast", "http://fast.authservice", recorder.WithJWTMatcher)
 	defer cleanup()
@@ -80,7 +80,7 @@ func TestResolveCluster(t *testing.T) {
 
 func TestGetClusters(t *testing.T) {
 	// given
-	reset := testdoubles.SetEnvironments(testdoubles.Env("F8_AUTH_TOKEN_KEY", "foo"))
+	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
 	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.slow", "http://slow.authservice", recorder.WithJWTMatcher)
 	defer cleanup()
