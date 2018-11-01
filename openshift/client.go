@@ -3,7 +3,6 @@ package openshift
 import (
 	"bytes"
 	"fmt"
-	"github.com/fabric8-services/fabric8-tenant/utils"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	tmpl "html/template"
 
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"io/ioutil"
 )
 
 type Client struct {
@@ -59,8 +59,14 @@ func (c *Client) Do(requestCreator RequestCreator, object environment.Object, bo
 		return nil, err
 	}
 
-	readBody, toDefer := utils.ReadBody(resp)
-	defer toDefer()
+	defer func() {
+		resp.Body.Close()
+	}()
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	// for debug only
 	if false {
@@ -69,12 +75,11 @@ func (c *Client) Do(requestCreator RequestCreator, object environment.Object, bo
 		fmt.Println(string(rb))
 		fmt.Println(object)
 		fmt.Println("================")
-		fmt.Println(readBody())
+		fmt.Println(respBody)
 		fmt.Println("-----------------")
 		fmt.Println(resp.StatusCode)
 	}
-
-	return newResult(resp, readBody(), err)
+	return newResult(resp, respBody, err)
 }
 
 func newResult(response *http.Response, body []byte, err error) (*Result, error) {

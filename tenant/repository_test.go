@@ -160,9 +160,11 @@ func (s *TenantServiceTestSuite) TestDelete() {
 		namespaces, err := svc.GetNamespaces(tenant1.ID)
 		require.NoError(t, err)
 		for _, ns := range namespaces {
-			svc.NewTenantRepository(tenant1.ID).DeleteNamespace(ns)
+			err := svc.NewTenantRepository(tenant1.ID).DeleteNamespace(ns)
+			require.NoError(s.T(), err)
 		}
-		svc.DeleteTenant(tenant1.ID)
+		err = svc.DeleteTenant(tenant1.ID)
+		require.NoError(s.T(), err)
 		// then
 		// should be deleted
 		ten1, _ := svc.GetTenant(tenant1.ID)

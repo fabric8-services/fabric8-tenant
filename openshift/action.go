@@ -126,7 +126,7 @@ func (d *Delete) filter() FilterFunc {
 }
 
 func (d *Delete) sort(toSort environment.ByKindSorter) {
-	sort.Reverse(toSort)
+	sort.Sort(sort.Reverse(toSort))
 }
 
 type withExistingNamespacesAction struct {
