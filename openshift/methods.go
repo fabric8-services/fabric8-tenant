@@ -49,19 +49,6 @@ func POST(afterCallbacks ...AfterDoCallback) methodDefCreator {
 				}})
 	}
 }
-
-func PUT(afterCallbacks ...AfterDoCallback) methodDefCreator {
-	return func(urlTemplate string) *MethodDefinition {
-		return NewMethodDefinition(
-			http.MethodPut,
-			[]BeforeDoCallback{},
-			afterCallbacks,
-			RequestCreator{
-				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
-					return newDefaultRequest(http.MethodPut, urlCreator(urlTemplate), body)
-				}})
-	}
-}
 func PATCH(afterCallbacks ...AfterDoCallback) methodDefCreator {
 	return func(urlTemplate string) *MethodDefinition {
 		return NewMethodDefinition(

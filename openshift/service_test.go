@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
-	"net/http"
 	"os"
 	"testing"
 )
@@ -219,14 +218,4 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, len(objectsInTemplates), calls)
 	assert.Len(t, db.Namespaces, 5)
-}
-
-// SpyOnCalls checks the number of calls
-func SpyOnCalls(counter *int) gock.Matcher {
-	matcher := gock.NewBasicMatcher()
-	matcher.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
-		*counter++
-		return true, nil
-	})
-	return matcher
 }

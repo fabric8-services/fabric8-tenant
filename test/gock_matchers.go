@@ -6,15 +6,17 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
+	"io/ioutil"
+	"gopkg.in/yaml.v2"
 )
 
 func ExpectRequest(matchers ...RequestMatcher) gock.Matcher {
-	return createHeaderMatcher(matchers)
+	return createReqMatcher(matchers)
 }
 
 type RequestMatcher func(req *http.Request) bool
 
-func createHeaderMatcher(matchers []RequestMatcher) gock.Matcher {
+func createReqMatcher(matchers []RequestMatcher) gock.Matcher {
 	matcher := gock.NewBasicMatcher()
 	matcher.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
 		for _, match := range matchers {
@@ -48,4 +50,30 @@ func HasJWTWithSub(sub string) RequestMatcher {
 
 		return claims["sub"] == sub
 	}
+}
+
+func HasObjectAsBody(object map[interface{}]interface{}) RequestMatcher {
+	return func(req *http.Request) bool {
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"body": string(body)}, err.Error())
+			return false
+		}
+		expBody, err := yaml.Marshal(object)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"object": object}, err.Error())
+			return false
+		}
+		return string(body) == string(expBody)
+	}
+}
+
+// SpyOnCalls checks the number of calls
+func SpyOnCalls(counter *int) gock.Matcher {
+	matcher := gock.NewBasicMatcher()
+	matcher.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
+		*counter++
+		return true, nil
+	})
+	return matcher
 }

@@ -1,12 +1,12 @@
-package client_test
+package retry_test
 
 import (
 	"errors"
 
-	"github.com/fabric8-services/fabric8-tenant/retry"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+	"github.com/fabric8-services/fabric8-tenant/retry"
 )
 
 func TestAccumulateErrorsWhenAllFailed(t *testing.T) {
@@ -19,7 +19,7 @@ func TestAccumulateErrorsWhenAllFailed(t *testing.T) {
 	}
 
 	// when
-	err := client.Do(maxRetries, 0, toRetry)
+	err := retry.Do(maxRetries, 0, toRetry)
 
 	// then
 	require.Len(t, err, maxRetries)
@@ -36,7 +36,7 @@ func TestRetryExecuteOnce(t *testing.T) {
 	}
 
 	// when
-	err := client.Do(maxRetries, 0, toRetry)
+	err := retry.Do(maxRetries, 0, toRetry)
 
 	// then
 	require.Len(t, err, 1)
@@ -55,7 +55,7 @@ func TestStopRetryingWhenSuccessful(t *testing.T) {
 	}
 
 	// when
-	err := client.Do(10, time.Millisecond*50, toRetry)
+	err := retry.Do(10, time.Millisecond*50, toRetry)
 
 	// then
 	require.Empty(t, err)

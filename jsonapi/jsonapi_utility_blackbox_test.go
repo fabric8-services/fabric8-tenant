@@ -9,15 +9,17 @@ import (
 
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/resource"
+	"github.com/fabric8-services/fabric8-common/errors"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
 )
 
 func TestErrorToJSONAPIError(t *testing.T) {
 	t.Parallel()
-	resource.Require(t, resource.UnitTest)
+	if ready, reason := resource.IsReady(resource.UnitTest); !ready {
+		t.Skip(reason)
+	}
 
 	var jerr app.JSONAPIError
 	var httpStatus int

@@ -132,15 +132,14 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 		return
 	}
 
-	env, err := nsTypeService.GetEnvData()
+	env, objects, err := nsTypeService.GetEnvDataAndObjects(action.filter())
 	if err != nil {
 		return
 	}
-
-	objects, err := nsTypeService.GetAndSortObjects(env, action)
+	action.sort(environment.ByKind(objects))
 
 	cluster := nsTypeService.GetCluster()
-	client := newClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.forceMasterTokenGlobally()))
+	client := NewClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.forceMasterTokenGlobally()))
 
 	var objectsWait sync.WaitGroup
 	objectsWait.Add(len(objects))
@@ -153,10 +152,10 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 
 	errorParamsPerObject := getErrorParamsPerObject(&objErrs)
 	if len(errorParamsPerObject) > 0 {
-		errorParamsPerObject["ns-type"] = nsTypeService.GetName()
+		errorParamsPerObject["ns-type"] = nsTypeService.GetType()
 		errorParamsPerObject["action"] = action.methodName()
 		errorParamsPerObject["cluster"] = cluster.APIURL
-		errorParamsPerObject["ns-type"] = nsTypeService.GetName()
+		errorParamsPerObject["ns-type"] = nsTypeService.GetType()
 		err = fmt.Errorf("creation of the namespace failed")
 		sentry.LogError(nsTypeService.GetRequestsContext(), errorParamsPerObject, err, err.Error())
 	}
@@ -180,7 +179,7 @@ func getErrorParamsPerObject(errors *sync.Map) map[string]interface{} {
 func apply(objectsWait *sync.WaitGroup, client Client, action string, object environment.Object, errors *sync.Map) {
 	defer objectsWait.Done()
 
-	objectEndpoint, found := objectEndpoints[environment.GetKind(object)]
+	objectEndpoint, found := AllObjectEndpoints[environment.GetKind(object)]
 	if !found {
 		log.Error(fmt.Errorf("there is no supported endpoint for the object %s", environment.GetKind(object)))
 		return

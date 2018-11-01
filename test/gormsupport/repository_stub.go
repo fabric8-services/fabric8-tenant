@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	errorswit "github.com/fabric8-services/fabric8-wit/errors"
+	errorscommon "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
@@ -43,7 +43,7 @@ func (s DBServiceStub) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error) {
 			return tenant, nil
 		}
 	}
-	return nil, errorswit.NewNotFoundError("tenant", tenantID.String())
+	return nil, errorscommon.NewNotFoundError("tenant", tenantID.String())
 
 }
 
@@ -58,7 +58,7 @@ func (s DBServiceStub) LookupTenantByClusterAndNamespace(masterURL, namespace st
 			}
 		}
 	}
-	return nil, errorswit.NewNotFoundError("tenant", "")
+	return nil, errorscommon.NewNotFoundError("tenant", "")
 }
 
 func (s DBServiceStub) SaveTenant(tenant *tenant.Tenant) error {
@@ -80,7 +80,7 @@ func (s DBServiceStub) CreateTenant(tenant *tenant.Tenant) error {
 		tenant.Profile = "free"
 	}
 	if s.Exists(tenant.ID) {
-		return errors.New("conflict")
+		return errors.New("pq: duplicate key value violates unique constraint \"tenants_pkey\"")
 	}
 	s.db.Tenants = append(s.db.Tenants, tenant)
 	return nil

@@ -1,19 +1,107 @@
 package openshift_test
 
 import (
-	"context"
-	"fmt"
 	"testing"
-
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"context"
 	"github.com/fabric8-services/fabric8-tenant/test"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"strings"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"gopkg.in/h2non/gock.v1"
 )
+
+func TestEnvironmentTypeService(t *testing.T) {
+	// given
+	config, reset := test.LoadTestConfig(t)
+	defer reset()
+
+	clusterMapping := map[environment.Type]cluster.Cluster{}
+	for _, envType := range environment.DefaultEnvTypes {
+		url := fmt.Sprintf("http://starter-for-type-%s.com", envType.String())
+		clusterMapping[envType] = cluster.Cluster{
+			APIURL: url,
+			Token:  "clusterToken",
+		}
+	}
+	client := openshift.NewClient(nil, "https://starter.com", tokenProducer)
+
+	ctx := openshift.NewServiceContext(context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "userToken")
+	envService := environment.NewService()
+
+	t.Run("test service behavior common for all types", func(t *testing.T) {
+		for _, envType := range environment.DefaultEnvTypes {
+			// when
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// then
+			assert.Equal(t, envType, service.GetType())
+			assert.Equal(t, fmt.Sprintf("http://starter-for-type-%s.com", envType.String()), service.GetCluster().APIURL)
+			assert.Equal(t, context.Background(), service.GetRequestsContext())
+			envData, objects, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
+				return true
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, envType, envData.EnvType)
+			assert.NotEmpty(t, envData.Templates)
+			assert.NotEmpty(t, objects)
+
+			if envType != environment.TypeUser {
+				assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(false))
+				assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(true))
+				assert.NoError(t, service.AfterCallback(client, "POST"))
+				assert.Equal(t, "developer-"+envType.String(), service.GetNamespaceName())
+			}
+		}
+	})
+	t.Run("test service behavior specific for user type", func(t *testing.T) {
+		// when
+		service := openshift.NewEnvironmentTypeService(environment.TypeUser, ctx, envService)
+
+		// then
+		assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(true))
+		assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(false))
+		assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(true))
+		assert.Equal(t, "userToken", service.GetTokenProducer(false)(false))
+		assert.Equal(t, "developer", service.GetNamespaceName())
+
+		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
+			// given
+			defer gock.Off()
+			gock.New("https://starter.com").
+				Delete("/oapi/v1/namespaces/developer/rolebindings/admin").
+				Reply(200)
+			// when
+			err := service.AfterCallback(client, "POST")
+			// then
+			assert.NoError(t, err)
+		})
+		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
+			// given
+			defer gock.Off()
+			gock.New("https://starter.com").
+				Delete("/oapi/v1/namespaces/developer/rolebindings/admin").
+				Reply(505)
+			// when
+			err := service.AfterCallback(client, "POST")
+			// then
+			test.AssertError(t, err,
+				test.HasMessageContaining("unable to remove admin rolebinding in developer namespace"),
+				test.HasMessageContaining("server responded with status: 505 for the request DELETE"))
+		})
+		t.Run("when action is other than post then it does nothing", func(t *testing.T) {
+			// when
+			err := service.AfterCallback(client, "PATCH")
+			// then
+			assert.NoError(t, err)
+		})
+	})
+}
 
 func TestPresenceOfTemplateObjects(t *testing.T) {
 	data, reset := test.LoadTestConfig(t)
@@ -115,9 +203,9 @@ func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
 		ctx := openshift.NewServiceContext(context.Background(), data, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 
 		nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
-		envData, err := nsTypeService.GetEnvData()
-		require.NoError(t, err)
-		objects, err := nsTypeService.GetAndSortObjects(envData, openshift.NewCreate(nil))
+		_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {
+			return true
+		})
 		require.NoError(t, err)
 		objs = append(objs, objects...)
 	}

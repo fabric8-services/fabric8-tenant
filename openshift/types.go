@@ -9,16 +9,16 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"github.com/pkg/errors"
 )
 
 // EnvironmentTypeService represents service operating with information related to environment types(template, objects, cluster,...).
 // It is responsible for getting, sorting and filtering objects to be applied, provides information (needed token) specific
 // for the particular type and performs after-apply-callback (needed by user namespace)
 type EnvironmentTypeService interface {
-	GetName() environment.Type
+	GetType() environment.Type
 	GetNamespaceName() string
-	GetEnvData() (*environment.EnvData, error)
-	GetAndSortObjects(env *environment.EnvData, action NamespaceAction) (environment.Objects, error)
+	GetEnvDataAndObjects(filter FilterFunc) (*environment.EnvData, environment.Objects, error)
 	GetCluster() cluster.Cluster
 	AfterCallback(client *Client, action string) error
 	GetTokenProducer(forceMasterTokenGlobally bool) TokenProducer
@@ -47,7 +47,7 @@ func (t *CommonEnvTypeService) GetRequestsContext() context.Context {
 	return t.context.requestCtx
 }
 
-func (t *CommonEnvTypeService) GetName() environment.Type {
+func (t *CommonEnvTypeService) GetType() environment.Type {
 	return t.name
 }
 
@@ -55,8 +55,13 @@ func (t *CommonEnvTypeService) GetNamespaceName() string {
 	return fmt.Sprintf("%s-%s", environment.RetrieveUserName(t.context.openShiftUsername), t.name)
 }
 
-func (t *CommonEnvTypeService) GetEnvData() (*environment.EnvData, error) {
-	return t.envService.GetEnvData(t.context.requestCtx, t.name)
+func (t *CommonEnvTypeService) GetEnvDataAndObjects(filter FilterFunc) (*environment.EnvData, environment.Objects, error) {
+	envData, err := t.envService.GetEnvData(t.context.requestCtx, t.name)
+	if err != nil {
+		return nil, nil, err
+	}
+	objects, err := t.getObjects(envData, filter)
+	return envData, objects, err
 }
 
 func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter FilterFunc) (environment.Objects, error) {
@@ -82,16 +87,6 @@ func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter Filte
 	return objs, nil
 }
 
-func (t *CommonEnvTypeService) GetAndSortObjects(env *environment.EnvData, action NamespaceAction) (environment.Objects, error) {
-	objects, err := t.getObjects(env, action.filter())
-	if err != nil {
-		return nil, err
-	}
-
-	action.sort(environment.ByKind(objects))
-	return objects, nil
-}
-
 func (t *CommonEnvTypeService) GetCluster() cluster.Cluster {
 	return t.context.clusterForType(t.name)
 }
@@ -110,16 +105,6 @@ type UserNamespaceTypeService struct {
 	*CommonEnvTypeService
 }
 
-func (t *UserNamespaceTypeService) GetAndSortObjects(env *environment.EnvData, action NamespaceAction) (environment.Objects, error) {
-	objects, err := t.getObjects(env, action.filter())
-	if err != nil {
-		return nil, err
-	}
-
-	action.sort(environment.UserNsByKind(objects))
-	return objects, nil
-}
-
 func (t *UserNamespaceTypeService) AfterCallback(client *Client, action string) error {
 	if action != http.MethodPost {
 		return nil
@@ -130,8 +115,17 @@ func (t *UserNamespaceTypeService) AfterCallback(client *Client, action string) 
 	objErrs := sync.Map{}
 	apply(&removeRoleWait, *client, http.MethodDelete, adminRoleBinding, &objErrs)
 
-	if err, found := objErrs.Load(adminRoleBinding); found {
-		return fmt.Errorf("unable to remove adminrolebinding in %s namespace because of the error: %s", t.GetNamespace(), err)
+	var errs error
+	objErrs.Range(func(object, err interface{}) bool {
+		if errs == nil {
+			errs = fmt.Errorf("%s", err)
+		} else {
+			errs = errors.Wrap(errs, fmt.Sprint(err))
+		}
+		return true
+	})
+	if errs != nil {
+		return errors.Wrapf(errs, "unable to remove admin rolebinding in %s namespace", t.GetNamespaceName())
 	}
 	return nil
 }
@@ -143,10 +137,6 @@ func (t *UserNamespaceTypeService) GetTokenProducer(forceMasterTokenGlobally boo
 		}
 		return t.context.openShiftUserToken
 	}
-}
-
-func (t *UserNamespaceTypeService) GetNamespace() string {
-	return string(t.GetName())
 }
 
 func (t *UserNamespaceTypeService) GetNamespaceName() string {

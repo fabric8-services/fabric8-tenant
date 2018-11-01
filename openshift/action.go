@@ -5,9 +5,9 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 )
 
 // NamespaceAction represents the action that should be applied on the namespaces for the particular tenant - [post|update|delete].
@@ -16,7 +16,7 @@ type NamespaceAction interface {
 	methodName() string
 	getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error)
 	updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool)
-	sort(toSort environment.ByKindSorter)
+	sort(toSort environment.ByKind)
 	filter() FilterFunc
 	forceMasterTokenGlobally() bool
 	updateTenant() error
@@ -25,7 +25,7 @@ type NamespaceAction interface {
 type commonNamespaceAction struct {
 }
 
-func (c *commonNamespaceAction) sort(toSort environment.ByKindSorter) {
+func (c *commonNamespaceAction) sort(toSort environment.ByKind) {
 	sort.Sort(toSort)
 }
 
@@ -59,7 +59,7 @@ func (c *Create) methodName() string {
 }
 
 func (c *Create) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
-	namespace := c.tenantRepo.NewNamespace(nsTypeService.GetName(), nsTypeService.GetNamespaceName(), tenant.Provisioning)
+	namespace := c.tenantRepo.NewNamespace(nsTypeService.GetType(), nsTypeService.GetNamespaceName(), tenant.Provisioning)
 	err := c.tenantRepo.SaveNamespace(namespace)
 	return namespace, err
 }
@@ -72,7 +72,12 @@ func (c *Create) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	namespace.UpdateData(env, cluster, state)
 	err := c.tenantRepo.SaveNamespace(namespace)
 	if err != nil {
-		log.Error(err)
+		sentry.LogError(nil, map[string]interface{}{
+			"env_type": env.EnvType,
+			"cluster":  cluster.APIURL,
+			"tenant":   namespace.TenantID,
+			"state":    state,
+		}, err, "updating namespace entity failed")
 	}
 }
 
@@ -102,7 +107,7 @@ func (d *Delete) methodName() string {
 }
 
 func (d *Delete) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
-	return d.getNamespaceFor(nsTypeService.GetName()), nil
+	return d.getNamespaceFor(nsTypeService.GetType()), nil
 }
 
 func (d *Delete) updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
@@ -114,7 +119,13 @@ func (d *Delete) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 		err = d.tenantRepo.DeleteNamespace(namespace)
 	}
 	if err != nil {
-		log.Error(err)
+		sentry.LogError(nil, map[string]interface{}{
+			"env_type":            env.EnvType,
+			"cluster":             cluster.APIURL,
+			"tenant":              namespace.TenantID,
+			"state":               namespace.State,
+			"remove_from_cluster": d.removeFromCluster,
+		}, err, "deleting namespace entity failed")
 	}
 }
 
@@ -125,7 +136,7 @@ func (d *Delete) filter() FilterFunc {
 	return isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap)
 }
 
-func (d *Delete) sort(toSort environment.ByKindSorter) {
+func (d *Delete) sort(toSort environment.ByKind) {
 	sort.Sort(sort.Reverse(toSort))
 }
 
@@ -184,7 +195,7 @@ func (u *Update) methodName() string {
 }
 
 func (u *Update) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
-	return u.getNamespaceFor(nsTypeService.GetName()), nil
+	return u.getNamespaceFor(nsTypeService.GetType()), nil
 }
 
 func (u *Update) updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
@@ -195,7 +206,12 @@ func (u *Update) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	namespace.UpdateData(env, cluster, state)
 	err := u.tenantRepo.SaveNamespace(namespace)
 	if err != nil {
-		log.Error(err)
+		sentry.LogError(nil, map[string]interface{}{
+			"env_type": env.EnvType,
+			"cluster":  cluster.APIURL,
+			"tenant":   namespace.TenantID,
+			"state":    state,
+		}, err, "updating namespace entity failed")
 	}
 }
 

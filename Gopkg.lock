@@ -33,14 +33,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e41ddf5fafc2748d592f87ad010f6447b72360e833199cc97d6dfaf3b3a74afe"
-  name = "github.com/arquillian/ike-prow-plugins"
-  packages = ["pkg/retry"]
-  pruneopts = "UT"
-  revision = "6898b38307dc30b0b91edd0bb3a40aaa78a6b72e"
-
-[[projects]]
-  branch = "master"
   digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -596,7 +588,6 @@
   input-imports = [
     "github.com/Unleash/unleash-client-go",
     "github.com/Unleash/unleash-client-go/context",
-    "github.com/arquillian/ike-prow-plugins/pkg/retry",
     "github.com/dgrijalva/jwt-go",
     "github.com/dgrijalva/jwt-go/request",
     "github.com/dnaeon/go-vcr/cassette",
@@ -608,7 +599,6 @@
     "github.com/fabric8-services/fabric8-common/sentry",
     "github.com/fabric8-services/fabric8-common/token",
     "github.com/fabric8-services/fabric8-oso-proxy/log",
-    "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/resource",
     "github.com/fabric8-services/fabric8-wit/rest",

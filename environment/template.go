@@ -80,25 +80,7 @@ var sortOrder = map[string]int{
 	"Job":                    14,
 }
 
-var userNsSortOrder = map[string]int{
-	"Namespace":              1,
-	"ProjectRequest":         1,
-	"RoleBindingRestriction": 2,
-	"Role":                  3,
-	"LimitRange":            4,
-	"ResourceQuota":         5,
-	"Secret":                6,
-	"ServiceAccount":        7,
-	"Service":               8,
-	"RoleBinding":           9,
-	"PersistentVolumeClaim": 10,
-	"ConfigMap":             11,
-	"DeploymentConfig":      12,
-	"Route":                 13,
-	"Job":                   14,
-}
-
-type Objects []map[interface{}]interface{}
+type Objects []Object
 type Object map[interface{}]interface{}
 
 func (o Object) ToString() string {
@@ -324,30 +306,19 @@ func GetLabel(obj Object, name string) string {
 	return ""
 }
 
-func ByKind(objects Objects) ByKindSorter {
-	return ByKindSorter{objects: objects, sortOrder: sortOrder}
-}
-
-func UserNsByKind(objects Objects) ByKindSorter {
-	return ByKindSorter{objects: objects, sortOrder: userNsSortOrder}
-}
-
 // ByKind represents a list of Openshift objects sortable by Kind
-type ByKindSorter struct {
-	objects   Objects
-	sortOrder map[string]int
-}
+type ByKind Objects
 
-func (a ByKindSorter) Len() int      { return len(a.objects) }
-func (a ByKindSorter) Swap(i, j int) { a.objects[i], a.objects[j] = a.objects[j], a.objects[i] }
-func (a ByKindSorter) Less(i, j int) bool {
+func (a ByKind) Len() int      { return len(a) }
+func (a ByKind) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByKind) Less(i, j int) bool {
 	iO := 30
 	jO := 30
 
-	if val, ok := a.sortOrder[GetKind(a.objects[i])]; ok {
+	if val, ok := sortOrder[GetKind(a[i])]; ok {
 		iO = val
 	}
-	if val, ok := a.sortOrder[GetKind(a.objects[j])]; ok {
+	if val, ok := sortOrder[GetKind(a[j])]; ok {
 		jO = val
 	}
 	return iO < jO

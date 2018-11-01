@@ -5,17 +5,16 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-	"net/http"
 )
 
 // ObjectEndpoints is list of MethodDefinitions for a particular object endpoint (eg. `/oapi/v1/projectrequests`).
 // In other words, is saying which methods (Post/Delete/Get/Patch) are allowed to be performed for the endpoint
 type ObjectEndpoints struct {
-	methods map[string]*MethodDefinition
+	Methods map[string]*MethodDefinition
 }
 
 var (
-	objectEndpoints = map[string]*ObjectEndpoints{
+	AllObjectEndpoints = map[string]*ObjectEndpoints{
 		environment.ValKindNamespace: endpoints(
 			endpoint(`/api/v1/namespaces`, POST(IgnoreConflicts, GetObject)),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
@@ -110,12 +109,7 @@ func endpoints(endpoints ...func(methods map[string]*MethodDefinition)) *ObjectE
 	for _, endpoint := range endpoints {
 		endpoint(methods)
 	}
-	return &ObjectEndpoints{methods: methods}
-}
-
-type Result struct {
-	response *http.Response
-	body     []byte
+	return &ObjectEndpoints{Methods: methods}
 }
 
 func (r *Result) bodyToObject() (environment.Object, error) {
@@ -126,19 +120,24 @@ func (r *Result) bodyToObject() (environment.Object, error) {
 
 func (e *ObjectEndpoints) Apply(client *Client, object environment.Object, action string) (*Result, error) {
 	// get method definition for the object
-	method, err := e.getMethodDefinition(action, object)
+	method, err := e.GetMethodDefinition(action, object)
 	if err != nil {
 		return nil, nil
 	}
+	return e.apply(client, object, method)
+}
+
+func (e *ObjectEndpoints) apply(client *Client, object environment.Object, method *MethodDefinition) (*Result, error) {
 	var (
 		reqBody []byte
 		result  *Result
+		err     error
 	)
 
 	// handle before callbacks if any defined (that could change the request body)
 	if len(method.beforeDoCallbacks) != 0 {
 		for _, beforeCallback := range method.beforeDoCallbacks {
-			method, reqBody, err = beforeCallback(client, object, e, method)
+			method, reqBody, err = beforeCallback.Call(client, object, e, method)
 			if err != nil {
 				return nil, err
 			}
@@ -169,7 +168,7 @@ func (e *ObjectEndpoints) Apply(client *Client, object environment.Object, actio
 		return result, checkHTTPCode(result, err)
 	} else {
 		for _, afterCallback := range method.afterDoCallbacks {
-			err := afterCallback(client, object, e, method, result)
+			err := afterCallback.Call(client, object, e, method, result)
 			if err != nil {
 				return result, err
 			}
@@ -178,8 +177,8 @@ func (e *ObjectEndpoints) Apply(client *Client, object environment.Object, actio
 	}
 }
 
-func (e *ObjectEndpoints) getMethodDefinition(method string, object environment.Object) (*MethodDefinition, error) {
-	methodDef, found := e.methods[method]
+func (e *ObjectEndpoints) GetMethodDefinition(method string, object environment.Object) (*MethodDefinition, error) {
+	methodDef, found := e.Methods[method]
 	if !found {
 		return nil, fmt.Errorf("method definition %s for %s not supported", method, environment.GetKind(object))
 	}
@@ -201,6 +200,5 @@ func logRequest(object environment.Object, method *MethodDefinition, result *Res
 		"namespace":   environment.GetNamespace(object),
 		"name":        environment.GetName(object),
 		"kind":        environment.GetKind(object),
-		"response":    result,
 	})
 }

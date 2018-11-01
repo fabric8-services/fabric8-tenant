@@ -20,7 +20,7 @@ type Client struct {
 }
 type TokenProducer func(forceMasterToken bool) string
 
-func newClient(httpTransport http.RoundTripper, masterURL string, TokenProducer TokenProducer) *Client {
+func NewClient(httpTransport http.RoundTripper, masterURL string, TokenProducer TokenProducer) *Client {
 	return &Client{
 		client:        createHTTPClient(httpTransport),
 		MasterURL:     masterURL,
@@ -79,14 +79,21 @@ func (c *Client) Do(requestCreator RequestCreator, object environment.Object, bo
 		fmt.Println("-----------------")
 		fmt.Println(resp.StatusCode)
 	}
-	return newResult(resp, respBody, err)
+	return NewResult(resp, respBody, err), err
 }
 
-func newResult(response *http.Response, body []byte, err error) (*Result, error) {
+type Result struct {
+	response *http.Response
+	body     []byte
+	err      error
+}
+
+func NewResult(response *http.Response, body []byte, err error) *Result {
 	return &Result{
 		response: response,
 		body:     body,
-	}, err
+		err:err,
+	}
 }
 
 func (c *RequestCreator) createRequestFor(masterURL string, object environment.Object, body []byte) (*http.Request, error) {
@@ -120,7 +127,7 @@ func createURL(hostURL, urlTemplate string, object environment.Object) (string, 
 func newDefaultRequest(action string, createURL func() (string, error), body []byte) (*http.Request, error) {
 	url, err := createURL()
 	if url == "" {
-		return nil, nil
+		return nil, fmt.Errorf("the created url is empty")
 	}
 	if err != nil {
 		return nil, err
