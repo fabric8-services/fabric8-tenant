@@ -1,11 +1,11 @@
-package openshift_test
+package cluster_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,7 @@ func TestWhoAmI(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		// when
-		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", tok.Raw, configuration.WithRoundTripper(r))
+		username, err := cluster.WhoAmI(context.Background(), "https://openshift.test", tok.Raw, configuration.WithRoundTripper(r))
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "user_foo", username)
@@ -32,7 +32,7 @@ func TestWhoAmI(t *testing.T) {
 
 	t.Run("forbidden", func(t *testing.T) {
 		// when
-		username, err := openshift.WhoAmI(context.Background(), "https://openshift.test", "", configuration.WithRoundTripper(r))
+		username, err := cluster.WhoAmI(context.Background(), "https://openshift.test", "", configuration.WithRoundTripper(r))
 		// then
 		require.Error(t, err)
 		assert.Equal(t, "", username)

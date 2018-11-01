@@ -1,4 +1,4 @@
-package openshift
+package cluster
 
 import (
 	"bytes"

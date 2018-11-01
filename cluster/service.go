@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"strings"
@@ -154,7 +153,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 			return errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
 		// verify the token
-		_, err = openshift.WhoAmI(ctx, cluster.APIURL, clusterToken, s.authService.ClientOptions...)
+		_, err = WhoAmI(ctx, cluster.APIURL, clusterToken, s.authService.ClientOptions...)
 		if err != nil {
 			return errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
 		}
