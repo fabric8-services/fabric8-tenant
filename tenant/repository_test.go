@@ -3,12 +3,13 @@ package tenant_test
 import (
 	"testing"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-wit/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -170,5 +171,47 @@ func (s *TenantServiceTestSuite) TestDelete() {
 		ns2, err := svc.GetNamespaces(tenant2.ID)
 		require.NoError(t, err)
 		require.Len(t, ns2, 5)
+	})
+}
+
+func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
+
+	s.T().Run("is first tenant", func(t *testing.T) {
+		// given
+		svc := tenant.NewDBService(s.DB)
+		// when
+		sequenceNumber := tenant.ConstructNsUsername(svc, "johny")
+		// then
+		assert.Equal(t, "johny", sequenceNumber)
+	})
+
+	s.T().Run("is second tenant with the same name", func(t *testing.T) {
+		// given
+		tf.NewTestFixture(t, s.DB, tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
+			fxt.Namespaces[idx].Name = "johny-che"
+			return nil
+		}))
+		svc := tenant.NewDBService(s.DB)
+		// when
+		sequenceNumber := tenant.ConstructNsUsername(svc, "johny")
+		// then
+		assert.Equal(t, "johny2", sequenceNumber)
+	})
+
+	s.T().Run("is tenth tenant with the same name", func(t *testing.T) {
+		// given
+		tf.NewTestFixture(t, s.DB, tf.Tenants(8, func(fxt *tf.TestFixture, idx int) error {
+			nsUsername := fmt.Sprintf("johny%d", idx+2)
+			fxt.Tenants[idx].NsUsername = nsUsername
+			return nil
+		}), tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
+			fxt.Namespaces[idx] = &tenant.Namespace{Name: "johny"}
+			return nil
+		}))
+		svc := tenant.NewDBService(s.DB)
+		// when
+		sequenceNumber := tenant.ConstructNsUsername(svc, "johny")
+		// then
+		assert.Equal(t, "johny10", sequenceNumber)
 	})
 }

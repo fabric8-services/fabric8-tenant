@@ -3,6 +3,7 @@ package tenant
 import (
 	"fmt"
 
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -20,6 +21,8 @@ type Service interface {
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
 	DeleteAll(tenantID uuid.UUID) error
+	NamespaceExists(nsName string) bool
+	ExistsWithNsUsername(nsUsername string) bool
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -39,6 +42,15 @@ func (s DBService) Exists(tenantID uuid.UUID) bool {
 	return true
 }
 
+func (s DBService) ExistsWithNsUsername(nsUsername string) bool {
+	var t Tenant
+	err := s.db.Table(t.TableName()).Where("ns_username = ?", nsUsername).Find(&t).Error
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 	var t Tenant
 	err := s.db.Table(t.TableName()).Where("id = ?", tenantID).Find(&t).Error
@@ -49,6 +61,15 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 		return nil, errs.Wrapf(err, "unable to lookup tenant by id")
 	}
 	return &t, nil
+}
+
+func (s DBService) NamespaceExists(nsName string) bool {
+	var ns Namespace
+	err := s.db.Table(Namespace{}.TableName()).Where("name = ?", nsName).Find(&ns).Error
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
@@ -144,4 +165,30 @@ func (s NilService) LookupTenantByClusterAndNamespace(masterURL, namespace strin
 
 func (s NilService) DeleteAll(tenantID uuid.UUID) error {
 	return nil
+}
+
+func ConstructNsUsername(repo Service, username string) string {
+	return constructNsUsername(repo, username, 1)
+}
+
+func constructNsUsername(repo Service, username string, number int) string {
+	nsUsername := username
+	if number > 1 {
+		nsUsername += fmt.Sprintf("%d", number)
+	}
+	if repo.ExistsWithNsUsername(nsUsername) {
+		number++
+		return constructNsUsername(repo, username, number)
+	}
+	for _, nsType := range environment.DefaultEnvTypes {
+		nsName := nsUsername
+		if nsType != "user" {
+			nsName += "-" + nsType
+		}
+		if repo.NamespaceExists(nsName) {
+			number++
+			return constructNsUsername(repo, username, number)
+		}
+	}
+	return nsUsername
 }

@@ -152,11 +152,9 @@ func (t *Template) ReplaceVars(variables map[string]string) (string, error) {
 	})), nil
 }
 
-func CollectVars(user, masterUser string, config *configuration.Data) map[string]string {
-	userName := RetrieveUserName(user)
-
+func CollectVars(user, username, masterUser string, config *configuration.Data) map[string]string {
 	vars := map[string]string{
-		varUserName:              userName,
+		varUserName:              username,
 		varProjectUser:           user,
 		varProjectRequestingUser: user,
 		varProjectAdminUser:      masterUser,

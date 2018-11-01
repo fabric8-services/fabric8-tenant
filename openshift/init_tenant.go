@@ -12,8 +12,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func RawInitTenant(ctx context.Context, config Config, callback Callback, openshiftUsername, usertoken string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, openshiftUsername)
+func RawInitTenant(ctx context.Context, config Config, callback Callback, openshiftUsername, username, usertoken string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, openshiftUsername, username)
 	if err != nil {
 		return err
 	}
@@ -26,7 +26,6 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callback}
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
-	username := env.RetrieveUserName(openshiftUsername)
 	for key, val := range mapped {
 		namespaceType := tenant.GetNamespaceType(key, username)
 		if namespaceType == tenant.TypeUser {
@@ -88,8 +87,8 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	return nil
 }
 
-func RawUpdateTenant(ctx context.Context, config Config, callback Callback, username string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, username)
+func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUsername, username string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, osUsername, username)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // NamespaceType describes which type of namespace this is
@@ -55,6 +55,7 @@ type Tenant struct {
 	Email      string
 	Profile    string
 	OSUsername string
+	NsUsername string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
