@@ -176,16 +176,16 @@ func (s *TenantServiceTestSuite) TestDelete() {
 	})
 }
 
-func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
+func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
 
 	s.T().Run("is first tenant", func(t *testing.T) {
 		// given
 		svc := tenant.NewDBService(s.DB)
 		// when
-		sequenceNumber, err := tenant.ConstructNsUsername(svc, "johny")
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, "johny", sequenceNumber)
+		assert.Equal(t, "johny", nsBaseName)
 	})
 
 	s.T().Run("is second tenant with the same name", func(t *testing.T) {
@@ -196,17 +196,17 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 		}))
 		svc := tenant.NewDBService(s.DB)
 		// when
-		sequenceNumber, err := tenant.ConstructNsUsername(svc, "johny")
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, "johny2", sequenceNumber)
+		assert.Equal(t, "johny2", nsBaseName)
 	})
 
 	s.T().Run("is tenth tenant with the same name", func(t *testing.T) {
 		// given
 		tf.NewTestFixture(t, s.DB, tf.Tenants(8, func(fxt *tf.TestFixture, idx int) error {
-			nsUsername := fmt.Sprintf("johny%d", idx+2)
-			fxt.Tenants[idx].NsUsername = nsUsername
+			nsBaseName := fmt.Sprintf("johny%d", idx+2)
+			fxt.Tenants[idx].NsBaseName = nsBaseName
 			return nil
 		}), tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
 			fxt.Namespaces[idx] = &tenant.Namespace{Name: "johny"}
@@ -214,10 +214,10 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 		}))
 		svc := tenant.NewDBService(s.DB)
 		// when
-		sequenceNumber, err := tenant.ConstructNsUsername(svc, "johny")
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, "johny10", sequenceNumber)
+		assert.Equal(t, "johny10", nsBaseName)
 	})
 
 	s.T().Run("repo returns a failure while getting tenants", func(t *testing.T) {
@@ -227,7 +227,7 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 			errsToReturn: &[]error{gorm.ErrInvalidSQL},
 		}
 		// when
-		_, err := tenant.ConstructNsUsername(svc, "failingJohny")
+		_, err := tenant.ConstructNsBaseName(svc, "failingJohny")
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("getting already existing tenants with the NsBaseName failingJohny failed"),
@@ -237,7 +237,7 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 	s.T().Run("repo returns a failure while getting namespaces", func(t *testing.T) {
 		// given
 		tf.NewTestFixture(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
-			fxt.Tenants[idx].NsUsername = "failingJohny"
+			fxt.Tenants[idx].NsBaseName = "failingJohny"
 			return nil
 		}))
 		svc := &serviceWithFailures{
@@ -245,7 +245,7 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 			errsToReturn: &[]error{nil, nil, gorm.ErrInvalidSQL},
 		}
 		// when
-		_, err := tenant.ConstructNsUsername(svc, "failingJohny")
+		_, err := tenant.ConstructNsBaseName(svc, "failingJohny")
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("getting already existing namespaces with the name failingJohny2-che failed"),
@@ -258,7 +258,7 @@ type serviceWithFailures struct {
 	errsToReturn *[]error
 }
 
-func (s serviceWithFailures) ExistsWithNsUsername(nsUsername string) (bool, error) {
+func (s serviceWithFailures) ExistsWithNsBaseName(nsUsername string) (bool, error) {
 	if len(*s.errsToReturn) > 0 {
 		errToReturn := (*s.errsToReturn)[0]
 		*s.errsToReturn = (*s.errsToReturn)[1:]
@@ -266,7 +266,7 @@ func (s serviceWithFailures) ExistsWithNsUsername(nsUsername string) (bool, erro
 			return false, errToReturn
 		}
 	}
-	return s.Service.ExistsWithNsUsername(nsUsername)
+	return s.Service.ExistsWithNsBaseName(nsUsername)
 }
 
 func (s serviceWithFailures) NamespaceExists(nsName string) (bool, error) {

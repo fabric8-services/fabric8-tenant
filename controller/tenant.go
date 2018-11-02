@@ -83,7 +83,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	username, err := tenant.ConstructNsUsername(c.tenantService, env.RetrieveUserName(user.OpenShiftUsername))
+	nsBaseName, err := tenant.ConstructNsBaseName(c.tenantService, env.RetrieveUserName(user.OpenShiftUsername))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -98,7 +98,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
 		OSUsername: user.OpenShiftUsername,
-		NsUsername: username,
+		NsBaseName: nsBaseName,
 	}
 	err = c.tenantService.CreateTenant(tenant)
 	if err != nil {
@@ -116,7 +116,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
 			user.OpenShiftUsername,
-			username,
+			nsBaseName,
 			user.OpenShiftUserToken)
 
 		if err != nil {
@@ -167,8 +167,8 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 
 	// update tenant config
 	tenant.OSUsername = user.OpenShiftUsername
-	if tenant.NsUsername == "" {
-		tenant.NsUsername = env.RetrieveUserName(user.OpenShiftUsername)
+	if tenant.NsBaseName == "" {
+		tenant.NsBaseName = env.RetrieveUserName(user.OpenShiftUsername)
 	}
 	if err = c.tenantService.SaveTenant(tenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -185,7 +185,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 			openshiftConfig,
 			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
 			user.OpenShiftUsername,
-			tenant.NsUsername)
+			tenant.NsBaseName)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
@@ -235,12 +235,12 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 
-	username := tenant.NsUsername
-	if username == "" {
-		username = env.RetrieveUserName(user.OpenShiftUsername)
+	nsBaseName := tenant.NsBaseName
+	if nsBaseName == "" {
+		nsBaseName = env.RetrieveUserName(user.OpenShiftUsername)
 	}
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenShiftUsername, username, removeFromCluster)
+	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenShiftUsername, nsBaseName, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -313,7 +313,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, currentTenant.NsUsername),
+					Type:      tenant.GetNamespaceType(name, currentTenant.NsBaseName),
 					MasterURL: masterURL,
 				})
 
@@ -328,7 +328,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, currentTenant.NsUsername),
+					Type:      tenant.GetNamespaceType(name, currentTenant.NsBaseName),
 					MasterURL: masterURL,
 				})
 			} else if env.GetKind(request) == env.ValKindResourceQuota {

@@ -22,7 +22,7 @@ type Service interface {
 	SaveNamespace(namespace *Namespace) error
 	DeleteAll(tenantID uuid.UUID) error
 	NamespaceExists(nsName string) (bool, error)
-	ExistsWithNsUsername(nsUsername string) (bool, error)
+	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -42,9 +42,9 @@ func (s DBService) Exists(tenantID uuid.UUID) bool {
 	return true
 }
 
-func (s DBService) ExistsWithNsUsername(nsUsername string) (bool, error) {
+func (s DBService) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
 	var t Tenant
-	err := s.db.Table(t.TableName()).Where("ns_username = ?", nsUsername).Find(&t).Error
+	err := s.db.Table(t.TableName()).Where("ns_base_name = ?", nsBaseName).Find(&t).Error
 	if err != nil {
 		if gorm.ErrRecordNotFound == err {
 			return false, nil
@@ -173,25 +173,25 @@ func (s NilService) DeleteAll(tenantID uuid.UUID) error {
 	return nil
 }
 
-func ConstructNsUsername(repo Service, username string) (string, error) {
-	return constructNsUsername(repo, username, 1)
+func ConstructNsBaseName(repo Service, username string) (string, error) {
+	return constructNsBaseName(repo, username, 1)
 }
 
-func constructNsUsername(repo Service, username string, number int) (string, error) {
-	nsUsername := username
+func constructNsBaseName(repo Service, username string, number int) (string, error) {
+	nsBaseName := username
 	if number > 1 {
-		nsUsername += fmt.Sprintf("%d", number)
+		nsBaseName += fmt.Sprintf("%d", number)
 	}
-	exists, err := repo.ExistsWithNsUsername(nsUsername)
+	exists, err := repo.ExistsWithNsBaseName(nsBaseName)
 	if err != nil {
-		return "", errs.Wrapf(err, "getting already existing tenants with the NsBaseName %s failed: ", nsUsername)
+		return "", errs.Wrapf(err, "getting already existing tenants with the NsBaseName %s failed: ", nsBaseName)
 	}
 	if exists {
 		number++
-		return constructNsUsername(repo, username, number)
+		return constructNsBaseName(repo, username, number)
 	}
 	for _, nsType := range environment.DefaultEnvTypes {
-		nsName := nsUsername
+		nsName := nsBaseName
 		if nsType != "user" {
 			nsName += "-" + nsType
 		}
@@ -201,8 +201,8 @@ func constructNsUsername(repo Service, username string, number int) (string, err
 		}
 		if exists {
 			number++
-			return constructNsUsername(repo, username, number)
+			return constructNsBaseName(repo, username, number)
 		}
 	}
-	return nsUsername, nil
+	return nsBaseName, nil
 }
