@@ -83,7 +83,14 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	username := tenant.ConstructNsUsername(c.tenantService, env.RetrieveUserName(user.OpenShiftUsername))
+	username, err := tenant.ConstructNsUsername(c.tenantService, env.RetrieveUserName(user.OpenShiftUsername))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"os_username": user.OpenShiftUsername,
+		}, "unable to construct namespace base name")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)

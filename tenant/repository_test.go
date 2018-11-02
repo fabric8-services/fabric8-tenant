@@ -5,10 +5,12 @@ import (
 
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -180,8 +182,9 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 		// given
 		svc := tenant.NewDBService(s.DB)
 		// when
-		sequenceNumber := tenant.ConstructNsUsername(svc, "johny")
+		sequenceNumber, err := tenant.ConstructNsUsername(svc, "johny")
 		// then
+		assert.NoError(t, err)
 		assert.Equal(t, "johny", sequenceNumber)
 	})
 
@@ -193,8 +196,9 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 		}))
 		svc := tenant.NewDBService(s.DB)
 		// when
-		sequenceNumber := tenant.ConstructNsUsername(svc, "johny")
+		sequenceNumber, err := tenant.ConstructNsUsername(svc, "johny")
 		// then
+		assert.NoError(t, err)
 		assert.Equal(t, "johny2", sequenceNumber)
 	})
 
@@ -210,8 +214,68 @@ func (s *TenantServiceTestSuite) TestUsernameSequenceNumber() {
 		}))
 		svc := tenant.NewDBService(s.DB)
 		// when
-		sequenceNumber := tenant.ConstructNsUsername(svc, "johny")
+		sequenceNumber, err := tenant.ConstructNsUsername(svc, "johny")
 		// then
+		assert.NoError(t, err)
 		assert.Equal(t, "johny10", sequenceNumber)
 	})
+
+	s.T().Run("repo returns a failure while getting tenants", func(t *testing.T) {
+		// given
+		svc := serviceWithFailures{
+			Service:      tenant.NewDBService(s.DB),
+			errsToReturn: &[]error{gorm.ErrInvalidSQL},
+		}
+		// when
+		_, err := tenant.ConstructNsUsername(svc, "failingJohny")
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("getting already existing tenants with the NsBaseName failingJohny failed"),
+			test.IsOfType(gorm.ErrInvalidSQL))
+	})
+
+	s.T().Run("repo returns a failure while getting namespaces", func(t *testing.T) {
+		// given
+		tf.NewTestFixture(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
+			fxt.Tenants[idx].NsUsername = "failingJohny"
+			return nil
+		}))
+		svc := &serviceWithFailures{
+			Service:      tenant.NewDBService(s.DB),
+			errsToReturn: &[]error{nil, nil, gorm.ErrInvalidSQL},
+		}
+		// when
+		_, err := tenant.ConstructNsUsername(svc, "failingJohny")
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("getting already existing namespaces with the name failingJohny2-che failed"),
+			test.IsOfType(gorm.ErrInvalidSQL))
+	})
+}
+
+type serviceWithFailures struct {
+	tenant.Service
+	errsToReturn *[]error
+}
+
+func (s serviceWithFailures) ExistsWithNsUsername(nsUsername string) (bool, error) {
+	if len(*s.errsToReturn) > 0 {
+		errToReturn := (*s.errsToReturn)[0]
+		*s.errsToReturn = (*s.errsToReturn)[1:]
+		if errToReturn != nil {
+			return false, errToReturn
+		}
+	}
+	return s.Service.ExistsWithNsUsername(nsUsername)
+}
+
+func (s serviceWithFailures) NamespaceExists(nsName string) (bool, error) {
+	if len(*s.errsToReturn) > 0 {
+		errToReturn := (*s.errsToReturn)[0]
+		*s.errsToReturn = (*s.errsToReturn)[1:]
+		if errToReturn != nil {
+			return false, errToReturn
+		}
+	}
+	return s.Service.NamespaceExists(nsName)
 }

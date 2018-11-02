@@ -21,8 +21,8 @@ type Service interface {
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
 	DeleteAll(tenantID uuid.UUID) error
-	NamespaceExists(nsName string) bool
-	ExistsWithNsUsername(nsUsername string) bool
+	NamespaceExists(nsName string) (bool, error)
+	ExistsWithNsUsername(nsUsername string) (bool, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -42,13 +42,16 @@ func (s DBService) Exists(tenantID uuid.UUID) bool {
 	return true
 }
 
-func (s DBService) ExistsWithNsUsername(nsUsername string) bool {
+func (s DBService) ExistsWithNsUsername(nsUsername string) (bool, error) {
 	var t Tenant
 	err := s.db.Table(t.TableName()).Where("ns_username = ?", nsUsername).Find(&t).Error
 	if err != nil {
-		return false
+		if gorm.ErrRecordNotFound == err {
+			return false, nil
+		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
@@ -63,13 +66,16 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 	return &t, nil
 }
 
-func (s DBService) NamespaceExists(nsName string) bool {
+func (s DBService) NamespaceExists(nsName string) (bool, error) {
 	var ns Namespace
 	err := s.db.Table(Namespace{}.TableName()).Where("name = ?", nsName).Find(&ns).Error
 	if err != nil {
-		return false
+		if gorm.ErrRecordNotFound == err {
+			return false, nil
+		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
@@ -167,16 +173,20 @@ func (s NilService) DeleteAll(tenantID uuid.UUID) error {
 	return nil
 }
 
-func ConstructNsUsername(repo Service, username string) string {
+func ConstructNsUsername(repo Service, username string) (string, error) {
 	return constructNsUsername(repo, username, 1)
 }
 
-func constructNsUsername(repo Service, username string, number int) string {
+func constructNsUsername(repo Service, username string, number int) (string, error) {
 	nsUsername := username
 	if number > 1 {
 		nsUsername += fmt.Sprintf("%d", number)
 	}
-	if repo.ExistsWithNsUsername(nsUsername) {
+	exists, err := repo.ExistsWithNsUsername(nsUsername)
+	if err != nil {
+		return "", errs.Wrapf(err, "getting already existing tenants with the NsBaseName %s failed: ", nsUsername)
+	}
+	if exists {
 		number++
 		return constructNsUsername(repo, username, number)
 	}
@@ -185,10 +195,14 @@ func constructNsUsername(repo Service, username string, number int) string {
 		if nsType != "user" {
 			nsName += "-" + nsType
 		}
-		if repo.NamespaceExists(nsName) {
+		exists, err := repo.NamespaceExists(nsName)
+		if err != nil {
+			return "", errs.Wrapf(err, "getting already existing namespaces with the name %s failed: ", nsName)
+		}
+		if exists {
 			number++
 			return constructNsUsername(repo, username, number)
 		}
 	}
-	return nsUsername
+	return nsUsername, nil
 }
