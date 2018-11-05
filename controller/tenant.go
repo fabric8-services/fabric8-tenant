@@ -83,12 +83,22 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
+	nsBaseName, err := tenant.ConstructNsBaseName(c.tenantService, env.RetrieveUserName(user.OpenShiftUsername))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"os_username": user.OpenShiftUsername,
+		}, "unable to construct namespace base name")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 	tenant := &tenant.Tenant{
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
 		OSUsername: user.OpenShiftUsername,
+		NsBaseName: nsBaseName,
 	}
 	err = c.tenantService.CreateTenant(tenant)
 	if err != nil {
@@ -104,8 +114,9 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		err = openshift.RawInitTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenShiftUsername),
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
 			user.OpenShiftUsername,
+			nsBaseName,
 			user.OpenShiftUserToken)
 
 		if err != nil {
@@ -156,7 +167,9 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 
 	// update tenant config
 	tenant.OSUsername = user.OpenShiftUsername
-
+	if tenant.NsBaseName == "" {
+		tenant.NsBaseName = env.RetrieveUserName(user.OpenShiftUsername)
+	}
 	if err = c.tenantService.SaveTenant(tenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -170,8 +183,9 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		err = openshift.RawUpdateTenant(
 			ctx,
 			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t, user.OpenShiftUsername),
-			user.OpenShiftUsername)
+			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
+			user.OpenShiftUsername,
+			tenant.NsBaseName)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
@@ -198,6 +212,11 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	tenant, err := c.tenantService.GetTenant(ttoken.Subject())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", ttoken.Subject().String()))
+	}
+
 	// restrict deprovision from cluster to internal users only
 	removeFromCluster := false
 	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == "internal" {
@@ -216,7 +235,12 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// create openshift config
 	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 
-	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenShiftUsername, removeFromCluster)
+	nsBaseName := tenant.NsBaseName
+	if nsBaseName == "" {
+		nsBaseName = env.RetrieveUserName(user.OpenShiftUsername)
+	}
+
+	err = openshift.CleanTenant(ctx, openshiftConfig, user.OpenShiftUsername, nsBaseName, removeFromCluster)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -253,10 +277,9 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 }
 
 // InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant, openshiftUsername string) openshift.Callback {
+func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32  // default is 0
-	username := env.RetrieveUserName(openshiftUsername)
 	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
@@ -290,7 +313,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, username),
+					Type:      tenant.GetNamespaceType(name, currentTenant.NsBaseName),
 					MasterURL: masterURL,
 				})
 
@@ -305,7 +328,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Name:      name,
 					State:     "created",
 					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, username),
+					Type:      tenant.GetNamespaceType(name, currentTenant.NsBaseName),
 					MasterURL: masterURL,
 				})
 			} else if env.GetKind(request) == env.ValKindResourceQuota {

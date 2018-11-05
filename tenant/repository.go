@@ -3,6 +3,7 @@ package tenant
 import (
 	"fmt"
 
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -20,6 +21,8 @@ type Service interface {
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
 	DeleteAll(tenantID uuid.UUID) error
+	NamespaceExists(nsName string) (bool, error)
+	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -39,6 +42,18 @@ func (s DBService) Exists(tenantID uuid.UUID) bool {
 	return true
 }
 
+func (s DBService) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
+	var t Tenant
+	err := s.db.Table(t.TableName()).Where("ns_base_name = ?", nsBaseName).Find(&t).Error
+	if err != nil {
+		if gorm.ErrRecordNotFound == err {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 	var t Tenant
 	err := s.db.Table(t.TableName()).Where("id = ?", tenantID).Find(&t).Error
@@ -49,6 +64,18 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 		return nil, errs.Wrapf(err, "unable to lookup tenant by id")
 	}
 	return &t, nil
+}
+
+func (s DBService) NamespaceExists(nsName string) (bool, error) {
+	var ns Namespace
+	err := s.db.Table(Namespace{}.TableName()).Where("name = ?", nsName).Find(&ns).Error
+	if err != nil {
+		if gorm.ErrRecordNotFound == err {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
@@ -144,4 +171,38 @@ func (s NilService) LookupTenantByClusterAndNamespace(masterURL, namespace strin
 
 func (s NilService) DeleteAll(tenantID uuid.UUID) error {
 	return nil
+}
+
+func ConstructNsBaseName(repo Service, username string) (string, error) {
+	return constructNsBaseName(repo, username, 1)
+}
+
+func constructNsBaseName(repo Service, username string, number int) (string, error) {
+	nsBaseName := username
+	if number > 1 {
+		nsBaseName += fmt.Sprintf("%d", number)
+	}
+	exists, err := repo.ExistsWithNsBaseName(nsBaseName)
+	if err != nil {
+		return "", errs.Wrapf(err, "getting already existing tenants with the NsBaseName %s failed: ", nsBaseName)
+	}
+	if exists {
+		number++
+		return constructNsBaseName(repo, username, number)
+	}
+	for _, nsType := range environment.DefaultEnvTypes {
+		nsName := nsBaseName
+		if nsType != "user" {
+			nsName += "-" + nsType
+		}
+		exists, err := repo.NamespaceExists(nsName)
+		if err != nil {
+			return "", errs.Wrapf(err, "getting already existing namespaces with the name %s failed: ", nsName)
+		}
+		if exists {
+			number++
+			return constructNsBaseName(repo, username, number)
+		}
+	}
+	return nsBaseName, nil
 }

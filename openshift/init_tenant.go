@@ -12,8 +12,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func RawInitTenant(ctx context.Context, config Config, callback Callback, openshiftUsername, usertoken string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, openshiftUsername)
+func RawInitTenant(ctx context.Context, config Config, callback Callback, openshiftUsername, nsBaseName, usertoken string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, openshiftUsername, nsBaseName)
 	if err != nil {
 		return err
 	}
@@ -26,9 +26,8 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callback}
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
-	username := env.RetrieveUserName(openshiftUsername)
 	for key, val := range mapped {
-		namespaceType := tenant.GetNamespaceType(key, username)
+		namespaceType := tenant.GetNamespaceType(key, nsBaseName)
 		if namespaceType == tenant.TypeUser {
 			go func(namespace string, objects env.Objects, opts, userOpts ApplyOptions) {
 				defer wg.Done()
@@ -88,8 +87,8 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	return nil
 }
 
-func RawUpdateTenant(ctx context.Context, config Config, callback Callback, username string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, username)
+func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUsername, nsBaseName string) error {
+	templs, err := LoadProcessedTemplates(ctx, config, osUsername, nsBaseName)
 	if err != nil {
 		return err
 	}

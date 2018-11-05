@@ -140,7 +140,7 @@ func TestDeleteAndGet(t *testing.T) {
 
 func prepareObjectsAndOpts(t *testing.T, content string, config *configuration.Data) (environment.Objects, openshift.ApplyOptions) {
 	template := environment.Template{Content: content}
-	objects, err := template.Process(environment.CollectVars("aslak", "master", config))
+	objects, err := template.Process(environment.CollectVars("aslak", "aslak", "master", config))
 	require.NoError(t, err)
 	opts := openshift.ApplyOptions{
 		Config: openshift.Config{

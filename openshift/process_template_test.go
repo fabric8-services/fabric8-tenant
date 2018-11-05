@@ -104,7 +104,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 
 func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
 	config := openshift.Config{OriginalConfig: data, MasterUser: "master"}
-	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, "developer")
+	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, "developer", "developer")
 	assert.NoError(t, err)
 	return templs
 }

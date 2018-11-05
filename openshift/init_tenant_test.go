@@ -37,7 +37,7 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 	objectsInTemplates := tmplObjects(t, data)
 
 	// when
-	err := openshift.RawInitTenant(context.Background(), config, emptyCallback, "developer", "12345")
+	err := openshift.RawInitTenant(context.Background(), config, emptyCallback, "developer", "developer", "12345")
 
 	// then
 	require.NoError(t, err)

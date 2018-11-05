@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // NamespaceType describes which type of namespace this is
@@ -55,6 +55,7 @@ type Tenant struct {
 	Email      string
 	Profile    string
 	OSUsername string
+	NsBaseName string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -84,8 +85,8 @@ func (m Namespace) TableName() string {
 }
 
 // GetNamespaceType attempts to extract the namespace type based on namespace name
-func GetNamespaceType(name, username string) NamespaceType {
-	if name == username {
+func GetNamespaceType(name, nsBaseName string) NamespaceType {
+	if name == nsBaseName {
 		return TypeUser
 	}
 	if strings.HasSuffix(name, "-jenkins") {
