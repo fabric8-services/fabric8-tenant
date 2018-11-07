@@ -31,7 +31,8 @@ func TestEnvironmentTypeService(t *testing.T) {
 	}
 	client := openshift.NewClient(nil, "https://starter.com", tokenProducer)
 
-	ctx := openshift.NewServiceContext(context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "userToken")
+	ctx := openshift.NewServiceContext(
+		context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "userToken", "developer1")
 	envService := environment.NewService()
 
 	t.Run("test service behavior common for all types", func(t *testing.T) {
@@ -55,7 +56,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 				assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(false))
 				assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(true))
 				assert.NoError(t, service.AfterCallback(client, "POST"))
-				assert.Equal(t, "developer-"+envType.String(), service.GetNamespaceName())
+				assert.Equal(t, "developer1-"+envType.String(), service.GetNamespaceName())
 			}
 		}
 	})
@@ -68,13 +69,13 @@ func TestEnvironmentTypeService(t *testing.T) {
 		assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(false))
 		assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(true))
 		assert.Equal(t, "userToken", service.GetTokenProducer(false)(false))
-		assert.Equal(t, "developer", service.GetNamespaceName())
+		assert.Equal(t, "developer1", service.GetNamespaceName())
 
 		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
 			// given
 			defer gock.Off()
 			gock.New("https://starter.com").
-				Delete("/oapi/v1/namespaces/developer/rolebindings/admin").
+				Delete("/oapi/v1/namespaces/developer1/rolebindings/admin").
 				Reply(200)
 			// when
 			err := service.AfterCallback(client, "POST")
@@ -85,13 +86,13 @@ func TestEnvironmentTypeService(t *testing.T) {
 			// given
 			defer gock.Off()
 			gock.New("https://starter.com").
-				Delete("/oapi/v1/namespaces/developer/rolebindings/admin").
+				Delete("/oapi/v1/namespaces/developer1/rolebindings/admin").
 				Reply(505)
 			// when
 			err := service.AfterCallback(client, "POST")
 			// then
 			test.AssertError(t, err,
-				test.HasMessageContaining("unable to remove admin rolebinding in developer namespace"),
+				test.HasMessageContaining("unable to remove admin rolebinding in developer1 namespace"),
 				test.HasMessageContaining("server responded with status: 505 for the request DELETE"))
 		})
 		t.Run("when action is other than post then it does nothing", func(t *testing.T) {
@@ -200,7 +201,8 @@ func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
 
 		clusterMapping := testdoubles.SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 
-		ctx := openshift.NewServiceContext(context.Background(), data, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
+		ctx := openshift.NewServiceContext(
+			context.Background(), data, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8", "developer")
 
 		nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
 		_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {

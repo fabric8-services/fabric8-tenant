@@ -112,6 +112,10 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+	nsBaseName := tenant.NsBaseName
+	if nsBaseName == "" {
+		nsBaseName = environment.RetrieveUserName(tenant.OSUsername)
+	}
 
 	// gets tenant's namespaces
 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
@@ -137,7 +141,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 
 	// create openshift service
 	// we don't need token as DELETE uses cluster token
-	context := openshift.NewServiceContext(ctx, c.config, cluster.ForTypeMapping(clusterMapping), tenant.OSUsername, "")
+	context := openshift.NewServiceContext(ctx, c.config, cluster.ForTypeMapping(clusterMapping), tenant.OSUsername, "", nsBaseName)
 	service := openshift.NewService(context, c.tenantService.NewTenantRepository(tenantID), environment.NewService())
 
 	// perform delete method on the list of existing namespaces

@@ -148,6 +148,24 @@ func (s DBServiceStub) NewTenantRepository(tenantID uuid.UUID) tenant.Repository
 	return &tenantRepositoryStub{service: s, tenantID: tenantID}
 }
 
+func (s DBServiceStub) NamespaceExists(nsName string) (bool, error) {
+	for _, ns := range s.db.Namespaces {
+		if ns.Name == nsName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s DBServiceStub) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
+	for _, tenant := range s.db.Tenants {
+		if tenant.NsBaseName == nsBaseName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 type tenantRepositoryStub struct {
 	service  DBServiceStub
 	tenantID uuid.UUID

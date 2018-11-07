@@ -54,15 +54,17 @@ type ServiceContext struct {
 	openShiftUsername  string
 	openShiftUserToken string
 	config             *configuration.Data
+	nsBaseName         string
 }
 
-func NewServiceContext(callerCtx context.Context, config *configuration.Data, clusterMapping cluster.ForType, openShiftUsername, openShiftUserToken string) *ServiceContext {
+func NewServiceContext(callerCtx context.Context, config *configuration.Data, clusterMapping cluster.ForType, openShiftUsername, openShiftUserToken, nsBaseName string) *ServiceContext {
 	return &ServiceContext{
 		requestCtx:         callerCtx,
 		clusterForType:     clusterMapping,
 		openShiftUsername:  openShiftUsername,
 		openShiftUserToken: openShiftUserToken,
 		config:             config,
+		nsBaseName:         nsBaseName,
 	}
 }
 

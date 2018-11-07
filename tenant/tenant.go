@@ -22,6 +22,7 @@ type Tenant struct {
 	Email      string
 	Profile    string
 	OSUsername string
+	NsBaseName string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

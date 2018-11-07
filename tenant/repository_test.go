@@ -3,12 +3,15 @@ package tenant_test
 import (
 	"testing"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-common/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
+	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -180,4 +183,108 @@ func (s *TenantServiceTestSuite) TestDelete() {
 		require.NoError(t, err)
 		require.Len(t, ns2, 5)
 	})
+}
+
+func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
+
+	s.T().Run("is first tenant", func(t *testing.T) {
+		// given
+		svc := tenant.NewDBService(s.DB)
+		// when
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, "johny", nsBaseName)
+	})
+
+	s.T().Run("is second tenant with the same name", func(t *testing.T) {
+		// given
+		tf.NewTestFixtureWithDB(t, s.DB, tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
+			fxt.Namespaces[idx].Name = "johny-che"
+			return nil
+		}))
+		svc := tenant.NewDBService(s.DB)
+		// when
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, "johny2", nsBaseName)
+	})
+
+	s.T().Run("is tenth tenant with the same name", func(t *testing.T) {
+		// given
+		tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(8, func(fxt *tf.TestFixture, idx int) error {
+			nsBaseName := fmt.Sprintf("johny%d", idx+2)
+			fxt.Tenants[idx].NsBaseName = nsBaseName
+			return nil
+		}), tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
+			fxt.Namespaces[idx] = &tenant.Namespace{Name: "johny"}
+			return nil
+		}))
+		svc := tenant.NewDBService(s.DB)
+		// when
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, "johny10", nsBaseName)
+	})
+
+	s.T().Run("repo returns a failure while getting tenants", func(t *testing.T) {
+		// given
+		svc := serviceWithFailures{
+			Service:      tenant.NewDBService(s.DB),
+			errsToReturn: &[]error{gorm.ErrInvalidSQL},
+		}
+		// when
+		_, err := tenant.ConstructNsBaseName(svc, "failingJohny")
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("getting already existing tenants with the NsBaseName failingJohny failed"),
+			test.IsOfType(gorm.ErrInvalidSQL))
+	})
+
+	s.T().Run("repo returns a failure while getting namespaces", func(t *testing.T) {
+		// given
+		tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
+			fxt.Tenants[idx].NsBaseName = "failingJohny"
+			return nil
+		}))
+		svc := &serviceWithFailures{
+			Service:      tenant.NewDBService(s.DB),
+			errsToReturn: &[]error{nil, nil, gorm.ErrInvalidSQL},
+		}
+		// when
+		_, err := tenant.ConstructNsBaseName(svc, "failingJohny")
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("getting already existing namespaces with the name failingJohny2-che failed"),
+			test.IsOfType(gorm.ErrInvalidSQL))
+	})
+}
+
+type serviceWithFailures struct {
+	tenant.Service
+	errsToReturn *[]error
+}
+
+func (s serviceWithFailures) ExistsWithNsBaseName(nsUsername string) (bool, error) {
+	if len(*s.errsToReturn) > 0 {
+		errToReturn := (*s.errsToReturn)[0]
+		*s.errsToReturn = (*s.errsToReturn)[1:]
+		if errToReturn != nil {
+			return false, errToReturn
+		}
+	}
+	return s.Service.ExistsWithNsBaseName(nsUsername)
+}
+
+func (s serviceWithFailures) NamespaceExists(nsName string) (bool, error) {
+	if len(*s.errsToReturn) > 0 {
+		errToReturn := (*s.errsToReturn)[0]
+		*s.errsToReturn = (*s.errsToReturn)[1:]
+		if errToReturn != nil {
+			return false, errToReturn
+		}
+	}
+	return s.Service.NamespaceExists(nsName)
 }

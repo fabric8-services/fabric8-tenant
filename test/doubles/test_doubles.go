@@ -121,10 +121,12 @@ func SingleClusterMapping(url, user, token string) cluster.ForType {
 	}
 }
 
-func NewOSService(config *configuration.Data, createTenant TenantCreator, clusterMapping cluster.ForType, createUser UserCreator) (*openshift.ServiceBuilder, *gormsupport.DBStub) {
+func NewOSService(
+	config *configuration.Data, createTenant TenantCreator, clusterMapping cluster.ForType, createUser UserCreator) (*openshift.ServiceBuilder, *gormsupport.DBStub) {
 	user := createUser()
 	envService := environment.NewServiceForUserData(user.UserData)
-	ctx := openshift.NewServiceContext(context.Background(), config, clusterMapping, user.OpenShiftUsername, user.OpenShiftUserToken)
+	ctx := openshift.NewServiceContext(
+		context.Background(), config, clusterMapping, user.OpenShiftUsername, user.OpenShiftUserToken, environment.RetrieveUserName(user.OpenShiftUsername))
 
 	tennt, namespaces := createTenant()
 	nsRepo, dbStub := gormsupport.NewDBServiceStub(tennt, namespaces)

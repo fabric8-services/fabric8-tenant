@@ -52,7 +52,7 @@ func (t *CommonEnvTypeService) GetType() environment.Type {
 }
 
 func (t *CommonEnvTypeService) GetNamespaceName() string {
-	return fmt.Sprintf("%s-%s", environment.RetrieveUserName(t.context.openShiftUsername), t.name)
+	return fmt.Sprintf("%s-%s", t.context.nsBaseName, t.name)
 }
 
 func (t *CommonEnvTypeService) GetEnvDataAndObjects(filter FilterFunc) (*environment.EnvData, environment.Objects, error) {
@@ -67,7 +67,7 @@ func (t *CommonEnvTypeService) GetEnvDataAndObjects(filter FilterFunc) (*environ
 func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter FilterFunc) (environment.Objects, error) {
 	var objs environment.Objects
 	cluster := t.context.clusterForType(t.name)
-	vars := environment.CollectVars(t.context.openShiftUsername, cluster.User, t.context.config)
+	vars := environment.CollectVars(t.context.openShiftUsername, t.context.nsBaseName, cluster.User, t.context.config)
 
 	for _, template := range env.Templates {
 		if os.Getenv("DISABLE_OSO_QUOTAS") == "true" && strings.Contains(template.Filename, "quotas") {
@@ -111,7 +111,7 @@ func (t *UserNamespaceTypeService) AfterCallback(client *Client, action string) 
 	}
 	var removeRoleWait sync.WaitGroup
 	removeRoleWait.Add(1)
-	adminRoleBinding := CreateAdminRoleBinding(environment.RetrieveUserName(t.context.openShiftUsername))
+	adminRoleBinding := CreateAdminRoleBinding(t.context.nsBaseName)
 	objErrs := sync.Map{}
 	apply(&removeRoleWait, *client, http.MethodDelete, adminRoleBinding, &objErrs)
 
@@ -140,7 +140,7 @@ func (t *UserNamespaceTypeService) GetTokenProducer(forceMasterTokenGlobally boo
 }
 
 func (t *UserNamespaceTypeService) GetNamespaceName() string {
-	return environment.RetrieveUserName(t.context.openShiftUsername)
+	return t.context.nsBaseName
 }
 
 func CreateAdminRoleBinding(namespace string) environment.Object {

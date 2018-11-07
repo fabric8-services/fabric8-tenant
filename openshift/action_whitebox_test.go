@@ -76,7 +76,11 @@ func TestCreateAction(t *testing.T) {
 			assert.NotNil(t, ns)
 			assert.Equal(t, tenant.Ready, ns.State)
 			assert.Equal(t, "my-cluster.com", ns.MasterURL)
-			// todo name
+			expName := "developer1"
+			if envType != environment.TypeUser {
+				expName += "-" + envType.String()
+			}
+			assert.Equal(t, expName, ns.Name)
 		})
 
 		t.Run("update namespace to failed", func(t *testing.T) {
@@ -87,7 +91,11 @@ func TestCreateAction(t *testing.T) {
 			assert.NotNil(t, ns)
 			assert.Equal(t, tenant.Failed, ns.State)
 			assert.Equal(t, "my-cluster.com", ns.MasterURL)
-			// todo name
+			expName := "developer1"
+			if envType != environment.TypeUser {
+				expName += "-" + envType.String()
+			}
+			assert.Equal(t, expName, ns.Name)
 		})
 	}
 
@@ -181,7 +189,6 @@ func TestDeleteAction(t *testing.T) {
 			assert.NotNil(t, nsToUpdate)
 			assert.Equal(t, tenant.Ready, nsToUpdate.State)
 			assert.Equal(t, "cluster.com", nsToUpdate.MasterURL)
-			// todo name
 		})
 
 		t.Run("update namespace set state to failed", func(t *testing.T) {
@@ -309,7 +316,6 @@ func TestUpdateAction(t *testing.T) {
 			assert.NotNil(t, ns)
 			assert.Equal(t, tenant.Ready, ns.State)
 			assert.Equal(t, "my-cluster.com", ns.MasterURL)
-			// todo name
 		})
 
 		// verify namespace update to failed
@@ -321,7 +327,6 @@ func TestUpdateAction(t *testing.T) {
 			assert.NotNil(t, ns)
 			assert.Equal(t, tenant.Failed, ns.State)
 			assert.Equal(t, "my-cluster.com", ns.MasterURL)
-			// todo name
 		})
 	}
 
@@ -359,7 +364,8 @@ func getNs(t *testing.T, repo tenant.Repository, envType environment.Type) *tena
 func newOsContext(config *configuration.Data) *ServiceContext {
 	clusterMapping := singleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 
-	return NewServiceContext(context.Background(), config, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
+	return NewServiceContext(
+		context.Background(), config, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8", "developer1")
 }
 
 func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *configuration.Data) (EnvironmentTypeService, *environment.EnvData) {

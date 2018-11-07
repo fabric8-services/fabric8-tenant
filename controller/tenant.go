@@ -15,6 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
+	"github.com/satori/go.uuid"
 )
 
 // TenantController implements the tenant resource.
@@ -57,6 +58,12 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	// get tenant entity
+	dbTenant, err := c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
+	}
+
 	// checks if the namespaces should be only cleaned or totally removed - restrict deprovision from cluster to internal users only
 	removeFromCluster := false
 	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == "internal" {
@@ -64,7 +71,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// creates openshift services
-	openShiftService, err := c.newOpenShiftService(ctx, user)
+	openShiftService, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -95,12 +102,25 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
+		dbTenant, err = c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
+		}
 	} else {
+		nsBaseName, err := tenant.ConstructNsBaseName(c.tenantRepository, environment.RetrieveUserName(user.OpenShiftUsername))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"os_username": user.OpenShiftUsername,
+			}, "unable to construct namespace base name")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
 		// if does not exist then create a new tenant
 		dbTenant = &tenant.Tenant{
 			ID:         user.ID,
 			Email:      *user.UserData.Email,
 			OSUsername: user.OpenShiftUsername,
+			NsBaseName: nsBaseName,
 		}
 		err = c.tenantRepository.CreateTenant(dbTenant)
 		if err != nil {
@@ -118,7 +138,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift service
-	service, err := c.newOpenShiftService(ctx, user)
+	service, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -165,9 +185,9 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// getting tenant from DB
-	tenant, err := c.tenantRepository.GetTenant(user.ID)
+	dbTenant, err := c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
 	if err != nil {
-		return errors.NewNotFoundError("tenant", *user.UserData.IdentityID)
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 	}
 
 	// get tenant's namespaces
@@ -177,8 +197,8 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// update tenant OS username
-	tenant.OSUsername = user.OpenShiftUsername
-	if err = c.tenantRepository.SaveTenant(tenant); err != nil {
+	dbTenant.OSUsername = user.OpenShiftUsername
+	if err = c.tenantRepository.SaveTenant(dbTenant); err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to update tenant configuration")
@@ -186,7 +206,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift service
-	openShiftService, err := c.newOpenShiftService(ctx, user)
+	openShiftService, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -201,7 +221,18 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User) (*openshift.ServiceBuilder, error) {
+func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, osUsername string) (*tenant.Tenant, error) {
+	dbTenant, err := c.tenantRepository.GetTenant(id)
+	if err != nil {
+		return nil, err
+	}
+	if dbTenant.NsBaseName == "" {
+		dbTenant.NsBaseName = environment.RetrieveUserName(osUsername)
+	}
+	return dbTenant, nil
+}
+
+func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User, nsBaseName string) (*openshift.ServiceBuilder, error) {
 	clusterNsMapping, err := c.clusterService.GetUserClusterForType(ctx, user)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -216,7 +247,8 @@ func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.U
 
 	envService := environment.NewServiceForUserData(user.UserData)
 
-	serviceContext := openshift.NewServiceContext(ctx, c.config, clusterNsMapping, user.OpenShiftUsername, user.OpenShiftUserToken)
+	serviceContext := openshift.NewServiceContext(
+		ctx, c.config, clusterNsMapping, user.OpenShiftUsername, user.OpenShiftUserToken, nsBaseName)
 	return openshift.NewService(serviceContext, nsRepo, envService), nil
 }
 

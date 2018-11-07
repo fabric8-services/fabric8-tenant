@@ -106,6 +106,7 @@ func getMigrations() migrations {
 	m = append(m, steps{executeSQLFile("003-profiles.sql")})
 	m = append(m, steps{executeSQLFile("004-index-tenants-search.sql")})
 	m = append(m, steps{executeSQLFile("005-add-username-column-to-tenant.sql")})
+	m = append(m, steps{executeSQLFile("006-add-ns-base-name-column-to-tenant.sql")})
 
 	// Version N
 	//
