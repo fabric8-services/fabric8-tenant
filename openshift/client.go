@@ -92,7 +92,7 @@ func NewResult(response *http.Response, body []byte, err error) *Result {
 	return &Result{
 		response: response,
 		body:     body,
-		err:err,
+		err:      err,
 	}
 }
 

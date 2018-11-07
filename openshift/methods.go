@@ -84,7 +84,7 @@ func DELETE(afterCallbacks ...AfterDoCallback) methodDefCreator {
 		return NewMethodDefinition(
 			http.MethodDelete,
 			[]BeforeDoCallback{},
-			append(afterCallbacks),
+			append(afterCallbacks, IgnoreWhenDoesNotExist),
 			RequestCreator{
 				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
 					body = []byte(deleteOptions)

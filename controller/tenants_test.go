@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-common/errors"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -16,7 +17,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
@@ -140,14 +140,12 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 		defer gock.Off()
 		gockMocks()
 		gock.New("https://api.cluster1").
-			Delete("/oapi/v1/projects/foo").
-			Persist().
+			Delete("/oapi/v1/projects/foo-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 			Reply(200).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
-
 		gock.New("https://api.cluster1").
-			Delete("/oapi/v1/projects/foo-che").
+			Delete("/oapi/v1/projects/foo").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 			Reply(200).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
@@ -191,16 +189,15 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 		defer gock.Off()
 		gockMocks()
 		gock.New("https://api.cluster1").
-			Delete("/oapi/v1/projects/bar").
-			Persist().
-			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
-			Reply(200).
-			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
-		gock.New("https://api.cluster1").
 			Delete("/oapi/v1/projects/bar-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 			Reply(403).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Not Found"}`)
+		gock.New("https://api.cluster1").
+			Delete("/oapi/v1/projects/bar").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(200).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
 		fxt := testfixture.NewTestFixture(t, s.Repo, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
 			id, err := uuid.FromString("0257147d-0bb8-4624-a054-853e49c97d07") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
@@ -278,16 +275,15 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			defer gock.Off()
 			gockMocks()
 			gock.New("https://api.cluster1").
-				Delete("/oapi/v1/projects/baz").
-				Persist().
-				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
-				Reply(500).
-				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Internal Server Error"}`)
-			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/baz-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+			gock.New("https://api.cluster1").
+				Delete("/oapi/v1/projects/baz").
+				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+				Reply(500).
+				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Internal Server Error"}`)
 
 			svc, ctrl, reset := s.newTestTenantsController()
 			defer reset()
@@ -320,10 +316,9 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			require.NoError(t, err)
 			namespaces, err := s.Repo.GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
-			require.Len(t, namespaces, 2)
+			require.Len(t, namespaces, 1)
 			// firs namespace could not be deleted, both still exist in the DB (and in the cluster)
 			assertContainsNs(t, namespaces, "baz")
-			assertContainsNs(t, namespaces, "baz-che")
 		})
 	})
 }
@@ -401,7 +396,6 @@ func gockMocks() {
 		MatchParam("for", "https://api.cluster1").
 		MatchParam("force_pull", "false").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
-		Persist().
 		Reply(200).
 		BodyString(`{ 
       "token_type": "bearer",

@@ -158,7 +158,7 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 		errorParamsPerObject["action"] = action.methodName()
 		errorParamsPerObject["cluster"] = cluster.APIURL
 		errorParamsPerObject["ns-type"] = nsTypeService.GetType()
-		err = fmt.Errorf("creation of the namespace failed")
+		err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
 		sentry.LogError(nsTypeService.GetRequestsContext(), errorParamsPerObject, err, err.Error())
 	}
 

@@ -1,17 +1,17 @@
 package openshift_test
 
 import (
-	"testing"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/h2non/gock.v1"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/h2non/gock.v1"
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"net/url"
-	"github.com/fabric8-services/fabric8-tenant/test"
-	"fmt"
+	"testing"
 )
 
 var originalRoleBindingRestrictionObject = `
@@ -280,6 +280,82 @@ func TestIgnoreConflicts(t *testing.T) {
 	})
 
 	assert.Equal(t, openshift.IgnoreConflictsName, openshift.IgnoreConflicts.Name)
+}
+
+func TestIgnoreWhenDoesNotExist(t *testing.T) {
+	// given
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE")
+
+	t.Run("when there is 404, then it ignores it even if there is an error", func(t *testing.T) {
+		// given
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusNotFound}, []byte{}, fmt.Errorf("not found"))
+
+		// when
+		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+	})
+
+	t.Run("when there is 403, then it ignores it even if there is an error", func(t *testing.T) {
+		// given
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusForbidden}, []byte{}, fmt.Errorf("forbidden"))
+
+		// when
+		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+	})
+
+	t.Run("when code is 200 but an error is not nil, then it returns the error", func(t *testing.T) {
+		// given
+		defer gock.Off()
+		gock.New("https://starter.com").Times(0)
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, fmt.Errorf("wrong request"))
+
+		// when
+		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		test.AssertError(t, err, test.HasMessage("wrong request"))
+	})
+
+	t.Run("when there status code is 500, then it returns the an appropriate error", func(t *testing.T) {
+		// given
+		defer gock.Off()
+		gock.New("https://starter.com").Times(0)
+		url, err := url.Parse("https://starter.com/oapi/v1/namespaces/john-run/rolebindingrestrictions/dsaas-user-access")
+		require.NoError(t, err)
+		result := openshift.NewResult(&http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Request: &http.Request{
+				Method: http.MethodDelete,
+				URL:    url,
+			},
+		}, []byte{}, nil)
+
+		// when
+		err = openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 500 for the request DELETE"))
+	})
+
+	t.Run("when the status code is 200 and no error then it returns nil", func(t *testing.T) {
+		// given
+		defer gock.Off()
+		gock.New("https://starter.com").Times(0)
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
+
+		// when
+		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+	})
+
+	assert.Equal(t, openshift.IgnoreWhenDoesNotExistName, openshift.IgnoreWhenDoesNotExist.Name)
 }
 
 func TestGetObject(t *testing.T) {

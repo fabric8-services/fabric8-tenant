@@ -1,13 +1,13 @@
 package openshift
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"net/http"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+	"net/http"
 	"regexp"
+	"testing"
 )
 
 var objectToBeParsed = `
@@ -62,7 +62,7 @@ func TestEachMethodSeparately(t *testing.T) {
 		methodDefinition := PATCH()(dummyEndpoint)
 
 		// then
-		assert.Len(t, methodDefinition.beforeDoCallbacks,1)
+		assert.Len(t, methodDefinition.beforeDoCallbacks, 1)
 		assert.Equal(t, methodDefinition.beforeDoCallbacks[0].Name, GetObjectAndMerge.Name)
 		assert.Empty(t, methodDefinition.afterDoCallbacks)
 		assert.Equal(t, http.MethodPatch, methodDefinition.action)
@@ -78,7 +78,8 @@ func TestEachMethodSeparately(t *testing.T) {
 
 		// then
 		assert.Empty(t, methodDefinition.beforeDoCallbacks)
-		assert.Empty(t, methodDefinition.afterDoCallbacks)
+		assert.Len(t, methodDefinition.afterDoCallbacks, 1)
+		assert.Equal(t, methodDefinition.afterDoCallbacks[0].Name, IgnoreWhenDoesNotExist.Name)
 		assert.Equal(t, http.MethodDelete, methodDefinition.action)
 		request, err := methodDefinition.requestCreator.createRequestFor("http://starter", object[0], []byte(objectToBeParsed))
 		assert.NoError(t, err)
@@ -115,4 +116,3 @@ func TestNeedMasterTokenModifier(t *testing.T) {
 		})
 	}
 }
-

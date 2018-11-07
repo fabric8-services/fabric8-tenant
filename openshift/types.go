@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/pkg/errors"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
-	"github.com/pkg/errors"
 )
 
 // EnvironmentTypeService represents service operating with information related to environment types(template, objects, cluster,...).

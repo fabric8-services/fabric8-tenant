@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-common/token"
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -13,9 +14,10 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/goadesign/goa"
+	errs "github.com/pkg/errors"
 )
 
 var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
@@ -24,7 +26,6 @@ var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
 type TenantsController struct {
 	*goa.Controller
 	tenantService     tenant.Service
-	openshiftService  openshift.Service
 	clusterService    cluster.Service
 	authClientService *auth.Service
 	config            *configuration.Data
@@ -147,23 +148,12 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	// perform delete method on the list of existing namespaces
 	err = service.WithDeleteMethod(namespaces, true).ApplyAll()
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	// all of them should have been deleted - check it
-	namespaces, err = c.tenantService.GetNamespaces(tenantID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if len(namespaces) != 0 {
-		for _, ns := range namespaces {
-			log.Error(ctx, map[string]interface{}{
-				"cluster_url": ns.MasterURL,
-				"namespace":   ns.Name,
-				"tenant_id":   tenantID,
-			}, "failed to delete namespace")
-			return jsonapi.JSONErrorResponse(ctx, fmt.Errorf("unable to delete namespace %s", ns.Name))
+		namespaces, getErr := c.tenantService.GetNamespaces(tenantID)
+		if getErr != nil {
+			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, err.Error()))
 		}
+		sentry.LogError(ctx, namespacesToParams(namespaces), err, "deletion of namespaces failed")
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// the tenant should have been deleted - check it
@@ -173,4 +163,13 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 
 	log.Info(ctx, map[string]interface{}{"tenant_id": tenantID}, "tenant deleted")
 	return ctx.NoContent()
+}
+
+func namespacesToParams(namespaces []*tenant.Namespace) map[string]interface{} {
+	params := make(map[string]interface{})
+	for idx, ns := range namespaces {
+		key := fmt.Sprintf("namespace#%d", idx)
+		params[key] = fmt.Sprintf("%+v", *ns)
+	}
+	return params
 }

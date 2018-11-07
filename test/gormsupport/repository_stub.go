@@ -2,9 +2,9 @@ package gormsupport
 
 import (
 	"errors"
+	errorscommon "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	errorscommon "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
@@ -28,7 +28,7 @@ type DBServiceStub struct {
 	db *DBStub
 }
 
-func (s DBServiceStub) Exists(tenantID uuid.UUID) bool {
+func (s *DBServiceStub) Exists(tenantID uuid.UUID) bool {
 	for _, tenant := range s.db.Tenants {
 		if tenant.ID == tenantID {
 			return true
@@ -37,7 +37,7 @@ func (s DBServiceStub) Exists(tenantID uuid.UUID) bool {
 	return false
 }
 
-func (s DBServiceStub) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error) {
+func (s *DBServiceStub) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error) {
 	for _, tenant := range s.db.Tenants {
 		if tenant.ID == tenantID {
 			return tenant, nil
@@ -47,8 +47,7 @@ func (s DBServiceStub) GetTenant(tenantID uuid.UUID) (*tenant.Tenant, error) {
 
 }
 
-// todo finish
-func (s DBServiceStub) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*tenant.Tenant, error) {
+func (s *DBServiceStub) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*tenant.Tenant, error) {
 	for _, ns := range s.db.Namespaces {
 		if ns.MasterURL == masterURL && ns.Name == namespace {
 			for _, tenant := range s.db.Tenants {
@@ -61,7 +60,7 @@ func (s DBServiceStub) LookupTenantByClusterAndNamespace(masterURL, namespace st
 	return nil, errorscommon.NewNotFoundError("tenant", "")
 }
 
-func (s DBServiceStub) SaveTenant(tenant *tenant.Tenant) error {
+func (s *DBServiceStub) SaveTenant(tenant *tenant.Tenant) error {
 	if tenant.Profile == "" {
 		tenant.Profile = "free"
 	}
@@ -75,7 +74,7 @@ func (s DBServiceStub) SaveTenant(tenant *tenant.Tenant) error {
 	return s.CreateTenant(tenant)
 }
 
-func (s DBServiceStub) CreateTenant(tenant *tenant.Tenant) error {
+func (s *DBServiceStub) CreateTenant(tenant *tenant.Tenant) error {
 	if tenant.Profile == "" {
 		tenant.Profile = "free"
 	}
@@ -86,7 +85,7 @@ func (s DBServiceStub) CreateTenant(tenant *tenant.Tenant) error {
 	return nil
 }
 
-func (s DBServiceStub) SaveNamespace(namespace *tenant.Namespace) error {
+func (s *DBServiceStub) SaveNamespace(namespace *tenant.Namespace) error {
 	if namespace.ID == uuid.Nil {
 		namespace.ID = uuid.NewV4()
 	}
@@ -100,7 +99,7 @@ func (s DBServiceStub) SaveNamespace(namespace *tenant.Namespace) error {
 	return nil
 }
 
-func (s DBServiceStub) GetNamespaces(tenantID uuid.UUID) ([]*tenant.Namespace, error) {
+func (s *DBServiceStub) GetNamespaces(tenantID uuid.UUID) ([]*tenant.Namespace, error) {
 	var nss []*tenant.Namespace
 	for _, ns := range s.db.Namespaces {
 		if ns.TenantID == tenantID {
@@ -110,7 +109,7 @@ func (s DBServiceStub) GetNamespaces(tenantID uuid.UUID) ([]*tenant.Namespace, e
 	return nss, nil
 }
 
-func (s DBServiceStub) DeleteNamespace(tenantID uuid.UUID, nsType environment.Type) error {
+func (s *DBServiceStub) DeleteNamespace(tenantID uuid.UUID, nsType environment.Type) error {
 	for i, ns := range s.db.Namespaces {
 		if ns.TenantID == tenantID && ns.Type == nsType {
 			s.db.Namespaces = append(s.db.Namespaces[:i], s.db.Namespaces[i+1:]...)
@@ -120,7 +119,7 @@ func (s DBServiceStub) DeleteNamespace(tenantID uuid.UUID, nsType environment.Ty
 	return gorm.ErrRecordNotFound
 }
 
-func (s DBServiceStub) deleteNamespaces(tenantID uuid.UUID) error {
+func (s *DBServiceStub) deleteNamespaces(tenantID uuid.UUID) error {
 	found := false
 	for i, ns := range s.db.Namespaces {
 		if ns.TenantID == tenantID {
@@ -134,7 +133,7 @@ func (s DBServiceStub) deleteNamespaces(tenantID uuid.UUID) error {
 	return gorm.ErrRecordNotFound
 }
 
-func (s DBServiceStub) DeleteTenant(tenantID uuid.UUID) error {
+func (s *DBServiceStub) DeleteTenant(tenantID uuid.UUID) error {
 	for i, tenant := range s.db.Tenants {
 		if tenant.ID == tenantID {
 			s.db.Tenants = append(s.db.Tenants[:i], s.db.Tenants[i+1:]...)
@@ -144,11 +143,11 @@ func (s DBServiceStub) DeleteTenant(tenantID uuid.UUID) error {
 	return gorm.ErrRecordNotFound
 }
 
-func (s DBServiceStub) NewTenantRepository(tenantID uuid.UUID) tenant.Repository {
+func (s *DBServiceStub) NewTenantRepository(tenantID uuid.UUID) tenant.Repository {
 	return &tenantRepositoryStub{service: s, tenantID: tenantID}
 }
 
-func (s DBServiceStub) NamespaceExists(nsName string) (bool, error) {
+func (s *DBServiceStub) NamespaceExists(nsName string) (bool, error) {
 	for _, ns := range s.db.Namespaces {
 		if ns.Name == nsName {
 			return true, nil
@@ -157,7 +156,7 @@ func (s DBServiceStub) NamespaceExists(nsName string) (bool, error) {
 	return false, nil
 }
 
-func (s DBServiceStub) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
+func (s *DBServiceStub) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
 	for _, tenant := range s.db.Tenants {
 		if tenant.NsBaseName == nsBaseName {
 			return true, nil
@@ -167,7 +166,7 @@ func (s DBServiceStub) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
 }
 
 type tenantRepositoryStub struct {
-	service  DBServiceStub
+	service  *DBServiceStub
 	tenantID uuid.UUID
 }
 

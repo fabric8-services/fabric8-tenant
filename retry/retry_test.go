@@ -3,10 +3,10 @@ package retry_test
 import (
 	"errors"
 
+	"github.com/fabric8-services/fabric8-tenant/retry"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
-	"github.com/fabric8-services/fabric8-tenant/retry"
 )
 
 func TestAccumulateErrorsWhenAllFailed(t *testing.T) {

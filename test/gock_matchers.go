@@ -5,9 +5,9 @@ import (
 	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	"github.com/fabric8-services/fabric8-common/log"
 	"gopkg.in/h2non/gock.v1"
-	"net/http"
-	"io/ioutil"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"net/http"
 )
 
 func ExpectRequest(matchers ...RequestMatcher) gock.Matcher {

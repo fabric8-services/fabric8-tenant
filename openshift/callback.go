@@ -2,14 +2,14 @@ package openshift
 
 import (
 	"fmt"
-	"github.com/fabric8-services/fabric8-tenant/retry"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/retry"
 	ghodssYaml "github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"time"
-	"github.com/pkg/errors"
 )
 
 type BeforeDoCallback struct {
@@ -26,10 +26,11 @@ type BeforeDoCallbackFunc func(client *Client, object environment.Object, objEnd
 type AfterDoCallbackFunc func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error
 
 const (
-	GetObjectAndMergeName = "GetObjectAndMerge"
+	GetObjectAndMergeName             = "GetObjectAndMerge"
 	WhenConflictThenDeleteAndRedoName = "WhenConflictThenDeleteAndRedo"
-	IgnoreConflictsName = "IgnoreConflicts"
-	GetObjectName = "GetObject"
+	IgnoreConflictsName               = "IgnoreConflicts"
+	GetObjectName                     = "GetObject"
+	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExist"
 )
 
 // Before callbacks
@@ -129,6 +130,22 @@ var GetObject = AfterDoCallback{
 		return nil
 	},
 	Name: GetObjectName,
+}
+
+var IgnoreWhenDoesNotExist = AfterDoCallback{
+	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
+		if result.response.StatusCode == http.StatusNotFound || result.response.StatusCode == http.StatusForbidden {
+			log.WithFields(map[string]interface{}{
+				"action":  method.action,
+				"status":  result.response.Status,
+				"object":  object.ToString(),
+				"message": result.body,
+			}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist", method.action)
+			return nil
+		}
+		return checkHTTPCode(result, result.err)
+	},
+	Name: IgnoreWhenDoesNotExistName,
 }
 
 func checkHTTPCode(result *Result, e error) error {

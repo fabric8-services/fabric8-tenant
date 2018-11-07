@@ -1,19 +1,19 @@
 package openshift_test
 
 import (
-	"testing"
+	"context"
+	"fmt"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"context"
 	"github.com/fabric8-services/fabric8-tenant/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"fmt"
-	"github.com/stretchr/testify/require"
-	"strings"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
+	"strings"
+	"testing"
 )
 
 func TestEnvironmentTypeService(t *testing.T) {

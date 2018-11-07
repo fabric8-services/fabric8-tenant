@@ -3,8 +3,8 @@ package tenant
 import (
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-common/errors"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"

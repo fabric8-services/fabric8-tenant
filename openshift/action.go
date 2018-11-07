@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"net/http"
 	"sort"
-	"github.com/fabric8-services/fabric8-tenant/sentry"
 )
 
 // NamespaceAction represents the action that should be applied on the namespaces for the particular tenant - [post|update|delete].
@@ -162,17 +162,9 @@ func (d Delete) updateTenant() error {
 		if len(namespaces) == 0 {
 			return d.tenantRepo.DeleteTenant()
 		}
-		return fmt.Errorf("cannot remove tenant %s from DB - some namespace still exist: %s", namespaces[0].TenantID, namespacesToString(namespaces))
+		return fmt.Errorf("cannot remove tenant %s from DB - some namespace still exists", namespaces[0].TenantID)
 	}
 	return nil
-}
-
-func namespacesToString(namespaces []*tenant.Namespace) string {
-	var output string
-	for _, ns := range namespaces {
-		output += fmt.Sprintf("\n%+v", *ns)
-	}
-	return output
 }
 
 func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace) *Update {

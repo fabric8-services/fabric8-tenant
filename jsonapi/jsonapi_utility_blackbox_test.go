@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-common/errors"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"github.com/fabric8-services/fabric8-tenant/test/resource"
 )
 
 func TestErrorToJSONAPIError(t *testing.T) {
