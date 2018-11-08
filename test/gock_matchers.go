@@ -8,19 +8,25 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
 
-func ExpectRequest(matchers ...RequestMatcher) gock.Matcher {
+func ExpectRequest(matchers ...gock.MatchFunc) gock.Matcher {
 	return createReqMatcher(matchers)
 }
 
 type RequestMatcher func(req *http.Request) bool
 
-func createReqMatcher(matchers []RequestMatcher) gock.Matcher {
+func createReqMatcher(matchers []gock.MatchFunc) gock.Matcher {
 	matcher := gock.NewBasicMatcher()
-	matcher.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
+	matcher.Add(func(req *http.Request, gockReq *gock.Request) (bool, error) {
 		for _, match := range matchers {
-			if !match(req) {
+			ok, err := match(req, gockReq)
+			if err != nil {
+				return ok, err
+
+			}
+			if !ok {
 				return false, nil
 			}
 		}
@@ -29,8 +35,8 @@ func createReqMatcher(matchers []RequestMatcher) gock.Matcher {
 	return matcher
 }
 
-func HasJWTWithSub(sub string) RequestMatcher {
-	return func(req *http.Request) bool {
+func HasJWTWithSub(sub string) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
 		// look-up the JWT's "sub" claim and compare with the request
 		token, err := jwtrequest.ParseFromRequest(req, jwtrequest.AuthorizationHeaderExtractor, func(*jwt.Token) (interface{}, error) {
 			return PublicKey("../test/public_key.pem")
@@ -38,7 +44,7 @@ func HasJWTWithSub(sub string) RequestMatcher {
 		if err != nil {
 			log.Error(nil, map[string]interface{}{"error": err.Error(), "request_method": req.Method,
 				"request_url": req.URL, "authorization_header": req.Header["Authorization"]}, "failed to parse token from request")
-			return false
+			return false, err
 		}
 		claims := token.Claims.(jwt.MapClaims)
 		log.Debug(nil, map[string]interface{}{
@@ -48,32 +54,42 @@ func HasJWTWithSub(sub string) RequestMatcher {
 			"request_token_sub": claims["sub"],
 		}, "comparing `sub` headers")
 
-		return claims["sub"] == sub
+		return claims["sub"] == sub, nil
 	}
 }
 
-func HasObjectAsBody(object map[interface{}]interface{}) RequestMatcher {
-	return func(req *http.Request) bool {
+func HasBodyContainingObject(object map[interface{}]interface{}) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
 		body, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Error(nil, map[string]interface{}{"body": string(body)}, err.Error())
-			return false
+			return false, err
 		}
 		expBody, err := yaml.Marshal(object)
 		if err != nil {
 			log.Error(nil, map[string]interface{}{"object": object}, err.Error())
-			return false
+			return false, err
 		}
-		return string(body) == string(expBody)
+		return string(body) == string(expBody), nil
+	}
+}
+
+func HasUrlMatching(regExp string) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
+		return regexp.MustCompile(regExp).MatchString(req.URL.String()), nil
 	}
 }
 
 // SpyOnCalls checks the number of calls
 func SpyOnCalls(counter *int) gock.Matcher {
 	matcher := gock.NewBasicMatcher()
-	matcher.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
+	matcher.Add(SpyOnCallsMatchFunc(counter))
+	return matcher
+}
+
+func SpyOnCallsMatchFunc(counter *int) gock.MatchFunc {
+	return func(req *http.Request, _ *gock.Request) (bool, error) {
 		*counter++
 		return true, nil
-	})
-	return matcher
+	}
 }

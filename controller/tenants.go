@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
-	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
@@ -150,9 +149,15 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	if err != nil {
 		namespaces, getErr := c.tenantService.GetNamespaces(tenantID)
 		if getErr != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"tenantID": tenantID,
+			}, "retrieval of existing namespaces from DB after the removal attempt failed")
 			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, err.Error()))
 		}
-		sentry.LogError(ctx, namespacesToParams(namespaces), err, "deletion of namespaces failed")
+		params := namespacesToParams(namespaces)
+		params["err"] = err
+		log.Error(ctx, params, "deletion of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 

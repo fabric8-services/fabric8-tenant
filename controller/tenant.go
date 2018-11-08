@@ -15,6 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
+	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 )
 
@@ -30,10 +31,10 @@ type TenantController struct {
 // NewTenantController creates a tenant controller.
 func NewTenantController(
 	service *goa.Service,
+	tenantRepository tenant.Service,
 	clusterService cluster.Service,
 	authClientService *auth.Service,
-	config *configuration.Data,
-	tenantRepository tenant.Service) *TenantController {
+	config *configuration.Data) *TenantController {
 
 	return &TenantController{
 		Controller:        service.NewController("TenantsController"),
@@ -49,18 +50,27 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// gets user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{"err": err}, "creation of the user failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// gets list of existing namespaces in DB
 	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// get tenant entity
 	dbTenant, err := c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "retrieval of tenant entity from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 	}
 
@@ -73,12 +83,27 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// creates openshift services
 	openShiftService, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "unable to create OpenShift service")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// perform delete method on the list of existing namespaces
 	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster).ApplyAll()
 	if err != nil {
+		namespaces, getErr := c.tenantRepository.GetNamespaces(dbTenant.ID)
+		if getErr != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"tenantID": user.ID,
+			}, "retrieval of existing namespaces from DB after the removal attempt failed")
+			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, err.Error()))
+		}
+		params := namespacesToParams(namespaces)
+		params["err"] = err
+		log.Error(ctx, params, "deletion of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -90,6 +115,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	// gets user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{"err": err}, "creation of the user failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -100,10 +126,18 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		// if exists, then check existing namespace (if all of them are created or if any is missing)
 		namespaces, err = c.tenantRepository.GetNamespaces(user.ID)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"tenantID": user.ID,
+			}, "retrieval of existing namespaces from DB failed")
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 		dbTenant, err = c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"tenantID": user.ID,
+			}, "retrieval of tenant entity from DB failed")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 		}
 	} else {
@@ -140,12 +174,21 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	// create openshift service
 	service, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "unable to create OpenShift service")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// perform post method on the list of missing environment types
 	err = service.WithPostMethod().ApplyAll(missing...)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":             err,
+			"tenantID":        user.ID,
+			"envTypeToCreate": missing,
+		}, "creation of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -158,18 +201,27 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 	// get user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
-		return err
+		log.Error(ctx, map[string]interface{}{"err": err}, "creation of the user failed")
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// gets tenant from DB
-	tenant, err := c.tenantRepository.GetTenant(user.ID)
+	tenant, err := c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "retrieval of tenant entity from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", user.ID.String()))
 	}
 
 	// gets tenant's namespaces
 	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -181,18 +233,27 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	// get user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{"err": err}, "creation of the user failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// getting tenant from DB
 	dbTenant, err := c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "retrieval of tenant entity from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 	}
 
 	// get tenant's namespaces
 	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -208,17 +269,34 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	// create openshift service
 	openShiftService, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": user.ID,
+		}, "unable to create OpenShift service")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// perform patch method on the list of exiting namespaces
 	err = openShiftService.WithPatchMethod(namespaces).ApplyAll()
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":                err,
+			"tenantID":           user.ID,
+			"namespacesToUpdate": listNames(namespaces),
+		}, "update of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
+}
+
+func listNames(namespaces []*tenant.Namespace) []string {
+	var names []string
+	for _, ns := range namespaces {
+		names = append(names, ns.Name)
+	}
+	return names
 }
 
 func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, osUsername string) (*tenant.Tenant, error) {
@@ -269,7 +347,7 @@ func filterMissingAndExisting(namespaces []*tenant.Namespace) (missing []environ
 }
 
 func GetNamespaceByType(namespaces []*tenant.Namespace) map[environment.Type]*tenant.Namespace {
-	var nsTypes map[environment.Type]*tenant.Namespace
+	nsTypes := map[environment.Type]*tenant.Namespace{}
 	for _, namespace := range namespaces {
 		nsTypes[namespace.Type] = namespace
 	}

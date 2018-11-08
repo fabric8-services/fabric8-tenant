@@ -4,9 +4,9 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type NamespaceFilter func(namespace tenant.Namespace) bool
@@ -19,10 +19,10 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 
 		nsCluster, err := resolveCluster(ctx, ns.MasterURL)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
+			sentry.LogError(ctx, map[string]interface{}{
 				"err":         err,
 				"cluster_url": ns.MasterURL,
-			}).Error("unable to resolve nsCluster")
+			}, err, "unable to resolve nsCluster")
 			nsCluster = cluster.Cluster{}
 		}
 		nsAttributes = append(nsAttributes, &app.NamespaceAttributes{

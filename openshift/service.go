@@ -117,7 +117,11 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 	}
 	nsTypesWait.Wait()
 
-	return action.updateTenant()
+	namespaces, err := s.tenantRepository.GetNamespaces()
+	if err != nil {
+		return err
+	}
+	return action.checkNamespacesAndUpdateTenant(namespaces, nsTypes)
 }
 
 type ObjectChecker func(object environment.Object) bool
@@ -157,7 +161,7 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 		errorParamsPerObject["ns-type"] = nsTypeService.GetType()
 		errorParamsPerObject["action"] = action.methodName()
 		errorParamsPerObject["cluster"] = cluster.APIURL
-		errorParamsPerObject["ns-type"] = nsTypeService.GetType()
+		errorParamsPerObject["ns-name"] = nsTypeService.GetNamespaceName()
 		err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
 		sentry.LogError(nsTypeService.GetRequestsContext(), errorParamsPerObject, err, err.Error())
 	}

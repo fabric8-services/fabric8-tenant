@@ -100,8 +100,6 @@ func TestGetMissingObjectAndMerge(t *testing.T) {
 	assert.Equal(t, object, actualObject)
 }
 
-// todo rethink when object is removed
-
 func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 	// given
 	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST")
@@ -165,7 +163,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 			Reply(200)
 		gock.New("https://starter.com").
 			Post("/oapi/v1/namespaces/john-run/rolebindingrestrictions").
-			SetMatcher(test.ExpectRequest(test.HasObjectAsBody(object))).
+			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(object))).
 			Reply(200)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
@@ -201,7 +199,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 			Reply(200)
 		gock.New("https://starter.com").
 			Post("/oapi/v1/namespaces/john-run/rolebindingrestrictions").
-			SetMatcher(test.ExpectRequest(test.HasObjectAsBody(object))).
+			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(object))).
 			Reply(409)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 

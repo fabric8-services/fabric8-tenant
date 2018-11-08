@@ -185,23 +185,7 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 	SetTemplateVersions()
 
 	calls := 0
-	gock.New("http://my.cluster").
-		Post("").
-		SetMatcher(SpyOnCalls(&calls)).
-		Times(78).
-		Reply(200).
-		BodyString("{}")
-
-	gock.New("http://my.cluster").
-		Get("").
-		Times(11).
-		Reply(200).
-		BodyString(`{"status": {"phase":"Active"}}`)
-
-	gock.New("http://my.cluster").
-		Delete("").
-		Reply(200).
-		BodyString(`{"status": {"phase":"Active"}}`)
+	MockPostRequestsToOS(&calls, "http://my.cluster")
 
 	service, db := NewOSService(
 		config,
@@ -209,13 +193,12 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 		SingleClusterMapping("http://my.cluster", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
 		WithUser(&authclient.UserDataAttributes{}, "developer", "12345"))
 
-	objectsInTemplates := tmplObjects(t, config)
-
 	// when
 	err := service.WithPostMethod().ApplyAll(environment.DefaultEnvTypes...)
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, len(objectsInTemplates), calls)
+	// the expected number is number of all objects + 11 get calls to verify that objects are created + 1 to removed admin role binding
+	assert.Equal(t, ExpectedNumberOfCallsWhenPost(t, config), calls)
 	assert.Len(t, db.Namespaces, 5)
 }

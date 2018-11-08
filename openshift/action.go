@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"net/http"
 	"sort"
+	"strings"
 )
 
 // NamespaceAction represents the action that should be applied on the namespaces for the particular tenant - [post|update|delete].
@@ -19,10 +20,15 @@ type NamespaceAction interface {
 	sort(toSort environment.ByKind)
 	filter() FilterFunc
 	forceMasterTokenGlobally() bool
-	updateTenant() error
+	checkNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error
 }
 
 type commonNamespaceAction struct {
+	method string
+}
+
+func (c *commonNamespaceAction) methodName() string {
+	return c.method
 }
 
 func (c *commonNamespaceAction) sort(toSort environment.ByKind) {
@@ -39,23 +45,33 @@ func (c *commonNamespaceAction) forceMasterTokenGlobally() bool {
 	return true
 }
 
-func (c *commonNamespaceAction) updateTenant() error {
+func (c *commonNamespaceAction) checkNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
+	var failedNamespaces []string
+	for _, ns := range namespaces {
+		if ns.State == tenant.Failed {
+			for _, envType := range envTypes {
+				if ns.Type == envType {
+					failedNamespaces = append(failedNamespaces, ns.Name)
+				}
+			}
+		}
+	}
+	if len(failedNamespaces) > 0 {
+		return fmt.Errorf("applying %s action on namespaces [%s] failed", c.method, strings.Join(failedNamespaces, ", "))
+	}
 	return nil
 }
 
 func NewCreate(tenantRepo tenant.Repository) *Create {
 	return &Create{
-		tenantRepo: tenantRepo,
+		commonNamespaceAction: &commonNamespaceAction{method: http.MethodPost},
+		tenantRepo:            tenantRepo,
 	}
 }
 
 type Create struct {
 	*commonNamespaceAction
 	tenantRepo tenant.Repository
-}
-
-func (c *Create) methodName() string {
-	return http.MethodPost
 }
 
 func (c *Create) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
@@ -87,6 +103,7 @@ func (c *Create) forceMasterTokenGlobally() bool {
 
 func NewDelete(tenantRepo tenant.Repository, removeFromCluster bool, existingNamespaces []*tenant.Namespace) *Delete {
 	return &Delete{
+		commonNamespaceAction: &commonNamespaceAction{method: http.MethodDelete},
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			existingNamespaces: existingNamespaces,
 		},
@@ -100,10 +117,6 @@ type Delete struct {
 	*withExistingNamespacesAction
 	tenantRepo        tenant.Repository
 	removeFromCluster bool
-}
-
-func (d *Delete) methodName() string {
-	return http.MethodDelete
 }
 
 func (d *Delete) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
@@ -153,22 +166,19 @@ func (a withExistingNamespacesAction) getNamespaceFor(nsType environment.Type) *
 	return nil
 }
 
-func (d Delete) updateTenant() error {
+func (d Delete) checkNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
 	if d.removeFromCluster {
-		namespaces, err := d.tenantRepo.GetNamespaces()
-		if err != nil {
-			return err
-		}
 		if len(namespaces) == 0 {
 			return d.tenantRepo.DeleteTenant()
 		}
 		return fmt.Errorf("cannot remove tenant %s from DB - some namespace still exists", namespaces[0].TenantID)
 	}
-	return nil
+	return d.commonNamespaceAction.checkNamespacesAndUpdateTenant(namespaces, envTypes)
 }
 
 func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace) *Update {
 	return &Update{
+		commonNamespaceAction: &commonNamespaceAction{method: http.MethodPatch},
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			existingNamespaces: existingNamespaces,
 		},
@@ -180,10 +190,6 @@ type Update struct {
 	*commonNamespaceAction
 	*withExistingNamespacesAction
 	tenantRepo tenant.Repository
-}
-
-func (u *Update) methodName() string {
-	return http.MethodPatch
 }
 
 func (u *Update) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {

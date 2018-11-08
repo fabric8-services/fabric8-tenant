@@ -124,14 +124,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:036274611a8920f938120e8d5e18db3c66f906a5873842bd3033d0a089dc7c9a"
-  name = "github.com/fabric8-services/fabric8-oso-proxy"
-  packages = ["log"]
-  pruneopts = "UT"
-  revision = "601744c8bb872c675ad60359661017a2d0c7b0a4"
-
-[[projects]]
-  branch = "master"
   digest = "1:546d79a41abc78bdefca3b525775454a17daaf2f66ff303c0bb218179d29411d"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = [
@@ -598,7 +590,6 @@
     "github.com/fabric8-services/fabric8-common/log",
     "github.com/fabric8-services/fabric8-common/sentry",
     "github.com/fabric8-services/fabric8-common/token",
-    "github.com/fabric8-services/fabric8-oso-proxy/log",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/resource",
     "github.com/fabric8-services/fabric8-wit/rest",

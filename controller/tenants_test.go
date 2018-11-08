@@ -8,8 +8,10 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/errors"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
@@ -50,7 +52,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 	// given
 	defer gock.Off()
 
-	gockMocks()
+	mockCommunicationWithAuth()
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
 
@@ -92,7 +94,7 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
 	defer gock.Off()
-	gockMocks()
+	mockCommunicationWithAuth()
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
 
@@ -138,7 +140,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 	s.T().Run("all ok", func(t *testing.T) {
 		// given
 		defer gock.Off()
-		gockMocks()
+		mockCommunicationWithAuth()
 		gock.New("https://api.cluster1").
 			Delete("/oapi/v1/projects/foo-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -187,7 +189,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 		// if the namespace record exist in the DB, but the `delete namespace` call on the cluster endpoint fails with a 404
 		// given
 		defer gock.Off()
-		gockMocks()
+		mockCommunicationWithAuth()
 		gock.New("https://api.cluster1").
 			Delete("/oapi/v1/projects/bar-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -238,7 +240,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 	s.T().Run("Failures", func(t *testing.T) {
 		t.Run("Unauhorized failures", func(t *testing.T) {
 			defer gock.Off()
-			gockMocks()
+			mockCommunicationWithAuth()
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/foo").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -273,7 +275,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			// case where the first namespace could not be deleted: the tenant and the namespaces should still be in the DB
 			// given
 			defer gock.Off()
-			gockMocks()
+			mockCommunicationWithAuth()
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/baz-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -345,10 +347,10 @@ func createInvalidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
+func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, *auth.Service, *configuration.Data, func()) {
 	resetVars := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"), test.Env("F8_API_SERVER_USE_TLS", "false"))
-	authService, _, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), "", "http://authservice", recorder.WithJWTMatcher)
-	config, resetConf := test.LoadTestConfig(s.T())
+	authService, _, cleanup := testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", recorder.WithJWTMatcher)
+	config, resetConf := test.LoadTestConfig(t)
 	reset := func() {
 		resetVars()
 		cleanup()
@@ -361,19 +363,22 @@ func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *
 		},
 		"../test/private_key.pem",
 	)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 	authService.SaToken = saToken.Raw
 
 	clusterService := cluster.NewClusterService(time.Hour, authService)
 	err = clusterService.Start()
-	require.NoError(s.T(), err)
-
+	require.NoError(t, err)
+	return clusterService, authService, config, reset
+}
+func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
+	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantsController(svc, s.Repo, clusterService, authService, config)
 	return svc, ctrl, reset
 }
 
-func gockMocks() {
+func mockCommunicationWithAuth() {
 	gock.New("http://authservice").
 		Get("/api/clusters/").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).

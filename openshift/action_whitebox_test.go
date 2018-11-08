@@ -99,13 +99,24 @@ func TestCreateAction(t *testing.T) {
 		})
 	}
 
-	t.Run("update tenant should do nothing", func(t *testing.T) {
+	t.Run("checkNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
 		// when
-		assert.NoError(t, create.updateTenant())
+		namespaces := []*tenant.Namespace{{State: tenant.Ready, Type: environment.TypeChe}, {State: tenant.Ready, Type: environment.TypeUser}}
+		assert.NoError(t, create.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
 		// then
 		tnnt, err := repoService.GetTenant(id)
 		assert.NoError(t, err)
 		assert.NotNil(t, tnnt)
+	})
+
+	t.Run("checkNamespacesAndUpdateTenant should return error when one namespace is failed", func(t *testing.T) {
+		// when
+		namespaces := []*tenant.Namespace{
+			{Name: "johny-che", State: tenant.Ready, Type: environment.TypeChe},
+			{Name: "johny", State: tenant.Failed, Type: environment.TypeUser}}
+		err := create.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
+		// then
+		test.AssertError(t, err, test.HasMessageContaining("applying POST action on namespaces [johny] failed"))
 	})
 }
 
@@ -208,30 +219,25 @@ func TestDeleteAction(t *testing.T) {
 		})
 	}
 
-	// given
-	assert.NoError(t, repo.SaveNamespace(namespaces[0]))
-
-	t.Run("should keep entity when one namespace is present", func(t *testing.T) {
+	t.Run("checkNamespacesAndUpdateTenant should keep entity when one namespace is present", func(t *testing.T) {
 		// when
-		err := deleteFromCluster.updateTenant()
+		err := deleteFromCluster.checkNamespacesAndUpdateTenant([]*tenant.Namespace{namespaces[0]}, []environment.Type{environment.TypeChe})
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("cannot remove tenant %s from DB - some namespace still exist", id))
 
 	})
 
-	t.Run("should do nothing when namespace were only cleaned", func(t *testing.T) {
+	t.Run("checkNamespacesAndUpdateTenant should do nothing when namespace were only cleaned", func(t *testing.T) {
 		// when
-		err := delete.updateTenant()
+		err := delete.checkNamespacesAndUpdateTenant([]*tenant.Namespace{namespaces[0]}, []environment.Type{environment.TypeChe})
 		// then
 		assert.NoError(t, err)
 
 	})
 
-	t.Run("should keep entity when one namespace is present", func(t *testing.T) {
-		// given
-		assert.NoError(t, repo.DeleteNamespace(namespaces[0]))
+	t.Run("checkNamespacesAndUpdateTenant should delete entity when no namespace is present", func(t *testing.T) {
 		// when
-		err := deleteFromCluster.updateTenant()
+		err := deleteFromCluster.checkNamespacesAndUpdateTenant([]*tenant.Namespace{}, []environment.Type{environment.TypeChe})
 		// then
 		assert.NoError(t, err)
 		tnnt, err := repoService.GetTenant(id)
@@ -330,13 +336,24 @@ func TestUpdateAction(t *testing.T) {
 		})
 	}
 
-	t.Run("update tenant should do nothing", func(t *testing.T) {
+	t.Run("checkNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
 		// when
-		assert.NoError(t, update.updateTenant())
+		namespaces := []*tenant.Namespace{{State: tenant.Ready, Type: environment.TypeChe}, {State: tenant.Ready, Type: environment.TypeUser}}
+		assert.NoError(t, update.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
 		// then
 		tnnt, err := repoService.GetTenant(id)
 		assert.NoError(t, err)
 		assert.NotNil(t, tnnt)
+	})
+
+	t.Run("checkNamespacesAndUpdateTenant should return error when botch namespaces are failed", func(t *testing.T) {
+		// when
+		namespaces := []*tenant.Namespace{
+			{Name: "johny-che", State: tenant.Failed, Type: environment.TypeChe},
+			{Name: "johny", State: tenant.Failed, Type: environment.TypeUser}}
+		err := update.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
+		// then
+		test.AssertError(t, err, test.HasMessageContaining("applying PATCH action on namespaces [johny-che, johny] failed"))
 	})
 }
 

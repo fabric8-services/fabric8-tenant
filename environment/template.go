@@ -5,10 +5,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-oso-proxy/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"gopkg.in/yaml.v2"
 )
 
@@ -86,7 +86,7 @@ type Object map[interface{}]interface{}
 func (o Object) ToString() string {
 	out, err := yaml.Marshal(o)
 	if err != nil {
-		log.Error(err)
+		sentry.LogError(nil, map[string]interface{}{"object": o}, err, "marshalling of the object failed")
 		return fmt.Sprintf("%s", o)
 	}
 	return string(out)

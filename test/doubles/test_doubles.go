@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/utils"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/h2non/gock.v1"
 	"net/http"
 	"testing"
 )
@@ -131,4 +132,129 @@ func NewOSService(
 	tennt, namespaces := createTenant()
 	nsRepo, dbStub := gormsupport.NewDBServiceStub(tennt, namespaces)
 	return openshift.NewBuilderWithTransport(ctx, nsRepo.NewTenantRepository(tennt.ID), http.DefaultTransport, envService), dbStub
+}
+
+func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type) environment.Objects {
+	envService := environment.NewService()
+	clusterMapping := SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
+
+	ctx := openshift.NewServiceContext(
+		context.Background(), config, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8", "developer")
+
+	nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+	_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {
+		return true
+	})
+	require.NoError(t, err)
+	return objects
+}
+
+func AllTemplatesObjects(t *testing.T, config *configuration.Data) environment.Objects {
+	var objs environment.Objects
+	for _, envType := range environment.DefaultEnvTypes {
+		objects := SingleTemplatesObjects(t, config, envType)
+		objs = append(objs, objects...)
+	}
+	return objs
+}
+
+func MockPostRequestsToOS(calls *int, cluster string) {
+	gock.New(cluster).
+		Post("").
+		SetMatcher(test.SpyOnCalls(calls)).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+
+	gock.New(cluster).
+		Get("").
+		SetMatcher(test.SpyOnCalls(calls)).
+		Persist().
+		Reply(200).
+		BodyString(`{"status": {"phase":"Active"}}`)
+
+	gock.New(cluster).
+		Delete("").
+		SetMatcher(test.SpyOnCalls(calls)).
+		Reply(200).
+		BodyString(`{"status": {"phase":"Active"}}`)
+}
+
+func MockPatchRequestsToOS(calls *int, cluster string) {
+	gock.New(cluster).
+		Path("").
+		SetMatcher(test.SpyOnCalls(calls)).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+
+	gock.New(cluster).
+		Get("").
+		SetMatcher(test.SpyOnCalls(calls)).
+		Persist().
+		Reply(200).
+		BodyString(`{"status": {"phase":"Active"}}`)
+}
+
+func MockCleanRequestsToOS(calls *int, cluster string) {
+	gock.New(cluster).
+		Delete("").
+		SetMatcher(test.ExpectRequest(
+			test.HasUrlMatching(`.*\/(persistentvolumeclaims|configmaps)\/.*`),
+			test.SpyOnCallsMatchFunc(calls))).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+}
+
+func MockRemoveRequestsToOS(calls *int, cluster string) {
+	gock.New(cluster).
+		Delete("").
+		SetMatcher(test.ExpectRequest(
+			test.HasUrlMatching(`.*\/(namespaces|projects)\/.*`),
+			test.SpyOnCallsMatchFunc(calls))).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+}
+
+func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int {
+	objectsInTemplates := AllTemplatesObjects(t, config)
+	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1
+}
+
+func NumberOfGetChecks(objects environment.Objects) int {
+	return CountObjectsThat(
+		objects,
+		isOfKind(environment.ValKindNamespace, environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindResourceQuota))
+}
+
+func NumberOfObjectsToClean(objects environment.Objects) int {
+	return CountObjectsThat(objects, isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap))
+}
+
+func NumberOfObjectsToRemove(objects environment.Objects) int {
+	return CountObjectsThat(objects, isOfKind(environment.ValKindNamespace, environment.ValKindProjectRequest, environment.ValKindProject))
+}
+
+func CountObjectsThat(objects environment.Objects, is func(map[interface{}]interface{}) bool) int {
+	count := 0
+	for _, obj := range objects {
+		if is(obj) {
+			count++
+		}
+	}
+	return count
+}
+
+func isOfKind(kinds ...string) func(map[interface{}]interface{}) bool {
+	return func(vs map[interface{}]interface{}) bool {
+		kind := environment.GetKind(vs)
+		for _, k := range kinds {
+			if k == kind {
+				return true
+			}
+		}
+		return false
+	}
 }

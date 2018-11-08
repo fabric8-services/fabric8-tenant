@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"strings"
 	"testing"
@@ -107,7 +105,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 func TestPresenceOfTemplateObjects(t *testing.T) {
 	data, reset := test.LoadTestConfig(t)
 	defer reset()
-	templateObjects := tmplObjects(t, data)
+	templateObjects := testdoubles.AllTemplatesObjects(t, data)
 
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
 		assert.NoError(t,
@@ -175,7 +173,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 		defer resetEnv()
 		data, reset := test.LoadTestConfig(t)
 		defer reset()
-		templateObjects := tmplObjects(t, data)
+		templateObjects := testdoubles.AllTemplatesObjects(t, data)
 
 		assert.Error(t,
 			contain(templateObjects,
@@ -191,27 +189,6 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 		assert.NoError(t,
 			contain(templateObjects, "", withoutNotReplacedVariable()))
 	})
-}
-
-func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
-	envService := environment.NewService()
-	var objs environment.Objects
-
-	for _, envType := range environment.DefaultEnvTypes {
-
-		clusterMapping := testdoubles.SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
-
-		ctx := openshift.NewServiceContext(
-			context.Background(), data, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8", "developer")
-
-		nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
-		_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {
-			return true
-		})
-		require.NoError(t, err)
-		objs = append(objs, objects...)
-	}
-	return objs
 }
 
 func contain(templates environment.Objects, kind string, checks ...func(environment.Object) error) error {
