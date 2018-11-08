@@ -2,8 +2,8 @@ package openshift
 
 import (
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -122,7 +122,7 @@ func (e *ObjectEndpoints) Apply(client *Client, object environment.Object, actio
 	// get method definition for the object
 	method, err := e.GetMethodDefinition(action, object)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	return e.apply(client, object, method)
 }
@@ -153,14 +153,14 @@ func (e *ObjectEndpoints) apply(client *Client, object environment.Object, metho
 	result, err = client.Do(method.requestCreator, object, reqBody)
 
 	// if error occurred and no response was retrieved (probably error before doing a request)
+	logParams := logParams(object, method, result)
 	if err != nil && result == nil {
-		logRequest(object, method, result).WithFields(map[string]interface{}{
-			"requestObject": yamlString(object),
-			"err":           err,
-		}).Error("unable request resource")
+		logParams["requestObject"] = yamlString(object)
+		logParams["err"] = err
+		log.Error(nil, logParams, "unable request resource")
 		return result, err
 	}
-	logRequest(object, method, result).Info("resource requested")
+	log.Info(nil, logParams, "resource requested")
 
 	// handle after callbacks and let them handle errors in their way
 	if len(method.afterDoCallbacks) == 0 {
@@ -185,7 +185,7 @@ func (e *ObjectEndpoints) GetMethodDefinition(method string, object environment.
 	return methodDef, nil
 }
 
-func logRequest(object environment.Object, method *MethodDefinition, result *Result) *log.Entry {
+func logParams(object environment.Object, method *MethodDefinition, result *Result) map[string]interface{} {
 	var status, reqURL string
 	if result != nil && result.response != nil {
 		status = result.response.Status
@@ -193,12 +193,12 @@ func logRequest(object environment.Object, method *MethodDefinition, result *Res
 			reqURL = result.response.Request.URL.String()
 		}
 	}
-	return log.WithFields(map[string]interface{}{
+	return map[string]interface{}{
 		"status":      status,
 		"method":      method.action,
 		"request_url": reqURL,
 		"namespace":   environment.GetNamespace(object),
 		"name":        environment.GetName(object),
 		"kind":        environment.GetKind(object),
-	})
+	}
 }

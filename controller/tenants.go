@@ -63,6 +63,10 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	// gets tenant's namespaces
 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenantID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -79,12 +83,21 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 	// find tenant in DB
 	tenant, err := c.tenantService.LookupTenantByClusterAndNamespace(ctx.MasterURL, ctx.Namespace)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":        err,
+			"clusterURL": ctx.MasterURL,
+			"namespace":  ctx.Namespace,
+		}, "lookup for a tenant entity failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// gets tenant's namespaces
 	namespaces, err := c.tenantService.GetNamespaces(tenant.ID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenant.ID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -110,6 +123,10 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	tenantID := ctx.TenantID
 	tenant, err := c.tenantService.GetTenant(tenantID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenant,
+		}, "retrieval of tenant entity from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	nsBaseName := tenant.NsBaseName
@@ -120,6 +137,10 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	// gets tenant's namespaces
 	namespaces, err := c.tenantService.GetNamespaces(tenantID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenantID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -163,6 +184,10 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 
 	// the tenant should have been deleted - check it
 	if c.tenantService.Exists(tenantID) {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenantID,
+		}, "deletion of the tenant failed - it still exists")
 		return jsonapi.JSONErrorResponse(ctx, fmt.Errorf("unable to delete tenant %s", tenantID))
 	}
 

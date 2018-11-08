@@ -281,6 +281,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			_, err := s.Repo.GetTenant(id)
 			assert.NoError(t, err)
 			namespaces, err := s.Repo.GetNamespaces(id)
+			assert.NoError(t, err)
 			assert.Len(t, namespaces, 5)
 		})
 
@@ -298,6 +299,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			_, err := s.Repo.GetTenant(id)
 			assert.NoError(t, err)
 			namespaces, err := s.Repo.GetNamespaces(id)
+			assert.NoError(t, err)
 			assert.Len(t, namespaces, 1)
 			assert.Equal(t, namespaces[0].Name, "johny1-che")
 		})

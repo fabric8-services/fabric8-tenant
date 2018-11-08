@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/retry"
 	ghodssYaml "github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"time"
@@ -68,7 +67,11 @@ func getMethodAndMarshalObject(objEndpoints *ObjectEndpoints, method string, obj
 var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		if result.response != nil && result.response.StatusCode == http.StatusConflict {
-			log.Warn("There was a conflict, trying to delete the object and re-do the operation")
+			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
+			//log.Warn(nil, map[string]interface{}{
+			//	"method": method.action,
+			//	"object": object,
+			//}, "there was a conflict, trying to delete the object and re-do the operation")
 			err := checkHTTPCode(objEndpoints.Apply(client, object, http.MethodDelete))
 			if err != nil {
 				return errors.Wrap(err, "delete request failed while removing an object because of a conflict")
@@ -135,12 +138,13 @@ var GetObject = AfterDoCallback{
 var IgnoreWhenDoesNotExist = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		if result.response.StatusCode == http.StatusNotFound || result.response.StatusCode == http.StatusForbidden {
-			log.WithFields(map[string]interface{}{
-				"action":  method.action,
-				"status":  result.response.Status,
-				"object":  object.ToString(),
-				"message": result.body,
-			}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist", method.action)
+			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
+			//log.Warn(nil, map[string]interface{}{
+			//	"action":  method.action,
+			//	"status":  result.response.Status,
+			//	"object":  object.ToString(),
+			//	"message": result.body,
+			//}, "failed to %s the object. Ignoring this error because it probably does not exist", method.action)
 			return nil
 		}
 		return checkHTTPCode(result, result.err)

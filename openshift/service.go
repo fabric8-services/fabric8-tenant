@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"sync"
 )
@@ -131,7 +130,11 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 
 	namespace, err := action.getNamespaceEntity(nsTypeService)
 	if err != nil {
-		log.Error(err)
+		sentry.LogError(nil, map[string]interface{}{
+			"envType":       nsTypeService.GetType(),
+			"namespaceName": nsTypeService.GetNamespaceName(),
+			"action":        action.methodName(),
+		}, err, "getting the namespace failed")
 		return
 	}
 	if namespace == nil {
@@ -140,6 +143,11 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 
 	env, objects, err := nsTypeService.GetEnvDataAndObjects(action.filter())
 	if err != nil {
+		sentry.LogError(nil, map[string]interface{}{
+			"envType":       nsTypeService.GetType(),
+			"namespaceName": nsTypeService.GetNamespaceName(),
+			"action":        action.methodName(),
+		}, err, "getting environment data and objects failed")
 		return
 	}
 	action.sort(environment.ByKind(objects))
@@ -163,7 +171,7 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 		errorParamsPerObject["cluster"] = cluster.APIURL
 		errorParamsPerObject["ns-name"] = nsTypeService.GetNamespaceName()
 		err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
-		sentry.LogError(nsTypeService.GetRequestsContext(), errorParamsPerObject, err, err.Error())
+		sentry.LogError(nsTypeService.GetRequestsContext(), errorParamsPerObject, err, "")
 	}
 
 	err = nsTypeService.AfterCallback(client, action.methodName())
@@ -187,7 +195,8 @@ func apply(objectsWait *sync.WaitGroup, client Client, action string, object env
 
 	objectEndpoint, found := AllObjectEndpoints[environment.GetKind(object)]
 	if !found {
-		log.Error(fmt.Errorf("there is no supported endpoint for the object %s", environment.GetKind(object)))
+		err := fmt.Errorf("there is no supported endpoint for the object %s", environment.GetKind(object))
+		sentry.LogError(nil, map[string]interface{}{}, err, err.Error())
 		return
 	}
 

@@ -93,7 +93,7 @@ func (c *Create) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 			"cluster":  cluster.APIURL,
 			"tenant":   namespace.TenantID,
 			"state":    state,
-		}, err, "updating namespace entity failed")
+		}, err, "creation of namespace entity failed")
 	}
 }
 
