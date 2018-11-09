@@ -4,8 +4,11 @@ import (
 	"testing"
 
 	"fmt"
+	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
@@ -141,6 +144,38 @@ func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 		require.Nil(t, result)
 	})
 
+}
+
+func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
+	s.T().Run("returns all tenants", func(t *testing.T) {
+		// given
+		controller.Commit = "123abc"
+		testdoubles.SetTemplateVersions()
+		tf.FillDB(t, s.DB, 3, false, "ready", environment.DefaultEnvTypes...)
+		svc := tenant.NewDBService(s.DB)
+
+		// when
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "xyz")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, result, 3)
+	})
+
+	s.T().Run("returns only the limited number of tenants", func(t *testing.T) {
+		// given
+		controller.Commit = "123abc"
+		testdoubles.SetTemplateVersions()
+		tf.FillDB(t, s.DB, 10, false, "ready", environment.DefaultEnvTypes...)
+		svc := tenant.NewDBService(s.DB)
+
+		// when
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 5, "xyz")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, result, 5)
+	})
 }
 
 func (s *TenantServiceTestSuite) TestDelete() {

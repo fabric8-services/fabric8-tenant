@@ -260,13 +260,22 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 			require.NoError(t, err)
 			namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
-			require.Len(t, namespaces, 2)
+
 			// firs namespace could not be deleted, both still exist in the DB (and in the cluster)
-			assert.Equal(t, "baz", namespaces[0].Name)
-			assert.Equal(t, "baz-che", namespaces[1].Name)
+			assertContainsNames(t, namespaces, "baz", "baz-che")
 		})
 	})
+}
 
+func assertContainsNames(t *testing.T, slice []*tenant.Namespace, names ...string) {
+	assert.Len(t, slice, len(names))
+	var sliceNames []string
+	for _, ns := range slice {
+		sliceNames = append(sliceNames, ns.Name)
+	}
+	for _, name := range names {
+		assert.Contains(t, sliceNames, name)
+	}
 }
 
 func createValidSAContext(sub string) context.Context {

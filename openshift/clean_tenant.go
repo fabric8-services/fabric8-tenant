@@ -6,12 +6,13 @@ import (
 	"sync"
 
 	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 )
 
 // CleanTenant clean or remove
 func CleanTenant(ctx context.Context, config Config, osUsername, nsBaseName string, remove bool) error {
-	templs, err := LoadProcessedTemplates(ctx, config, osUsername, nsBaseName)
+	templs, _, err := LoadProcessedTemplates(ctx, config, osUsername, nsBaseName, environment.DefaultEnvTypes)
 	if err != nil {
 		return err
 	}

@@ -4,11 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 // A TestFixture object is the result of a call to
@@ -173,4 +176,23 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 		return nil, errs.Wrap(err, "test fixture did not pass checks")
 	}
 	return &fxt, nil
+}
+
+func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state string, envTypes ...string) *TestFixture {
+	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
+	return NewTestFixture(t, db, Tenants(numberOfTenants),
+		Namespaces(numberOfTenants*len(envTypes), func(fxt *TestFixture, idx int) error {
+			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/len(envTypes))].ID
+			fxt.Namespaces[idx].Type = tenant.NamespaceType(envTypes[idx%len(envTypes)])
+			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
+			fxt.Namespaces[idx].UpdatedAt = time.Now()
+			fxt.Namespaces[idx].UpdatedBy = controller.Commit
+			fxt.Namespaces[idx].State = state
+			if upToDate {
+				fxt.Namespaces[idx].Version = mappedVersions[string(fxt.Namespaces[idx].Type)]
+			} else {
+				fxt.Namespaces[idx].Version = "0000"
+			}
+			return nil
+		}))
 }

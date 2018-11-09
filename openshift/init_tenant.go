@@ -13,7 +13,7 @@ import (
 )
 
 func RawInitTenant(ctx context.Context, config Config, callback Callback, openshiftUsername, nsBaseName, usertoken string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, openshiftUsername, nsBaseName)
+	templs, versionMapping, err := LoadProcessedTemplates(ctx, config, openshiftUsername, nsBaseName, env.DefaultEnvTypes)
 	if err != nil {
 		return err
 	}
@@ -22,12 +22,18 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	if err != nil {
 		return err
 	}
-	masterOpts := ApplyOptions{Config: config, Callback: callback}
-	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callback}
+
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
 	for key, val := range mapped {
 		namespaceType := tenant.GetNamespaceType(key, nsBaseName)
+
+		callbackWithVersion := func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+			return callback(statusCode, method, request, response, versionMapping[string(tenant.GetNamespaceType(key, nsBaseName))])
+		}
+		masterOpts := ApplyOptions{Config: config, Callback: callbackWithVersion}
+		userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callbackWithVersion}
+
 		if namespaceType == tenant.TypeUser {
 			go func(namespace string, objects env.Objects, opts, userOpts ApplyOptions) {
 				defer wg.Done()
@@ -87,20 +93,24 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	return nil
 }
 
-func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUsername, nsBaseName string) error {
-	templs, err := LoadProcessedTemplates(ctx, config, osUsername, nsBaseName)
+func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUsername, nsBaseName string, envTypes []string) (map[string]string, error) {
+	templs, versionMapping, err := LoadProcessedTemplates(ctx, config, osUsername, nsBaseName, envTypes)
 	if err != nil {
-		return err
+		return versionMapping, err
 	}
 
 	mapped, err := MapByNamespaceAndSort(templs)
 	if err != nil {
-		return err
+		return versionMapping, err
 	}
-	masterOpts := ApplyOptions{Config: config, Callback: callback}
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
 	for key, val := range mapped {
+		callbackWithVersion := func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+			return callback(statusCode, method, request, response, versionMapping[string(tenant.GetNamespaceType(key, nsBaseName))])
+		}
+		masterOpts := ApplyOptions{Config: config, Callback: callbackWithVersion}
+
 		go func(namespace string, objects env.Objects, opts ApplyOptions) {
 			defer wg.Done()
 			output, err := executeProccessedNamespaceCMD(
@@ -126,7 +136,7 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUs
 		}(key, val, masterOpts)
 	}
 	wg.Wait()
-	return nil
+	return versionMapping, nil
 }
 
 func listToTemplate(objects env.Objects) string {

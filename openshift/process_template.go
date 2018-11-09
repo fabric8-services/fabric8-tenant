@@ -43,17 +43,18 @@ func IsNotOfKind(kinds ...string) FilterFunc {
 	}
 }
 
-func LoadProcessedTemplates(ctx context.Context, config Config, osUsername, nsBaseName string) (environment.Objects, error) {
-
+func LoadProcessedTemplates(ctx context.Context, config Config, osUsername, nsBaseName string, envTypes []string) (environment.Objects, map[string]string, error) {
+	versionMapping := map[string]string{}
 	envService := environment.NewService(config.TemplatesRepo, config.TemplatesRepoBlob, config.TemplatesRepoDir)
 	vars := environment.CollectVars(osUsername, nsBaseName, config.MasterUser, config.OriginalConfig)
 	var objs environment.Objects
 
-	for _, envType := range environment.DefaultEnvTypes {
+	for _, envType := range envTypes {
 		env, err := envService.GetEnvData(ctx, envType)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		versionMapping[envType] = env.Templates.ConstructCompleteVersion()
 		for _, template := range env.Templates {
 			if os.Getenv("DISABLE_OSO_QUOTAS") == "true" && strings.Contains(template.Filename, "quotas") {
 				continue
@@ -61,13 +62,13 @@ func LoadProcessedTemplates(ctx context.Context, config Config, osUsername, nsBa
 
 			objects, err := template.Process(vars)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			objs = append(objs, objects...)
 		}
 	}
 
-	return objs, nil
+	return objs, versionMapping, nil
 }
 
 func MapByNamespaceAndSort(objs environment.Objects) (map[string]environment.Objects, error) {
