@@ -155,54 +155,34 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	cluster := nsTypeService.GetCluster()
 	client := NewClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.forceMasterTokenGlobally()))
 
-	var objectsWait sync.WaitGroup
-	objectsWait.Add(len(objects))
-
-	objErrs := sync.Map{}
+	failed := false
 	for _, object := range objects {
-		go apply(&objectsWait, *client, action.methodName(), object, &objErrs)
-	}
-	objectsWait.Wait()
-
-	errorParamsPerObject := getErrorParamsPerObject(&objErrs)
-	if len(errorParamsPerObject) > 0 {
-		errorParamsPerObject["ns-type"] = nsTypeService.GetType()
-		errorParamsPerObject["action"] = action.methodName()
-		errorParamsPerObject["cluster"] = cluster.APIURL
-		errorParamsPerObject["ns-name"] = nsTypeService.GetNamespaceName()
-		err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
-		sentry.LogError(nsTypeService.GetRequestsContext(), errorParamsPerObject, err, "")
+		err := apply(*client, action.methodName(), object)
+		if err != nil {
+			err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
+			sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
+				"ns-type": nsTypeService.GetType(),
+				"action":  action.methodName(),
+				"cluster": cluster.APIURL,
+				"ns-name": nsTypeService.GetNamespaceName(),
+			}, err, err.Error())
+			failed = true
+			break
+		}
 	}
 
 	err = nsTypeService.AfterCallback(client, action.methodName())
-	action.updateNamespace(env, &cluster, namespace, len(errorParamsPerObject) > 0 || err != nil)
+	action.updateNamespace(env, &cluster, namespace, failed || err != nil)
 }
 
-func getErrorParamsPerObject(errors *sync.Map) map[string]interface{} {
-	params := map[string]interface{}{}
-	index := 1
-	errors.Range(func(object, err interface{}) bool {
-		params[fmt.Sprintf("object%d", index)] = object
-		params[fmt.Sprintf("err%d", index)] = err
-		index++
-		return true
-	})
-	return params
-}
-
-func apply(objectsWait *sync.WaitGroup, client Client, action string, object environment.Object, errors *sync.Map) {
-	defer objectsWait.Done()
+func apply(client Client, action string, object environment.Object) error {
 
 	objectEndpoint, found := AllObjectEndpoints[environment.GetKind(object)]
 	if !found {
 		err := fmt.Errorf("there is no supported endpoint for the object %s", environment.GetKind(object))
-		sentry.LogError(nil, map[string]interface{}{}, err, err.Error())
-		return
+		return err
 	}
 
 	_, err := objectEndpoint.Apply(&client, object, action)
-
-	if err != nil {
-		errors.Store(object.ToString(), err)
-	}
+	return err
 }

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 )
 
 // EnvironmentTypeService represents service operating with information related to environment types(template, objects, cluster,...).
@@ -109,23 +108,11 @@ func (t *UserNamespaceTypeService) AfterCallback(client *Client, action string) 
 	if action != http.MethodPost {
 		return nil
 	}
-	var removeRoleWait sync.WaitGroup
-	removeRoleWait.Add(1)
 	adminRoleBinding := CreateAdminRoleBinding(t.context.nsBaseName)
-	objErrs := sync.Map{}
-	apply(&removeRoleWait, *client, http.MethodDelete, adminRoleBinding, &objErrs)
+	err := apply(*client, http.MethodDelete, adminRoleBinding)
 
-	var errs error
-	objErrs.Range(func(object, err interface{}) bool {
-		if errs == nil {
-			errs = fmt.Errorf("%s", err)
-		} else {
-			errs = errors.Wrap(errs, fmt.Sprint(err))
-		}
-		return true
-	})
-	if errs != nil {
-		return errors.Wrapf(errs, "unable to remove admin rolebinding in %s namespace", t.GetNamespaceName())
+	if err != nil {
+		return errors.Wrapf(err, "unable to remove admin rolebinding in %s namespace", t.GetNamespaceName())
 	}
 	return nil
 }
