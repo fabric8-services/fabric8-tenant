@@ -94,7 +94,6 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 		s.T().Run(fmt.Sprintf("running automated update process should pass (without updating anything) when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.numberOfCalls = 0
 			fxt := tf.FillDB(t, s.DB, 5, true, "ready", environment.DefaultEnvTypes...)
-			//controller.Commit = "xyz"
 			after := time.Now()
 
 			s.tx(t, func(repo update.Repository) error {
@@ -254,7 +253,7 @@ func (s *TenantsUpdaterTestSuite) tx(t *testing.T, do func(repo update.Repositor
 	require.NoError(t, err)
 	repo := update.NewRepository(tx)
 	if err := do(repo); err != nil {
-		tx.Rollback()
+		require.NoError(t, tx.Rollback())
 		assert.NoError(t, err)
 	}
 	tx.Commit()

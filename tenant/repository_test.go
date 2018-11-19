@@ -178,6 +178,47 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 	})
 }
 
+func (s *TenantServiceTestSuite) TestGetSubsetOfFailedTenantsToUpdate() {
+	s.T().Run("returns only those tenants whose namespaces have different updated_by", func(t *testing.T) {
+		// given
+		testdoubles.SetTemplateVersions()
+		controller.Commit = "123abc"
+		previouslyFailed := tf.FillDB(t, s.DB, 1, false, "failed", environment.DefaultEnvTypes...)
+		controller.Commit = "234bcd"
+		tf.FillDB(t, s.DB, 6, false, "failed", environment.DefaultEnvTypes...)
+
+		svc := tenant.NewDBService(s.DB)
+
+		// when
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, previouslyFailed.Tenants[0].ID, result[0].ID)
+	})
+}
+
+func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatAreOutdatedToUpdate() {
+	s.T().Run("returns only those tenants whose namespaces have different version", func(t *testing.T) {
+		// given
+		testdoubles.SetTemplateVersions()
+		controller.Commit = "123abc"
+		outdated := tf.FillDB(t, s.DB, 1, false, "ready", environment.DefaultEnvTypes...)
+		tf.FillDB(t, s.DB, 6, true, "ready", environment.DefaultEnvTypes...)
+
+		svc := tenant.NewDBService(s.DB)
+
+		// when
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, outdated.Tenants[0].ID, result[0].ID)
+	})
+}
+
 func (s *TenantServiceTestSuite) TestDelete() {
 	s.T().Run("all info", func(t *testing.T) {
 		// given
