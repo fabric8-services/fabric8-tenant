@@ -58,10 +58,9 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 			})
 
 			// when
-			err := tenantsUpdater.UpdateAllTenants()
+			tenantsUpdater.UpdateAllTenants()
 
 			// then
-			assert.NoError(t, err)
 			assert.Equal(t, uint64(95), *updateExecutor.numberOfCalls)
 			s.assertStatus(t, "finished")
 			s.assertAllVersionAreUpToDate(t)
@@ -77,6 +76,29 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 			}
 		})
 	}
+}
+
+func (s *TenantsUpdaterTestSuite) TestHandleTenantUpdateError() {
+	// given
+	defer gock.Off()
+
+	s.tx(s.T(), func(repo update.Repository) error {
+		return repo.UpdateStatus(update.Status("updating"))
+	})
+
+	// when
+	update.HandleTenantUpdateError(s.DB.DB(), fmt.Errorf("any error"))
+
+	// then
+	var actualStatus update.Status
+	var err error
+	err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		actualStatus, err = update.NewRepository(tx).GetStatus()
+		assert.NoError(s.T(), err)
+		return err
+	})
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), update.Failed, actualStatus)
 }
 
 func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpToDateForAllStatuses() {
@@ -104,10 +126,9 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 			})
 
 			// when
-			err := tenantsUpdater.UpdateAllTenants()
+			tenantsUpdater.UpdateAllTenants()
 
 			// then
-			assert.NoError(t, err)
 			assert.Zero(t, *updateExecutor.numberOfCalls)
 			s.assertStatus(t, update.Finished)
 			s.assertAllVersionAreUpToDate(t)
@@ -144,10 +165,9 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	before := time.Now()
 
 	// when
-	err := tenantsUpdater.UpdateAllTenants()
+	tenantsUpdater.UpdateAllTenants()
 
 	// then
-	assert.NoError(s.T(), err)
 	s.assertStatus(s.T(), update.Failed)
 	s.assertAllVersionAreUpToDate(s.T())
 	for _, tnnt := range fxt.Tenants {
@@ -231,9 +251,8 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, 
 			defer toMakeDone.Done()
 
 			toWait.Wait()
-			err := updater.UpdateAllTenants()
+			updater.UpdateAllTenants()
 
-			assert.NoError(s.T(), err)
 		}(&waitToContinueGoroutine, &waitToFinish, tenantsUpdater)
 	}
 	return &waitToContinueGoroutine, &waitToFinish, updateExecs

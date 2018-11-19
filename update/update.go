@@ -12,6 +12,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"sync"
 	"time"
+	"database/sql"
 )
 
 func RetrieveAttrNameMapping() map[string]*VersionWithTypes {
@@ -66,7 +67,7 @@ type TenantsUpdater struct {
 	updateExecutor controller.UpdateExecutor
 }
 
-func (u *TenantsUpdater) UpdateAllTenants() error {
+func (u *TenantsUpdater) UpdateAllTenants() {
 
 	var followUp followUpFunc = func() error { return nil }
 
@@ -113,20 +114,30 @@ func (u *TenantsUpdater) UpdateAllTenants() error {
 	}))
 
 	if err != nil {
-		err = Transaction(u.db.DB(), lock(func(repo Repository) error {
-			return repo.UpdateStatus(Failed)
-		}))
-		return err
+		HandleTenantUpdateError(u.db.DB(), err)
+		return
 	}
 
 	err = followUp()
 	if err != nil {
-		err = Transaction(u.db.DB(), lock(func(repo Repository) error {
-			return repo.UpdateStatus(Failed)
-		}))
-		return err
+		HandleTenantUpdateError(u.db.DB(), err)
 	}
-	return nil
+}
+
+func HandleTenantUpdateError(db *sql.DB, err error) {
+	sentry.LogError(nil, map[string]interface{}{
+		"commit": controller.Commit,
+		"err":    err,
+	}, err, "automatic tenant update failed")
+	err = Transaction(db, lock(func(repo Repository) error {
+		return repo.UpdateStatus(Failed)
+	}))
+	if err != nil {
+		sentry.LogError(nil, map[string]interface{}{
+			"commit": controller.Commit,
+			"err":    err,
+		}, err, "unable to set state to failed in tenants_update table")
+	}
 }
 
 func (u *TenantsUpdater) waitAndRecheck() error {
