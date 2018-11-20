@@ -137,11 +137,7 @@ func (s DBService) GetTenantsToUpdate(typeWithVersion map[string]string, count i
 	finalQuery := baseQuery + strings.Join(conditions, " OR ") + querySuffix
 
 	err := s.db.Raw(finalQuery).Limit(count).Scan(&tenants).Error
-
-	if err != nil {
-		return nil, err
-	}
-	return tenants, nil
+	return tenants, err
 }
 
 func (s DBService) DeleteAll(tenantID uuid.UUID) error {
