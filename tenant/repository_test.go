@@ -178,6 +178,89 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 	})
 }
 
+func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
+	s.T().Run("will need to call GetTenantsToUpdate three times to get all tenants to update", func(t *testing.T) {
+		// given
+		controller.Commit = "123abc"
+		testdoubles.SetTemplateVersions()
+		fxt := tf.FillDB(t, s.DB, 11, false, "ready", environment.DefaultEnvTypes...)
+		svc := tenant.NewDBService(s.DB)
+		mappedVersions := testdoubles.GetMappedVersions(environment.DefaultEnvTypes...)
+
+		// when
+		firstBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, firstBatch, 5)
+		assertContentOfTenants(t, firstBatch, fxt.Tenants, true)
+		updateAllTenants(t, firstBatch, svc, false)
+
+		// and when
+		secondBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, secondBatch, 5)
+		assertContentOfTenants(t, secondBatch, fxt.Tenants, true)
+		assertContentOfTenants(t, secondBatch, firstBatch, false)
+		updateAllTenants(t, secondBatch, svc, true)
+
+		// and when
+		thirdBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, thirdBatch, 1)
+		assertContentOfTenants(t, thirdBatch, fxt.Tenants, true)
+		assertContentOfTenants(t, thirdBatch, firstBatch, false)
+		assertContentOfTenants(t, thirdBatch, secondBatch, false)
+		updateAllTenants(t, thirdBatch, svc, false)
+
+		// and when
+		lastBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, lastBatch, 0)
+	})
+}
+
+func updateAllTenants(t *testing.T, toUpdate []*tenant.Tenant, svc tenant.Service, failed bool) {
+	mappedVersions := testdoubles.GetMappedVersions(environment.DefaultEnvTypes...)
+	for _, tnnt := range toUpdate {
+		namespaces, err := svc.GetNamespaces(tnnt.ID)
+		assert.NoError(t, err)
+		for _, ns := range namespaces {
+			if failed {
+				ns.State = "failed"
+			} else {
+				ns.Version = mappedVersions[string(ns.Type)]
+				ns.State = "ready"
+			}
+			ns.UpdatedBy = "xyz"
+			assert.NoError(t, svc.SaveNamespace(ns))
+		}
+	}
+}
+
+func assertContentOfTenants(t *testing.T, expectedTenants []*tenant.Tenant, slice []*tenant.Tenant, shouldContain bool) {
+	for _, tnnt := range expectedTenants {
+		found := false
+		for _, t := range slice {
+			if t.ID == tnnt.ID {
+				found = true
+				break
+			}
+		}
+		if shouldContain {
+			assert.Truef(t, found, "the slice %s does not contain tenant %s", slice, tnnt)
+		} else {
+			assert.False(t, found, "the slice %s should not contain tenant %s", slice, tnnt)
+		}
+	}
+}
+
 func (s *TenantServiceTestSuite) TestGetSubsetOfFailedTenantsToUpdate() {
 	s.T().Run("returns only those tenants whose namespaces have different updated_by", func(t *testing.T) {
 		// given
