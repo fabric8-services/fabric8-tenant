@@ -1,6 +1,7 @@
 package update
 
 import (
+	"database/sql"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -12,7 +13,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"sync"
 	"time"
-	"database/sql"
 )
 
 func RetrieveAttrNameMapping() map[string]*VersionWithTypes {
@@ -47,9 +47,8 @@ func vt(version string, envTypes ...tenant.NamespaceType) *VersionWithTypes {
 
 type followUpFunc func() error
 
-func NewTenantsUpdater(timeout time.Duration, db *gorm.DB, config *configuration.Data, authService *auth.Service, clusterService cluster.Service, updateExecutor controller.UpdateExecutor) *TenantsUpdater {
+func NewTenantsUpdater(db *gorm.DB, config *configuration.Data, authService *auth.Service, clusterService cluster.Service, updateExecutor controller.UpdateExecutor) *TenantsUpdater {
 	return &TenantsUpdater{
-		timeout:        timeout,
 		db:             db,
 		config:         config,
 		authService:    authService,
@@ -59,7 +58,6 @@ func NewTenantsUpdater(timeout time.Duration, db *gorm.DB, config *configuration
 }
 
 type TenantsUpdater struct {
-	timeout        time.Duration
 	db             *gorm.DB
 	config         *configuration.Data
 	authService    *auth.Service
@@ -141,7 +139,7 @@ func HandleTenantUpdateError(db *sql.DB, err error) {
 }
 
 func (u *TenantsUpdater) waitAndRecheck() error {
-	time.Sleep(u.timeout + u.timeout/10)
+	time.Sleep(u.config.GetAutomatedUpdateRetrySleep() + u.config.GetAutomatedUpdateRetrySleep()/10)
 
 	followUp := func() error { return nil }
 
@@ -169,7 +167,7 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 }
 
 func (u *TenantsUpdater) isOlderThanTimeout(when time.Time) bool {
-	return when.Before(time.Now().Add(-u.timeout))
+	return when.Before(time.Now().Add(-u.config.GetAutomatedUpdateRetrySleep()))
 }
 
 func (u *TenantsUpdater) updateTenantsForTypes(envTypes []string) followUpFunc {

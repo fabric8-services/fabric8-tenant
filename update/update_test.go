@@ -304,10 +304,10 @@ func (s *TenantsUpdaterTestSuite) assertAllVersionAreUpToDate(t *testing.T) {
 }
 
 func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.UpdateExecutor, timeout time.Duration) (*update.TenantsUpdater, func()) {
-	reset := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"))
-	defer reset()
+	reset := test.SetEnvironments(
+		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
+		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()))
 	authService, _, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), "", "http://authservice")
-	defer cleanup()
 
 	saToken, err := test.NewToken(
 		map[string]interface{}{
@@ -323,7 +323,7 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.Up
 
 	require.NoError(s.T(), err)
 	config, reset := test.LoadTestConfig(s.T())
-	return update.NewTenantsUpdater(timeout, s.DB, config, authService, clusterService, updateExecutor), func() {
+	return update.NewTenantsUpdater(s.DB, config, authService, clusterService, updateExecutor), func() {
 		cleanup()
 		reset()
 		clusterService.Stop()
