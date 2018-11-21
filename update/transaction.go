@@ -59,7 +59,7 @@ type lockAndDo func(tx *gorm.DB) error
 func lock(do func(repo Repository) error) lockAndDo {
 	return func(tx *gorm.DB) error {
 		if err := tx.Exec("SET LOCAL lock_timeout = '60s'").Error; err != nil {
-			return errors.Wrap(err, "failed to acquire lock")
+			return errors.Wrap(err, "failed to set lock timeout")
 		}
 		if err := tx.Exec("SELECT pg_advisory_xact_lock($1)", TenantsUpdateAdvisoryLockID).Error; err != nil {
 			return errors.Wrap(err, "failed to acquire lock")
