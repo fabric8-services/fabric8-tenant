@@ -1,7 +1,6 @@
 package update
 
 import (
-	"database/sql"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -14,36 +13,6 @@ import (
 	"sync"
 	"time"
 )
-
-func RetrieveAttrNameMapping() map[string]*VersionWithTypes {
-	return map[string]*VersionWithTypes{
-		"last_version_fabric8_tenant_user_file": vt(environment.VersionFabric8TenantUserFile, tenant.TypeUser),
-
-		"last_version_fabric8_tenant_che_mt_file": vt(environment.VersionFabric8TenantCheMtFile, tenant.TypeChe),
-
-		"last_version_fabric8_tenant_che_file": vt(environment.VersionFabric8TenantCheFile, tenant.TypeChe),
-
-		"last_version_fabric8_tenant_che_quotas_file": vt(environment.VersionFabric8TenantCheQuotasFile, tenant.TypeChe),
-
-		"last_version_fabric8_tenant_jenkins_file": vt(environment.VersionFabric8TenantJenkinsFile, tenant.TypeJenkins),
-
-		"last_version_fabric8_tenant_jenkins_quotas_file": vt(environment.VersionFabric8TenantJenkinsQuotasFile, tenant.TypeJenkins),
-
-		"last_version_fabric8_tenant_deploy_file": vt(environment.VersionFabric8TenantDeployFile, tenant.TypeRun, tenant.TypeStage),
-	}
-}
-
-type VersionWithTypes struct {
-	Version string
-	envType []tenant.NamespaceType
-}
-
-func vt(version string, envTypes ...tenant.NamespaceType) *VersionWithTypes {
-	return &VersionWithTypes{
-		Version: version,
-		envType: envTypes,
-	}
-}
 
 type followUpFunc func() error
 
@@ -78,14 +47,14 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 		return nil
 	}
 
-	err := Transaction(u.db.DB(), lock(func(repo Repository) error {
+	err := Transaction(u.db, lock(func(repo Repository) error {
 
-		status, err := repo.GetStatus()
+		tenantUpdate, err := repo.GetTenantsUpdate()
 		if err != nil {
 			return err
 		}
-		if status == Finished {
-			envTypesToUpdate, err := checkVersions(repo)
+		if tenantUpdate.Status == Finished {
+			envTypesToUpdate, err := checkVersions(tenantUpdate)
 			if err != nil {
 				return err
 			}
@@ -93,15 +62,11 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 				return prepareAndAssignStart(repo, envTypesToUpdate)
 			}
 
-		} else if status == Failed {
+		} else if tenantUpdate.Status == Failed {
 			return prepareAndAssignStart(repo, environment.DefaultEnvTypes)
 
-		} else if status == Updating {
-			lastTimeUpdated, err := repo.GetLastTimeUpdated()
-			if err != nil {
-				return err
-			}
-			if u.isOlderThanTimeout(lastTimeUpdated) {
+		} else if tenantUpdate.Status == Updating {
+			if u.isOlderThanTimeout(tenantUpdate.LastTimeUpdated) {
 				return prepareAndAssignStart(repo, environment.DefaultEnvTypes)
 			} else {
 				followUp = u.waitAndRecheck
@@ -112,17 +77,17 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 	}))
 
 	if err != nil {
-		HandleTenantUpdateError(u.db.DB(), err)
+		HandleTenantUpdateError(u.db, err)
 		return
 	}
 
 	err = followUp()
 	if err != nil {
-		HandleTenantUpdateError(u.db.DB(), err)
+		HandleTenantUpdateError(u.db, err)
 	}
 }
 
-func HandleTenantUpdateError(db *sql.DB, err error) {
+func HandleTenantUpdateError(db *gorm.DB, err error) {
 	sentry.LogError(nil, map[string]interface{}{
 		"commit": controller.Commit,
 		"err":    err,
@@ -143,13 +108,13 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 
 	followUp := func() error { return nil }
 
-	err := Transaction(u.db.DB(), lock(func(repo Repository) error {
+	err := Transaction(u.db, lock(func(repo Repository) error {
 
-		lastTimeUpdated, err := repo.GetLastTimeUpdated()
+		tenantUpdate, err := repo.GetTenantsUpdate()
 		if err != nil {
 			return err
 		}
-		if u.isOlderThanTimeout(lastTimeUpdated) {
+		if u.isOlderThanTimeout(tenantUpdate.LastTimeUpdated) {
 			err := repo.PrepareForUpdating()
 			if err != nil {
 				return err
@@ -192,7 +157,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []string) followUpFunc {
 
 			u.updateTenants(toUpdate, tenantRepo, envTypes)
 
-			err = Transaction(u.db.DB(), lock(func(repo Repository) error {
+			err = Transaction(u.db, lock(func(repo Repository) error {
 				return repo.UpdateLastTimeUpdated()
 			}))
 			if err != nil {
@@ -200,7 +165,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []string) followUpFunc {
 			}
 		}
 
-		err := Transaction(u.db.DB(), lock(func(repo Repository) error {
+		err := Transaction(u.db, lock(func(repo Repository) error {
 			return u.setStatusAndVersionsAfterUpdate(repo)
 		}))
 		return err
@@ -208,19 +173,19 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []string) followUpFunc {
 }
 
 func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error {
-	failedCount, err := repo.GetFailedCount()
+	tenantUpdate, err := repo.GetTenantsUpdate()
 	if err != nil {
 		return err
 	}
-	if failedCount > 0 {
-		err = repo.UpdateStatus(Failed)
+	if tenantUpdate.FailedCount > 0 {
+		tenantUpdate.Status = Failed
 	} else {
-		err = repo.UpdateStatus(Finished)
+		tenantUpdate.Status = Finished
 	}
-	if err != nil {
-		return err
+	for _, versionManager := range RetrieveVersionManagers() {
+		versionManager.SetCurrentVersion(tenantUpdate)
 	}
-	return repo.UpdateVersionsTo(RetrieveAttrNameMapping())
+	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
 func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []string) {
@@ -279,7 +244,7 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 		osConfig := openshift.NewConfig(updater.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
 		err = controller.UpdateTenant(updater.updateExecutor, nil, tenantRepo, osConfig, tnnt, envType)
 		if err != nil {
-			err = Transaction(updater.db.DB(), lock(func(repo Repository) error {
+			err = Transaction(updater.db, lock(func(repo Repository) error {
 				return repo.IncrementFailedCount()
 			}))
 			if err != nil {
@@ -299,19 +264,13 @@ var emptyTemplateRepoInfoSetter openshift.TemplateRepoInfoSetter = func(config o
 	return config
 }
 
-func checkVersions(repo Repository) ([]string, error) {
+func checkVersions(tu *TenantsUpdate) ([]string, error) {
 	var types []string
-
-	for attrName, versionWithTypes := range RetrieveAttrNameMapping() {
-		isVersionSame, err := repo.IsVersionSame(attrName, versionWithTypes.Version)
-		if err != nil {
-			return nil, err
-		}
-		if !isVersionSame {
-			addIfNotPresent(&types, versionWithTypes.envType)
+	for _, versionManager := range RetrieveVersionManagers() {
+		if !versionManager.IsVersionUpToDate(tu) {
+			addIfNotPresent(&types, versionManager.EnvTypes)
 		}
 	}
-
 	return types, nil
 }
 

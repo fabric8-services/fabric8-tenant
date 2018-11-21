@@ -126,17 +126,21 @@ func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 
 func (s DBService) GetTenantsToUpdate(typeWithVersion map[string]string, count int, commit string) ([]*Tenant, error) {
 	var tenants []*Tenant
-
-	baseQuery := fmt.Sprintf("SELECT t.* from %s t, %s n WHERE t.id = n.tenant_id AND (", Tenant{}.TableName(), Namespace{}.TableName())
+	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id").
+		Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
 
 	var conditions []string
+	var params []interface{}
 	for envType, version := range typeWithVersion {
-		conditions = append(conditions, fmt.Sprintf("(n.type = '%s' AND n.version != '%s')", envType, version))
+		conditions = append(conditions, "(namespaces.type = ? AND namespaces.version != ?)")
+		params = append(params, envType, version)
 	}
-	querySuffix := fmt.Sprintf(") AND (n.state != 'failed' OR (n.state = 'failed' AND n.updated_by != '%s')) GROUP BY t.id", commit)
-	finalQuery := baseQuery + strings.Join(conditions, " OR ") + querySuffix
+	nsSubQuery = nsSubQuery.Where(strings.Join(conditions, " OR "), params...).Group("tenant_id")
 
-	err := s.db.Raw(finalQuery).Limit(count).Scan(&tenants).Error
+	err := s.db.Table(Tenant{}.TableName()).
+		Joins("INNER JOIN ? n ON tenants.id = n.tenant_id", nsSubQuery.SubQuery()).Limit(count).
+		Scan(&tenants).Error
+
 	return tenants, err
 }
 

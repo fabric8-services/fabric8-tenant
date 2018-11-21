@@ -2,7 +2,6 @@ package update_test
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -15,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-tenant/update"
+	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -54,7 +54,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 				return repo.UpdateStatus(update.Status(status))
 			})
 			s.tx(t, func(repo update.Repository) error {
-				return repo.UpdateVersionsTo(retrieveMappingWithVersion("0xy"))
+				return updateVersionsTo(repo, "0xy")
 			})
 
 			// when
@@ -62,8 +62,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 
 			// then
 			assert.Equal(t, uint64(95), *updateExecutor.numberOfCalls)
-			s.assertStatus(t, "finished")
-			s.assertAllVersionAreUpToDate(t)
+			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
 				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 				assert.NoError(t, err)
@@ -87,18 +86,17 @@ func (s *TenantsUpdaterTestSuite) TestHandleTenantUpdateError() {
 	})
 
 	// when
-	update.HandleTenantUpdateError(s.DB.DB(), fmt.Errorf("any error"))
+	update.HandleTenantUpdateError(s.DB, fmt.Errorf("any error"))
 
 	// then
-	var actualStatus update.Status
 	var err error
-	err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-		actualStatus, err = update.NewRepository(tx).GetStatus()
-		assert.NoError(s.T(), err)
+	var tenantsUpdate *update.TenantsUpdate
+	err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
 	})
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), update.Failed, actualStatus)
+	assert.Equal(s.T(), string(update.Failed), string(tenantsUpdate.Status))
 }
 
 func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpToDateForAllStatuses() {
@@ -122,7 +120,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 				return repo.UpdateStatus(update.Status(status))
 			})
 			s.tx(t, func(repo update.Repository) error {
-				return repo.UpdateVersionsTo(update.RetrieveAttrNameMapping())
+				return updateVersionsTo(repo, "")
 			})
 
 			// when
@@ -130,8 +128,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 
 			// then
 			assert.Zero(t, *updateExecutor.numberOfCalls)
-			s.assertStatus(t, update.Finished)
-			s.assertAllVersionAreUpToDate(t)
+			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
 				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 				assert.NoError(t, err)
@@ -158,7 +155,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	controller.Commit = "124abcd"
 	fxt := tf.FillDB(s.T(), s.DB, 1, false, "ready", environment.DefaultEnvTypes...)
 	s.tx(s.T(), func(repo update.Repository) error {
-		return repo.UpdateVersionsTo(retrieveMappingWithVersion("0"))
+		return updateVersionsTo(repo, "0")
 	})
 
 	controller.Commit = "xyz"
@@ -168,8 +165,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	tenantsUpdater.UpdateAllTenants()
 
 	// then
-	s.assertStatus(s.T(), update.Failed)
-	s.assertAllVersionAreUpToDate(s.T())
+	s.assertStatusAndAllVersionAreUpToDate(s.T(), update.Failed)
 	for _, tnnt := range fxt.Tenants {
 		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 		assert.NoError(s.T(), err)
@@ -225,7 +221,7 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, 
 	testdoubles.SetTemplateVersions()
 	tf.FillDB(s.T(), s.DB, 5, false, "ready", environment.DefaultEnvTypes...)
 	s.tx(s.T(), func(repo update.Repository) error {
-		return repo.UpdateVersionsTo(retrieveMappingWithVersion("0"))
+		return updateVersionsTo(repo, "0")
 	})
 	s.tx(s.T(), func(repo update.Repository) error {
 		return repo.UpdateStatus(update.Status("finished"))
@@ -258,49 +254,42 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, 
 	return &waitToContinueGoroutine, &waitToFinish, updateExecs
 }
 
-func retrieveMappingWithVersion(version string) map[string]*update.VersionWithTypes {
-	mapping := update.RetrieveAttrNameMapping()
-	for _, versionWithTypes := range mapping {
-		versionWithTypes.Version = version
+func updateVersionsTo(repo update.Repository, version string) error {
+	tenantsUpdate, err := repo.GetTenantsUpdate()
+	if err != nil {
+		return err
 	}
-	return mapping
+	for _, versionManager := range update.RetrieveVersionManagers() {
+		if version != "" {
+			versionManager.Version = version
+		}
+		versionManager.SetCurrentVersion(tenantsUpdate)
+	}
+	return repo.SaveTenantsUpdate(tenantsUpdate)
 }
 
 func (s *TenantsUpdaterTestSuite) tx(t *testing.T, do func(repo update.Repository) error) {
-	var tx *sql.Tx
-	tx, err := s.DB.DB().Begin()
-	require.NoError(t, err)
+	tx := s.DB.Begin()
+	require.NoError(t, tx.Error)
 	repo := update.NewRepository(tx)
 	if err := do(repo); err != nil {
-		require.NoError(t, tx.Rollback())
+		require.NoError(t, tx.Rollback().Error)
 		assert.NoError(t, err)
 	}
-	tx.Commit()
+	require.NoError(t, tx.Commit().Error)
 }
 
-func (s *TenantsUpdaterTestSuite) assertStatus(t *testing.T, st update.Status) {
-	var status update.Status
+func (s *TenantsUpdaterTestSuite) assertStatusAndAllVersionAreUpToDate(t *testing.T, st update.Status) {
 	var err error
-	s.tx(t, func(repo update.Repository) error {
-		status, err = repo.GetStatus()
+	var tenantsUpdate *update.TenantsUpdate
+	err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, string(st), string(status))
-}
-
-func (s *TenantsUpdaterTestSuite) assertAllVersionAreUpToDate(t *testing.T) {
-	var isVersionSame bool
-	var err error
-	for attrName, versionWithTypes := range update.RetrieveAttrNameMapping() {
-		s.tx(t, func(repo update.Repository) error {
-			isVersionSame, err = repo.IsVersionSame(attrName, versionWithTypes.Version)
-			return err
-		})
-		assert.NoError(t, err)
-		assert.True(t, isVersionSame)
+	assert.Equal(t, string(st), string(tenantsUpdate.Status))
+	for _, versionManager := range update.RetrieveVersionManagers() {
+		assert.True(t, versionManager.IsVersionUpToDate(tenantsUpdate))
 	}
-
 }
 
 func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.UpdateExecutor, timeout time.Duration) (*update.TenantsUpdater, func()) {

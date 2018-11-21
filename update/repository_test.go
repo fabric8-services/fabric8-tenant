@@ -3,13 +3,13 @@ package update_test
 import (
 	"testing"
 
-	"database/sql"
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	"github.com/fabric8-services/fabric8-tenant/update"
+	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -28,31 +28,31 @@ func TestUpdateRepository(t *testing.T) {
 func (s *UpdateRepoTestSuite) TestUpdateAndGetStatus() {
 	s.T().Run("set and get status should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateStatus(update.Updating)
 		})
 		require.NoError(s.T(), err)
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
-			status, err := repo.GetStatus()
+			tenantsUpdate, err := repo.GetTenantsUpdate()
 			if err != nil {
 				return err
 			}
-			assert.Equal(t, update.Updating, status)
+			assert.Equal(t, string(update.Updating), string(tenantsUpdate.Status))
 			return repo.UpdateStatus(update.Finished)
 		})
 
 		// then
 		assert.NoError(t, err)
-		var actualStatus update.Status
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			actualStatus, err = update.NewRepository(tx).GetStatus()
+		var tenantsUpdate *update.TenantsUpdate
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, update.Finished, actualStatus)
+		assert.Equal(t, string(update.Finished), string(tenantsUpdate.Status))
 	})
 }
 
@@ -60,16 +60,16 @@ func (s *UpdateRepoTestSuite) TestIncrementAndGetFailedCount() {
 
 	s.T().Run("increment and get failed_count should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).PrepareForUpdating()
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
 			for i := 0; i < 10; i++ {
-				if repo.IncrementFailedCount() != nil {
+				if err := repo.IncrementFailedCount(); err != nil {
 					return err
 				}
 			}
@@ -78,13 +78,13 @@ func (s *UpdateRepoTestSuite) TestIncrementAndGetFailedCount() {
 
 		// then
 		assert.NoError(t, err)
-		var failedCount int
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			failedCount, err = update.NewRepository(tx).GetFailedCount()
+		var tenantsUpdate *update.TenantsUpdate
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, 10, failedCount)
+		assert.Equal(t, 10, tenantsUpdate.FailedCount)
 	})
 }
 
@@ -92,25 +92,26 @@ func (s *UpdateRepoTestSuite) TestGetAndSetLastTimeUpdated() {
 
 	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateLastTimeUpdated()
 		})
 		require.NoError(t, err)
 		before := time.Now()
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateLastTimeUpdated()
 		})
 
 		// then
 		assert.NoError(t, err)
-		var updatedTime time.Time
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			updatedTime, err = update.NewRepository(tx).GetLastTimeUpdated()
+		var tenantsUpdate *update.TenantsUpdate
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
-		assert.True(t, before.Before(updatedTime))
+		assert.NoError(t, err)
+		assert.True(t, before.Before(tenantsUpdate.LastTimeUpdated))
 	})
 }
 
@@ -118,7 +119,7 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 
 	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
 			if err := repo.UpdateStatus(update.Updating); err != nil {
 				return err
@@ -132,31 +133,21 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 		before := time.Now()
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).PrepareForUpdating()
 		})
 
 		// then
 		assert.NoError(t, err)
-		var updatedTime time.Time
-		var actualStatus update.Status
-		var failedCount int
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			if actualStatus, err = update.NewRepository(tx).GetStatus(); err != nil {
-				return err
-			}
-			if updatedTime, err = update.NewRepository(tx).GetLastTimeUpdated(); err != nil {
-				return err
-			}
-			if failedCount, err = update.NewRepository(tx).GetFailedCount(); err != nil {
-				return err
-			}
+		var tenantsUpdate *update.TenantsUpdate
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, update.Updating, actualStatus)
-		assert.True(t, before.Before(updatedTime))
-		assert.Equal(t, 0, failedCount)
+		assert.Equal(t, string(update.Updating), string(tenantsUpdate.Status))
+		assert.True(t, before.Before(tenantsUpdate.LastTimeUpdated))
+		assert.Equal(t, 0, tenantsUpdate.FailedCount)
 	})
 }
 
@@ -165,52 +156,47 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 	s.T().Run("should say that all versions are different", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			return update.NewRepository(tx).UpdateVersionsTo(retrieveMappingWithVersion("000bbb"))
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+			err := updateVersionsTo(update.NewRepository(tx), "000bbb")
+			require.NoError(t, err)
+			return err
 		})
 		require.NoError(t, err)
 
-		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			for attrName, versionWithTypes := range update.RetrieveAttrNameMapping() {
-				// when
-
-				isVersionSame, err := update.NewRepository(tx).IsVersionSame(attrName, versionWithTypes.Version)
-				if err != nil {
-					return err
-				}
-				// then
-				assert.False(t, isVersionSame)
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			// when
+			tenantsUpdate, err := update.NewRepository(tx).GetTenantsUpdate()
+			if err != nil {
+				return err
+			}
+			// then
+			for _, versionManager := range update.RetrieveVersionManagers() {
+				assert.False(t, versionManager.IsVersionUpToDate(tenantsUpdate))
 			}
 			return nil
 		})
-
-		// then
 		assert.NoError(t, err)
 	})
 
 	s.T().Run("should say that all versions but one are different", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			return update.NewRepository(tx).UpdateVersionsTo(retrieveMappingWithVersion("123abc"))
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+			return updateVersionsTo(update.NewRepository(tx), "123abc")
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			for attrName, versionWithTypes := range update.RetrieveAttrNameMapping() {
-				// when
-
-				isVersionSame, err := update.NewRepository(tx).IsVersionSame(attrName, versionWithTypes.Version)
-				if err != nil {
-					return err
-				}
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err := update.NewRepository(tx).GetTenantsUpdate()
+			if err != nil {
+				return err
+			}
+			for _, versionManager := range update.RetrieveVersionManagers() {
 				// then
-				if attrName == "last_version_fabric8_tenant_che_file" {
-					assert.True(t, isVersionSame)
-				} else {
-					assert.False(t, isVersionSame)
+				if versionManager.IsVersionUpToDate(tenantsUpdate) {
+					assert.Len(t, versionManager.EnvTypes, 1)
+					assert.Equal(t, "che", string(versionManager.EnvTypes[0]))
 				}
 			}
 			return nil
@@ -223,22 +209,20 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 	s.T().Run("should say that all versions are same", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			return update.NewRepository(tx).UpdateVersionsTo(update.RetrieveAttrNameMapping())
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+			return updateVersionsTo(update.NewRepository(tx), "")
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			for attrName, versionWithTypes := range update.RetrieveAttrNameMapping() {
-				// when
-
-				isVersionSame, err := update.NewRepository(tx).IsVersionSame(attrName, versionWithTypes.Version)
-				if err != nil {
-					return err
-				}
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err := update.NewRepository(tx).GetTenantsUpdate()
+			if err != nil {
+				return err
+			}
+			for _, versionManager := range update.RetrieveVersionManagers() {
 				// then
-				assert.True(t, isVersionSame)
+				assert.True(t, versionManager.IsVersionUpToDate(tenantsUpdate))
 			}
 			return nil
 		})
@@ -252,23 +236,24 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 
 	s.T().Run("when an error is returned none of the operation in transaction should be committed", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			if err := update.NewRepository(tx).PrepareForUpdating(); err != nil {
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+			repo := update.NewRepository(tx)
+			if err := repo.PrepareForUpdating(); err != nil {
 				return err
 			}
-			if err := update.NewRepository(tx).UpdateStatus(update.Failed); err != nil {
+			if err := repo.UpdateStatus(update.Failed); err != nil {
 				return err
 			}
-			if err := update.NewRepository(tx).IncrementFailedCount(); err != nil {
+			if err := repo.IncrementFailedCount(); err != nil {
 				return err
 			}
-			return update.NewRepository(tx).UpdateVersionsTo(retrieveMappingWithVersion("000abc"))
+			return updateVersionsTo(repo, "000abc")
 		})
 		require.NoError(s.T(), err)
 		before := time.Now()
 
 		// when
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
 			if err := update.NewRepository(tx).PrepareForUpdating(); err != nil {
 				return err
 			}
@@ -281,7 +266,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			if err := update.NewRepository(tx).IncrementFailedCount(); err != nil {
 				return err
 			}
-			if err := update.NewRepository(tx).UpdateVersionsTo(update.RetrieveAttrNameMapping()); err != nil {
+			if err := updateVersionsTo(update.NewRepository(tx), ""); err != nil {
 				return err
 			}
 			return fmt.Errorf("any error")
@@ -289,34 +274,18 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 
 		// then
 		test.AssertError(t, err, test.HasMessage("any error"))
-		var updatedTime time.Time
-		var actualStatus update.Status
-		var failedCount int
-		err = update.Transaction(s.DB.DB(), func(tx *sql.Tx) error {
-			if actualStatus, err = update.NewRepository(tx).GetStatus(); err != nil {
-				return err
-			}
-			if updatedTime, err = update.NewRepository(tx).GetLastTimeUpdated(); err != nil {
-				return err
-			}
-			if failedCount, err = update.NewRepository(tx).GetFailedCount(); err != nil {
-				return err
-			}
-			for attrName, versionWithTypes := range update.RetrieveAttrNameMapping() {
-				// when
 
-				isVersionSame, err := update.NewRepository(tx).IsVersionSame(attrName, versionWithTypes.Version)
-				if err != nil {
-					return err
-				}
-				// then
-				assert.False(t, isVersionSame)
-			}
-			return nil
+		var tenantsUpdate *update.TenantsUpdate
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
+			return err
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, update.Failed, actualStatus)
-		assert.True(t, before.After(updatedTime))
-		assert.Equal(t, 1, failedCount)
+		assert.Equal(t, string(update.Failed), string(tenantsUpdate.Status))
+		assert.True(t, before.After(tenantsUpdate.LastTimeUpdated))
+		assert.Equal(t, 1, tenantsUpdate.FailedCount)
+		for _, versionManager := range update.RetrieveVersionManagers() {
+			assert.False(t, versionManager.IsVersionUpToDate(tenantsUpdate))
+		}
 	})
 }
