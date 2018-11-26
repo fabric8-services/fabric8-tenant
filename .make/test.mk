@@ -117,6 +117,11 @@ ALL_PKGS_EXCLUDE_PATTERN = 'vendor\|app\|tool\/cli\|design\|client\|test'
 GOANALYSIS_PKGS_EXCLUDE_PATTERN="vendor|app|client|tool/cli"
 GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS_EXCLUDE_PATTERN))
 
+MINISHIFT_USER_NAME ?= developer
+MINISHIFT_USER_TOKEN ?= $(shell oc login -u=$(MINISHIFT_USER_NAME) -p=developer > /dev/null && oc whoami -t)
+MINISHIFT_ADMIN_NAME ?= admin
+MINISHIFT_ADMIN_TOKEN ?= $(shell oc login -u=$(MINISHIFT_ADMIN_NAME) -p=admin > /dev/null && oc whoami -t)
+MINISHIFT_URL ?= https://$(shell minishift ip):8443
 #-------------------------------------------------------------------------------
 # Normal test targets
 #
@@ -148,7 +153,7 @@ endef
 
 .PHONY: test-all
 ## Runs test-unit and test-integration targets.
-test-all: prebuild-check test-unit test-integration test-remote
+test-all: prebuild-check test-unit test-integration test-remote test-with-minishift
 
 test-templates-flags:
 	$(info INFO: Test getting sha of the latest commit for all templates)
@@ -199,6 +204,16 @@ test-remote-no-coverage: prebuild-check $(SOURCES)
 ## in order to have a clean database
 test-migration: prebuild-check
 	F8_RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test ${PACKAGE_NAME}/migration -v
+
+.PHONY: test-with-minishift
+## Runs the tests which require availability of minishift as well as DB.
+test-with-minishift: prebuild-check migrate-database
+	$(call log-info,"Running test: $@")
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
+	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_DATABASE=1 F8_RESOURCE_UNIT_TEST=0 F8_POSTGRES_DATABASE=postgres \
+	F8_MINISHIFT=1 F8_MINISHIFT_USER_NAME=$(MINISHIFT_USER_NAME) F8_MINISHIFT_USER_TOKEN=$(MINISHIFT_USER_TOKEN) \
+	F8_MINISHIFT_ADMIN_NAME=$(MINISHIFT_ADMIN_NAME) F8_MINISHIFT_ADMIN_TOKEN=$(MINISHIFT_ADMIN_TOKEN) F8_MINISHIFT_URL=$(MINISHIFT_URL) \
+	go test -v -run ".*Minishift.*" $(TEST_PACKAGES)
 
 # Downloads docker-compose to tmp/docker-compose if it does not already exist.
 define download-docker-compose

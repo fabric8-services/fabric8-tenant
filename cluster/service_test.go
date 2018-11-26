@@ -20,9 +20,6 @@ func TestResolveCluster(t *testing.T) {
 	// given
 	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
-	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.fast", "http://fast.authservice", recorder.WithJWTMatcher)
-	defer cleanup()
-
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -30,7 +27,9 @@ func TestResolveCluster(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-	authService.SaToken = saToken.Raw
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.fast", "http://fast.authservice", saToken.Raw, recorder.WithJWTMatcher)
+	defer cleanup()
+
 	clusterService := cluster.NewClusterService(time.Hour, authService)
 	err = clusterService.Start()
 
@@ -82,8 +81,6 @@ func TestGetClusters(t *testing.T) {
 	// given
 	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
-	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.slow", "http://slow.authservice", recorder.WithJWTMatcher)
-	defer cleanup()
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -91,7 +88,8 @@ func TestGetClusters(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-	authService.SaToken = saToken.Raw
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/cluster/resolve_cluster.slow", "http://slow.authservice", saToken.Raw, recorder.WithJWTMatcher)
+	defer cleanup()
 
 	t.Run("ok", func(t *testing.T) {
 

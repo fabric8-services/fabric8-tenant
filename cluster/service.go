@@ -44,7 +44,7 @@ type Stats struct {
 }
 
 type clusterService struct {
-	authService      *auth.Service
+	authService      auth.Service
 	cacheRefresher   *time.Ticker
 	cacheRefreshLock *sync.RWMutex
 	cacheHits        int
@@ -54,7 +54,7 @@ type clusterService struct {
 }
 
 // NewClusterService creates an instance of service that using the Auth service retrieves information about clusters
-func NewClusterService(refreshInt time.Duration, authService *auth.Service) Service {
+func NewClusterService(refreshInt time.Duration, authService auth.Service) Service {
 	// setup a ticker to refresh the cluster cache at regular intervals
 	cacheRefresher := time.NewTicker(refreshInt)
 	service := &clusterService{
@@ -153,7 +153,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 			return errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
 		// verify the token
-		_, err = WhoAmI(ctx, cluster.APIURL, clusterToken, s.authService.ClientOptions...)
+		_, err = WhoAmI(ctx, cluster.APIURL, clusterToken, s.authService.GetClientOptions()...)
 		if err != nil {
 			return errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
 		}

@@ -112,6 +112,19 @@ $ make integration-test-env-tear-down
 $ make docker-rm
 ```
 
+==== Run Minishift integration tests
+
+Follow the instruction from <<Run integration tests>> to make sure you have DB running
+Start [Minishift](https://github.com/minishift/minishift) (if it is not running already):
+```
+$ minishift start
+```
+
+Run Minishift integration tests. Some of the tests may take a longer time to finish
+```
+$ make test-with-minishift
+```
+
 ==== Run all tests
 
 Expecting that the docker container is running as well as the DB (see <<Run integration tests>>) you can trigger all tests by a command:

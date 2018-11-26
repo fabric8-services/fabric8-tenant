@@ -22,24 +22,43 @@ import (
 	"net/http"
 )
 
-type Service struct {
-	Config        *configuration.Data
-	ClientOptions []configuration.HTTPClientOption
-	SaToken       string
+type Service interface {
+	GetUser(ctx context.Context) (*User, error)
+	GetAuthURL() string
+	NewSaClient() (*authclient.Client, error)
+	ResolveUserToken(ctx context.Context, target, userToken string) (user, accessToken string, err error)
+	ResolveSaToken(ctx context.Context, target string) (username, accessToken string, err error)
+	GetClientOptions() []configuration.HTTPClientOption
+	GetPublicKeys() ([]*rsa.PublicKey, error)
+}
+
+type authService struct {
+	config        *configuration.Data
+	clientOptions []configuration.HTTPClientOption
+	saToken       string
 }
 
 // NewAuthService retrieves SA OAuth token and creates a service instance that is the main point for communication with auth service
-func NewAuthService(config *configuration.Data, options ...configuration.HTTPClientOption) (*Service, error) {
-	service := &Service{
-		Config:        config,
-		ClientOptions: options,
+func NewAuthService(config *configuration.Data, options ...configuration.HTTPClientOption) (Service, error) {
+	service := &authService{
+		config:        config,
+		clientOptions: options,
 	}
 	saToken, err := service.getOAuthToken(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch service account token. The cause was: %s", err)
 	}
-	service.SaToken = *saToken
+	service.saToken = *saToken
 	return service, nil
+}
+
+// NewAuthService creates a service instance that is the main point for communication with auth service
+func NewAuthServiceWithToken(config *configuration.Data, saToken string, options ...configuration.HTTPClientOption) Service {
+	return &authService{
+		config:        config,
+		clientOptions: options,
+		saToken:       saToken,
+	}
 }
 
 // User contains user data retrieved from auth service and OS username and user token
@@ -50,9 +69,13 @@ type User struct {
 	OpenShiftUserToken string
 }
 
+func (s *authService) GetClientOptions() []configuration.HTTPClientOption {
+	return s.clientOptions
+}
+
 // GetUser retrieves user data from auth service related to JWT token stored in the given context.
 // It also retrieves OS username and user token for the user's cluster.
-func (s *Service) GetUser(ctx context.Context) (*User, error) {
+func (s *authService) GetUser(ctx context.Context) (*User, error) {
 	userToken := goajwt.ContextJWT(ctx)
 	if userToken == nil {
 		return nil, commonerrs.NewUnauthorizedError("Missing JWT token")
@@ -89,17 +112,17 @@ func (s *Service) GetUser(ctx context.Context) (*User, error) {
 }
 
 // GetAuthURL returns URL of auth service
-func (s *Service) GetAuthURL() string {
-	return s.Config.GetAuthURL()
+func (s *authService) GetAuthURL() string {
+	return s.config.GetAuthURL()
 }
 
 // NewSaClient creates an instance of auth client with SA token
-func (s *Service) NewSaClient() (*authclient.Client, error) {
-	return s.newClient(s.SaToken)
+func (s *authService) NewSaClient() (*authclient.Client, error) {
+	return s.newClient(s.saToken)
 }
 
-func (s *Service) newClient(token string) (*authclient.Client, error) {
-	client, err := newClient(s.Config.GetAuthURL(), token, s.ClientOptions...)
+func (s *authService) newClient(token string) (*authclient.Client, error) {
+	client, err := newClient(s.config.GetAuthURL(), token, s.clientOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +137,7 @@ func (s *Service) newClient(token string) (*authclient.Client, error) {
 	return client, nil
 }
 
-func (s *Service) getOAuthToken(ctx context.Context) (*string, error) {
+func (s *authService) getOAuthToken(ctx context.Context) (*string, error) {
 	client, err := s.newClient("") // no need to specify a token in this request
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while initializing the auth client")
@@ -122,12 +145,12 @@ func (s *Service) getOAuthToken(ctx context.Context) (*string, error) {
 
 	path := authclient.ExchangeTokenPath()
 	payload := &authclient.TokenExchange{
-		ClientID: s.Config.GetAuthClientID(),
+		ClientID: s.config.GetAuthClientID(),
 		ClientSecret: func() *string {
-			sec := s.Config.GetClientSecret()
+			sec := s.config.GetClientSecret()
 			return &sec
 		}(),
-		GrantType: s.Config.GetAuthGrantType(),
+		GrantType: s.config.GetAuthGrantType(),
 	}
 	contentType := "application/x-www-form-urlencoded"
 
@@ -142,33 +165,33 @@ func (s *Service) getOAuthToken(ctx context.Context) (*string, error) {
 
 	validationerror := ValidateResponse(ctx, client, res)
 	if validationerror != nil {
-		return nil, errors.Wrapf(validationerror, "error from server %q", s.Config.GetAuthURL())
+		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
 	}
 	token, err := client.DecodeOauthToken(res)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error from server %q", s.Config.GetAuthURL())
+		return nil, errors.Wrapf(err, "error from server %q", s.config.GetAuthURL())
 	}
 
 	if token.AccessToken == nil || *token.AccessToken == "" {
-		return nil, fmt.Errorf("received empty token from server %q", s.Config.GetAuthURL())
+		return nil, fmt.Errorf("received empty token from server %q", s.config.GetAuthURL())
 	}
 
 	return token.AccessToken, nil
 }
 
 // ResolveUserToken resolves the token for a human user (can be GitHub, OpenShift Online, etc.)
-func (s *Service) ResolveUserToken(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
+func (s *authService) ResolveUserToken(ctx context.Context, target, userToken string) (user, accessToken string, err error) {
 	return s.ResolveTargetToken(ctx, target, userToken, false, PlainText)
 }
 
 // ResolveSaToken resolves the token for a service account user on the given target environment (can be GitHub, OpenShift Online, etc.)
-func (s *Service) ResolveSaToken(ctx context.Context, target string) (username, accessToken string, err error) {
+func (s *authService) ResolveSaToken(ctx context.Context, target string) (username, accessToken string, err error) {
 	// can't use "forcePull=true" to validate the `tenant service account` token since it's encrypted on auth
-	return s.ResolveTargetToken(ctx, target, s.SaToken, false, NewGPGDecypter(s.Config.GetTokenKey()))
+	return s.ResolveTargetToken(ctx, target, s.saToken, false, NewGPGDecypter(s.config.GetTokenKey()))
 }
 
 // ResolveTargetToken resolves the token for a human user or a service account user on the given target environment (can be GitHub, OpenShift Online, etc.)
-func (s *Service) ResolveTargetToken(ctx context.Context, target, token string, forcePull bool, decode Decode) (username, accessToken string, err error) {
+func (s *authService) ResolveTargetToken(ctx context.Context, target, token string, forcePull bool, decode Decode) (username, accessToken string, err error) {
 	// auth can return empty token so validate against that
 	if token == "" {
 		return "", "", fmt.Errorf("token must not be empty")
@@ -202,14 +225,14 @@ func (s *Service) ResolveTargetToken(ctx context.Context, target, token string, 
 		return "", "", errors.Wrapf(err, "error while decoding the token for %s", target)
 	}
 	if len(externalToken.Username) == 0 {
-		return "", "", errors.Errorf("zero-length username from %s", s.Config.GetAuthURL())
+		return "", "", errors.Errorf("zero-length username from %s", s.config.GetAuthURL())
 	}
 
 	t, err := decode(externalToken.AccessToken)
 	return externalToken.Username, t, err
 }
 
-func (s *Service) GetAuthUserData(ctx context.Context, tenantToken TenantToken) (*authclient.UserDataAttributes, error) {
+func (s *authService) GetAuthUserData(ctx context.Context, tenantToken TenantToken) (*authclient.UserDataAttributes, error) {
 	client, err := s.NewSaClient()
 	if err != nil {
 		return nil, err
@@ -238,7 +261,7 @@ func (s *Service) GetAuthUserData(ctx context.Context, tenantToken TenantToken) 
 }
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service
-func (s *Service) GetPublicKeys() ([]*rsa.PublicKey, error) {
+func (s *authService) GetPublicKeys() ([]*rsa.PublicKey, error) {
 	client, err := s.newClient("") // no need for a token when calling this endpoint
 	if err != nil {
 		return nil, errs.Wrapf(err, "unable to retrieve public keys from %s", s.GetAuthURL())
