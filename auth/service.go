@@ -163,9 +163,9 @@ func (s *authService) getOAuthToken(ctx context.Context) (*string, error) {
 		res.Body.Close()
 	}()
 
-	validationerror := ValidateResponse(ctx, client, res)
-	if validationerror != nil {
-		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
+	err = ValidateResponse(ctx, client, res)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error from server %q", s.config.GetAuthURL())
 	}
 	token, err := client.DecodeOauthToken(res)
 	if err != nil {
