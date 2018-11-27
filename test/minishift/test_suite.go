@@ -3,6 +3,7 @@ package minishift
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -94,44 +95,47 @@ func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Objects, options openshift.ApplyOptions, version string) {
 	for ns, objects := range mappedObjects {
 		var wg sync.WaitGroup
+		errorChan := make(chan error, len(objects))
 		for _, obj := range objects {
 			wg.Add(1)
-			go func(toMarkAsDone *sync.WaitGroup, t *testing.T, obj environment.Object) {
-				iterations := 0
-				defer toMarkAsDone.Done()
-				for {
-					if openshift.IsOfKind(environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindNamespace)(obj) {
-						if environment.GetKind(obj) == environment.ValKindProjectRequest {
-							obj["kind"] = environment.ValKindNamespace
-						}
-						response, err := openshift.Apply(obj, "GET", options)
-						if err == nil && environment.HasValidStatus(response) {
-							break
-						} else if iterations >= 20 {
-							assert.NoError(t, err)
-							assert.True(t, environment.HasValidStatus(response),
-								"The status %s is not valid for namespace %s and object %s of kind %s",
-								environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj))
-							break
-						}
-					} else {
-						response, err := openshift.Apply(obj, "GET", options)
-
-						if err == nil && version == environment.GetLabelVersion(response) {
-							break
-						} else if iterations >= 20 {
-							assert.NoError(t, err)
-							assert.Equal(t, version, environment.GetLabelVersion(response),
-								"the version doesn't match for namespace %s and object %s of kind %s", ns, environment.GetName(obj), environment.GetKind(obj))
-							break
-						}
-					}
-					time.Sleep(500 * time.Millisecond)
-					iterations++
-				}
-			}(&wg, t, obj)
+			go func(wg *sync.WaitGroup, obj environment.Object) {
+				defer wg.Done()
+				errorChan <- test.WaitWithTimeout(10 * time.Second).Until(objectIsUpToDate(obj, ns, options, version))
+			}(&wg, obj)
 		}
 		wg.Wait()
+		close(errorChan)
+		for err := range errorChan {
+			assert.NoError(t, err)
+		}
+	}
+}
+
+func objectIsUpToDate(obj environment.Object, ns string, options openshift.ApplyOptions, version string) func() error {
+	return func() error {
+		shouldVerifyVersion := true
+
+		if openshift.IsOfKind(environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindNamespace)(obj) {
+			shouldVerifyVersion = false
+			if environment.GetKind(obj) == environment.ValKindProjectRequest {
+				obj["kind"] = environment.ValKindNamespace
+			}
+		}
+		response, err := openshift.Apply(obj, "GET", options)
+		if err != nil {
+			return err
+		}
+		if shouldVerifyVersion {
+			if version != environment.GetLabelVersion(response) {
+				return fmt.Errorf("the version doesn't match for namespace %s and object %s of kind %s",
+					ns, environment.GetName(obj), environment.GetKind(obj))
+			}
+		} else if !environment.HasValidStatus(response) {
+			return fmt.Errorf("the status %s is not valid for namespace %s and object %s of kind %s",
+				environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj))
+
+		}
+		return nil
 	}
 }
 

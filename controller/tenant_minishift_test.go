@@ -44,23 +44,17 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 	tnnt, err := repo.GetTenant(id)
 	assert.NoError(s.T(), err)
 
-	iteration := 0
-	for {
+	err = test.WaitWithTimeout(5 * time.Second).Until(func() error {
 		namespaces, err := repo.GetNamespaces(id)
 		if err != nil {
-			assert.NoError(s.T(), err)
-			break
+			return err
 		}
-		if len(namespaces) == 5 {
-			break
+		if len(namespaces) != 5 {
+			return fmt.Errorf("not all namespaces created. created only: %+v", namespaces)
 		}
-		if iteration == 10 {
-			assert.Fail(s.T(), fmt.Sprintf("not all namespaces created. created only: %+v", namespaces))
-			break
-		}
-		iteration++
-		time.Sleep(500 * time.Millisecond)
-	}
+		return nil
+	})
+	assert.NoError(s.T(), err)
 	mappedObjects, masterOpts := s.GetMappedTemplateObjects(tnnt.NsBaseName)
 	minishift.VerifyObjectsPresence(s.T(), mappedObjects, masterOpts, "1abcd")
 
