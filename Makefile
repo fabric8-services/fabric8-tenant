@@ -225,7 +225,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 .PHONY: migrate-database
 ## Compiles the server and runs the database migration with it
 migrate-database: $(BINARY_SERVER_BIN)
-	$(BINARY_SERVER_BIN) -migrateDatabase
+	 F8_POSTGRES_DATABASE=postgres $(BINARY_SERVER_BIN) -migrateDatabase
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.

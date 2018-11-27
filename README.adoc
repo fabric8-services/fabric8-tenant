@@ -91,25 +91,19 @@ You can do the same clean, generate and fetch the dependencies as it is suggeste
 $ make clean && make generate && make deps
 ```
 
-Integration tests need to have a DB running. To use that we need to use a docker image for the build. For now just start it and install all necessary binaries in it:
-```
-$ make docker-start && make docker-prebuild-check
-```
-
-And start the DB:
+Start the DB:
 ```
 $ make integration-test-env-prepare
 ```
 
-Run all integration tests inside of the docker container (without code coverage):
+Run all integration tests (without code coverage):
 ```
-$ make docker-test-migration && make docker-test-integration-no-coverage && make docker-test-remote-no-coverage
+$ make test-migration && make test-integration-no-coverage && make test-remote-no-coverage
 ```
 
-To stop containers:
+To stop DB:
 ```
 $ make integration-test-env-tear-down
-$ make docker-rm
 ```
 
 ==== Run Minishift integration tests
@@ -127,9 +121,9 @@ $ make test-with-minishift
 
 ==== Run all tests
 
-Expecting that the docker container is running as well as the DB (see <<Run integration tests>>) you can trigger all tests by a command:
+Expecting that the DB is running (see <<Run integration tests>>) you can trigger all tests by a command:
 ```
-make docker-test-all
+make test-all
 ```
 
 ==== Code formatting
