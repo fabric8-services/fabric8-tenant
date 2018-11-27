@@ -98,10 +98,10 @@ func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Ob
 		errorChan := make(chan error, len(objects))
 		for _, obj := range objects {
 			wg.Add(1)
-			go func(wg *sync.WaitGroup, obj environment.Object) {
+			go func(obj environment.Object) {
 				defer wg.Done()
 				errorChan <- test.WaitWithTimeout(10 * time.Second).Until(objectIsUpToDate(obj, ns, options, version))
-			}(&wg, obj)
+			}(obj)
 		}
 		wg.Wait()
 		close(errorChan)
