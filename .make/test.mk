@@ -117,6 +117,14 @@ ALL_PKGS_EXCLUDE_PATTERN = 'vendor\|app\|tool\/cli\|design\|client\|test'
 GOANALYSIS_PKGS_EXCLUDE_PATTERN="vendor|app|client|tool/cli"
 GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS_EXCLUDE_PATTERN))
 
+# Folder with contract tests
+CONTRACT_TESTS=$(CUR_DIR)/test/contracts
+
+# Configuration of contract tests
+PACT_VERSION ?= 1.0.0
+PACT_BROKER_URL ?= http://pact-broker-pact-broker.193b.starter-ca-central-1.openshiftapps.com
+PACT_PROVIDER_BASE_URL ?= https://auth.openshift.io
+
 #-------------------------------------------------------------------------------
 # Normal test targets
 #
@@ -159,6 +167,7 @@ test-templates-flags:
 test-unit: test-templates-flags prebuild-check clean-coverage-unit $(COV_PATH_UNIT)
 
 .PHONY: test-unit-no-coverage
+
 ## Runs the unit tests and WITHOUT producing coverage files for each package.
 test-unit-no-coverage: test-templates-flags prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
@@ -182,6 +191,45 @@ test-integration-no-coverage: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_DATABASE=1 F8_RESOURCE_UNIT_TEST=0 F8_POSTGRES_DATABASE=postgres go test -v $(TEST_PACKAGES)
+
+.PHONY: test-contract-auth-consumer
+## Runs the consumer side contract tests of the Auth service and produces pact files.
+test-contract-auth-consumers:
+	cd $(CONTRACT_TESTS)/auth && \
+	PACT_DIR=$(CONTRACT_TESTS)/pacts \
+	PACT_VERSION=$(PACT_VERSION) \
+	PACT_BROKER_URL=$(PACT_BROKER_URL) \
+	./consumer-contracts.sh
+
+.PHONY: test-contract-auth-publish
+## Publishes the generated files to a Pact broker.
+test-contract-auth-publish:
+	cd $(CONTRACT_TESTS)/auth && \
+	PACT_VERSION=$(PACT_VERSION) \
+	PACT_BROKER_URL=$(PACT_BROKER_URL) \
+	./publish-contracts.sh
+
+.PHONY: test-contract-auth-verify
+## Verifies the contracts against the living provider. The pact files are taken from pact directory.
+test-contract-auth-verify:
+	cd $(CONTRACT_TESTS)/auth && \
+	PACT_PROVIDER_BASE_URL=$(PACT_PROVIDER_BASE_URL) \
+	./verify-contracts.sh
+
+.PHONY: test-contract-auth-verify-broker
+## Verifies the contracts against the living provider. The pact files are taken from the Pact broker.
+test-contract-auth-verify-broker:
+	cd $(CONTRACT_TESTS)/auth && \
+	PACT_VERSION=$(PACT_VERSION) \
+	PACT_BROKER_URL=$(PACT_BROKER_URL) \
+	PACT_PROVIDER_BASE_URL=$(PACT_PROVIDER_BASE_URL) \
+	./verify-contracts-broker.sh
+
+.PHONY: clean-test-contract-auth
+## Runs the consumer side contract tests and produces pact files.
+clean-test-contract-auth:
+	cd $(CONTRACT_TESTS)/auth && \
+	rm -rvf pacts log logs
 
 .PHONY: test-remote
 ## Runs the remote tests and produces coverage files for each package.
