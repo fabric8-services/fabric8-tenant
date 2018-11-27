@@ -96,7 +96,7 @@ func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Ob
 		var wg sync.WaitGroup
 		for _, obj := range objects {
 			wg.Add(1)
-			go func(toMarkAsDone *sync.WaitGroup, t *testing.T) {
+			go func(toMarkAsDone *sync.WaitGroup, t *testing.T, obj environment.Object) {
 				iterations := 0
 				defer toMarkAsDone.Done()
 				for {
@@ -129,7 +129,7 @@ func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Ob
 					time.Sleep(500 * time.Millisecond)
 					iterations++
 				}
-			}(&wg, t)
+			}(&wg, t, obj)
 		}
 		wg.Wait()
 	}
