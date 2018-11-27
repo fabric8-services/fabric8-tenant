@@ -28,7 +28,6 @@ type Service interface {
 	NewSaClient() (*authclient.Client, error)
 	ResolveUserToken(ctx context.Context, target, userToken string) (user, accessToken string, err error)
 	ResolveSaToken(ctx context.Context, target string) (username, accessToken string, err error)
-	GetClientOptions() []configuration.HTTPClientOption
 	GetPublicKeys() ([]*rsa.PublicKey, error)
 }
 
@@ -67,10 +66,6 @@ type User struct {
 	UserData           *authclient.UserDataAttributes
 	OpenShiftUsername  string
 	OpenShiftUserToken string
-}
-
-func (s *authService) GetClientOptions() []configuration.HTTPClientOption {
-	return s.clientOptions
 }
 
 // GetUser retrieves user data from auth service related to JWT token stored in the given context.

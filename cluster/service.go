@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"strings"
@@ -45,6 +46,7 @@ type Stats struct {
 
 type clusterService struct {
 	authService      auth.Service
+	clientOptions    []configuration.HTTPClientOption
 	cacheRefresher   *time.Ticker
 	cacheRefreshLock *sync.RWMutex
 	cacheHits        int
@@ -54,11 +56,12 @@ type clusterService struct {
 }
 
 // NewClusterService creates an instance of service that using the Auth service retrieves information about clusters
-func NewClusterService(refreshInt time.Duration, authService auth.Service) Service {
+func NewClusterService(refreshInt time.Duration, authService auth.Service, options ...configuration.HTTPClientOption) Service {
 	// setup a ticker to refresh the cluster cache at regular intervals
 	cacheRefresher := time.NewTicker(refreshInt)
 	service := &clusterService{
 		authService:      authService,
+		clientOptions:    options,
 		cacheRefresher:   cacheRefresher,
 		cacheRefreshLock: &sync.RWMutex{},
 	}
@@ -153,7 +156,7 @@ func (s *clusterService) refreshCache(ctx context.Context) error {
 			return errors.Wrapf(err, "Unable to resolve token for cluster %v", cluster.APIURL)
 		}
 		// verify the token
-		_, err = WhoAmI(ctx, cluster.APIURL, clusterToken, s.authService.GetClientOptions()...)
+		_, err = WhoAmI(ctx, cluster.APIURL, clusterToken, s.clientOptions...)
 		if err != nil {
 			return errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
 		}

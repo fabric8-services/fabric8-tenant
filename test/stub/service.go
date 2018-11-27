@@ -7,7 +7,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/satori/go.uuid"
 )
 
@@ -73,9 +72,6 @@ func (s *AuthService) ResolveUserToken(ctx context.Context, target, userToken st
 
 func (s *AuthService) ResolveSaToken(ctx context.Context, target string) (username, accessToken string, err error) {
 	return "", "", nil
-}
-func (s *AuthService) GetClientOptions() []configuration.HTTPClientOption {
-	return nil
 }
 
 func (s *AuthService) GetPublicKeys() ([]*rsa.PublicKey, error) {

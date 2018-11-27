@@ -300,7 +300,7 @@ func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (
 		testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
 	defer cleanup()
 
-	clusterService := cluster.NewClusterService(time.Hour, authService)
+	clusterService := cluster.NewClusterService(time.Hour, authService, configuration.WithRoundTripper(r))
 	err = clusterService.Start()
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
