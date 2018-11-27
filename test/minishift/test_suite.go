@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -24,9 +25,9 @@ import (
 // TestSuite is a base for tests using Minishift and gorm db
 type TestSuite struct {
 	gormsupport.DBTestSuite
-	clusterService      *stub.ClusterService
-	authService         *stub.AuthService
-	config              *configuration.Data
+	ClusterService      *stub.ClusterService
+	AuthService         *stub.AuthService
+	Config              *configuration.Data
 	toReset             func()
 	minishiftUrl        string
 	minishiftAdminName  string
@@ -43,16 +44,16 @@ func (s *TestSuite) SetupTest() {
 	s.minishiftUserName = os.Getenv("F8_MINISHIFT_USER_NAME")
 	s.minishiftUserToken = os.Getenv("F8_MINISHIFT_USER_TOKEN")
 	s.DBTestSuite.SetupTest()
-	s.config, s.toReset = prepareConfig(s.T())
+	s.Config, s.toReset = prepareConfig(s.T())
 
-	log.InitializeLogger(s.config.IsLogJSON(), s.config.GetLogLevel())
+	log.InitializeLogger(s.Config.IsLogJSON(), s.Config.GetLogLevel())
 
-	s.clusterService = &stub.ClusterService{
+	s.ClusterService = &stub.ClusterService{
 		APIURL: s.minishiftUrl,
 		User:   s.minishiftAdminName,
 		Token:  s.minishiftAdminToken,
 	}
-	s.authService = &stub.AuthService{
+	s.AuthService = &stub.AuthService{
 		OpenShiftUsername:  s.minishiftUserName,
 		OpenShiftUserToken: s.minishiftUserToken,
 	}
@@ -64,16 +65,16 @@ func (s *TestSuite) TearDownTest() {
 }
 
 func (s *TestSuite) GetClusterService() cluster.Service {
-	return s.clusterService
+	return s.ClusterService
 }
 
 func (s *TestSuite) GetAuthService(tenantID uuid.UUID) auth.Service {
-	s.authService.TenantID = tenantID
-	return s.authService
+	s.AuthService.TenantID = tenantID
+	return s.AuthService
 }
 
 func (s *TestSuite) GetConfig() *configuration.Data {
-	return s.config
+	return s.Config
 }
 
 func prepareConfig(t *testing.T) (*configuration.Data, func()) {
@@ -92,45 +93,51 @@ func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 
 func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Objects, options openshift.ApplyOptions, version string) {
 	for ns, objects := range mappedObjects {
-		iterations := 0
+		var wg sync.WaitGroup
 		for _, obj := range objects {
-			for {
-				if openshift.IsOfKind(environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindNamespace)(obj) {
-					if environment.GetKind(obj) == environment.ValKindProjectRequest {
-						obj["kind"] = environment.ValKindNamespace
-					}
-					response, err := openshift.Apply(obj, "GET", options)
-					if err == nil && environment.HasValidStatus(response) {
-						break
-					} else if iterations >= 20 {
-						assert.NoError(t, err)
-						assert.True(t, environment.HasValidStatus(response),
-							"The status %s is not valid for namespace %s and object %s of kind %s",
-							environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj))
-						break
-					}
-				} else {
-					response, err := openshift.Apply(obj, "GET", options)
+			wg.Add(1)
+			go func(toMarkAsDone *sync.WaitGroup, t *testing.T) {
+				iterations := 0
+				defer toMarkAsDone.Done()
+				for {
+					if openshift.IsOfKind(environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindNamespace)(obj) {
+						if environment.GetKind(obj) == environment.ValKindProjectRequest {
+							obj["kind"] = environment.ValKindNamespace
+						}
+						response, err := openshift.Apply(obj, "GET", options)
+						if err == nil && environment.HasValidStatus(response) {
+							break
+						} else if iterations >= 20 {
+							assert.NoError(t, err)
+							assert.True(t, environment.HasValidStatus(response),
+								"The status %s is not valid for namespace %s and object %s of kind %s",
+								environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj))
+							break
+						}
+					} else {
+						response, err := openshift.Apply(obj, "GET", options)
 
-					if err == nil && version == environment.GetLabelVersion(response) {
-						break
-					} else if iterations >= 20 {
-						assert.NoError(t, err)
-						assert.Equal(t, version, environment.GetLabelVersion(response),
-							"the version doesn't match for namespace %s and object %s of kind %s", ns, environment.GetName(obj), environment.GetKind(obj))
-						break
+						if err == nil && version == environment.GetLabelVersion(response) {
+							break
+						} else if iterations >= 20 {
+							assert.NoError(t, err)
+							assert.Equal(t, version, environment.GetLabelVersion(response),
+								"the version doesn't match for namespace %s and object %s of kind %s", ns, environment.GetName(obj), environment.GetKind(obj))
+							break
+						}
 					}
+					time.Sleep(500 * time.Millisecond)
+					iterations++
 				}
-				time.Sleep(500 * time.Millisecond)
-				iterations++
-			}
+			}(&wg, t)
 		}
+		wg.Wait()
 	}
 }
 
 func (s *TestSuite) GetMappedTemplateObjects(nsBaseName string) (map[string]environment.Objects, openshift.ApplyOptions) {
 	config := openshift.Config{
-		OriginalConfig: s.config,
+		OriginalConfig: s.Config,
 		MasterURL:      s.minishiftUrl,
 		ConsoleURL:     s.minishiftUrl,
 		HTTPTransport: &http.Transport{
