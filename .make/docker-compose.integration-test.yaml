@@ -1,10 +1,10 @@
 version: '2.1'
 services:
   postgres_integration_test:
-    image: centos/postgresql-95-centos7
+    image: registry.centos.org/postgresql/postgresql:9.6
     network_mode: "bridge"
     ports:
-      - "5432"
+    - "5432:5432"
     environment:
       POSTGRESQL_ADMIN_PASSWORD: mysecretpassword
     healthcheck:
