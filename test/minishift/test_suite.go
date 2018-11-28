@@ -38,7 +38,9 @@ func (s *TestSuite) SetupTest() {
 
 	config, err := NewData()
 	require.NoError(s.T(), err)
-	require.NotEmpty(s.T(), config.GetMinishiftURL(), "Minishift URL has to be set")
+	if config.GetMinishiftURL() == "" {
+		s.T().Skipf("Minishift URL using a variable [%s] has to be set", varMinishiftURL)
+	}
 
 	s.minishiftConfig = config
 
