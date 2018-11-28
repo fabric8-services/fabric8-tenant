@@ -16,8 +16,8 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/stub"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -26,37 +26,35 @@ import (
 // TestSuite is a base for tests using Minishift and gorm db
 type TestSuite struct {
 	gormsupport.DBTestSuite
-	ClusterService      *stub.ClusterService
-	AuthService         *stub.AuthService
-	Config              *configuration.Data
-	toReset             func()
-	minishiftUrl        string
-	minishiftAdminName  string
-	minishiftAdminToken string
-	minishiftUserName   string
-	minishiftUserToken  string
+	ClusterService  *stub.ClusterService
+	AuthService     *stub.AuthService
+	Config          *configuration.Data
+	toReset         func()
+	minishiftConfig *Data
 }
 
 func (s *TestSuite) SetupTest() {
-	resource.Require(s.T(), resource.Database, "F8_MINISHIFT")
-	s.minishiftUrl = os.Getenv("F8_MINISHIFT_URL")
-	s.minishiftAdminName = os.Getenv("F8_MINISHIFT_ADMIN_NAME")
-	s.minishiftAdminToken = os.Getenv("F8_MINISHIFT_ADMIN_TOKEN")
-	s.minishiftUserName = os.Getenv("F8_MINISHIFT_USER_NAME")
-	s.minishiftUserToken = os.Getenv("F8_MINISHIFT_USER_TOKEN")
+	resource.Require(s.T(), resource.Database)
+
+	config, err := NewData()
+	require.NoError(s.T(), err)
+	require.NotEmpty(s.T(), config.GetMinishiftURL(), "Minishift URL has to be set")
+
+	s.minishiftConfig = config
+
 	s.DBTestSuite.SetupTest()
 	s.Config, s.toReset = prepareConfig(s.T())
 
 	log.InitializeLogger(s.Config.IsLogJSON(), s.Config.GetLogLevel())
 
 	s.ClusterService = &stub.ClusterService{
-		APIURL: s.minishiftUrl,
-		User:   s.minishiftAdminName,
-		Token:  s.minishiftAdminToken,
+		APIURL: s.minishiftConfig.GetMinishiftURL(),
+		User:   s.minishiftConfig.GetMinishiftAdminName(),
+		Token:  s.minishiftConfig.GetMinishiftAdminToken(),
 	}
 	s.AuthService = &stub.AuthService{
-		OpenShiftUsername:  s.minishiftUserName,
-		OpenShiftUserToken: s.minishiftUserToken,
+		OpenShiftUsername:  s.minishiftConfig.GetMinishiftUserName(),
+		OpenShiftUserToken: s.minishiftConfig.GetMinishiftUserToken(),
 	}
 }
 
@@ -111,7 +109,7 @@ func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Ob
 			wg.Add(1)
 			go func(obj environment.Object, ns string) {
 				defer wg.Done()
-				errorChan <- test.WaitWithTimeout(10 * time.Second).Until(objectIsUpToDate(obj, ns, options, version))
+				errorChan <- test.WaitWithTimeout(1 * time.Minute).Until(objectIsUpToDate(obj, ns, options, version))
 			}(obj, ns)
 		}
 	}
@@ -134,12 +132,12 @@ func objectIsUpToDate(obj environment.Object, ns string, options openshift.Apply
 		}
 		if shouldVerifyVersion {
 			if version != environment.GetLabelVersion(response) {
-				return fmt.Errorf("the actual version [%s] doesn't match the expected one [%s] for namespace %s and object %s of kind %s",
-					environment.GetLabelVersion(response), version, ns, environment.GetName(obj), environment.GetKind(obj))
+				return fmt.Errorf("the actual version [%s] doesn't match the expected one [%s] for namespace %s and object %s of kind %s. The respense was:\n %s",
+					environment.GetLabelVersion(response), version, ns, environment.GetName(obj), environment.GetKind(obj), response)
 			}
 		} else if !environment.HasValidStatus(response) {
-			return fmt.Errorf("the status %s is not valid for namespace %s and object %s of kind %s",
-				environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj))
+			return fmt.Errorf("the status %s is not valid for namespace %s and object %s of kind %s. The respense was:\n %s",
+				environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj), response)
 
 		}
 		return nil
@@ -149,18 +147,18 @@ func objectIsUpToDate(obj environment.Object, ns string, options openshift.Apply
 func (s *TestSuite) GetMappedTemplateObjects(nsBaseName string) (map[string]environment.Objects, openshift.ApplyOptions) {
 	config := openshift.Config{
 		OriginalConfig: s.Config,
-		MasterURL:      s.minishiftUrl,
-		ConsoleURL:     s.minishiftUrl,
+		MasterURL:      s.minishiftConfig.GetMinishiftURL(),
+		ConsoleURL:     s.minishiftConfig.GetMinishiftURL(),
 		HTTPTransport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
 		},
-		MasterUser: s.minishiftAdminName,
-		Token:      s.minishiftAdminToken,
+		MasterUser: s.minishiftConfig.GetMinishiftAdminName(),
+		Token:      s.minishiftConfig.GetMinishiftAdminToken(),
 	}
 
-	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, s.minishiftUserName, nsBaseName)
+	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, s.minishiftConfig.GetMinishiftUserName(), nsBaseName)
 	assert.NoError(s.T(), err)
 	mapped, err := openshift.MapByNamespaceAndSort(templs)
 	assert.NoError(s.T(), err)

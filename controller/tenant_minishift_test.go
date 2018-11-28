@@ -44,7 +44,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 	tnnt, err := repo.GetTenant(id)
 	assert.NoError(s.T(), err)
 
-	err = test.WaitWithTimeout(5 * time.Second).Until(func() error {
+	err = test.WaitWithTimeout(30 * time.Second).Until(func() error {
 		namespaces, err := repo.GetNamespaces(id)
 		if err != nil {
 			return err
