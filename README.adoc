@@ -109,9 +109,14 @@ $ make integration-test-env-tear-down
 ==== Run Minishift integration tests
 
 Follow the instruction from <<Run integration tests>> to make sure you have DB running
-Start [Minishift](https://github.com/minishift/minishift) (if it is not running already):
+Start https://github.com/minishift/minishift[Minishift] (if it is not running already):
 ```
 $ minishift start
+```
+
+https://docs.okd.io/latest/minishift/using/addons.html#installing-addons[Install] and https://docs.okd.io/latest/minishift/using/addons.html#apply-addons[apply] the https://docs.okd.io/latest/minishift/using/addons.html#default-addons[admin-user] Minishift addon
+```
+$ minishift addons apply admin-user
 ```
 
 Run Minishift integration tests. Some of the tests may take a longer time to finish
