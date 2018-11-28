@@ -1,8 +1,8 @@
 package test
 
 import (
-	"time"
 	"context"
+	"time"
 )
 
 type Awaitility struct {
