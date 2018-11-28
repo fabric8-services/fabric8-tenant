@@ -117,7 +117,7 @@ ALL_PKGS_EXCLUDE_PATTERN = 'vendor\|app\|tool\/cli\|design\|client\|test'
 GOANALYSIS_PKGS_EXCLUDE_PATTERN="vendor|app|client|tool/cli"
 GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS_EXCLUDE_PATTERN))
 
-MINISHIFT_USER_NAME ?= developer$(shell date +'%y.%m.%d.%S')
+MINISHIFT_USER_NAME ?= developer$(shell date +'%H.%M.%S')
 MINISHIFT_USER_TOKEN ?= $(shell oc login -u=$(MINISHIFT_USER_NAME) -p=developer > /dev/null && oc whoami -t)
 MINISHIFT_ADMIN_NAME ?= admin
 MINISHIFT_ADMIN_TOKEN ?= $(shell oc login -u=$(MINISHIFT_ADMIN_NAME) -p=admin > /dev/null && oc whoami -t)
