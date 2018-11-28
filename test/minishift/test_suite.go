@@ -134,11 +134,11 @@ func objectIsUpToDate(obj environment.Object, ns string, options openshift.Apply
 		}
 		if shouldVerifyVersion {
 			if version != environment.GetLabelVersion(response) {
-				return fmt.Errorf("the actual version [%s] doesn't match the expected one [%s] for namespace %s and object %s of kind %s. The respense was:\n %s",
+				return fmt.Errorf("the actual version [%s] doesn't match the expected one [%s] for namespace %s and object %s of kind %s. The response was:\n %s",
 					environment.GetLabelVersion(response), version, ns, environment.GetName(obj), environment.GetKind(obj), response)
 			}
 		} else if !environment.HasValidStatus(response) {
-			return fmt.Errorf("the status %s is not valid for namespace %s and object %s of kind %s. The respense was:\n %s",
+			return fmt.Errorf("the status %s is not valid for namespace %s and object %s of kind %s. The response was:\n %s",
 				environment.GetStatus(response), ns, environment.GetName(obj), environment.GetKind(obj), response)
 
 		}
