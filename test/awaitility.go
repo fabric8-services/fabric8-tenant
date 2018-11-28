@@ -2,6 +2,7 @@ package test
 
 import (
 	"time"
+	"context"
 )
 
 type Awaitility struct {
@@ -14,12 +15,17 @@ func WaitWithTimeout(timeout time.Duration) Awaitility {
 }
 
 func (a Awaitility) Until(do func() error) error {
-	err := do()
-	if err == nil {
-		return nil
-	} else if a.before.Before(time.Now().Add(-a.timeout)) {
-		return err
+	ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
+	defer cancel()
+	var err error
+	for {
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(500 * time.Millisecond):
+			if err = do(); err == nil {
+				return nil
+			}
+		}
 	}
-	time.Sleep(500 * time.Millisecond)
-	return a.Until(do)
 }
