@@ -117,7 +117,7 @@ func main() {
 	tenantService := tenant.NewDBService(db)
 
 	// Check & do all tenants update
-	go update.NewTenantsUpdater(db, config, authService, clusterService, controller.OSUpdater{}).UpdateAllTenants()
+	go update.NewTenantsUpdater(db, config, clusterService, controller.OSUpdater{}).UpdateAllTenants()
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)

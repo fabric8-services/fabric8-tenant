@@ -1,7 +1,6 @@
 package update
 
 import (
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -16,11 +15,10 @@ import (
 
 type followUpFunc func() error
 
-func NewTenantsUpdater(db *gorm.DB, config *configuration.Data, authService *auth.Service, clusterService cluster.Service, updateExecutor controller.UpdateExecutor) *TenantsUpdater {
+func NewTenantsUpdater(db *gorm.DB, config *configuration.Data, clusterService cluster.Service, updateExecutor controller.UpdateExecutor) *TenantsUpdater {
 	return &TenantsUpdater{
 		db:             db,
 		config:         config,
-		authService:    authService,
 		clusterService: clusterService,
 		updateExecutor: updateExecutor,
 	}
@@ -29,7 +27,6 @@ func NewTenantsUpdater(db *gorm.DB, config *configuration.Data, authService *aut
 type TenantsUpdater struct {
 	db             *gorm.DB
 	config         *configuration.Data
-	authService    *auth.Service
 	clusterService cluster.Service
 	updateExecutor controller.UpdateExecutor
 }

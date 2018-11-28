@@ -180,11 +180,11 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 
 func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 	//given
-	waitToContinueGoroutine, waitToFinish, updateExecs := s.prepareForParallelTest(10, 3*time.Second, 10*time.Millisecond)
+	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(10, 3*time.Second, 10*time.Millisecond)
 
 	// when
-	waitToContinueGoroutine.Done()
-	waitToFinish.Wait()
+	goroutinesCanContinue.Done()
+	goroutinesFinished.Wait()
 
 	// then
 	executorFound := false
@@ -200,11 +200,11 @@ func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 
 func (s *TenantsUpdaterTestSuite) TestTwoExecutorsDoUpdateBecauseOfLowerWaitTimeout() {
 	//given
-	waitToContinueGoroutine, waitToFinish, updateExecs := s.prepareForParallelTest(2, time.Millisecond, 10*time.Millisecond)
+	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(2, time.Millisecond, 10*time.Millisecond)
 
 	// when
-	waitToContinueGoroutine.Done()
-	waitToFinish.Wait()
+	goroutinesCanContinue.Done()
+	goroutinesFinished.Wait()
 
 	// then
 	assert.NotZero(s.T(), *updateExecs[0].numberOfCalls)
@@ -212,9 +212,9 @@ func (s *TenantsUpdaterTestSuite) TestTwoExecutorsDoUpdateBecauseOfLowerWaitTime
 }
 
 func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, timeToSleep time.Duration) (*sync.WaitGroup, *sync.WaitGroup, []*DummyUpdateExecutor) {
-	var waitToContinueGoroutine sync.WaitGroup
-	waitToContinueGoroutine.Add(1)
-	var waitToFinish sync.WaitGroup
+	var goroutinesCanContinue sync.WaitGroup
+	goroutinesCanContinue.Add(1)
+	var goroutinesFinished sync.WaitGroup
 
 	defer gock.Off()
 	createMocks()
@@ -236,22 +236,22 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, 
 	}()
 
 	for i := 0; i < count; i++ {
-		waitToFinish.Add(1)
+		goroutinesFinished.Add(1)
 		updateExecutor := &DummyUpdateExecutor{timeToSleep: timeToSleep, numberOfCalls: Uint64(0)}
 		updateExecs = append(updateExecs, updateExecutor)
 
 		tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, timeToWait)
 		toReset = append(toReset, reset)
 
-		go func(toWait *sync.WaitGroup, toMakeDone *sync.WaitGroup, updater *update.TenantsUpdater) {
-			defer toMakeDone.Done()
+		go func(updater *update.TenantsUpdater) {
+			defer goroutinesFinished.Done()
 
-			toWait.Wait()
+			goroutinesCanContinue.Wait()
 			updater.UpdateAllTenants()
 
-		}(&waitToContinueGoroutine, &waitToFinish, tenantsUpdater)
+		}(tenantsUpdater)
 	}
-	return &waitToContinueGoroutine, &waitToFinish, updateExecs
+	return &goroutinesCanContinue, &goroutinesFinished, updateExecs
 }
 
 func updateVersionsTo(repo update.Repository, version string) error {
@@ -312,7 +312,7 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.Up
 
 	require.NoError(s.T(), err)
 	config, reset := test.LoadTestConfig(s.T())
-	return update.NewTenantsUpdater(s.DB, config, authService, clusterService, updateExecutor), func() {
+	return update.NewTenantsUpdater(s.DB, config, clusterService, updateExecutor), func() {
 		cleanup()
 		reset()
 		clusterService.Stop()
