@@ -93,22 +93,29 @@ func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 }
 
 func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Objects, options openshift.ApplyOptions, version string) {
-	for ns, objects := range mappedObjects {
-		var wg sync.WaitGroup
-		errorChan := make(chan error, len(objects))
-		for _, obj := range objects {
-			wg.Add(1)
-			go func(obj environment.Object) {
-				defer wg.Done()
-				errorChan <- test.WaitWithTimeout(10 * time.Second).Until(objectIsUpToDate(obj, ns, options, version))
-			}(obj)
-		}
-		wg.Wait()
+	size := 0
+	for _, objects := range mappedObjects {
+		size += len(objects)
+	}
+	errorChan := make(chan error, size)
+	defer func() {
 		close(errorChan)
 		for err := range errorChan {
 			assert.NoError(t, err)
 		}
+	}()
+
+	var wg sync.WaitGroup
+	for ns, objects := range mappedObjects {
+		for _, obj := range objects {
+			wg.Add(1)
+			go func(obj environment.Object, ns string) {
+				defer wg.Done()
+				errorChan <- test.WaitWithTimeout(10 * time.Second).Until(objectIsUpToDate(obj, ns, options, version))
+			}(obj, ns)
+		}
 	}
+	wg.Wait()
 }
 
 func objectIsUpToDate(obj environment.Object, ns string, options openshift.ApplyOptions, version string) func() error {
@@ -127,8 +134,8 @@ func objectIsUpToDate(obj environment.Object, ns string, options openshift.Apply
 		}
 		if shouldVerifyVersion {
 			if version != environment.GetLabelVersion(response) {
-				return fmt.Errorf("the version doesn't match for namespace %s and object %s of kind %s",
-					ns, environment.GetName(obj), environment.GetKind(obj))
+				return fmt.Errorf("the actual version [%s] doesn't match the expected one [%s] for namespace %s and object %s of kind %s",
+					environment.GetLabelVersion(response), version, ns, environment.GetName(obj), environment.GetKind(obj))
 			}
 		} else if !environment.HasValidStatus(response) {
 			return fmt.Errorf("the status %s is not valid for namespace %s and object %s of kind %s",
