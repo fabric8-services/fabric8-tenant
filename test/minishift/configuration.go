@@ -54,7 +54,7 @@ func (c *Data) String() string {
 func (c *Data) setConfigDefaults() {
 	c.v.SetTypeByDefaultValue(true)
 	c.v.SetDefault(varMinishiftAdminName, "admin")
-	c.v.SetDefault(varMinishiftUserName, "developer")
+	c.v.SetDefault(varMinishiftUserName, "tenant-minishift-test")
 }
 
 // GetMinishiftURL returns the Minishift URL

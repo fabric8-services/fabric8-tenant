@@ -117,7 +117,7 @@ ALL_PKGS_EXCLUDE_PATTERN = 'vendor\|app\|tool\/cli\|design\|client\|test'
 GOANALYSIS_PKGS_EXCLUDE_PATTERN="vendor|app|client|tool/cli"
 GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS_EXCLUDE_PATTERN))
 
-MINISHIFT_USER_NAME ?= developer$(shell date +'%H.%M.%S')
+MINISHIFT_USER_NAME ?= tenant.minishift.test.$(shell date +'%H.%M.%S')
 MINISHIFT_USER_TOKEN ?= $(shell oc login -u=$(MINISHIFT_USER_NAME) -p=developer > /dev/null && oc whoami -t)
 MINISHIFT_ADMIN_NAME ?= admin
 MINISHIFT_ADMIN_TOKEN ?= $(shell oc login -u=$(MINISHIFT_ADMIN_NAME) -p=admin > /dev/null && oc whoami -t)
@@ -214,6 +214,21 @@ test-with-minishift: prebuild-check migrate-database
 	F8_MINISHIFT_USER_NAME=$(MINISHIFT_USER_NAME) F8_MINISHIFT_USER_TOKEN=$(MINISHIFT_USER_TOKEN) F8_MINISHIFT_URL=$(MINISHIFT_URL) \
 	F8_MINISHIFT_ADMIN_NAME=$(MINISHIFT_ADMIN_NAME) F8_MINISHIFT_ADMIN_TOKEN=$(MINISHIFT_ADMIN_TOKEN) \
 	go test -v -run ".*Minishift.*" $(TEST_PACKAGES)
+
+.PHONY: clean-minishift-namespaces
+## Deletes namespaces starting with tenant-minishift-test-* from Minishift
+clean-minishift-namespaces:
+	@echo "Cleaning minishift namespaces"
+	@echo $(shell oc get projects --output=name --token=$(MINISHIFT_ADMIN_TOKEN) | grep "tenant-minishift-test-*" | xargs oc delete --token=$(MINISHIFT_ADMIN_TOKEN))
+
+.PHONY: clean-minishift-users
+## Deletes users starting with tenant.minishift.test.* from Minishift
+clean-minishift-users:
+	@echo "Cleaning minishift users"
+	@echo $(shell oc get users --output=name --token=$(MINISHIFT_ADMIN_TOKEN) | grep "tenant.minishift.test.*"	| xargs oc delete --token=$(MINISHIFT_ADMIN_TOKEN))
+
+.PHONY: clean-minishift
+clean-minishift: clean-minishift-users clean-minishift-namespaces
 
 # Downloads docker-compose to tmp/docker-compose if it does not already exist.
 define download-docker-compose
