@@ -296,7 +296,6 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.Up
 	reset := test.SetEnvironments(
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
 		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()))
-	authService, _, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), "", "http://authservice")
 
 	saToken, err := test.NewToken(
 		map[string]interface{}{
@@ -305,7 +304,7 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.Up
 		"../test/private_key.pem",
 	)
 	require.NoError(s.T(), err)
-	authService.SaToken = saToken.Raw
+	authService, _, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), "", "http://authservice", saToken.Raw)
 
 	clusterService := cluster.NewClusterService(time.Hour, authService)
 	err = clusterService.Start()

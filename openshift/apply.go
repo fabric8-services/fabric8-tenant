@@ -165,7 +165,7 @@ func ApplyProcessed(objects env.Objects, opts ApplyOptions) error {
 
 func applyAll(objects env.Objects, opts ApplyOptions) error {
 	for _, obj := range objects {
-		_, err := apply(obj, "POST", opts)
+		_, err := Apply(obj, "POST", opts)
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ func applyAll(objects env.Objects, opts ApplyOptions) error {
 	return nil
 }
 
-func apply(object env.Object, action string, opts ApplyOptions) (env.Object, error) {
+func Apply(object env.Object, action string, opts ApplyOptions) (env.Object, error) {
 	body, err := yaml.Marshal(object)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func apply(object env.Object, action string, opts ApplyOptions) (env.Object, err
 
 	url, err := CreateURL(opts.MasterURL, action, object)
 	if url == "" {
-		return nil, nil
+		return nil, err
 	}
 
 	if err != nil {
@@ -231,7 +231,7 @@ func apply(object env.Object, action string, opts ApplyOptions) (env.Object, err
 	if opts.Callback != nil {
 		act, newObject := opts.Callback(resp.StatusCode, action, object, respType)
 		if act != "" {
-			return apply(newObject, act, opts)
+			return Apply(newObject, act, opts)
 		}
 
 	}

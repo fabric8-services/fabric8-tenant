@@ -11,12 +11,12 @@ import (
 	"testing"
 )
 
-func NewAuthService(t *testing.T, cassetteFile, authURL string, options ...recorder.Option) (*auth.Service, func()) {
-	authService, _, cleanup := NewAuthServiceWithRecorder(t, cassetteFile, authURL, options...)
+func NewAuthService(t *testing.T, cassetteFile, authURL, saToken string, options ...recorder.Option) (auth.Service, func()) {
+	authService, _, cleanup := NewAuthServiceWithRecorder(t, cassetteFile, authURL, saToken, options...)
 	return authService, cleanup
 }
 
-func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL string, options ...recorder.Option) (*auth.Service, *vcrrecorder.Recorder, func()) {
+func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL, saToken string, options ...recorder.Option) (auth.Service, *vcrrecorder.Recorder, func()) {
 	var clientOptions []configuration.HTTPClientOption
 	var r *vcrrecorder.Recorder
 	var err error
@@ -29,10 +29,8 @@ func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL string, opti
 	config, err := configuration.GetData()
 	require.NoError(t, err)
 
-	authService := &auth.Service{
-		Config:        config,
-		ClientOptions: clientOptions,
-	}
+	authService := auth.NewAuthServiceWithToken(config, saToken, clientOptions...)
+
 	return authService, r, func() {
 		if r != nil {
 			err := r.Stop()
@@ -50,6 +48,16 @@ func SetTemplateVersions() {
 	environment.VersionFabric8TenantDeployFile = "456def"
 	environment.VersionFabric8TenantJenkinsFile = "567efg"
 	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
+}
+
+func SetTemplateSameVersion(version string) {
+	environment.VersionFabric8TenantCheFile = version
+	environment.VersionFabric8TenantCheMtFile = version
+	environment.VersionFabric8TenantCheQuotasFile = version
+	environment.VersionFabric8TenantUserFile = version
+	environment.VersionFabric8TenantDeployFile = version
+	environment.VersionFabric8TenantJenkinsFile = version
+	environment.VersionFabric8TenantJenkinsQuotasFile = version
 }
 
 func GetMappedVersions(envTypes ...string) map[string]string {

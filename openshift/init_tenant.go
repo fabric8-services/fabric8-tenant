@@ -55,7 +55,7 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 						"namespace": namespace,
 					}, err, "error init user project, Other")
 				}
-				_, err = apply(
+				_, err = Apply(
 					CreateAdminRoleBinding(namespace),
 					"DELETE",
 					opts.WithCallback(

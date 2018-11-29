@@ -49,7 +49,7 @@ interactions:
     }'
 - request:
     method: GET
-    url: http://authservice/api/token?for=some_valid_openshift_resource&force_pull=false
+    url: http://authservice/api/token?for=some_valid_openshift_resource_for_service&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
   response:
@@ -123,6 +123,6 @@ interactions:
     status: 200 OK
     code: 200
     body: '{
-               "access_token": "jA0ECQMC5AvXo6Jyrj5g0kcBv6Qp8ZTWCgYD6TESuc2OxSDZ1lic1tmV6g4IcQUBlohjT3gyQX2oTa1bWfNkk8xY6wyPq8CUK3ReOnnDK/yo661f6LXgvA==",
+               "access_token": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZW5hbnRfc2VydmljZSJ9.A0RwMutAqJkSgyZS5LIDD8z8uRXvW-PdeRou3bUmgn0d8DU2u1fymARWvfJZ2s5L0yym4x9QUeaQuFGue4XvATF_NAakETHJFPWMoAKj22jJQ4r6fkDy8tseyH5WQ7NkTrngVjlQCVBewb7kFWHD_r74vbV8YxRsFKcvbwyemEJ-s3KRtAT2Tgj6CXnNhytp1r7vxUfa0C9amCpLkbBeUs11C8UhDKIp8HvF1Mh4j5bTxdmnOFCUmYbMlvpNSFrIPfSmhW2vxh6kEXkBVkoR2CUp5ikRNZSUXK6yIguXY1UUWY-oGk64KIjBJGTOzOAO2v_M0yfe_FcVDPiaMEA",
                "token_type": "bearer"
            }'

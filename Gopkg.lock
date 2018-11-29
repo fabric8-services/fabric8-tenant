@@ -3,7 +3,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:af17442e784b704f8313e3b936b5c888849db1e036e46cfaa33c2654b083671d"
+  digest = "1:c29f180229267d71afd645ed8afb7cadda1a559a82333cad0ee0b47f02017d14"
   name = "github.com/Unleash/unleash-client-go"
   packages = [
     ".",
@@ -13,7 +13,7 @@
     "strategy",
   ]
   pruneopts = "UT"
-  revision = "7073bbf1744953bc5169f03853f64cfe6e79f59b"
+  revision = "ae068e0ad68ca358d891f3f93998636f70ef01bc"
 
 [[projects]]
   digest = "1:2aff5edb9bccd2974090fddb17ca7ab05a3f5c983db567c30c7f0b53404f5783"
@@ -94,37 +94,44 @@
   source = "https://github.com/xcoulon/go-vcr/"
 
 [[projects]]
-  digest = "1:71bde7ff755e0f2cdc372c89fccefc8a212242111df01e61fadd4d1521a7c920"
+  digest = "1:258f52523a7a6ba109904e0d09865b7f10fa07c9a19c70dd93d109085a6f88e1"
   name = "github.com/fabric8-services/fabric8-auth"
   packages = [
     "design",
     "errors",
-    "log",
-    "rest",
-    "token/jwk",
   ]
   pruneopts = "UT"
   revision = "19eb16aaf10758299c4a5360600af983b8470909"
 
 [[projects]]
   branch = "master"
-  digest = "1:9d44048273ce4560f36e69544e3a035189af84597d3a08402d12f57700a1f995"
-  name = "github.com/fabric8-services/fabric8-common"
-  packages = [
-    "configuration",
-    "errors",
-    "httpsupport",
-    "log",
-    "login/tokencontext",
-    "sentry",
-    "token",
-  ]
+  digest = "1:67c8b413e64e3ae84fa491b73839b3928bda168777382c7adee86665e20547e0"
+  name = "github.com/fabric8-services/fabric8-auth-client"
+  packages = ["auth"]
   pruneopts = "UT"
-  revision = "48ce8f91a726c3d628ef372cf543a33325bf6294"
+  revision = "0eb93fc6cee1e202cb0f3ade92e99a2423b49283"
 
 [[projects]]
   branch = "master"
-  digest = "1:546d79a41abc78bdefca3b525775454a17daaf2f66ff303c0bb218179d29411d"
+  digest = "1:a157aa8628f7d72185545a96d05f050670d79d2ce9e8e85bcb5c5c15823c8356"
+  name = "github.com/fabric8-services/fabric8-common"
+  packages = [
+    "auth",
+    "auth/jwk",
+    "configuration",
+    "convert/ptr",
+    "errors",
+    "goasupport",
+    "httpsupport",
+    "log",
+    "sentry",
+  ]
+  pruneopts = "UT"
+  revision = "b10e057d860d730661b2440dc1326c7d82606acc"
+
+[[projects]]
+  branch = "master"
+  digest = "1:0757f5bb26b6223e69d4a361330b26726aadd42470ec898c8236ab27af7db726"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = [
     "configuration",
@@ -135,7 +142,7 @@
     "rest",
   ]
   pruneopts = "UT"
-  revision = "59561d074d5bc6574994b4821db0bff0278fa010"
+  revision = "35506932bba65be9e1c03f60e4308e1d0cf72af6"
 
 [[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
@@ -146,11 +153,11 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:608d0fe1621755354728fbaeef8ada8b4a33001aec88b66c970e641be950d850"
+  digest = "1:64ef2c2f0f508690f06c1b009e1e3103441ce60c2db0323ff94d8d1c560ec10b"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
   pruneopts = "UT"
-  revision = "master"
+  revision = "084a9de9eb0361fbd5ded14b55c84e5493a5d7f6"
 
 [[projects]]
   digest = "1:5d894fc1aab279156862831645e0fd24623a6b9010d459c239c1e4392c5752fb"
@@ -310,12 +317,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:645110e089152bd0f4a011a2648fbb0e4df5977be73ca605781157ac297f50c4"
+  digest = "1:53bc4cd4914cd7cd52139990d5170d6dc99067ae31c56530621b18b35fc30318"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   pruneopts = "UT"
-  revision = "fa473d140ef3c6adf42d6b391fe76707f1f243c8"
-  version = "v1.0.0"
+  revision = "3536a929edddb9a5b34bd6861dc4a9647cb459fe"
+  version = "v1.1.2"
 
 [[projects]]
   digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
@@ -342,12 +349,15 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:b6221ec0f8903b556e127c449e7106b63e6867170c2d10a7c058623d086f2081"
+  digest = "1:735956b5e94182229dfbdc5b401d7a71f20f54f1259dbc2969ec2b56bfbb34f2"
   name = "github.com/prometheus/client_golang"
-  packages = ["prometheus"]
+  packages = [
+    "prometheus",
+    "prometheus/internal",
+  ]
   pruneopts = "UT"
-  revision = "c5b7fccd204277076155f10851dad72b76a49317"
-  version = "v0.8.0"
+  revision = "abad2d1bd44235a26707c172eab6bca5bf2dbad3"
+  version = "v0.9.1"
 
 [[projects]]
   branch = "master"
@@ -359,7 +369,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:63b68062b8968092eb86bedc4e68894bd096ea6b24920faca8b9dcf451f54bb5"
+  digest = "1:db712fde5d12d6cdbdf14b777f0c230f4ff5ab0be8e35b239fc319953ed577a4"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -367,11 +377,11 @@
     "model",
   ]
   pruneopts = "UT"
-  revision = "c7de2306084e37d54b8be01f3541a8464345e9a5"
+  revision = "4724e9255275ce38f7179b2478abeae4e28c904f"
 
 [[projects]]
   branch = "master"
-  digest = "1:8c49953a1414305f2ff5465147ee576dd705487c35b15918fcd4efdc0cb7a290"
+  digest = "1:ef74914912f99c79434d9c09658274678bc85080ebe3ab32bec3940ebce5e1fc"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
@@ -380,7 +390,7 @@
     "xfs",
   ]
   pruneopts = "UT"
-  revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
+  revision = "185b4288413d2a0dd0806f78c90dde719829e5ae"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
@@ -410,12 +420,12 @@
   version = "v1.1.2"
 
 [[projects]]
-  digest = "1:516e71bed754268937f57d4ecb190e01958452336fa73dbac880894164e91c1f"
+  digest = "1:08d65904057412fc0270fc4812a1c90c594186819243160dc779a402d4b6d0bc"
   name = "github.com/spf13/cast"
   packages = ["."]
   pruneopts = "UT"
-  revision = "8965335b8c7107321228e3e3702cab9832751bac"
-  version = "v1.2.0"
+  revision = "8c9545af88b134710ab1cd196795e7f2388358d7"
+  version = "v1.3.0"
 
 [[projects]]
   digest = "1:466208cd4f78e2a453d92381511c0fa7bba694a3b42e5bed4a59f3ecbe1bb567"
@@ -433,20 +443,20 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:dab83a1bbc7ad3d7a6ba1a1cc1760f25ac38cdf7d96a5cdd55cd915a4f5ceaf9"
+  digest = "1:c1b1102241e7f645bc8e0c22ae352e8f0dc6484b6cb4d132fa9f24174e0119e2"
   name = "github.com/spf13/pflag"
   packages = ["."]
   pruneopts = "UT"
-  revision = "9a97c102cda95a86cec2345a6f09f55a939babf5"
-  version = "v1.0.2"
+  revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
+  version = "v1.0.3"
 
 [[projects]]
-  digest = "1:6e30a27eac59a148b3f7a32e0ba54706b31dcde5a42f63b22cb47873b62fa343"
+  digest = "1:214775c11fd26da94a100111a62daa25339198a4f9c57cb4aab352da889f5b93"
   name = "github.com/spf13/viper"
   packages = ["."]
   pruneopts = "UT"
-  revision = "8fb642006536c8d3760c99d4fa2389f5e2205631"
-  version = "v1.2.0"
+  revision = "2c12c60302a5a0e62ee102ca9bc996277c2f64f5"
+  version = "v1.2.1"
 
 [[projects]]
   digest = "1:5110e3d4f130772fd39e6ce8208ad1955b242ccfcc8ad9d158857250579c82f4"
@@ -477,7 +487,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7e58efe219fb7277b5530653b6f82a265a78f9e806ccc9352c63b5c3b0662da2"
+  digest = "1:2a462848004a3bcf6da449ce9207afb67e97d98e86f65b0bae9df0dae55e7971"
   name = "golang.org/x/crypto"
   packages = [
     "cast5",
@@ -492,7 +502,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
+  revision = "c05539cddb594cf33f1f0f5871d2964e9f813749"
 
 [[projects]]
   branch = "master"
@@ -503,15 +513,15 @@
     "websocket",
   ]
   pruneopts = "UT"
-  revision = "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2"
+  revision = "adae6a3d119ae4890b46832a2e88a95adc62b8e7"
 
 [[projects]]
   branch = "master"
-  digest = "1:824ea4aea5f0f50d4e4e139e4a3d7528f70b388dd9162c8ce310eb04581a7d84"
+  digest = "1:225564f71149334315118db714e1ea87513e4a11cf4acb27e26bc7577cebfa0b"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "ee1b12c67af419cf5a9be3bdbeea7fc1c5f32f11"
+  revision = "62eef0e2fa9b2c385f7b2778e763486da6880d37"
 
 [[projects]]
   digest = "1:8029e9743749d4be5bc9f7d42ea1659471767860f0cdc34d37c3111bd308a295"
@@ -530,14 +540,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8c9586280e165728ac4924b199d3a6ffb3d54dabf25446f32846d264a15d3620"
+  digest = "1:e03ee5b2dabb69f4a332d6c4458411cb956116caa5b7a5a06019cc2fe1eda3a7"
   name = "golang.org/x/tools"
   packages = [
     "cover",
     "go/ast/astutil",
   ]
   pruneopts = "UT"
-  revision = "90fa682c2a6e6a37b3a1364ce2fe1d5e41af9d6d"
+  revision = "04b5d21e00f1f47bd824a6ade581e7189bacde87"
 
 [[projects]]
   digest = "1:3575a8d7c78eb470712b298b2eb42b8ac028c79527e74c865da360f35d1fed7f"
@@ -547,7 +557,7 @@
   revision = "v1.0.10"
 
 [[projects]]
-  digest = "1:02d2c5be9a35ce750536e74af0d98aca806f225913a3ab28f285843d6283c70d"
+  digest = "1:26a278a34e30cc8fbd09d5f7474488ac4cbad325c2b592b30e76e5d7d2fc1f10"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
     ".",
@@ -555,8 +565,8 @@
     "json",
   ]
   pruneopts = "UT"
-  revision = "8254d6c783765f38c8675fae4427a1fe73fbd09d"
-  version = "v2.1.8"
+  revision = "ef984e69dd356202fd4e4910d4d9c24468bdf0b8"
+  version = "v2.1.9"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -578,10 +588,11 @@
     "github.com/dnaeon/go-vcr/recorder",
     "github.com/fabric8-services/fabric8-auth/design",
     "github.com/fabric8-services/fabric8-auth/errors",
+    "github.com/fabric8-services/fabric8-common/auth",
+    "github.com/fabric8-services/fabric8-common/convert/ptr",
     "github.com/fabric8-services/fabric8-common/errors",
     "github.com/fabric8-services/fabric8-common/log",
     "github.com/fabric8-services/fabric8-common/sentry",
-    "github.com/fabric8-services/fabric8-common/token",
     "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/resource",
