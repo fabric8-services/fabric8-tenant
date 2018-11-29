@@ -114,7 +114,8 @@ Start https://github.com/minishift/minishift[Minishift] (if it is not running al
 $ minishift start
 ```
 
-https://docs.okd.io/latest/minishift/using/addons.html#installing-addons[Install] and https://docs.okd.io/latest/minishift/using/addons.html#apply-addons[apply] the https://docs.okd.io/latest/minishift/using/addons.html#default-addons[admin-user] Minishift addon
+https://docs.okd.io/latest/minishift/using/addons.html#installing-addons[Install] and https://docs.okd.io/latest/minishift/using/addons.html#apply-addons[apply] the https://docs.okd.io/latest/minishift/using/addons.html#default-addons[admin-user] Minishift addon.
+The reason is that we need to use a user (admin) with cluster-admin rights for creating/updating/deleting namespaces.
 ```
 $ minishift addons apply admin-user
 ```
