@@ -21,7 +21,7 @@ func (a Awaitility) Until(do func() error) error {
 		select {
 		case <-ctx.Done():
 			return err
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(1 * time.Second):
 			if err = do(); err == nil {
 				return nil
 			}
