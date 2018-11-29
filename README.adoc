@@ -127,7 +127,7 @@ $ make test-with-minishift
 
 NOTE: These minishift integration tests create a new user for every run using a format `tenant.minishift.test.$(date +'%H.%M.%S')`. It is possible to use a specific already created one by setting a variable `MINISHIFT_USER_NAME` to the name of the intended user.
 The test-cases then create,update and delete namespaces, but it can happen that the proper cleanup is not correctly performed at the end of each test.
-To remove all namespaces starting with `tenant-minishift-test-` please use `$ make clean-minishift-namespaces`. To remove all users starting with `tenant.minishift.test.` please use `$ make clean-minishift-users`. To remove both users and namespaces use `$ make clean-minishift`.
+To remove all namespaces starting with `tenant-minishift-test-\*` please use `$ make clean-minishift-namespaces`. To remove all users starting with `tenant.minishift.test.*` please use `$ make clean-minishift-users`. To remove both users and namespaces use `$ make clean-minishift`.
 
 ==== Run all tests
 
