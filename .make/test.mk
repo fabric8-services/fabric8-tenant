@@ -225,7 +225,7 @@ clean-minishift-namespaces:
 ## Deletes users starting with tenant.minishift.test.* from Minishift
 clean-minishift-users:
 	@echo "Cleaning minishift users"
-	@echo $(shell oc get users --output=name --token=$(MINISHIFT_ADMIN_TOKEN) | grep "tenant.minishift.test.*"	| xargs oc delete --token=$(MINISHIFT_ADMIN_TOKEN))
+	@echo $(shell oc get users --output=name --token=$(MINISHIFT_ADMIN_TOKEN) | grep "tenant.minishift.test.*" | xargs oc delete --token=$(MINISHIFT_ADMIN_TOKEN))
 
 .PHONY: clean-minishift
 clean-minishift: clean-minishift-users clean-minishift-namespaces
