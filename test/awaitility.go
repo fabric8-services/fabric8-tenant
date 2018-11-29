@@ -7,11 +7,10 @@ import (
 
 type Awaitility struct {
 	timeout time.Duration
-	before  time.Time
 }
 
 func WaitWithTimeout(timeout time.Duration) Awaitility {
-	return Awaitility{timeout: timeout, before: time.Now()}
+	return Awaitility{timeout: timeout}
 }
 
 func (a Awaitility) Until(do func() error) error {
