@@ -106,6 +106,29 @@ To stop DB:
 $ make integration-test-env-tear-down
 ```
 
+==== Run Minishift integration tests
+
+Follow the instruction from <<Run integration tests>> to make sure you have DB running
+Start https://github.com/minishift/minishift[Minishift] (if it is not running already):
+```
+$ minishift start
+```
+
+https://docs.okd.io/latest/minishift/using/addons.html#installing-addons[Install] and https://docs.okd.io/latest/minishift/using/addons.html#apply-addons[apply] the https://docs.okd.io/latest/minishift/using/addons.html#default-addons[admin-user] Minishift addon.
+The reason is that we need to use a user (admin) with cluster-admin rights for creating/updating/deleting namespaces.
+```
+$ minishift addons apply admin-user
+```
+
+Run Minishift integration tests. Some of the tests may take a longer time to finish
+```
+$ make test-with-minishift
+```
+
+NOTE: These minishift integration tests create a new user for every run using a format `tenant.minishift.test.$(date +'%H.%M.%S')`. It is possible to use a specific already created one by setting a variable `MINISHIFT_USER_NAME` to the name of the intended user.
+The test-cases then create,update and delete namespaces, but it can happen that the proper cleanup is not correctly performed at the end of each test.
+To remove all namespaces starting with `tenant-minishift-test-\*` please use `$ make clean-minishift-namespaces`. To remove all users starting with `tenant.minishift.test.*` please use `$ make clean-minishift-users`. To remove both users and namespaces use `$ make clean-minishift`.
+
 ==== Run all tests
 
 Expecting that the DB is running (see <<Run integration tests>>) you can trigger all tests by a command:

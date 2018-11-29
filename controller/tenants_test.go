@@ -285,10 +285,6 @@ func createInvalidSAContext() context.Context {
 func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (*goa.Service, *controller.TenantsController, error) {
 	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
-	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
-	authService, r, cleanup := testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", recorder.WithJWTMatcher)
-	defer cleanup()
-
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -299,9 +295,12 @@ func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (
 		fmt.Printf("error occurred: %v", err)
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
 	}
-	authService.SaToken = saToken.Raw
+	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
+	authService, r, cleanup :=
+		testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
+	defer cleanup()
 
-	clusterService := cluster.NewClusterService(time.Hour, authService)
+	clusterService := cluster.NewClusterService(time.Hour, authService, configuration.WithRoundTripper(r))
 	err = clusterService.Start()
 	if err != nil {
 		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
