@@ -21,6 +21,7 @@ import (
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	errs "github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -197,21 +198,17 @@ func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Co
 func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...string) error {
 	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
 	if err != nil {
-		updateNamespaceEntities(ctx, tenantService, t, versionMapping, true)
+		updateNamespaceEntities(tenantService, t, versionMapping, true)
 		return err
 	}
 
-	return updateNamespaceEntities(ctx, tenantService, t, versionMapping, false)
+	return updateNamespaceEntities(tenantService, t, versionMapping, false)
 }
 
-func updateNamespaceEntities(ctx context.Context, tenantService tenant.Service, t *tenant.Tenant, versionMapping map[string]string, failed bool) error {
+func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[string]string, failed bool) error {
 	namespaces, err := tenantService.GetNamespaces(t.ID)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":    err,
-			"tenant": t.ID,
-		}, "unable to get tenant namespaces")
-		return err
+		return errs.Wrapf(err, "unable to get tenant namespaces")
 	}
 	var found bool
 	var nsVersion string
@@ -226,13 +223,7 @@ func updateNamespaceEntities(ctx context.Context, tenantService tenant.Service, 
 			ns.UpdatedBy = Commit
 			err := tenantService.SaveNamespace(ns)
 			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":    err,
-					"tenant": t.ID,
-					"type":   ns.Type,
-					"state":  ns.State,
-				}, "unable to save tenant namespace")
-				return err
+				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
 			}
 		}
 	}
