@@ -120,14 +120,14 @@ metadata:
 )
 
 // Callback is called after initial action
-type Callback func(statusCode int, method string, request, response map[interface{}]interface{}, templatesVersion string) (string, map[interface{}]interface{})
-type CallbackWithTemplatesVersion func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{})
+type Callback func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[string]string) (string, map[interface{}]interface{})
+type CallbackWithVersionMapping func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{})
 
 // ApplyOptions contains options for connecting to the target API
 type ApplyOptions struct {
 	Config
 	Namespace string
-	Callback  CallbackWithTemplatesVersion
+	Callback  CallbackWithVersionMapping
 }
 
 // WithNamespace returns a new ApplyOptions with the specified namespace
@@ -140,7 +140,7 @@ func (a *ApplyOptions) WithNamespace(namespace string) ApplyOptions {
 }
 
 // WithCallback returns a new ApplyOptions with the specified callback
-func (a *ApplyOptions) WithCallback(callback CallbackWithTemplatesVersion) ApplyOptions {
+func (a *ApplyOptions) WithCallback(callback CallbackWithVersionMapping) ApplyOptions {
 	return ApplyOptions{
 		Config:    a.Config,
 		Callback:  callback,

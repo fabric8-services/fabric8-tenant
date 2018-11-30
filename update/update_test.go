@@ -268,8 +268,8 @@ func updateVersionsTo(repo update.Repository, version string) error {
 	return repo.SaveTenantsUpdate(tenantsUpdate)
 }
 
-func (s *TenantsUpdaterTestSuite) tx(t *testing.T, do func(repo update.Repository) error) {
-	tx := s.DB.Begin()
+func tx(t *testing.T, DB *gorm.DB, do func(repo update.Repository) error) {
+	tx := DB.Begin()
 	require.NoError(t, tx.Error)
 	repo := update.NewRepository(tx)
 	if err := do(repo); err != nil {
@@ -279,10 +279,14 @@ func (s *TenantsUpdaterTestSuite) tx(t *testing.T, do func(repo update.Repositor
 	require.NoError(t, tx.Commit().Error)
 }
 
-func (s *TenantsUpdaterTestSuite) assertStatusAndAllVersionAreUpToDate(t *testing.T, st update.Status) {
+func (s *TenantsUpdaterTestSuite) tx(t *testing.T, do func(repo update.Repository) error) {
+	tx(t, s.DB, do)
+}
+
+func assertStatusAndAllVersionAreUpToDate(t *testing.T, db *gorm.DB, st update.Status) {
 	var err error
 	var tenantsUpdate *update.TenantsUpdate
-	err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+	err = update.Transaction(db, func(tx *gorm.DB) error {
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
 	})
@@ -290,6 +294,10 @@ func (s *TenantsUpdaterTestSuite) assertStatusAndAllVersionAreUpToDate(t *testin
 	for _, versionManager := range update.RetrieveVersionManagers() {
 		assert.True(t, versionManager.IsVersionUpToDate(tenantsUpdate))
 	}
+}
+
+func (s *TenantsUpdaterTestSuite) assertStatusAndAllVersionAreUpToDate(t *testing.T, st update.Status) {
+	assertStatusAndAllVersionAreUpToDate(t, s.DB, st)
 }
 
 func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.UpdateExecutor, timeout time.Duration) (*update.TenantsUpdater, func()) {
@@ -319,10 +327,11 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.Up
 }
 
 type DummyUpdateExecutor struct {
-	numberOfCalls *uint64
-	timeToSleep   time.Duration
-	shouldFail    bool
-	wg            *sync.WaitGroup
+	numberOfCalls             *uint64
+	timeToSleep               time.Duration
+	shouldFail                bool
+	wg                        *sync.WaitGroup
+	shouldCallOriginalUpdater bool
 }
 
 func Uint64(v uint64) *uint64 {
@@ -335,6 +344,9 @@ func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.S
 	time.Sleep(e.timeToSleep)
 	if e.wg != nil {
 		e.wg.Wait()
+	}
+	if e.shouldCallOriginalUpdater {
+		return controller.OSUpdater{}.Update(ctx, tenantService, openshiftConfig, t, envTypes)
 	}
 	if e.shouldFail {
 		return testdoubles.GetMappedVersions(envTypes...), fmt.Errorf("failing")

@@ -23,16 +23,16 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 		return err
 	}
 
+	callbackWithVersionMapping := func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+		return callback(statusCode, method, request, response, versionMapping)
+	}
+	masterOpts := ApplyOptions{Config: config, Callback: callbackWithVersionMapping}
+	userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callbackWithVersionMapping}
+
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
 	for key, val := range mapped {
 		namespaceType := tenant.GetNamespaceType(key, nsBaseName)
-
-		callbackWithVersion := func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
-			return callback(statusCode, method, request, response, versionMapping[string(tenant.GetNamespaceType(key, nsBaseName))])
-		}
-		masterOpts := ApplyOptions{Config: config, Callback: callbackWithVersion}
-		userOpts := ApplyOptions{Config: config.WithToken(usertoken), Callback: callbackWithVersion}
 
 		if namespaceType == tenant.TypeUser {
 			go func(namespace string, objects env.Objects, opts, userOpts ApplyOptions) {
@@ -99,6 +99,11 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUs
 		return versionMapping, err
 	}
 
+	callbackWithVersionMapping := func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+		return callback(statusCode, method, request, response, versionMapping)
+	}
+	masterOpts := ApplyOptions{Config: config, Callback: callbackWithVersionMapping}
+
 	mapped, err := MapByNamespaceAndSort(templs)
 	if err != nil {
 		return versionMapping, err
@@ -106,10 +111,6 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUs
 	var wg sync.WaitGroup
 	wg.Add(len(mapped))
 	for key, val := range mapped {
-		callbackWithVersion := func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
-			return callback(statusCode, method, request, response, versionMapping[string(tenant.GetNamespaceType(key, nsBaseName))])
-		}
-		masterOpts := ApplyOptions{Config: config, Callback: callbackWithVersion}
 
 		go func(namespace string, objects env.Objects, opts ApplyOptions) {
 			defer wg.Done()

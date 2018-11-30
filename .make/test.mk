@@ -213,7 +213,7 @@ test-with-minishift: prebuild-check migrate-database
 	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_DATABASE=1 F8_RESOURCE_UNIT_TEST=0 F8_POSTGRES_DATABASE=postgres \
 	F8_MINISHIFT_USER_NAME=$(MINISHIFT_USER_NAME) F8_MINISHIFT_USER_TOKEN=$(MINISHIFT_USER_TOKEN) F8_MINISHIFT_URL=$(MINISHIFT_URL) \
 	F8_MINISHIFT_ADMIN_NAME=$(MINISHIFT_ADMIN_NAME) F8_MINISHIFT_ADMIN_TOKEN=$(MINISHIFT_ADMIN_TOKEN) \
-	go test -v -run ".*Minishift.*" $(TEST_PACKAGES)
+	go test -p 1 -v -run ".*Minishift.*" $(TEST_PACKAGES)
 
 .PHONY: clean-minishift-namespaces
 ## Deletes namespaces starting with tenant-minishift-test-* from Minishift

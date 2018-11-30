@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}, templatesVersion string) (string, map[interface{}]interface{}) {
+var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[string]string) (string, map[interface{}]interface{}) {
 	return "", nil
 }
 
