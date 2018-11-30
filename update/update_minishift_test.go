@@ -10,16 +10,16 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/minishift"
+	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"sync"
 	"testing"
 	"time"
-	"github.com/fabric8-services/fabric8-tenant/update"
-	"sync"
 )
 
 type AutomatedUpdateMinishiftTestSuite struct {
