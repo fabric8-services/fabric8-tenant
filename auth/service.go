@@ -203,7 +203,7 @@ func (s *authService) ResolveTargetToken(ctx context.Context, target, token stri
 	}
 	res, err := client.RetrieveToken(ctx, authclient.RetrieveTokenPath(), target, &forcePull)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error while resolving the token for %s", target)
+		return "", "", constructResolveTokenError(err, res, target)
 	}
 	defer func() {
 		ioutil.ReadAll(res.Body)
@@ -212,7 +212,7 @@ func (s *authService) ResolveTargetToken(ctx context.Context, target, token stri
 
 	err = ValidateResponse(ctx, client, res)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "error while resolving the token for %s", target)
+		return "", "", constructResolveTokenError(err, res, target)
 	}
 
 	externalToken, err := client.DecodeExternalToken(res)
@@ -253,6 +253,15 @@ func (s *authService) GetAuthUserData(ctx context.Context, tenantToken TenantTok
 	}
 
 	return user.Data.Attributes, nil
+}
+
+func constructResolveTokenError(err error, res *http.Response, target string) error {
+	if res != nil && res.Header != nil {
+		if msg := res.Header["WWW-Authenticate"]; len(msg) > 0 {
+			return errors.Wrapf(err, "occurred an error with message %s while resolving the token for %s", msg, target)
+		}
+	}
+	return errors.Wrapf(err, "error while resolving the token for %s", target)
 }
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service

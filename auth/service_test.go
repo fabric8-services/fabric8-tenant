@@ -50,6 +50,17 @@ func TestResolveUserToken(t *testing.T) {
 		// then
 		testsupport.AssertError(t, err, testsupport.HasMessage("token must not be empty"))
 	})
+
+	t.Run("token is missing", func(t *testing.T) {
+		// when
+		_, _, err := authService.ResolveUserToken(context.Background(), "missing_token_resource", tok.Raw)
+		// then
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining(
+				"LINK url=https://auth.openshift.io/api/token/link?for=https://github.com, description=\"GitHub token is missing. Link GitHub account\""),
+			testsupport.HasMessageContaining("occurred an error with message"),
+			testsupport.HasMessageContaining("token is missing"))
+	})
 }
 
 func TestResolveServiceAccountToken(t *testing.T) {
