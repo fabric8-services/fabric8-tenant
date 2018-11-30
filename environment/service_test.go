@@ -71,32 +71,38 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			assert.Equal(t, env.Name, envType)
-			if envType == "che" || envType == "jenkins" {
+			switch envType {
+			case "che":
 				assert.Len(t, env.Templates, 2)
 				assert.Contains(t, env.Templates[0].Filename, envType)
 				assert.Contains(t, env.Templates[1].Filename, "quotas")
-				if envType == "jenkins" {
-					assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
-					assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+				if strings.Contains(env.Templates[0].Filename, "mt") {
+					assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
+					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 				} else {
-					if strings.Contains(env.Templates[0].Filename, "mt") {
-						assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
-						assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-					} else {
-						assert.Equal(t, "123abc", environment.GetLabelVersion(objects[0]))
-						assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-					}
+					assert.Equal(t, "123abc", environment.GetLabelVersion(objects[0]))
+					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 				}
-			} else if envType == "user" {
+
+			case "jenkins":
+				assert.Len(t, env.Templates, 2)
+				assert.Contains(t, env.Templates[0].Filename, envType)
+				assert.Contains(t, env.Templates[1].Filename, "quotas")
+				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
+				assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+
+			case "user":
 				assert.Len(t, env.Templates, 1)
 				assert.Contains(t, env.Templates[0].Filename, envType)
 				assert.Equal(t, "345cde", environment.GetLabelVersion(objects[0]))
 				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-			} else {
+
+			default:
 				assert.Len(t, env.Templates, 1)
 				assert.Contains(t, env.Templates[0].Filename, "deploy")
 				assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
 				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+
 			}
 
 			for _, template := range env.Templates {
