@@ -257,7 +257,7 @@ func (s *authService) GetAuthUserData(ctx context.Context, tenantToken TenantTok
 
 func constructResolveTokenError(err error, res *http.Response, target string) error {
 	if res != nil && res.Header != nil {
-		if msg := res.Header["WWW-Authenticate"]; len(msg) > 0 {
+		if msg, ok := res.Header["WWW-Authenticate"]; ok {
 			return errors.Wrapf(err, "occurred an error with message %s while resolving the token for %s", msg, target)
 		}
 	}
