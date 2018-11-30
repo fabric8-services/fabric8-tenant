@@ -49,6 +49,26 @@ interactions:
     }'
 - request:
     method: GET
+    url: http://authservice/api/token?for=missing_token_resource&force_pull=false
+    headers:
+      sub: ["user_foo"] # will be compared against the `sub` claim in the incoming request's token
+  response:
+    status: 401 Unauthorized
+    code: 401
+    headers:
+      WWW-Authenticate: ["LINK url=https://auth.openshift.io/api/token/link?for=https://github.com, description=\"GitHub token is missing. Link GitHub account\""]
+    body: '{
+      "errors":[
+        { "code":"unauthorized_error",
+          "detail":"token is missing",
+          "id":"t/DyvMrf",
+          "status":"401",
+          "title":"Unauthorized error"
+        }
+      ]
+    }'
+- request:
+    method: GET
     url: http://authservice/api/token?for=some_valid_openshift_resource_for_service&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
