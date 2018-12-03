@@ -346,7 +346,7 @@ func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.S
 		e.wg.Wait()
 	}
 	if e.shouldCallOriginalUpdater {
-		return controller.OSUpdater{}.Update(ctx, tenantService, openshiftConfig, t, envTypes)
+		return controller.TenantUpdater{}.Update(ctx, tenantService, openshiftConfig, t, envTypes)
 	}
 	if e.shouldFail {
 		return testdoubles.GetMappedVersions(envTypes...), fmt.Errorf("failing")

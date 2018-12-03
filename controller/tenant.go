@@ -178,7 +178,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
 	}
 
-	go UpdateTenantWithErrorHandling(&OSUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
+	go UpdateTenantWithErrorHandling(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
@@ -234,10 +234,10 @@ type UpdateExecutor interface {
 	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error)
 }
 
-type OSUpdater struct {
+type TenantUpdater struct {
 }
 
-func (u OSUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error) {
+func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error) {
 	return openshift.RawUpdateTenant(
 		ctx,
 		openshiftConfig,
