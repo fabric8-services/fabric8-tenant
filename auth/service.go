@@ -261,7 +261,22 @@ func constructResolveTokenError(err error, res *http.Response, target string) er
 			return errors.Wrapf(err, "occurred an error with message %s while resolving the token for %s", msg, target)
 		}
 	}
-	return errors.Wrapf(err, "error while resolving the token for %s", target)
+
+	if res != nil {
+		defer func() {
+			if err := res.Body.Close(); err != nil {
+				log.Error(nil, map[string]interface{}{"err": err}, "unable to close response body")
+			}
+		}()
+
+		bytes, bodyErr := ioutil.ReadAll(res.Body)
+		if bodyErr != nil {
+			log.Error(nil, map[string]interface{}{"err": bodyErr}, "unable to read response body")
+		}
+
+		return errors.Wrapf(err, "error while resolving the token for %s. Auth service responded with:\n %+v\n and body:\n%s", target, *res, string(bytes))
+	}
+	return errors.Wrapf(err, "error while resolving the token for %s. Response is nil", target)
 }
 
 // GetPublicKeys returns the known public keys used to sign tokens from the auth service
