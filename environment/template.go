@@ -93,8 +93,8 @@ var (
 	variableRegexp    = regexp.MustCompile(`\${([A-Z_0-9]+)}`)
 )
 
-func newTemplate(filename string, defaultParams map[string]string, version string) *Template {
-	return &Template{
+func newTemplate(filename string, defaultParams map[string]string, version string) Template {
+	return Template{
 		Filename:      filename,
 		DefaultParams: defaultParams,
 		Version:       version,

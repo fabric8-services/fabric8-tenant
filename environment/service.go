@@ -63,12 +63,14 @@ func deploy(stage string) map[string]string {
 }
 
 func tmplWithQuota(defaultParams map[string]string, fileName string, quotasFileName string) []*Template {
-	return []*Template{newTemplate(fileName, defaultParams, defaultParams[varCommit]),
-		newTemplate(quotasFileName, defaultParams, defaultParams[varCommitQuotas])}
+	tmpl := newTemplate(fileName, defaultParams, defaultParams[varCommit])
+	quotas := newTemplate(quotasFileName, defaultParams, defaultParams[varCommitQuotas])
+	return []*Template{&tmpl, &quotas}
 }
 
 func tmpl(defaultParams map[string]string, fileName string) []*Template {
-	return []*Template{newTemplate(fileName, defaultParams, defaultParams[varCommit])}
+	tmpl := newTemplate(fileName, defaultParams, defaultParams[varCommit])
+	return []*Template{&tmpl}
 }
 
 func (t Templates) ConstructCompleteVersion() string {
