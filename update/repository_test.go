@@ -31,7 +31,7 @@ func (s *UpdateRepoTestSuite) TestUpdateAndGetStatus() {
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateStatus(update.Updating)
 		})
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		// when
 		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
@@ -144,7 +144,7 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, string(update.Updating), string(tenantsUpdate.Status))
 		assert.True(t, before.Before(tenantsUpdate.LastTimeUpdated))
 		assert.Equal(t, 0, tenantsUpdate.FailedCount)
@@ -249,7 +249,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			}
 			return updateVersionsTo(repo, "000abc")
 		})
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 		before := time.Now()
 
 		// when

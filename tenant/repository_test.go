@@ -191,7 +191,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		firstBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, firstBatch, 5)
 		assertContentOfTenants(t, firstBatch, fxt.Tenants, true)
 		updateAllTenants(t, firstBatch, svc, false)
@@ -200,7 +200,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		secondBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, secondBatch, 5)
 		assertContentOfTenants(t, secondBatch, fxt.Tenants, true)
 		assertContentOfTenants(t, secondBatch, firstBatch, false)
@@ -210,7 +210,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		thirdBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, thirdBatch, 1)
 		assertContentOfTenants(t, thirdBatch, fxt.Tenants, true)
 		assertContentOfTenants(t, thirdBatch, firstBatch, false)
@@ -221,7 +221,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		lastBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, lastBatch, 0)
 	})
 }
