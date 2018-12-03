@@ -41,7 +41,9 @@ func TestResolveUserToken(t *testing.T) {
 		_, _, err := authService.ResolveUserToken(context.Background(), "some_invalid_resource", tok.Raw)
 		// then
 		testsupport.AssertError(t, err, testsupport.IsOfType(errors.InternalError{}),
-			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"))
+			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"),
+			testsupport.HasMessageContaining("Auth service responded with:"),
+			testsupport.HasMessageContaining("Bad value for parameter 'for'"))
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
@@ -60,6 +62,30 @@ func TestResolveUserToken(t *testing.T) {
 				"LINK url=https://auth.openshift.io/api/token/link?for=https://github.com, description=\"GitHub token is missing. Link GitHub account\""),
 			testsupport.HasMessageContaining("occurred an error with message"),
 			testsupport.HasMessageContaining("token is missing"))
+	})
+
+	t.Run("missing header", func(t *testing.T) {
+		authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", "")
+		defer cleanup()
+		tok, err := testsupport.NewToken(map[string]interface{}{}, "../test/private_key.pem")
+		require.NoError(t, err)
+		// when
+		_, _, err = authService.ResolveUserToken(context.Background(), "missing_header_resource", tok.Raw)
+		// then
+		testsupport.AssertError(t, err, testsupport.IsOfType(errors.InternalError{}),
+			testsupport.HasMessageContaining("error while resolving the token for missing_header_resource"),
+			testsupport.HasMessageContaining("Auth service responded with:"),
+			testsupport.HasMessageContaining("error message in header"),
+			testsupport.HasMessageContaining("401 jwt_security_error"))
+	})
+
+	t.Run("when response is nil", func(t *testing.T) {
+		// when
+		_, _, err := authService.ResolveUserToken(context.Background(), "nothing-existing", tok.Raw)
+		// then
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining("error while resolving the token for nothing-existing"),
+			testsupport.HasMessageContaining("Response is nil"))
 	})
 }
 
@@ -88,7 +114,9 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		_, _, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
 		testsupport.AssertError(t, err,
-			testsupport.HasMessageContaining("error while resolving the token for some_valid_openshift_resource"))
+			testsupport.HasMessageContaining("error while resolving the token for some_valid_openshift_resource"),
+			testsupport.HasMessageContaining("Auth service responded with"),
+			testsupport.HasMessageContaining("cluster token is invalid or expired"))
 	})
 
 	t.Run("invalid resource", func(t *testing.T) {
@@ -99,7 +127,9 @@ func TestResolveServiceAccountToken(t *testing.T) {
 		_, _, err := authService.ResolveSaToken(context.Background(), "some_invalid_resource")
 		// then
 		testsupport.AssertError(t, err,
-			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"))
+			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"),
+			testsupport.HasMessageContaining("Auth service responded with"),
+			testsupport.HasMessageContaining("Bad value for parameter 'for'"))
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
