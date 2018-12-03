@@ -276,8 +276,8 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfFailedTenantsToUpdate() {
 		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd")
 
 		// then
-		assert.NoError(t, err)
-		assert.Len(t, result, 1)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
 		assert.Equal(t, previouslyFailed.Tenants[0].ID, result[0].ID)
 	})
 }
@@ -296,8 +296,8 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatAreOutdatedToUpdate()
 		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd")
 
 		// then
-		assert.NoError(t, err)
-		assert.Len(t, result, 1)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
 		assert.Equal(t, outdated.Tenants[0].ID, result[0].ID)
 	})
 }
