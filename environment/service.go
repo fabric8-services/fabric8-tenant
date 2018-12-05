@@ -7,7 +7,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/environment/generated"
-	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-tenant/utils"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"path"
@@ -29,7 +28,6 @@ var (
 	VersionFabric8TenantCheMtFile         string
 	VersionFabric8TenantJenkinsFile       string
 	VersionFabric8TenantJenkinsQuotasFile string
-	VersionFabric8TenantCheFile           string
 	VersionFabric8TenantCheQuotasFile     string
 	VersionFabric8TenantDeployFile        string
 	DefaultEnvTypes                       = []string{"che", "jenkins", "user", "run", "stage"}
@@ -39,10 +37,8 @@ func retrieveMappedTemplates() map[string][]*Template {
 	return map[string][]*Template{
 		"run":   tmpls(deploy("run"), "fabric8-tenant-deploy.yml"),
 		"stage": tmpls(deploy("stage"), "fabric8-tenant-deploy.yml"),
-		"che-mt": tmpls(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
+		"che": tmpls(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
 			"fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
-		"che": tmpls(versions(VersionFabric8TenantCheFile, VersionFabric8TenantCheQuotasFile),
-			"fabric8-tenant-che.yml", "fabric8-tenant-che-quotas.yml"),
 		"jenkins": tmpls(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
 			"fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
 		"user": tmpls(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
@@ -92,15 +88,10 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 	var templates []*Template
 	var mappedTemplates = retrieveMappedTemplates()
 	if envType == "che" {
-		if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
-			cheMtParams, err := getCheMtParams(ctx)
-			if err != nil {
-				return nil, err
-			}
-			templates = mappedTemplates["che-mt"]
-			templates[0].DefaultParams = cheMtParams
-		} else {
-			templates = mappedTemplates[envType]
+		templates = mappedTemplates[envType]
+		err := getCheParams(ctx, templates[0].DefaultParams)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		templates = mappedTemplates[envType]
@@ -118,22 +109,21 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 	}, nil
 }
 
-func getCheMtParams(ctx context.Context) (map[string]string, error) {
+func getCheParams(ctx context.Context, defaultParams map[string]string) error {
 	token := goajwt.ContextJWT(ctx)
-	cheMtParams := map[string]string{}
 	if token != nil {
-		cheMtParams["OSIO_TOKEN"] = token.Raw
+		defaultParams["OSIO_TOKEN"] = token.Raw
 		id := token.Claims.(jwt.MapClaims)["sub"]
 		if id == nil {
-			return nil, errors.New("missing sub in JWT token")
+			return errors.New("missing sub in JWT token")
 		}
-		cheMtParams["IDENTITY_ID"] = id.(string)
+		defaultParams["IDENTITY_ID"] = id.(string)
 	}
-	cheMtParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
+	defaultParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
 	unixNano := time.Now().UnixNano()
-	cheMtParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
+	defaultParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
 
-	return cheMtParams, nil
+	return nil
 }
 
 func (s *Service) retrieveTemplates(tmpls []*Template) error {

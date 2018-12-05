@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -78,13 +77,8 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
 				assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 			} else {
-				if strings.Contains(env.Templates[0].Filename, "mt") {
-					assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
-					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-				} else {
-					assert.Equal(t, "123abc", environment.GetLabelVersion(objects[0]))
-					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-				}
+				assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
+				assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 			}
 		} else if envType == "user" {
 			assert.Len(t, env.Templates, 1)

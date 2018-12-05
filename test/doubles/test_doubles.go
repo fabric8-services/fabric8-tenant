@@ -41,7 +41,6 @@ func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL, saToken str
 }
 
 func SetTemplateVersions() {
-	environment.VersionFabric8TenantCheFile = "123abc"
 	environment.VersionFabric8TenantCheMtFile = "234bcd"
 	environment.VersionFabric8TenantCheQuotasFile = "zyx098"
 	environment.VersionFabric8TenantUserFile = "345cde"
@@ -51,7 +50,6 @@ func SetTemplateVersions() {
 }
 
 func SetTemplateSameVersion(version string) {
-	environment.VersionFabric8TenantCheFile = version
 	environment.VersionFabric8TenantCheMtFile = version
 	environment.VersionFabric8TenantCheQuotasFile = version
 	environment.VersionFabric8TenantUserFile = version
