@@ -10,7 +10,7 @@ set -e
 # that might interest this worker.
 function load_jenkins_vars() {
   if [ -e "jenkins-env.json" ]; then
-    eval "$(./env-toolkit load -f jenkins-env.json DEVSHIFT_TAG_LEN QUAY_USERNAME QUAY_PASSWORD JENKINS_URL GIT_BRANCH GIT_COMMIT BUILD_NUMBER ghprbSourceBranch ghprbActualCommit BUILD_URL ghprbPullId)"
+    eval "$(./env-toolkit load -f jenkins-env.json DEVSHIFT_TAG_LEN QUAY_USERNAME QUAY_PASSWORD JENKINS_URL GIT_BRANCH GIT_COMMIT BUILD_NUMBER ghprbSourceBranch ghprbActualCommit BUILD_URL ghprbPullId FABRIC8_HUB_TOKEN)"
   fi
 }
 
@@ -141,7 +141,7 @@ function deploy() {
 function cico_setup() {
   load_jenkins_vars;
   install_deps;
-  if [[ -n `git diff --name-only ${ghprbActualCommit}..master | grep "environment/templates/"` ]]; then
+  if [[ -n `git diff --name-only HEAD..origin/master | grep "environment/templates/"` ]]; then
     addCommentToPullRequest;
   fi
   prepare;
