@@ -6,11 +6,12 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	. "github.com/fabric8-services/fabric8-tenant/test"
 	. "github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
-	"os"
 	"testing"
 )
 
@@ -59,15 +60,18 @@ var roleBindingRestrictionObject = `
       - ${PROJECT_USER}
 `
 
-func TestMain(m *testing.M) {
-	defer gock.Off()
-	retCode := m.Run()
-	os.Exit(retCode)
+type ServiceTestSuite struct {
+	gormsupport.DBTestSuite
 }
 
-func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
+func TestService(t *testing.T) {
+	suite.Run(t, &ServiceTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
+}
+
+func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 	// given
-	config, reset := LoadTestConfig(t)
+	defer gock.Off()
+	config, reset := LoadTestConfig(s.T())
 	defer reset()
 
 	gock.New("https://raw.githubusercontent.com").
@@ -85,25 +89,31 @@ func TestInvokePostAndGetCallsForAllObjects(t *testing.T) {
 		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
 		Reply(200)
 
-	service, db := NewOSService(
+	id := uuid.NewV4()
+	service := NewOSService(
+		s.T(),
 		config,
-		WithTenant(uuid.NewV4()),
+		WithTenant(id),
 		SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
-		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"))
+		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"),
+		s.DB)
 
 	// when
 	err := service.WithPostMethod().ApplyAll(environment.TypeRun)
 
 	// then
-	require.NoError(t, err)
-	require.Len(t, db.Namespaces, 1)
-	require.Equal(t, "aslak-run", db.Namespaces[0].Name)
-	require.Equal(t, tenant.Ready.String(), db.Namespaces[0].State.String())
+	require.NoError(s.T(), err)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), namespaces, 1)
+	assert.Equal(s.T(), "aslak-run", namespaces[0].Name)
+	assert.Equal(s.T(), tenant.Ready.String(), namespaces[0].State.String())
 }
 
-func TestDeleteIfThereIsConflict(t *testing.T) {
+func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	// given
-	config, reset := LoadTestConfig(t)
+	defer gock.Off()
+	config, reset := LoadTestConfig(s.T())
 	defer reset()
 
 	gock.New("https://raw.githubusercontent.com").
@@ -124,25 +134,31 @@ func TestDeleteIfThereIsConflict(t *testing.T) {
 		Reply(200).
 		BodyString(roleBindingRestrictionObject)
 
-	service, db := NewOSService(
+	id := uuid.NewV4()
+	service := NewOSService(
+		s.T(),
 		config,
-		WithTenant(uuid.NewV4()),
+		WithTenant(id),
 		SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
-		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"))
+		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"),
+		s.DB)
 
 	// when
 	err := service.WithPostMethod().ApplyAll(environment.TypeRun)
 
 	// then
-	require.NoError(t, err)
-	require.Len(t, db.Namespaces, 1)
-	require.Equal(t, "aslak-run", db.Namespaces[0].Name)
-	require.Equal(t, tenant.Ready.String(), db.Namespaces[0].State.String())
+	require.NoError(s.T(), err)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), namespaces, 1)
+	assert.Equal(s.T(), "aslak-run", namespaces[0].Name)
+	assert.Equal(s.T(), tenant.Ready.String(), namespaces[0].State.String())
 }
 
-func TestDeleteAndGet(t *testing.T) {
+func (s *ServiceTestSuite) TestDeleteAndGet() {
 	// given
-	config, reset := LoadTestConfig(t)
+	defer gock.Off()
+	config, reset := LoadTestConfig(s.T())
 	defer reset()
 
 	tok, err := NewToken(
@@ -151,7 +167,7 @@ func TestDeleteAndGet(t *testing.T) {
 		},
 		"../test/private_key.pem",
 	)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	gock.New("https://raw.githubusercontent.com").
 		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
@@ -163,42 +179,56 @@ func TestDeleteAndGet(t *testing.T) {
 		Reply(200)
 
 	tenantId := uuid.NewV4()
-	service, db := NewOSService(
+	namespaceCreator := Ns("aslak-run", environment.TypeRun)
+	service := NewOSService(
+		s.T(),
 		config,
-		WithTenant(tenantId, Ns("aslak-run", environment.TypeRun)),
+		WithTenant(tenantId, namespaceCreator),
 		SingleClusterMapping("http://starter.com", "clusterUser", tok.Raw),
-		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"))
+		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"),
+		s.DB)
 
 	// when
-	err = service.WithDeleteMethod(db.Namespaces, true).ApplyAll()
+	err = service.WithDeleteMethod([]*tenant.Namespace{namespaceCreator(tenantId)}, true).ApplyAll()
 
 	// then
-	require.NoError(t, err)
-	require.Empty(t, db.Namespaces)
-	require.Empty(t, db.Tenants)
+	require.NoError(s.T(), err)
+	repo := tenant.NewDBService(s.DB)
+	namespaces, err := repo.GetNamespaces(tenantId)
+	require.NoError(s.T(), err)
+	assert.Empty(s.T(), namespaces)
+	assert.False(s.T(), repo.Exists(tenantId))
 }
 
-func TestNumberOfCallsToCluster(t *testing.T) {
+func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	// given
-	config, reset := LoadTestConfig(t)
+	defer gock.Off()
+	config, reset := LoadTestConfig(s.T())
 	defer reset()
 	SetTemplateVersions()
 
 	calls := 0
 	MockPostRequestsToOS(&calls, "http://my.cluster")
+	clusterMapping := SingleClusterMapping("http://my.cluster", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
+	userCreator := WithUser(&authclient.UserDataAttributes{}, "developer", "12345")
 
-	service, db := NewOSService(
+	id := uuid.NewV4()
+	service := NewOSService(
+		s.T(),
 		config,
-		WithTenant(uuid.NewV4()),
-		SingleClusterMapping("http://my.cluster", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
-		WithUser(&authclient.UserDataAttributes{}, "developer", "12345"))
+		WithTenant(id),
+		clusterMapping,
+		userCreator,
+		s.DB)
 
 	// when
 	err := service.WithPostMethod().ApplyAll(environment.DefaultEnvTypes...)
 
 	// then
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	// the expected number is number of all objects + 11 get calls to verify that objects are created + 1 to removed admin role binding
-	assert.Equal(t, ExpectedNumberOfCallsWhenPost(t, config), calls)
-	assert.Len(t, db.Namespaces, 5)
+	assert.Equal(s.T(), ExpectedNumberOfCallsWhenPost(s.T(), config, clusterMapping, userCreator.NewUserInfo("developer")), calls)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), namespaces, 5)
 }

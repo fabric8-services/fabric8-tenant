@@ -63,9 +63,9 @@ const (
 )
 
 var sortOrder = map[string]int{
-	"Namespace":      1,
-	"ProjectRequest": 1,
-	"Role":           2,
+	"Namespace":              1,
+	"ProjectRequest":         1,
+	"Role":                   2,
 	"RoleBindingRestriction": 3,
 	"LimitRange":             4,
 	"ResourceQuota":          5,

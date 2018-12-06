@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
@@ -30,6 +31,15 @@ func TestTenantController(t *testing.T) {
 	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
+var (
+	clusterMapping = testdoubles.SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
+	userInfo       = testdoubles.UserInfo{
+		OsUsername:  "developer",
+		OsUserToken: "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8",
+		NsBaseName:  "developer",
+	}
+)
+
 func (s *TenantControllerTestSuite) TestShowTenant() {
 	// given
 	defer gock.Off()
@@ -40,12 +50,12 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 	s.T().Run("OK", func(t *testing.T) {
 		// given
 		defer gock.Off()
-		fxt := tf.NewTestFixture(t, s.Repo, tf.Tenants(1), tf.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
-		_, tenant := goatest.ShowTenantOK(t, createAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
+		_, tnnt := goatest.ShowTenantOK(t, createAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
 		// then
-		assert.Equal(t, fxt.Tenants[0].ID, *tenant.Data.ID)
-		assert.Equal(t, 1, len(tenant.Data.Attributes.Namespaces))
+		assert.Equal(t, fxt.Tenants[0].ID, *tnnt.Data.ID)
+		assert.Equal(t, 1, len(tnnt.Data.Attributes.Namespaces))
 	})
 
 	s.T().Run("Failures", func(t *testing.T) {
@@ -84,7 +94,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 	// when
 	goatest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	// then
-	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
+	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config, clusterMapping, userInfo), calls)
 
 }
 
@@ -102,8 +112,8 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	// when
 	goatest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
 	// then
-	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
-	cheObjects := testdoubles.SingleTemplatesObjects(s.T(), config, environment.TypeChe)
+	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config, clusterMapping, userInfo)
+	cheObjects := testdoubles.SingleTemplatesObjects(s.T(), config, environment.TypeChe, clusterMapping, userInfo)
 	numberOfGetChecksForChe := testdoubles.NumberOfGetChecks(cheObjects)
 	assert.Equal(s.T(), totalNumber-(len(cheObjects)+numberOfGetChecksForChe), calls)
 }
@@ -161,6 +171,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 	// given
 	defer gock.Off()
 	id := uuid.NewV4()
+	repo := tenant.NewDBService(s.DB)
 
 	s.T().Run("with existing namespaces", func(t *testing.T) {
 		s.createFixtures(id, environment.DefaultEnvTypes...)
@@ -176,11 +187,11 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// when
 			goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl, false)
 			// then
-			objects := testdoubles.AllTemplatesObjects(s.T(), config)
+			objects := testdoubles.AllTemplatesObjects(s.T(), config, clusterMapping, userInfo)
 			assert.Equal(s.T(), testdoubles.NumberOfObjectsToClean(objects), calls)
-			_, err := s.Repo.GetTenant(id)
+			_, err := repo.GetTenant(id)
 			assert.NoError(t, err)
-			namespaces, err := s.Repo.GetNamespaces(id)
+			namespaces, err := repo.GetNamespaces(id)
 			assert.NoError(t, err)
 			assert.Len(t, namespaces, 5)
 		})
@@ -193,11 +204,11 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// when
 			goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
-			objects := testdoubles.AllTemplatesObjects(s.T(), config)
+			objects := testdoubles.AllTemplatesObjects(s.T(), config, clusterMapping, userInfo)
 			assert.Equal(s.T(), testdoubles.NumberOfObjectsToRemove(objects), calls)
-			_, err := s.Repo.GetTenant(id)
+			_, err := repo.GetTenant(id)
 			test.AssertError(t, err, test.IsOfType(errors.NotFoundError{}))
-			namespaces, err := s.Repo.GetNamespaces(id)
+			namespaces, err := repo.GetNamespaces(id)
 			assert.NoError(t, err)
 			assert.Len(t, namespaces, 0)
 		})
@@ -219,9 +230,9 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 		// when
 		goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 		// then
-		_, err := s.Repo.GetTenant(id)
+		_, err := repo.GetTenant(id)
 		test.AssertError(t, err, test.IsOfType(errors.NotFoundError{}))
-		namespaces, err := s.Repo.GetNamespaces(id)
+		namespaces, err := repo.GetNamespaces(id)
 		assert.NoError(t, err)
 		assert.Len(t, namespaces, 0)
 	})
@@ -232,6 +243,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 	defer gock.Off()
 	mockCommunicationWithAuth()
 	svc, ctrl, _, reset := s.newTestTenantController()
+	repo := tenant.NewDBService(s.DB)
 	defer reset()
 
 	s.T().Run("Failures", func(t *testing.T) {
@@ -278,9 +290,9 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			// when
 			goatest.CleanTenantInternalServerError(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, false)
 			// then
-			_, err := s.Repo.GetTenant(id)
+			_, err := repo.GetTenant(id)
 			assert.NoError(t, err)
-			namespaces, err := s.Repo.GetNamespaces(id)
+			namespaces, err := repo.GetNamespaces(id)
 			assert.NoError(t, err)
 			assert.Len(t, namespaces, 5)
 		})
@@ -296,9 +308,9 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			// when
 			goatest.CleanTenantInternalServerError(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
-			_, err := s.Repo.GetTenant(id)
+			_, err := repo.GetTenant(id)
 			assert.NoError(t, err)
-			namespaces, err := s.Repo.GetNamespaces(id)
+			namespaces, err := repo.GetNamespaces(id)
 			assert.NoError(t, err)
 			assert.Len(t, namespaces, 1)
 			assert.Equal(t, namespaces[0].Name, "johny1-che")
@@ -324,7 +336,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 		// when
 		goatest.UpdateTenantAccepted(t, createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
 		// then
-		objects := testdoubles.AllTemplatesObjects(t, config)
+		objects := testdoubles.AllTemplatesObjects(t, config, clusterMapping, userInfo)
 		// get and patch requests for all objects but ProjectRequest
 		assert.Equal(t, (len(objects)-5)*2, calls)
 	})
@@ -369,7 +381,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 func (s *TenantControllerTestSuite) newTestTenantController() (*goa.Service, *controller.TenantController, *configuration.Data, func()) {
 	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantController(svc, s.Repo, clusterService, authService, config)
+	ctrl := controller.NewTenantController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
 	return svc, ctrl, config, reset
 }
 
@@ -379,7 +391,7 @@ func createAndMockUserAndToken(t *testing.T, sub string, internal bool) context.
 }
 
 func (s *TenantControllerTestSuite) createFixtures(tenantId uuid.UUID, envTypes ...environment.Type) {
-	tf.NewTestFixture(s.T(), s.Repo, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
+	tf.NewTestFixture(s.T(), s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
 		fxt.Tenants[0].ID = tenantId
 		fxt.Tenants[0].OSUsername = "johny"
 		fxt.Tenants[0].NsBaseName = "johny1"

@@ -157,7 +157,7 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 
 	failed := false
 	for _, object := range objects {
-		err := apply(*client, action.methodName(), object)
+		_, err := Apply(*client, action.methodName(), object)
 		if err != nil {
 			err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
 			sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
@@ -175,14 +175,14 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	action.updateNamespace(env, &cluster, namespace, failed || err != nil)
 }
 
-func apply(client Client, action string, object environment.Object) error {
+func Apply(client Client, action string, object environment.Object) (*Result, error) {
 
 	objectEndpoint, found := AllObjectEndpoints[environment.GetKind(object)]
 	if !found {
 		err := fmt.Errorf("there is no supported endpoint for the object %s", environment.GetKind(object))
-		return err
+		return nil, err
 	}
 
-	_, err := objectEndpoint.Apply(&client, object, action)
-	return err
+	result, err := objectEndpoint.Apply(&client, object, action)
+	return result, err
 }

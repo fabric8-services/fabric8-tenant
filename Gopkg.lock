@@ -94,33 +94,40 @@
   source = "https://github.com/xcoulon/go-vcr/"
 
 [[projects]]
-  digest = "1:71bde7ff755e0f2cdc372c89fccefc8a212242111df01e61fadd4d1521a7c920"
+  digest = "1:258f52523a7a6ba109904e0d09865b7f10fa07c9a19c70dd93d109085a6f88e1"
   name = "github.com/fabric8-services/fabric8-auth"
   packages = [
     "design",
     "errors",
-    "log",
-    "rest",
-    "token/jwk",
   ]
   pruneopts = "UT"
   revision = "19eb16aaf10758299c4a5360600af983b8470909"
 
 [[projects]]
   branch = "master"
-  digest = "1:9d44048273ce4560f36e69544e3a035189af84597d3a08402d12f57700a1f995"
+  digest = "1:67c8b413e64e3ae84fa491b73839b3928bda168777382c7adee86665e20547e0"
+  name = "github.com/fabric8-services/fabric8-auth-client"
+  packages = ["auth"]
+  pruneopts = "UT"
+  revision = "0eb93fc6cee1e202cb0f3ade92e99a2423b49283"
+
+[[projects]]
+  branch = "master"
+  digest = "1:fa09b0911d8c5ef39a38c8736bdddc8318508e1d565e34fc1b84d9d8bbc557c6"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
+    "auth",
+    "auth/jwk",
     "configuration",
+    "convert/ptr",
     "errors",
+    "goasupport",
     "httpsupport",
     "log",
-    "login/tokencontext",
     "sentry",
-    "token",
   ]
   pruneopts = "UT"
-  revision = "48ce8f91a726c3d628ef372cf543a33325bf6294"
+  revision = "9767f96777d8bc28ef73ead4901c3ef059117520"
 
 [[projects]]
   branch = "master"
@@ -146,11 +153,11 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:608d0fe1621755354728fbaeef8ada8b4a33001aec88b66c970e641be950d850"
+  digest = "1:64ef2c2f0f508690f06c1b009e1e3103441ce60c2db0323ff94d8d1c560ec10b"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
   pruneopts = "UT"
-  revision = "master"
+  revision = "084a9de9eb0361fbd5ded14b55c84e5493a5d7f6"
 
 [[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
@@ -586,10 +593,12 @@
     "github.com/dnaeon/go-vcr/recorder",
     "github.com/fabric8-services/fabric8-auth/design",
     "github.com/fabric8-services/fabric8-auth/errors",
+    "github.com/fabric8-services/fabric8-common/auth",
+    "github.com/fabric8-services/fabric8-common/convert/ptr",
     "github.com/fabric8-services/fabric8-common/errors",
     "github.com/fabric8-services/fabric8-common/log",
     "github.com/fabric8-services/fabric8-common/sentry",
-    "github.com/fabric8-services/fabric8-common/token",
+    "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
     "github.com/fabric8-services/fabric8-wit/resource",
     "github.com/fabric8-services/fabric8-wit/rest",

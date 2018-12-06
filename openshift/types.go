@@ -109,7 +109,7 @@ func (t *UserNamespaceTypeService) AfterCallback(client *Client, action string) 
 		return nil
 	}
 	adminRoleBinding := CreateAdminRoleBinding(t.context.nsBaseName)
-	err := apply(*client, http.MethodDelete, adminRoleBinding)
+	_, err := Apply(*client, http.MethodDelete, adminRoleBinding)
 
 	if err != nil {
 		return errors.Wrapf(err, "unable to remove admin rolebinding in %s namespace", t.GetNamespaceName())

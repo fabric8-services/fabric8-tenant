@@ -114,7 +114,7 @@ func endpoints(endpoints ...func(methods map[string]*MethodDefinition)) *ObjectE
 
 func (r *Result) bodyToObject() (environment.Object, error) {
 	var obj environment.Object
-	err := yaml.Unmarshal(r.body, &obj)
+	err := yaml.Unmarshal(r.Body, &obj)
 	return obj, err
 }
 
@@ -134,7 +134,7 @@ func (e *ObjectEndpoints) apply(client *Client, object environment.Object, metho
 		err     error
 	)
 
-	// handle before callbacks if any defined (that could change the request body)
+	// handle before callbacks if any defined (that could change the request Body)
 	if len(method.beforeDoCallbacks) != 0 {
 		for _, beforeCallback := range method.beforeDoCallbacks {
 			method, reqBody, err = beforeCallback.Call(client, object, e, method)

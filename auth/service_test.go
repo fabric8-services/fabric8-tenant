@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -17,7 +18,7 @@ import (
 
 func TestResolveUserToken(t *testing.T) {
 	// given
-	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
+	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", "", recorder.WithJWTMatcher)
 	defer cleanup()
 	tok, err := testsupport.NewToken(
 		map[string]interface{}{
@@ -41,7 +42,9 @@ func TestResolveUserToken(t *testing.T) {
 		_, _, err := authService.ResolveUserToken(context.Background(), "some_invalid_resource", tok.Raw)
 		// then
 		testsupport.AssertError(t, err, testsupport.IsOfType(errors.InternalError{}),
-			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"))
+			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"),
+			testsupport.HasMessageContaining("Auth service responded with:"),
+			testsupport.HasMessageContaining("Bad value for parameter 'for'"))
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
@@ -50,28 +53,54 @@ func TestResolveUserToken(t *testing.T) {
 		// then
 		testsupport.AssertError(t, err, testsupport.HasMessage("token must not be empty"))
 	})
+
+	t.Run("token is missing", func(t *testing.T) {
+		// when
+		_, _, err := authService.ResolveUserToken(context.Background(), "missing_token_resource", tok.Raw)
+		// then
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining(
+				"LINK url=https://auth.openshift.io/api/token/link?for=https://github.com, description=\"GitHub token is missing. Link GitHub account\""),
+			testsupport.HasMessageContaining("occurred an error with message"),
+			testsupport.HasMessageContaining("token is missing"))
+	})
+
+	t.Run("missing header", func(t *testing.T) {
+		authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", "")
+		defer cleanup()
+		tok, err := testsupport.NewToken(map[string]interface{}{}, "../test/private_key.pem")
+		require.NoError(t, err)
+		// when
+		_, _, err = authService.ResolveUserToken(context.Background(), "missing_header_resource", tok.Raw)
+		// then
+		testsupport.AssertError(t, err, testsupport.IsOfType(errors.InternalError{}),
+			testsupport.HasMessageContaining("error while resolving the token for missing_header_resource"),
+			testsupport.HasMessageContaining("Auth service responded with:"),
+			testsupport.HasMessageContaining("error message in header"),
+			testsupport.HasMessageContaining("401 jwt_security_error"))
+	})
+
+	t.Run("when response is nil", func(t *testing.T) {
+		// when
+		_, _, err := authService.ResolveUserToken(context.Background(), "nothing-existing", tok.Raw)
+		// then
+		testsupport.AssertError(t, err,
+			testsupport.HasMessageContaining("error while resolving the token for nothing-existing"),
+			testsupport.HasMessageContaining("Response is nil"))
+	})
 }
 
 func TestResolveServiceAccountToken(t *testing.T) {
 	// given
 	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
-	authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", recorder.WithJWTMatcher)
-	defer cleanup()
-
-	tok, err := testsupport.NewToken(
-		map[string]interface{}{
-			"sub": "tenant_service",
-		},
-		"../test/private_key.pem",
-	)
-	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
 		// given
-		authService.SaToken = tok.Raw
+		authService, cleanup := newAuthService(t, "tenant_service", "../test/data/token/auth_resolve_target_token")
+		defer cleanup()
 		// when
-		username, accessToken, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
+		username, accessToken, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource_for_service")
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, "tenant_service", username)
@@ -80,35 +109,41 @@ func TestResolveServiceAccountToken(t *testing.T) {
 
 	t.Run("expired token", func(t *testing.T) {
 		// given
-		expTok, err := testsupport.NewToken(map[string]interface{}{
-			"sub": "expired_tenant_service",
-		}, "../test/private_key.pem")
-		require.NoError(t, err)
-		authService.SaToken = expTok.Raw
+		authService, cleanup := newAuthService(t, "expired_tenant_service", "../test/data/token/auth_resolve_target_token")
+		defer cleanup()
 		// when
-		_, _, err = authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
+		_, _, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
 		testsupport.AssertError(t, err,
-			testsupport.HasMessageContaining("error while resolving the token for some_valid_openshift_resource"))
+			testsupport.HasMessageContaining("error while resolving the token for some_valid_openshift_resource"),
+			testsupport.HasMessageContaining("Auth service responded with"),
+			testsupport.HasMessageContaining("cluster token is invalid or expired"))
 	})
 
 	t.Run("invalid resource", func(t *testing.T) {
 		// given
-		authService.SaToken = tok.Raw
+		authService, cleanup := newAuthService(t, "tenant_service", "../test/data/token/auth_resolve_target_token")
+		defer cleanup()
 		// when
 		_, _, err := authService.ResolveSaToken(context.Background(), "some_invalid_resource")
 		// then
 		testsupport.AssertError(t, err,
-			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"))
+			testsupport.HasMessageContaining("error while resolving the token for some_invalid_resource"),
+			testsupport.HasMessageContaining("Auth service responded with"),
+			testsupport.HasMessageContaining("Bad value for parameter 'for'"))
 	})
 
 	t.Run("empty access token", func(t *testing.T) {
 		// given
-		authService.SaToken = ""
+		authService, cleanup := newAuthService(t, "tenant_service", "../test/data/token/auth_resolve_target_token")
+		defer cleanup()
 		// when
-		_, _, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
+		user, token, err := authService.ResolveSaToken(context.Background(), "get_token")
 		// then
-		testsupport.AssertError(t, err, testsupport.HasMessage("token must not be empty"))
+		fmt.Println(err)
+		fmt.Println(user)
+		fmt.Println(token)
+
 	})
 }
 
@@ -139,16 +174,8 @@ func TestUserProfileClient_GetUserCluster(t *testing.T) {
 		},
 	}
 
-	authClientService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_user", "http://authservice", recorder.WithJWTMatcher)
+	authClientService, cleanup := newAuthService(t, "tenant_service", "../test/data/token/auth_resolve_user")
 	defer cleanup()
-	saToken, err := testsupport.NewToken(
-		map[string]interface{}{
-			"sub": "tenant_service",
-		},
-		"../test/private_key.pem",
-	)
-	require.NoError(t, err)
-	authClientService.SaToken = saToken.Raw
 
 	for _, testData := range tests {
 		t.Run(testData.name, func(t *testing.T) {
@@ -182,7 +209,7 @@ func TestPublicKeys(t *testing.T) {
 
 	t.Run("valid keys", func(t *testing.T) {
 		//given
-		authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_get_keys", "http://authservice")
+		authService, cleanup := testdoubles.NewAuthService(t, "../test/data/token/auth_get_keys", "http://authservice", "")
 		defer cleanup()
 		// when
 		result, err := authService.GetPublicKeys()
@@ -193,7 +220,7 @@ func TestPublicKeys(t *testing.T) {
 
 	t.Run("invalid url", func(t *testing.T) {
 		//given
-		authService, cleanup := testdoubles.NewAuthService(t, "", "http://google.com")
+		authService, cleanup := testdoubles.NewAuthService(t, "", "http://google.com", "")
 		defer cleanup()
 		// when
 		_, err := authService.GetPublicKeys()
@@ -205,7 +232,9 @@ func TestPublicKeys(t *testing.T) {
 
 func TestInitializeAuthServiceAndGetSaToken(t *testing.T) {
 	// given
-	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_URL", "http://authservice"))
+	reset := testsupport.SetEnvironments(
+		testsupport.Env("F8_AUTH_URL", "http://authservice"),
+		testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
 	defer reset()
 	record, err := recorder.New("../test/data/token/auth_resolve_target_token")
 	defer func() {
@@ -220,7 +249,20 @@ func TestInitializeAuthServiceAndGetSaToken(t *testing.T) {
 	authService, err := auth.NewAuthService(config, configuration.WithRoundTripper(record))
 
 	// then
+	assert.NoError(t, err)
+	username, accessToken, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource_for_service")
+	assert.NoError(t, err)
+	assert.Equal(t, "tenant_service", username)
+	assert.Equal(t, "an_openshift_token", accessToken)
+}
+
+func newAuthService(t *testing.T, sub, cassetteFile string) (auth.Service, func()) {
+	tok, err := testsupport.NewToken(
+		map[string]interface{}{
+			"sub": sub,
+		},
+		"../test/private_key.pem",
+	)
 	require.NoError(t, err)
-	expSaToken := "jA0ECQMC5AvXo6Jyrj5g0kcBv6Qp8ZTWCgYD6TESuc2OxSDZ1lic1tmV6g4IcQUBlohjT3gyQX2oTa1bWfNkk8xY6wyPq8CUK3ReOnnDK/yo661f6LXgvA=="
-	assert.Equal(t, authService.SaToken, expSaToken)
+	return testdoubles.NewAuthService(t, cassetteFile, "http://authservice", tok.Raw, recorder.WithJWTMatcher)
 }

@@ -84,14 +84,14 @@ func (c *Client) Do(requestCreator RequestCreator, object environment.Object, bo
 
 type Result struct {
 	response *http.Response
-	body     []byte
+	Body     []byte
 	err      error
 }
 
 func NewResult(response *http.Response, body []byte, err error) *Result {
 	return &Result{
 		response: response,
-		body:     body,
+		Body:     body,
 		err:      err,
 	}
 }

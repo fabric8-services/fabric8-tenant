@@ -58,7 +58,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(t, s.Repo, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
 		// when
 		_, tenant := goatest.ShowTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Tenants[0].ID)
 		// then
@@ -100,7 +100,7 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(t, s.Repo, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
 		// when
 		_, tenant := goatest.SearchTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
 		// then
@@ -130,6 +130,8 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 }
 
 func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
+	repo := tenant.NewDBService(s.DB)
+
 	s.T().Run("delete method", func(t *testing.T) {
 		cl := client.New(nil)
 		req, err := cl.NewDeleteTenantsRequest(context.Background(), "")
@@ -152,7 +154,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			Reply(200).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
-		fxt := testfixture.NewTestFixture(t, s.Repo, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
+		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
 			id, err := uuid.FromString("8c97b9fc-2a3f-4bef-8579-75e676ab1348") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
 			if err != nil {
 				return err
@@ -178,9 +180,9 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 		// when
 		goatest.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 		// then
-		_, err := s.Repo.GetTenant(fxt.Tenants[0].ID)
+		_, err := repo.GetTenant(fxt.Tenants[0].ID)
 		require.IsType(t, errors.NotFoundError{}, err)
-		namespaces, err := s.Repo.GetNamespaces(fxt.Tenants[0].ID)
+		namespaces, err := repo.GetNamespaces(fxt.Tenants[0].ID)
 		require.NoError(t, err)
 		assert.Empty(t, namespaces)
 	})
@@ -201,7 +203,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			Reply(200).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
-		fxt := testfixture.NewTestFixture(t, s.Repo, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
+		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
 			id, err := uuid.FromString("0257147d-0bb8-4624-a054-853e49c97d07") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
 			if err != nil {
 				return err
@@ -227,9 +229,9 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 		// when
 		goatest.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 		// then
-		_, err := s.Repo.GetTenant(fxt.Tenants[0].ID)
+		_, err := repo.GetTenant(fxt.Tenants[0].ID)
 		require.IsType(t, errors.NotFoundError{}, err)
-		namespaces, err := s.Repo.GetNamespaces(fxt.Tenants[0].ID)
+		namespaces, err := repo.GetNamespaces(fxt.Tenants[0].ID)
 		require.NoError(t, err)
 		assert.Empty(t, namespaces)
 	})
@@ -274,6 +276,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 		t.Run("namespace deletion failed", func(t *testing.T) {
 			// case where the first namespace could not be deleted: the tenant and the namespaces should still be in the DB
 			// given
+			repo := tenant.NewDBService(s.DB)
 			defer gock.Off()
 			mockCommunicationWithAuth()
 			gock.New("https://api.cluster1").
@@ -289,7 +292,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 
 			svc, ctrl, reset := s.newTestTenantsController()
 			defer reset()
-			fxt := testfixture.NewTestFixture(t, s.Repo, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
+			fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
 				id, err := uuid.FromString("5a95c51b-120a-4d03-b529-98bd7d4a5689") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
 				if err != nil {
 					return err
@@ -314,9 +317,9 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			// when
 			goatest.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 			// then
-			_, err := s.Repo.GetTenant(fxt.Tenants[0].ID)
+			_, err := repo.GetTenant(fxt.Tenants[0].ID)
 			require.NoError(t, err)
-			namespaces, err := s.Repo.GetNamespaces(fxt.Tenants[0].ID)
+			namespaces, err := repo.GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
 			require.Len(t, namespaces, 1)
 			// firs namespace could not be deleted, both still exist in the DB (and in the cluster)
@@ -347,16 +350,7 @@ func createInvalidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, *auth.Service, *configuration.Data, func()) {
-	resetVars := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"), test.Env("F8_API_SERVER_USE_TLS", "false"))
-	authService, _, cleanup := testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", recorder.WithJWTMatcher)
-	config, resetConf := test.LoadTestConfig(t)
-	reset := func() {
-		resetVars()
-		cleanup()
-		resetConf()
-	}
-
+func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
 	saToken, err := test.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -364,9 +358,18 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, *auth.Se
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-	authService.SaToken = saToken.Raw
 
-	clusterService := cluster.NewClusterService(time.Hour, authService)
+	resetVars := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"), test.Env("F8_API_SERVER_USE_TLS", "false"))
+	authService, r, cleanup :=
+		testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
+	config, resetConf := test.LoadTestConfig(t)
+	reset := func() {
+		resetVars()
+		cleanup()
+		resetConf()
+	}
+
+	clusterService := cluster.NewClusterService(time.Hour, authService, configuration.WithRoundTripper(r))
 	err = clusterService.Start()
 	require.NoError(t, err)
 	return clusterService, authService, config, reset
@@ -374,7 +377,7 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, *auth.Se
 func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
 	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, s.Repo, clusterService, authService, config)
+	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
 	return svc, ctrl, reset
 }
 

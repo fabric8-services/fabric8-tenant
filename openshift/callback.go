@@ -143,7 +143,7 @@ var IgnoreWhenDoesNotExist = AfterDoCallback{
 			//	"action":  method.action,
 			//	"status":  result.response.Status,
 			//	"object":  object.ToString(),
-			//	"message": result.body,
+			//	"message": result.Body,
 			//}, "failed to %s the object. Ignoring this error because it probably does not exist", method.action)
 			return nil
 		}
@@ -154,8 +154,8 @@ var IgnoreWhenDoesNotExist = AfterDoCallback{
 
 func checkHTTPCode(result *Result, e error) error {
 	if e == nil && result.response != nil && (result.response.StatusCode < 200 || result.response.StatusCode >= 300) {
-		return fmt.Errorf("server responded with status: %d for the request %s %s with the body %s",
-			result.response.StatusCode, result.response.Request.Method, result.response.Request.URL, result.body)
+		return fmt.Errorf("server responded with status: %d for the request %s %s with the Body %s",
+			result.response.StatusCode, result.response.Request.Method, result.response.Request.URL, result.Body)
 	}
 	return e
 }

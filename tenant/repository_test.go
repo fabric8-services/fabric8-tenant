@@ -22,9 +22,7 @@ type TenantServiceTestSuite struct {
 }
 
 func TestTenantService(t *testing.T) {
-	if ready, reason := resource.IsReady(resource.Database); !ready {
-		t.Skip(reason)
-	}
+	resource.Require(t, resource.Database)
 	suite.Run(t, &TenantServiceTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
@@ -95,7 +93,7 @@ func (s *TenantServiceTestSuite) TestUpdateTenant() {
 
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		fxt := tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1))
 		svc := tenant.NewDBService(s.DB)
 		tenant := fxt.Tenants[0]
 		// when
@@ -107,7 +105,7 @@ func (s *TenantServiceTestSuite) TestUpdateTenant() {
 
 	s.T().Run("ko - invalid profile", func(t *testing.T) {
 		// given
-		fxt := tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1))
 		svc := tenant.NewDBService(s.DB)
 		tenant := fxt.Tenants[0]
 		// when
@@ -121,7 +119,7 @@ func (s *TenantServiceTestSuite) TestUpdateTenant() {
 func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		fxt := tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		svc := tenant.NewDBService(s.DB)
 		ns := fxt.Namespaces[0]
 		// when
@@ -148,7 +146,7 @@ func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 func (s *TenantServiceTestSuite) TestDelete() {
 	s.T().Run("all info", func(t *testing.T) {
 		// given
-		fxt := tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(2), tf.Namespaces(10, func(fxt *tf.TestFixture, idx int) error {
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(2), tf.Namespaces(10, func(fxt *tf.TestFixture, idx int) error {
 			if idx < 5 {
 				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 			} else {
@@ -199,7 +197,7 @@ func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
 
 	s.T().Run("is second tenant with the same name", func(t *testing.T) {
 		// given
-		tf.NewTestFixtureWithDB(t, s.DB, tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
+		tf.NewTestFixture(t, s.DB, tf.Namespaces(1, func(fxt *tf.TestFixture, idx int) error {
 			fxt.Namespaces[idx].Name = "johny-che"
 			return nil
 		}))
@@ -213,7 +211,7 @@ func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
 
 	s.T().Run("is tenth tenant with the same name", func(t *testing.T) {
 		// given
-		tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(8, func(fxt *tf.TestFixture, idx int) error {
+		tf.NewTestFixture(t, s.DB, tf.Tenants(8, func(fxt *tf.TestFixture, idx int) error {
 			nsBaseName := fmt.Sprintf("johny%d", idx+2)
 			fxt.Tenants[idx].NsBaseName = nsBaseName
 			return nil
@@ -245,7 +243,7 @@ func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
 
 	s.T().Run("repo returns a failure while getting namespaces", func(t *testing.T) {
 		// given
-		tf.NewTestFixtureWithDB(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
+		tf.NewTestFixture(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
 			fxt.Tenants[idx].NsBaseName = "failingJohny"
 			return nil
 		}))

@@ -12,6 +12,7 @@ func makeTenants(fxt *TestFixture) error {
 		return nil
 	}
 	fxt.Tenants = make([]*tenant.Tenant, fxt.info[kindTenants].numInstances)
+	tenantService := tenant.NewDBService(fxt.db)
 	for i := range fxt.Tenants {
 		fxt.Tenants[i] = &tenant.Tenant{
 			ID:      uuid.NewV4(),
@@ -21,7 +22,7 @@ func makeTenants(fxt *TestFixture) error {
 		if err := fxt.runCustomizeEntityFuncs(i, kindTenants); err != nil {
 			return errs.WithStack(err)
 		}
-		err := fxt.tenantService.SaveTenant(fxt.Tenants[i])
+		err := tenantService.SaveTenant(fxt.Tenants[i])
 		if err != nil {
 			return errs.Wrapf(err, "failed to create tenant: %+v", fxt.Tenants[i])
 		}
@@ -34,6 +35,7 @@ func makeNamespaces(fxt *TestFixture) error {
 		return nil
 	}
 	fxt.Namespaces = make([]*tenant.Namespace, fxt.info[kindNamespaces].numInstances)
+	tenantService := tenant.NewDBService(fxt.db)
 	for i := range fxt.Namespaces {
 		fxt.Namespaces[i] = &tenant.Namespace{
 			Type:      environment.TypeChe,
@@ -51,7 +53,7 @@ func makeNamespaces(fxt *TestFixture) error {
 				return errs.New("you must specify a tenant ID for each namespace")
 			}
 		}
-		err := fxt.tenantService.SaveNamespace(fxt.Namespaces[i])
+		err := tenantService.SaveNamespace(fxt.Namespaces[i])
 		if err != nil {
 			return errs.Wrapf(err, "failed to create namespace: %+v", fxt.Namespaces[i])
 		}

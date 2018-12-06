@@ -24,7 +24,7 @@ type TenantController struct {
 	*goa.Controller
 	config            *configuration.Data
 	clusterService    cluster.Service
-	authClientService *auth.Service
+	authClientService auth.Service
 	tenantRepository  tenant.Service
 }
 
@@ -33,7 +33,7 @@ func NewTenantController(
 	service *goa.Service,
 	tenantRepository tenant.Service,
 	clusterService cluster.Service,
-	authClientService *auth.Service,
+	authClientService auth.Service,
 	config *configuration.Data) *TenantController {
 
 	return &TenantController{

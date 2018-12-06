@@ -14,6 +14,15 @@ import (
 	"testing"
 )
 
+var (
+	clusterMapping = testdoubles.SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
+	userInfo       = testdoubles.UserInfo{
+		OsUsername:  "developer",
+		OsUserToken: "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8",
+		NsBaseName:  "developer",
+	}
+)
+
 func TestEnvironmentTypeService(t *testing.T) {
 	// given
 	config, reset := test.LoadTestConfig(t)
@@ -105,7 +114,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 func TestPresenceOfTemplateObjects(t *testing.T) {
 	data, reset := test.LoadTestConfig(t)
 	defer reset()
-	templateObjects := testdoubles.AllTemplatesObjects(t, data)
+	templateObjects := testdoubles.AllTemplatesObjects(t, data, clusterMapping, userInfo)
 
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
 		assert.NoError(t,
@@ -173,7 +182,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 		defer resetEnv()
 		data, reset := test.LoadTestConfig(t)
 		defer reset()
-		templateObjects := testdoubles.AllTemplatesObjects(t, data)
+		templateObjects := testdoubles.AllTemplatesObjects(t, data, clusterMapping, userInfo)
 
 		assert.Error(t,
 			contain(templateObjects,

@@ -11,9 +11,10 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
-	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
+	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-tenant/utils"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -21,12 +22,12 @@ import (
 	"testing"
 )
 
-func NewAuthService(t *testing.T, cassetteFile, authURL string, options ...recorder.Option) (*auth.Service, func()) {
-	authService, _, cleanup := NewAuthServiceWithRecorder(t, cassetteFile, authURL, options...)
+func NewAuthService(t *testing.T, cassetteFile, authURL, saToken string, options ...recorder.Option) (auth.Service, func()) {
+	authService, _, cleanup := NewAuthServiceWithRecorder(t, cassetteFile, authURL, saToken, options...)
 	return authService, cleanup
 }
 
-func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL string, options ...recorder.Option) (*auth.Service, *vcrrecorder.Recorder, func()) {
+func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL, saToken string, options ...recorder.Option) (auth.Service, *vcrrecorder.Recorder, func()) {
 	var clientOptions []configuration.HTTPClientOption
 	var r *vcrrecorder.Recorder
 	var err error
@@ -39,10 +40,8 @@ func NewAuthServiceWithRecorder(t *testing.T, cassetteFile, authURL string, opti
 	config, err := configuration.GetData()
 	require.NoError(t, err)
 
-	authService := &auth.Service{
-		Config:        config,
-		ClientOptions: clientOptions,
-	}
+	authService := auth.NewAuthServiceWithToken(config, saToken, clientOptions...)
+
 	return authService, r, func() {
 		if r != nil {
 			err := r.Stop()
@@ -122,24 +121,44 @@ func SingleClusterMapping(url, user, token string) cluster.ForType {
 	}
 }
 
+func (c UserCreator) NewUserInfo(nsBaseName string) UserInfo {
+	user := c()
+	return UserInfo{
+		OsUsername:  user.OpenShiftUsername,
+		OsUserToken: user.OpenShiftUserToken,
+		NsBaseName:  nsBaseName,
+	}
+}
+
 func NewOSService(
-	config *configuration.Data, createTenant TenantCreator, clusterMapping cluster.ForType, createUser UserCreator) (*openshift.ServiceBuilder, *gormsupport.DBStub) {
+	t *testing.T, config *configuration.Data, createTenant TenantCreator, clusterMapping cluster.ForType, createUser UserCreator, db *gorm.DB) *openshift.ServiceBuilder {
 	user := createUser()
 	envService := environment.NewServiceForUserData(user.UserData)
 	ctx := openshift.NewServiceContext(
 		context.Background(), config, clusterMapping, user.OpenShiftUsername, user.OpenShiftUserToken, environment.RetrieveUserName(user.OpenShiftUsername))
 
 	tennt, namespaces := createTenant()
-	nsRepo, dbStub := gormsupport.NewDBServiceStub(tennt, namespaces)
-	return openshift.NewBuilderWithTransport(ctx, nsRepo.NewTenantRepository(tennt.ID), http.DefaultTransport, envService), dbStub
+	tf.NewTestFixture(t, db, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
+		fxt.Tenants[0] = tennt
+		return nil
+	}), tf.Namespaces(len(namespaces), func(fxt *tf.TestFixture, idx int) error {
+		fxt.Namespaces[idx] = namespaces[idx]
+		return nil
+	}))
+	return openshift.NewBuilderWithTransport(ctx, tenant.NewDBService(db).NewTenantRepository(tennt.ID), http.DefaultTransport, envService)
 }
 
-func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type) environment.Objects {
+type UserInfo struct {
+	OsUsername  string
+	OsUserToken string
+	NsBaseName  string
+}
+
+func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
 	envService := environment.NewService()
-	clusterMapping := SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 
 	ctx := openshift.NewServiceContext(
-		context.Background(), config, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8", "developer")
+		context.Background(), config, clusterMapping, userInfo.OsUsername, userInfo.OsUserToken, userInfo.NsBaseName)
 
 	nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
 	_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {
@@ -149,10 +168,10 @@ func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType en
 	return objects
 }
 
-func AllTemplatesObjects(t *testing.T, config *configuration.Data) environment.Objects {
+func AllTemplatesObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
 	var objs environment.Objects
 	for _, envType := range environment.DefaultEnvTypes {
-		objects := SingleTemplatesObjects(t, config, envType)
+		objects := SingleTemplatesObjects(t, config, envType, clusterMapping, userInfo)
 		objs = append(objs, objects...)
 	}
 	return objs
@@ -218,8 +237,8 @@ func MockRemoveRequestsToOS(calls *int, cluster string) {
 		BodyString("{}")
 }
 
-func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int {
-	objectsInTemplates := AllTemplatesObjects(t, config)
+func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo) int {
+	objectsInTemplates := AllTemplatesObjects(t, config, clusterMapping, userInfo)
 	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1
 }
 
@@ -257,4 +276,14 @@ func isOfKind(kinds ...string) func(map[interface{}]interface{}) bool {
 		}
 		return false
 	}
+}
+
+func SetTemplateSameVersion(version string) {
+	environment.VersionFabric8TenantCheFile = version
+	environment.VersionFabric8TenantCheMtFile = version
+	environment.VersionFabric8TenantCheQuotasFile = version
+	environment.VersionFabric8TenantUserFile = version
+	environment.VersionFabric8TenantDeployFile = version
+	environment.VersionFabric8TenantJenkinsFile = version
+	environment.VersionFabric8TenantJenkinsQuotasFile = version
 }

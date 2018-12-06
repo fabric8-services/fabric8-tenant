@@ -400,7 +400,7 @@ func TestGetObject(t *testing.T) {
 		assert.Equal(t, 3, counter)
 	})
 
-	t.Run("when returns 200, but with invalid body. then retries until everything is fine", func(t *testing.T) {
+	t.Run("when returns 200, but with invalid Body. then retries until everything is fine", func(t *testing.T) {
 		// given
 		defer gock.Off()
 		gock.New("https://starter.com").
