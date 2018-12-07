@@ -44,10 +44,9 @@ func (s *Status) Scan(value interface{}) error {
 type TenantsUpdate struct {
 	LastVersionFabric8TenantUserFile          string
 	LastVersionFabric8TenantCheMtFile         string
+	LastVersionFabric8TenantCheQuotasFile     string
 	LastVersionFabric8TenantJenkinsFile       string
 	LastVersionFabric8TenantJenkinsQuotasFile string
-	LastVersionFabric8TenantCheFile           string
-	LastVersionFabric8TenantCheQuotasFile     string
 	LastVersionFabric8TenantDeployFile        string
 	Status                                    Status
 	FailedCount                               int

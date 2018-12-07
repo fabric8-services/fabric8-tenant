@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -76,13 +75,8 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 				assert.Len(t, env.Templates, 2)
 				assert.Contains(t, env.Templates[0].Filename, envType)
 				assert.Contains(t, env.Templates[1].Filename, "quotas")
-				if strings.Contains(env.Templates[0].Filename, "mt") {
-					assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
-					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-				} else {
-					assert.Equal(t, "123abc", environment.GetLabelVersion(objects[0]))
-					assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-				}
+				assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
+				assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 
 			case "jenkins":
 				assert.Len(t, env.Templates, 2)
@@ -102,7 +96,6 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 				assert.Contains(t, env.Templates[0].Filename, "deploy")
 				assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
 				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-
 			}
 
 			for _, template := range env.Templates {
@@ -241,16 +234,9 @@ func TestConstructCompleteVersion(t *testing.T) {
 	// when
 	mappedTemplates := environment.RetrieveMappedTemplates()
 
-	t.Run("check che complete version", func(t *testing.T) {
-		// and when
-		completeVersion := mappedTemplates["che"].ConstructCompleteVersion()
-
-		// then
-		assert.Equal(t, "123abc_zyx098", completeVersion)
-	})
 	t.Run("check che-mt complete version", func(t *testing.T) {
 		// and when
-		completeVersion := mappedTemplates["che-mt"].ConstructCompleteVersion()
+		completeVersion := mappedTemplates["che"].ConstructCompleteVersion()
 
 		// then
 		assert.Equal(t, "234bcd_zyx098", completeVersion)

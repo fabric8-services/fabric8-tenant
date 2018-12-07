@@ -193,11 +193,6 @@ func checkTemplateVersions() string {
 	} else {
 		logVersionInfo("fabric8-tenant-che-mt.yml", environment.VersionFabric8TenantCheMtFile)
 	}
-	if environment.VersionFabric8TenantCheFile == "" {
-		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheFile")
-	} else {
-		logVersionInfo("fabric8-tenant-che.yml", environment.VersionFabric8TenantCheFile)
-	}
 	if environment.VersionFabric8TenantCheQuotasFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheQuotasFile")
 	} else {

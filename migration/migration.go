@@ -67,7 +67,7 @@ func Migrate(db *sql.DB) error {
 					"next_version": nextVersion,
 					"migrations":   m,
 					"err":          err,
-				}, "error while rolling back transaction: ", err)
+				}, "error while rolling back transaction: %s", err)
 				return errs.Errorf("Error while rolling back transaction: %s\n", err)
 			}
 			return oldErr

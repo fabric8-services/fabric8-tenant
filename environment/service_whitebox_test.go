@@ -20,18 +20,18 @@ func TestRetrieveCheMtParams(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-
+	templates := RetrieveMappedTemplates()["che"]
 	ctx := goajwt.WithJWT(context.Background(), token)
 
 	// when
-	cheMtParams, err := getCheMtParams(ctx)
+	err = getCheParams(ctx, templates[0].DefaultParams)
 
 	// then
 	require.NoError(t, err)
-	assert.NotEmpty(t, cheMtParams["JOB_ID"])
-	assert.Equal(t, token.Raw, cheMtParams["OSIO_TOKEN"])
-	assert.Equal(t, sub, cheMtParams["IDENTITY_ID"])
-	assert.Empty(t, cheMtParams["REQUEST_ID"])
+	assert.NotEmpty(t, templates[0].DefaultParams["JOB_ID"])
+	assert.Equal(t, token.Raw, templates[0].DefaultParams["OSIO_TOKEN"])
+	assert.Equal(t, sub, templates[0].DefaultParams["IDENTITY_ID"])
+	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
 }
 
 func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
@@ -41,23 +41,27 @@ func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
+	templates := RetrieveMappedTemplates()["che"]
 	ctx := goajwt.WithJWT(context.Background(), token)
 
 	// when
-	_, err = getCheMtParams(ctx)
+	err = getCheParams(ctx, templates[0].DefaultParams)
 
 	// then
 	testsupport.AssertError(t, err, testsupport.HasMessage("missing sub in JWT token"))
 }
 
 func TestRetrieveCheMtParamsWhenTokenIsMissing(t *testing.T) {
+	// given
+	templates := RetrieveMappedTemplates()["che"]
+
 	// when
-	cheMtParams, err := getCheMtParams(context.Background())
+	err := getCheParams(context.Background(), templates[0].DefaultParams)
 
 	// then
 	require.NoError(t, err)
-	assert.NotEmpty(t, cheMtParams["JOB_ID"])
-	assert.Empty(t, cheMtParams["OSIO_TOKEN"])
-	assert.Empty(t, cheMtParams["IDENTITY_ID"])
-	assert.Empty(t, cheMtParams["REQUEST_ID"])
+	assert.NotEmpty(t, templates[0].DefaultParams["JOB_ID"])
+	assert.Empty(t, templates[0].DefaultParams["OSIO_TOKEN"])
+	assert.Empty(t, templates[0].DefaultParams["IDENTITY_ID"])
+	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
 }

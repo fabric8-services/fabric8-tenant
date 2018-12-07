@@ -21,13 +21,6 @@ func RetrieveVersionManagers() []*VersionManager {
 				tu.LastVersionFabric8TenantCheMtFile = version
 			}, tenant.TypeChe),
 
-		versionManager(environment.VersionFabric8TenantCheFile,
-			func(tu *TenantsUpdate) string {
-				return tu.LastVersionFabric8TenantCheFile
-			}, func(tu *TenantsUpdate, version string) {
-				tu.LastVersionFabric8TenantCheFile = version
-			}, tenant.TypeChe),
-
 		versionManager(environment.VersionFabric8TenantCheQuotasFile,
 			func(tu *TenantsUpdate) string {
 				return tu.LastVersionFabric8TenantCheQuotasFile

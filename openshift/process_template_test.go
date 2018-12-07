@@ -26,9 +26,15 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 				withNamespace("developer-jenkins")))
 	})
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
-		assert.NoError(t,
+		assert.Error(t,
 			contain(templateObjects,
 				environment.ValKindDeploymentConfig,
+				withNamespace("developer-che")))
+	})
+	t.Run("verify jenkins deployment config", func(t *testing.T) {
+		assert.NoError(t,
+			contain(templateObjects,
+				environment.ValKindPersistenceVolumeClaim,
 				withNamespace("developer-che")))
 	})
 
@@ -113,7 +119,7 @@ func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
 	t.Run("verify version mapping", func(t *testing.T) {
 		assert.Len(t, versionMapping, len(environment.DefaultEnvTypes))
 		assert.Equal(t, "345cde", versionMapping["user"])
-		assert.Equal(t, "123abc_zyx098", versionMapping["che"])
+		assert.Equal(t, "234bcd_zyx098", versionMapping["che"])
 		assert.Equal(t, "567efg_yxw987", versionMapping["jenkins"])
 		assert.Equal(t, "456def", versionMapping["run"])
 		assert.Equal(t, "456def", versionMapping["stage"])
