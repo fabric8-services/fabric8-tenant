@@ -205,7 +205,7 @@ test-remote-no-coverage: prebuild-check $(SOURCES)
 ## Runs the migration tests and should be executed before running the integration tests
 ## in order to have a clean database
 test-migration: prebuild-check
-	F8_RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test $(TEST_FLAGS) ${PACKAGE_NAME}/migration -v
+	F8_RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test $(TEST_FLAGS) ${PACKAGE_NAME}/migration
 
 .PHONY: test-with-minishift
 ## Runs the tests which require availability of minishift as well as DB.
