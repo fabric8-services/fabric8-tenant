@@ -63,9 +63,9 @@ const (
 )
 
 var sortOrder = map[string]int{
-	"Namespace":              1,
-	"ProjectRequest":         1,
-	"Role":                   2,
+	"Namespace":      1,
+	"ProjectRequest": 1,
+	"Role":           2,
 	"RoleBindingRestriction": 3,
 	"LimitRange":             4,
 	"ResourceQuota":          5,
@@ -96,6 +96,7 @@ type Template struct {
 	Filename      string
 	DefaultParams map[string]string
 	Content       string
+	Version       string
 }
 
 var (
@@ -103,22 +104,23 @@ var (
 	variableRegexp    = regexp.MustCompile(`\${([A-Z_0-9]+)}`)
 )
 
-func newTemplate(filename string, defaultParams map[string]string) *Template {
-	return &Template{
+func newTemplate(filename string, defaultParams map[string]string, version string) Template {
+	return Template{
 		Filename:      filename,
 		DefaultParams: defaultParams,
+		Version:       version,
 	}
 }
 
 func (t *Template) Process(vars map[string]string) (Objects, error) {
 	var objects Objects
-	templateVars := merge(vars, t.DefaultParams)
+	templateVars := merge(vars, t.DefaultParams, false)
 	paramsFromTemplate, err := t.getParamsFromTemplate()
 	if err != nil {
 		return objects, err
 	}
 	if paramsFromTemplate != nil {
-		templateVars = merge(paramsFromTemplate, templateVars)
+		templateVars = merge(paramsFromTemplate, templateVars, false)
 	}
 	pt, err := t.ReplaceVars(templateVars)
 	if err != nil {
@@ -171,7 +173,7 @@ func CollectVars(osUsername, nsBaseName, masterUser string, config *configuratio
 		varProjectAdminUser:      masterUser,
 	}
 
-	return merge(vars, getVariables(config))
+	return merge(vars, getVariables(config), false)
 }
 
 // RetrieveUserName returns a safe namespace basename based on a username
@@ -197,13 +199,13 @@ func getVariables(config *configuration.Data) map[string]string {
 	return templateVars
 }
 
-func merge(target, second map[string]string) map[string]string {
+func merge(target, second map[string]string, overwrite bool) map[string]string {
 	if len(second) == 0 {
 		return target
 	}
 	result := clone(second)
 	for k, v := range target {
-		if _, exist := result[k]; !exist {
+		if _, exist := result[k]; overwrite || !exist {
 			result[k] = v
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 func makeTenants(fxt *TestFixture) error {
@@ -14,10 +14,13 @@ func makeTenants(fxt *TestFixture) error {
 	fxt.Tenants = make([]*tenant.Tenant, fxt.info[kindTenants].numInstances)
 	tenantService := tenant.NewDBService(fxt.db)
 	for i := range fxt.Tenants {
+		id := uuid.NewV4()
 		fxt.Tenants[i] = &tenant.Tenant{
-			ID:      uuid.NewV4(),
-			Email:   createRandomEmailAddress(),
-			Profile: "free",
+			ID:         id,
+			Email:      "johndoe-" + id.String() + "@foo.com",
+			Profile:    "free",
+			OSUsername: "johndoe-" + id.String(),
+			NsBaseName: "johndoe-" + id.String(),
 		}
 		if err := fxt.runCustomizeEntityFuncs(i, kindTenants); err != nil {
 			return errs.WithStack(err)
@@ -59,10 +62,6 @@ func makeNamespaces(fxt *TestFixture) error {
 		}
 	}
 	return nil
-}
-
-func createRandomEmailAddress() string {
-	return "johndoe-" + uuid.NewV4().String() + "@foo.com"
 }
 
 func createRandomNamespaceName() string {

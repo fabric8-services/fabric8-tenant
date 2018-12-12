@@ -145,28 +145,18 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	}
 
 	// map target cluster for every environment type
-	clusterMapping := map[environment.Type]cluster.Cluster{}
-	for _, namespace := range namespaces {
-		// fetch the cluster info
-		clustr, err := c.clusterService.GetCluster(ctx, namespace.MasterURL)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"cluster_url": namespace.MasterURL,
-				"tenant_id":   tenantID,
-			}, "unable to fetch cluster for user")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-		}
-		clusterMapping[namespace.Type] = clustr
+	clusterMapping, err := GetClusterMapping(ctx, c.clusterService, namespaces)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	// create openshift service
 	// we don't need token as DELETE uses cluster token
-	context := openshift.NewServiceContext(ctx, c.config, cluster.ForTypeMapping(clusterMapping), tenant.OSUsername, "", nsBaseName)
+	context := openshift.NewServiceContext(ctx, c.config, clusterMapping, tenant.OSUsername, nsBaseName, openshift.TokenResolver())
 	service := openshift.NewService(context, c.tenantService.NewTenantRepository(tenantID), environment.NewService())
 
 	// perform delete method on the list of existing namespaces
-	err = service.WithDeleteMethod(namespaces, true).ApplyAll()
+	err = service.WithDeleteMethod(namespaces, true).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
 		namespaces, getErr := c.tenantService.GetNamespaces(tenantID)
 		if getErr != nil {

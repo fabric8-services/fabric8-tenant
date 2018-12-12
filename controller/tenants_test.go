@@ -161,6 +161,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			}
 			fxt.Tenants[0].ID = id
 			fxt.Tenants[0].OSUsername = "foo"
+			fxt.Tenants[0].NsBaseName = "foo"
 			return nil
 		}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
@@ -210,6 +211,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			}
 			fxt.Tenants[0].ID = id
 			fxt.Tenants[0].OSUsername = "bar"
+			fxt.Tenants[0].NsBaseName = "bar"
 			return nil
 		}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
@@ -299,6 +301,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 				}
 				fxt.Tenants[0].ID = id
 				fxt.Tenants[0].OSUsername = "baz"
+				fxt.Tenants[0].NsBaseName = "baz"
 				return nil
 			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
 				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
@@ -321,20 +324,20 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			require.NoError(t, err)
 			namespaces, err := repo.GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
-			require.Len(t, namespaces, 1)
-			// firs namespace could not be deleted, both still exist in the DB (and in the cluster)
-			assertContainsNs(t, namespaces, "baz")
+			assertContainsNames(t, namespaces, "baz")
 		})
 	})
 }
 
-func assertContainsNs(t *testing.T, slice []*tenant.Namespace, name string) {
+func assertContainsNames(t *testing.T, slice []*tenant.Namespace, names ...string) {
+	assert.Len(t, slice, len(names))
+	var sliceNames []string
 	for _, ns := range slice {
-		if ns.Name == name {
-			return
-		}
+		sliceNames = append(sliceNames, ns.Name)
 	}
-	assert.Fail(t, "The slice %s should contain a namespace with a name %s", slice, name)
+	for _, name := range names {
+		assert.Contains(t, sliceNames, name)
+	}
 }
 
 func createValidSAContext(sub string) context.Context {
@@ -360,7 +363,7 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 	require.NoError(t, err)
 
 	resetVars := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"), test.Env("F8_API_SERVER_USE_TLS", "false"))
-	authService, r, cleanup :=
+	authService, _, cleanup :=
 		testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
 	config, resetConf := test.LoadTestConfig(t)
 	reset := func() {
@@ -369,7 +372,7 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 		resetConf()
 	}
 
-	clusterService := cluster.NewClusterService(time.Hour, authService, configuration.WithRoundTripper(r))
+	clusterService := cluster.NewClusterService(time.Hour, authService)
 	err = clusterService.Start()
 	require.NoError(t, err)
 	return clusterService, authService, config, reset
@@ -404,6 +407,7 @@ func mockCommunicationWithAuth() {
 		MatchParam("for", "https://api.cluster1").
 		MatchParam("force_pull", "false").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
+		Persist().
 		Reply(200).
 		BodyString(`{ 
       "token_type": "bearer",

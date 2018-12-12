@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
@@ -11,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"net/http"
 	"sync"
+	"github.com/pkg/errors"
 )
 
 type ServiceBuilder struct {
@@ -48,59 +50,50 @@ func NewBuilderWithTransport(context *ServiceContext, namespaceRepository tenant
 }
 
 type ServiceContext struct {
-	requestCtx         context.Context
-	clusterForType     cluster.ForType
-	openShiftUsername  string
-	openShiftUserToken string
-	config             *configuration.Data
-	nsBaseName         string
+	requestCtx        context.Context
+	clusterForType    cluster.ForType
+	openShiftUsername string
+	userTokenResolver UserTokenResolver
+	config            *configuration.Data
+	nsBaseName        string
 }
 
-func NewServiceContext(callerCtx context.Context, config *configuration.Data, clusterMapping cluster.ForType, openShiftUsername, openShiftUserToken, nsBaseName string) *ServiceContext {
+func NewServiceContext(callerCtx context.Context, config *configuration.Data, clusterMapping cluster.ForType, openShiftUsername, nsBaseName string, userTokenResolver UserTokenResolver) *ServiceContext {
 	return &ServiceContext{
-		requestCtx:         callerCtx,
-		clusterForType:     clusterMapping,
-		openShiftUsername:  openShiftUsername,
-		openShiftUserToken: openShiftUserToken,
-		config:             config,
-		nsBaseName:         nsBaseName,
+		requestCtx:        callerCtx,
+		clusterForType:    clusterMapping,
+		openShiftUsername: openShiftUsername,
+		userTokenResolver: userTokenResolver,
+		config:            config,
+		nsBaseName:        nsBaseName,
 	}
 }
 
-type WithExistingNamespaces struct {
+type WithActionBuilder struct {
 	service *Service
 	action  NamespaceAction
 }
 
-func (s *WithExistingNamespaces) ApplyAll() error {
-	return s.service.processAndApplyAll(environment.DefaultEnvTypes, s.action)
-}
-
-type WithoutExistingNamespaces struct {
-	service *Service
-	action  NamespaceAction
-}
-
-func (s *WithoutExistingNamespaces) ApplyAll(nsTypes ...environment.Type) error {
+func (s *WithActionBuilder) ApplyAll(nsTypes []environment.Type) error {
 	return s.service.processAndApplyAll(nsTypes, s.action)
 }
 
-func (b *ServiceBuilder) WithPostMethod() *WithoutExistingNamespaces {
-	return &WithoutExistingNamespaces{
+func (b *ServiceBuilder) WithPostMethod() *WithActionBuilder {
+	return &WithActionBuilder{
 		service: b.service,
 		action:  NewCreate(b.service.tenantRepository),
 	}
 }
 
-func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace) *WithExistingNamespaces {
-	return &WithExistingNamespaces{
+func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace) *WithActionBuilder {
+	return &WithActionBuilder{
 		service: b.service,
 		action:  NewUpdate(b.service.tenantRepository, existingNamespaces),
 	}
 }
 
-func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster bool) *WithExistingNamespaces {
-	return &WithExistingNamespaces{
+func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster bool) *WithActionBuilder {
+	return &WithActionBuilder{
 		service: b.service,
 		action:  NewDelete(b.service.tenantRepository, removeFromCluster, existingNamespaces),
 	}
@@ -120,7 +113,7 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 	if err != nil {
 		return err
 	}
-	return action.checkNamespacesAndUpdateTenant(namespaces, nsTypes)
+	return action.CheckNamespacesAndUpdateTenant(namespaces, nsTypes)
 }
 
 type ObjectChecker func(object environment.Object) bool
@@ -128,12 +121,12 @@ type ObjectChecker func(object environment.Object) bool
 func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentTypeService, action NamespaceAction, transport http.RoundTripper) {
 	defer nsTypeWait.Done()
 
-	namespace, err := action.getNamespaceEntity(nsTypeService)
+	namespace, err := action.GetNamespaceEntity(nsTypeService)
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{
 			"envType":       nsTypeService.GetType(),
 			"namespaceName": nsTypeService.GetNamespaceName(),
-			"action":        action.methodName(),
+			"action":        action.MethodName(),
 		}, err, "getting the namespace failed")
 		return
 	}
@@ -141,38 +134,47 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 		return
 	}
 
-	env, objects, err := nsTypeService.GetEnvDataAndObjects(action.filter())
+	env, objects, err := nsTypeService.GetEnvDataAndObjects(action.Filter())
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{
 			"envType":       nsTypeService.GetType(),
 			"namespaceName": nsTypeService.GetNamespaceName(),
-			"action":        action.methodName(),
+			"action":        action.MethodName(),
 		}, err, "getting environment data and objects failed")
 		return
 	}
-	action.sort(environment.ByKind(objects))
+	action.Sort(environment.ByKind(objects))
 
 	cluster := nsTypeService.GetCluster()
-	client := NewClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.forceMasterTokenGlobally()))
+	client := NewClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.ForceMasterTokenGlobally()))
 
 	failed := false
 	for _, object := range objects {
-		_, err := Apply(*client, action.methodName(), object)
+		_, err := Apply(*client, action.MethodName(), object)
 		if err != nil {
-			err = fmt.Errorf("%s method applied to the namespace failed", action.methodName())
+			err = fmt.Errorf("%s method applied to the namespace failed", action.MethodName())
 			sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
 				"ns-type": nsTypeService.GetType(),
-				"action":  action.methodName(),
+				"action":  action.MethodName(),
 				"cluster": cluster.APIURL,
 				"ns-name": nsTypeService.GetNamespaceName(),
-			}, err, err.Error())
+			}, errors.WithStack(err), err.Error())
 			failed = true
 			break
 		}
 	}
 
-	err = nsTypeService.AfterCallback(client, action.methodName())
-	action.updateNamespace(env, &cluster, namespace, failed || err != nil)
+	err = nsTypeService.AfterCallback(client, action.MethodName())
+	if err != nil {
+		sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
+			"ns-type": nsTypeService.GetType(),
+			"action":  action.MethodName(),
+			"cluster": cluster.APIURL,
+			"ns-name": nsTypeService.GetNamespaceName(),
+		}, err, "the after callback failed")
+	}
+	namespace.Version = env.Version()
+	action.UpdateNamespace(env, &cluster, namespace, failed || err != nil)
 }
 
 func Apply(client Client, action string, object environment.Object) (*Result, error) {
@@ -185,4 +187,18 @@ func Apply(client Client, action string, object environment.Object) (*Result, er
 
 	result, err := objectEndpoint.Apply(&client, object, action)
 	return result, err
+}
+
+type UserTokenResolver func(cluster cluster.Cluster) string
+
+func TokenResolverForUser(user *auth.User) UserTokenResolver {
+	return func(cluster cluster.Cluster) string {
+		return user.OpenShiftUserToken
+	}
+}
+
+func TokenResolver() UserTokenResolver {
+	return func(cluster cluster.Cluster) string {
+		return cluster.Token
+	}
 }

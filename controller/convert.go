@@ -26,17 +26,17 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			nsCluster = cluster.Cluster{}
 		}
 		nsAttributes = append(nsAttributes, &app.NamespaceAttributes{
-			CreatedAt:                &ns.CreatedAt,
-			UpdatedAt:                &ns.UpdatedAt,
-			ClusterURL:               &ns.MasterURL,
-			ClusterAppDomain:         &nsCluster.AppDNS,
-			ClusterConsoleURL:        &nsCluster.ConsoleURL,
-			ClusterMetricsURL:        &nsCluster.MetricsURL,
-			ClusterLoggingURL:        &nsCluster.LoggingURL,
-			Name:                     &ns.Name,
-			Type:                     utils.String(ns.Type.String()),
-			Version:                  &ns.Version,
-			State:                    utils.String(ns.State.String()),
+			CreatedAt:         &ns.CreatedAt,
+			UpdatedAt:         &ns.UpdatedAt,
+			ClusterURL:        &ns.MasterURL,
+			ClusterAppDomain:  &nsCluster.AppDNS,
+			ClusterConsoleURL: &nsCluster.ConsoleURL,
+			ClusterMetricsURL: &nsCluster.MetricsURL,
+			ClusterLoggingURL: &nsCluster.LoggingURL,
+			Name:              &ns.Name,
+			Type:              utils.String(ns.Type.String()),
+			Version:           &ns.Version,
+			State:             utils.String(ns.State.String()),
 			ClusterCapacityExhausted: &nsCluster.CapacityExhausted,
 		})
 	}

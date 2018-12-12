@@ -2,13 +2,11 @@ package environment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/log"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/environment/generated"
-	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-tenant/utils"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"path"
@@ -30,23 +28,22 @@ var (
 	VersionFabric8TenantCheMtFile         string
 	VersionFabric8TenantJenkinsFile       string
 	VersionFabric8TenantJenkinsQuotasFile string
-	VersionFabric8TenantCheFile           string
 	VersionFabric8TenantCheQuotasFile     string
 	VersionFabric8TenantDeployFile        string
 	DefaultEnvTypes                       = []Type{TypeChe, TypeJenkins, TypeRun, TypeStage, TypeUser}
 )
 
-func retrieveMappedTemplates() map[string][]*Template {
-	return map[string][]*Template{
-		"run":   tmpls(deploy("run"), "fabric8-tenant-deploy.yml"),
-		"stage": tmpls(deploy("stage"), "fabric8-tenant-deploy.yml"),
-		"che-mt": tmpls(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
+type Templates []*Template
+
+func RetrieveMappedTemplates() map[Type]Templates {
+	return map[Type]Templates{
+		TypeRun:   tmpl(deploy("run"), "fabric8-tenant-deploy.yml"),
+		TypeStage: tmpl(deploy("stage"), "fabric8-tenant-deploy.yml"),
+		TypeChe: tmplWithQuota(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
 			"fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
-		"che": tmpls(versions(VersionFabric8TenantCheFile, VersionFabric8TenantCheQuotasFile),
-			"fabric8-tenant-che.yml", "fabric8-tenant-che-quotas.yml"),
-		"jenkins": tmpls(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
+		TypeJenkins: tmplWithQuota(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
 			"fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
-		"user": tmpls(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
+		TypeUser: tmpl(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
 	}
 }
 
@@ -61,12 +58,23 @@ func deploy(stage string) map[string]string {
 	}
 }
 
-func tmpls(defaultParams map[string]string, filenames ...string) []*Template {
-	tmpls := make([]*Template, 0, len(filenames))
-	for _, fileName := range filenames {
-		tmpls = append(tmpls, newTemplate(fileName, defaultParams))
+func tmplWithQuota(defaultParams map[string]string, fileName string, quotasFileName string) []*Template {
+	tmpl := newTemplate(fileName, defaultParams, defaultParams[varCommit])
+	quotas := newTemplate(quotasFileName, defaultParams, defaultParams[varCommitQuotas])
+	return []*Template{&tmpl, &quotas}
+}
+
+func tmpl(defaultParams map[string]string, fileName string) []*Template {
+	tmpl := newTemplate(fileName, defaultParams, defaultParams[varCommit])
+	return []*Template{&tmpl}
+}
+
+func (t Templates) ConstructCompleteVersion() string {
+	var versions []string
+	for _, template := range t {
+		versions = append(versions, template.Version)
 	}
-	return tmpls
+	return strings.Join(versions, "_")
 }
 
 type Service struct {
@@ -81,23 +89,25 @@ func NewService() *Service {
 
 func NewServiceForUserData(user *authclient.UserDataAttributes) *Service {
 	service := NewService()
-	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
-		return service
-	}
-	userContext := user.ContextInformation
-	if tc, found := userContext["tenantConfig"]; found {
-		if tenantConfig, ok := tc.(map[string]interface{}); ok {
-			find := func(key string) string {
-				if rawValue, found := tenantConfig[key]; found {
-					if value, ok := rawValue.(string); ok {
-						return value
+	if user != nil {
+		if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
+			return service
+		}
+		userContext := user.ContextInformation
+		if tc, found := userContext["tenantConfig"]; found {
+			if tenantConfig, ok := tc.(map[string]interface{}); ok {
+				find := func(key string) string {
+					if rawValue, found := tenantConfig[key]; found {
+						if value, ok := rawValue.(string); ok {
+							return value
+						}
 					}
+					return ""
 				}
-				return ""
+				service.templatesRepo = find("templatesRepo")
+				service.templatesRepoBlob = find("templatesRepoBlob")
+				service.templatesRepoDir = find("templatesRepoDir")
 			}
-			service.templatesRepo = find("templatesRepo")
-			service.templatesRepoBlob = find("templatesRepoBlob")
-			service.templatesRepoDir = find("templatesRepoDir")
 		}
 	}
 	return service
@@ -105,26 +115,23 @@ func NewServiceForUserData(user *authclient.UserDataAttributes) *Service {
 
 type EnvData struct {
 	EnvType   Type
-	Templates []*Template
-	Version   string
+	Templates Templates
+}
+
+func (e *EnvData) Version() string {
+	return e.Templates.ConstructCompleteVersion()
 }
 
 func (s *Service) GetEnvData(ctx context.Context, envType Type) (*EnvData, error) {
-	var templates []*Template
-	var mappedTemplates = retrieveMappedTemplates()
+	var templates Templates
+	var mappedTemplates = RetrieveMappedTemplates()
+	templates = mappedTemplates[envType]
+
 	if envType == TypeChe {
-		if toggles.IsEnabled(ctx, "deploy.che-multi-tenant", false) {
-			cheMtParams, err := getCheMtParams(ctx)
-			if err != nil {
-				return nil, err
-			}
-			templates = mappedTemplates["che-mt"]
-			templates[0].DefaultParams = cheMtParams
-		} else {
-			templates = mappedTemplates[envType.String()]
+		err := getCheParams(ctx, templates[0].DefaultParams)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		templates = mappedTemplates[envType.String()]
 	}
 
 	err := s.retrieveTemplates(templates)
@@ -138,22 +145,18 @@ func (s *Service) GetEnvData(ctx context.Context, envType Type) (*EnvData, error
 	}, nil
 }
 
-func getCheMtParams(ctx context.Context) (map[string]string, error) {
-	token := goajwt.ContextJWT(ctx)
-	cheMtParams := map[string]string{}
-	if token != nil {
-		cheMtParams["OSIO_TOKEN"] = token.Raw
-		id := token.Claims.(jwt.MapClaims)["sub"]
-		if id == nil {
-			return nil, errors.New("missing sub in JWT token")
+func getCheParams(ctx context.Context, defaultParams map[string]string) error {
+	if ctx != nil {
+		token := goajwt.ContextJWT(ctx)
+		if token != nil && token.Claims.(jwt.MapClaims)["sub"] != nil {
+			defaultParams["OSIO_TOKEN"] = token.Raw
+			defaultParams["IDENTITY_ID"] = token.Claims.(jwt.MapClaims)["sub"].(string)
 		}
-		cheMtParams["IDENTITY_ID"] = id.(string)
+		defaultParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
 	}
-	cheMtParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
 	unixNano := time.Now().UnixNano()
-	cheMtParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
-
-	return cheMtParams, nil
+	defaultParams["JOB_ID"] = strconv.FormatInt(unixNano/1000000, 10)
+	return nil
 }
 
 func (s *Service) retrieveTemplates(tmpls []*Template) error {

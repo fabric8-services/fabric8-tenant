@@ -24,7 +24,7 @@ type TenantControllerMinishiftTestSuite struct {
 	minishift.TestSuite
 }
 
-func TestTenantControllerWithMinishift(t *testing.T) {
+func TestTenantControllerWithMinisshift(t *testing.T) {
 	suite.Run(t, &TenantControllerMinishiftTestSuite{
 		TestSuite: minishift.TestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")}})
 }
@@ -55,7 +55,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		return nil
 	})
 	assert.NoError(s.T(), err)
-	s.VerifyObjectsPresence(s.T(), tnnt.NsBaseName, "1abcd")
+	s.VerifyObjectsPresence(s.T(), tnnt.NsBaseName, "1abcd", false)
 
 	s.T().Run("update namespaces", func(t *testing.T) {
 		// given
@@ -68,7 +68,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
 		assert.NoError(t, err)
 		assert.Len(t, namespaces, 5)
-		s.VerifyObjectsPresence(t, tnnt.NsBaseName, "2abcd")
+		s.VerifyObjectsPresence(t, tnnt.NsBaseName, "2abcd", false)
 	})
 
 	s.T().Run("only clean namespaces", func(t *testing.T) {

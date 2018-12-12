@@ -122,7 +122,7 @@ func (t *UserNamespaceTypeService) GetTokenProducer(forceMasterTokenGlobally boo
 		if forceMasterTokenGlobally || forceMasterToken {
 			return t.GetCluster().Token
 		}
-		return t.context.openShiftUserToken
+		return t.context.userTokenResolver(t.GetCluster())
 	}
 }
 

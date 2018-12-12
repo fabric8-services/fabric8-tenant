@@ -283,7 +283,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			// given
 			defer gock.Off()
 			gock.New("https://api.cluster1").
-				Delete("/api/v1/namespaces/johny1-che/configmaps").
+				Delete("/api/v1/namespaces/johny1-jenkins/configmaps").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
 			testdoubles.MockCleanRequestsToOS(&calls, "https://api.cluster1/")
@@ -313,7 +313,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			namespaces, err := repo.GetNamespaces(id)
 			assert.NoError(t, err)
 			assert.Len(t, namespaces, 1)
-			assert.Equal(t, namespaces[0].Name, "johny1-che")
+			assert.Equal(t, "johny1-che", namespaces[0].Name)
 		})
 	})
 }
@@ -367,7 +367,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 			// given
 			defer gock.Off()
 			gock.New("https://api.cluster1").
-				Path("/api/v1/namespaces/johny1-che/configmaps").
+				Path("/api/v1/namespaces/johny1-jenkins/configmaps").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
 			calls := 0
@@ -400,6 +400,7 @@ func (s *TenantControllerTestSuite) createFixtures(tenantId uuid.UUID, envTypes 
 		fxt.Namespaces[idx].TenantID = tenantId
 		fxt.Namespaces[idx].Name = constuctNamespaceName("johny1", envTypes[idx])
 		fxt.Namespaces[idx].Type = envTypes[idx]
+		fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
 		return nil
 	}))
 }

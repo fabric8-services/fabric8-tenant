@@ -8,6 +8,7 @@ import (
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
 type NamespaceState string
@@ -37,6 +38,7 @@ type Service interface {
 	NewTenantRepository(tenantID uuid.UUID) Repository
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
+	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -141,6 +143,26 @@ func (s DBService) DeleteNamespace(tenantID uuid.UUID, envType environment.Type)
 		return nil
 	}
 	return s.db.Unscoped().Delete(&Namespace{}, "tenant_id = ? and type = ?", tenantID, envType).Error
+}
+
+func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error) {
+	var tenants []*Tenant
+	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id").
+		Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
+
+	var conditions []string
+	var params []interface{}
+	for envType, version := range typeWithVersion {
+		conditions = append(conditions, "(namespaces.type = ? AND namespaces.version != ?)")
+		params = append(params, envType, version)
+	}
+	nsSubQuery = nsSubQuery.Where(strings.Join(conditions, " OR "), params...).Group("tenant_id")
+
+	err := s.db.Table(Tenant{}.TableName()).
+		Joins("INNER JOIN ? n ON tenants.id = n.tenant_id", nsSubQuery.SubQuery()).Limit(count).
+		Scan(&tenants).Error
+
+	return tenants, err
 }
 
 func (s DBService) deleteNamespaces(tenantID uuid.UUID) error {

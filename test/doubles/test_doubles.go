@@ -12,10 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
-	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-tenant/utils"
-	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
@@ -64,39 +61,12 @@ func NewUserDataWithTenantConfig(templatesRepo, templatesRepoBlob, templatesRepo
 }
 
 func SetTemplateVersions() {
-	environment.VersionFabric8TenantCheFile = "123abc"
 	environment.VersionFabric8TenantCheMtFile = "234bcd"
 	environment.VersionFabric8TenantCheQuotasFile = "zyx098"
 	environment.VersionFabric8TenantUserFile = "345cde"
 	environment.VersionFabric8TenantDeployFile = "456def"
 	environment.VersionFabric8TenantJenkinsFile = "567efg"
 	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
-}
-
-type TenantCreator func() (*tenant.Tenant, []*tenant.Namespace)
-
-type NamespaceCreator func(tenantId uuid.UUID) *tenant.Namespace
-
-func Ns(nsName string, envType environment.Type) NamespaceCreator {
-	return func(tenantId uuid.UUID) *tenant.Namespace {
-		return &tenant.Namespace{
-			ID:       uuid.NewV4(),
-			TenantID: tenantId,
-			Name:     nsName,
-			Type:     envType,
-		}
-	}
-}
-
-func WithTenant(id uuid.UUID, nsCreators ...NamespaceCreator) TenantCreator {
-	return func() (*tenant.Tenant, []*tenant.Namespace) {
-		var nss []*tenant.Namespace
-		for _, createNs := range nsCreators {
-			nss = append(nss, createNs(id))
-		}
-
-		return &tenant.Tenant{ID: id}, nss
-	}
 }
 
 type UserCreator func() *auth.User
@@ -130,22 +100,13 @@ func (c UserCreator) NewUserInfo(nsBaseName string) UserInfo {
 	}
 }
 
-func NewOSService(
-	t *testing.T, config *configuration.Data, createTenant TenantCreator, clusterMapping cluster.ForType, createUser UserCreator, db *gorm.DB) *openshift.ServiceBuilder {
+func NewOSService(config *configuration.Data, clusterMapping cluster.ForType, createUser UserCreator, repository tenant.Repository) *openshift.ServiceBuilder {
 	user := createUser()
 	envService := environment.NewServiceForUserData(user.UserData)
-	ctx := openshift.NewServiceContext(
-		context.Background(), config, clusterMapping, user.OpenShiftUsername, user.OpenShiftUserToken, environment.RetrieveUserName(user.OpenShiftUsername))
+	ctx := openshift.NewServiceContext(context.Background(), config, clusterMapping, user.OpenShiftUsername,
+		environment.RetrieveUserName(user.OpenShiftUsername), openshift.TokenResolverForUser(user))
 
-	tennt, namespaces := createTenant()
-	tf.NewTestFixture(t, db, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
-		fxt.Tenants[0] = tennt
-		return nil
-	}), tf.Namespaces(len(namespaces), func(fxt *tf.TestFixture, idx int) error {
-		fxt.Namespaces[idx] = namespaces[idx]
-		return nil
-	}))
-	return openshift.NewBuilderWithTransport(ctx, tenant.NewDBService(db).NewTenantRepository(tennt.ID), http.DefaultTransport, envService)
+	return openshift.NewBuilderWithTransport(ctx, repository, http.DefaultTransport, envService)
 }
 
 type UserInfo struct {
@@ -158,7 +119,9 @@ func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType en
 	envService := environment.NewService()
 
 	ctx := openshift.NewServiceContext(
-		context.Background(), config, clusterMapping, userInfo.OsUsername, userInfo.OsUserToken, userInfo.NsBaseName)
+		context.Background(), config, clusterMapping, userInfo.OsUsername, userInfo.NsBaseName, func(cluster cluster.Cluster) string {
+			return userInfo.OsUserToken
+		})
 
 	nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
 	_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {
@@ -279,11 +242,19 @@ func isOfKind(kinds ...string) func(map[interface{}]interface{}) bool {
 }
 
 func SetTemplateSameVersion(version string) {
-	environment.VersionFabric8TenantCheFile = version
 	environment.VersionFabric8TenantCheMtFile = version
 	environment.VersionFabric8TenantCheQuotasFile = version
 	environment.VersionFabric8TenantUserFile = version
 	environment.VersionFabric8TenantDeployFile = version
 	environment.VersionFabric8TenantJenkinsFile = version
 	environment.VersionFabric8TenantJenkinsQuotasFile = version
+}
+
+func GetMappedVersions(envTypes ...environment.Type) map[environment.Type]string {
+	mappedTemplates := environment.RetrieveMappedTemplates()
+	typesWithVersion := map[environment.Type]string{}
+	for _, envType := range envTypes {
+		typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
+	}
+	return typesWithVersion
 }

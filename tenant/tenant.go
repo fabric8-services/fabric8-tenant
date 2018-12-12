@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
 )
@@ -27,7 +28,7 @@ type Tenant struct {
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
-func (m *Tenant) TableName() string {
+func (m Tenant) TableName() string {
 	return tenantTableName
 }
 
@@ -43,11 +44,12 @@ type Namespace struct {
 	Type      environment.Type
 	Version   string
 	State     NamespaceState
+	UpdatedBy string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
-func (m *Namespace) TableName() string {
+func (m Namespace) TableName() string {
 	return namespaceTableName
 }
 
@@ -56,7 +58,8 @@ func (n *Namespace) UpdateData(env *environment.EnvData, cluster *cluster.Cluste
 		n.Name = string(env.EnvType)
 	}
 	n.State = state
-	n.Version = env.Version
+	n.Version = env.Version()
 	n.MasterURL = cluster.APIURL
 	n.Type = env.EnvType
+	n.UpdatedBy = configuration.Commit
 }

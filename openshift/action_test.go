@@ -1,4 +1,4 @@
-package openshift
+package openshift_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
@@ -37,16 +38,16 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 	defer reset()
 
 	// when
-	create := NewCreate(repo)
+	create := openshift.NewCreate(repo)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
-		assert.Equal(s.T(), "POST", create.methodName())
+		assert.Equal(s.T(), "POST", create.MethodName())
 	})
 
 	s.T().Run("filter method should always return true", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
-			assert.True(s.T(), create.filter()(obj))
+			assert.True(s.T(), create.Filter()(obj))
 		}
 	})
 
@@ -54,7 +55,7 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 		// given
 		toSort := getObjectsOfAllKinds()
 		// when
-		create.sort(environment.ByKind(toSort))
+		create.Sort(environment.ByKind(toSort))
 		// then
 		assert.Equal(s.T(), environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
 		assert.Equal(s.T(), environment.ValKindRole, environment.GetKind(toSort[1]))
@@ -62,14 +63,14 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 	})
 
 	s.T().Run("it should not require master token globally", func(t *testing.T) {
-		assert.False(s.T(), create.forceMasterTokenGlobally())
+		assert.False(s.T(), create.ForceMasterTokenGlobally())
 	})
 
 	for idx, envType := range environment.DefaultEnvTypes {
 		// given
 		envService, envData := gewEnvServiceWithData(s.T(), envType, config)
 		// when
-		namespace, err := create.getNamespaceEntity(envService)
+		namespace, err := create.GetNamespaceEntity(envService)
 		// then
 		assert.NoError(s.T(), err)
 		s.T().Run("verify new namespace was created", func(t *testing.T) {
@@ -84,7 +85,7 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 
 		s.T().Run("update namespace to ready", func(t *testing.T) {
 			// when
-			create.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
+			create.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
 			ns := getNs(s.T(), repo, envType)
 			assert.NotNil(s.T(), ns)
@@ -99,7 +100,7 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 
 		s.T().Run("update namespace to failed", func(t *testing.T) {
 			// when
-			create.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
+			create.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
 			// then
 			ns := getNs(s.T(), repo, envType)
 			assert.NotNil(s.T(), ns)
@@ -113,22 +114,22 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 		})
 	}
 
-	s.T().Run("checkNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
 		// when
 		namespaces := []*tenant.Namespace{{State: tenant.Ready, Type: environment.TypeChe}, {State: tenant.Ready, Type: environment.TypeUser}}
-		assert.NoError(s.T(), create.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
+		assert.NoError(s.T(), create.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
 		// then
 		tnnt, err := repoService.GetTenant(id)
 		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), tnnt)
 	})
 
-	s.T().Run("checkNamespacesAndUpdateTenant should return error when one namespace is failed", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should return error when one namespace is failed", func(t *testing.T) {
 		// when
 		namespaces := []*tenant.Namespace{
 			{Name: "johny-che", State: tenant.Ready, Type: environment.TypeChe},
 			{Name: "johny", State: tenant.Failed, Type: environment.TypeUser}}
-		err := create.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
+		err := create.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
 		// then
 		test.AssertError(s.T(), err, test.HasMessageContaining("applying POST action on namespaces [johny] failed"))
 	})
@@ -137,13 +138,12 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 	// given
 	id := uuid.NewV4()
-
-	namespaces := []*tenant.Namespace{newNs("che", "ready", id), newNs("jenkins", "ready", id)}
+	nss := createNamespaces(id)
 	tf.NewTestFixture(s.T(), s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
 		fxt.Tenants[0].ID = id
 		return nil
-	}), tf.Namespaces(len(namespaces), func(fxt *tf.TestFixture, idx int) error {
-		fxt.Namespaces[idx] = namespaces[idx]
+	}), tf.Namespaces(len(nss), func(fxt *tf.TestFixture, idx int) error {
+		fxt.Namespaces[idx] = nss[idx]
 		return nil
 	}))
 	repoService := tenant.NewDBService(s.DB)
@@ -152,25 +152,25 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 	defer reset()
 
 	// when
-	delete := NewDelete(repo, false, namespaces)
-	deleteFromCluster := NewDelete(repo, true, namespaces)
+	delete := openshift.NewDelete(repo, false, nss)
+	deleteFromCluster := openshift.NewDelete(repo, true, nss)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
-		assert.Equal(s.T(), "DELETE", delete.methodName())
+		assert.Equal(s.T(), "DELETE", delete.MethodName())
 	})
 
 	s.T().Run("verify filter method", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
 			if environment.GetKind(obj) == "ProjectRequest" {
-				assert.False(s.T(), delete.filter()(obj), obj.ToString())
-				assert.True(s.T(), deleteFromCluster.filter()(obj), obj.ToString())
+				assert.False(s.T(), delete.Filter()(obj), obj.ToString())
+				assert.True(s.T(), deleteFromCluster.Filter()(obj), obj.ToString())
 			} else {
-				assert.False(s.T(), deleteFromCluster.filter()(obj), obj.ToString())
+				assert.False(s.T(), deleteFromCluster.Filter()(obj), obj.ToString())
 				if environment.GetKind(obj) == "PersistentVolumeClaim" || environment.GetKind(obj) == "ConfigMap" {
-					assert.True(s.T(), delete.filter()(obj), obj.ToString())
+					assert.True(s.T(), delete.Filter()(obj), obj.ToString())
 				} else {
-					assert.False(s.T(), delete.filter()(obj), obj.ToString())
+					assert.False(s.T(), delete.Filter()(obj), obj.ToString())
 				}
 			}
 		}
@@ -180,7 +180,7 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 		// given
 		toSort := getObjectsOfAllKinds()
 		// when
-		delete.sort(environment.ByKind(toSort))
+		delete.Sort(environment.ByKind(toSort))
 		// then
 		length := len(toSort)
 		assert.Equal(s.T(), environment.ValKindProjectRequest, environment.GetKind(toSort[length-1]))
@@ -189,7 +189,7 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
-		assert.True(s.T(), delete.forceMasterTokenGlobally())
+		assert.True(s.T(), delete.ForceMasterTokenGlobally())
 	})
 
 	for _, envType := range environment.DefaultEnvTypes {
@@ -197,7 +197,7 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 		envService, envData := gewEnvServiceWithData(s.T(), envType, config)
 
 		// verify getting namespace - it should return only if exists
-		namespace, err := delete.getNamespaceEntity(envService)
+		namespace, err := delete.GetNamespaceEntity(envService)
 		assert.NoError(s.T(), err)
 
 		s.T().Run("verify new namespace is returned only if exists", func(t *testing.T) {
@@ -215,7 +215,7 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 
 		s.T().Run("update namespace does nothing when ns is only cleaned", func(t *testing.T) {
 			// when
-			delete.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
+			delete.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
 			nsToUpdate := getNs(s.T(), repo, envType)
 			assert.NotNil(s.T(), nsToUpdate)
@@ -225,7 +225,7 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 
 		s.T().Run("update namespace set state to failed", func(t *testing.T) {
 			// when
-			delete.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
+			delete.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
 			// then
 			ns := getNs(s.T(), repo, envType)
 			assert.NotNil(s.T(), ns)
@@ -234,37 +234,41 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 
 		s.T().Run("update namespace deletes entity when it should be removed from cluster", func(t *testing.T) {
 			// when
-			deleteFromCluster.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
+			deleteFromCluster.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
 			assert.Nil(s.T(), getNs(s.T(), repo, envType))
 		})
 	}
 
-	s.T().Run("checkNamespacesAndUpdateTenant should keep entity when one namespace is present", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should keep entity when one namespace is present", func(t *testing.T) {
 		// when
-		err := deleteFromCluster.checkNamespacesAndUpdateTenant([]*tenant.Namespace{namespaces[0]}, []environment.Type{environment.TypeChe})
+		err := deleteFromCluster.CheckNamespacesAndUpdateTenant(createNamespaces(id), []environment.Type{environment.TypeChe})
 		// then
 		test.AssertError(s.T(), err, test.HasMessageContaining("cannot remove tenant %s from DB - some namespace still exist", id))
 
 	})
 
-	s.T().Run("checkNamespacesAndUpdateTenant should do nothing when namespace were only cleaned", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespace were only cleaned", func(t *testing.T) {
 		// when
-		err := delete.checkNamespacesAndUpdateTenant([]*tenant.Namespace{namespaces[0]}, []environment.Type{environment.TypeChe})
+		err := delete.CheckNamespacesAndUpdateTenant(createNamespaces(id), []environment.Type{environment.TypeChe})
 		// then
 		assert.NoError(s.T(), err)
 
 	})
 
-	s.T().Run("checkNamespacesAndUpdateTenant should delete entity when no namespace is present", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should delete entity when no namespace is present", func(t *testing.T) {
 		// when
-		err := deleteFromCluster.checkNamespacesAndUpdateTenant([]*tenant.Namespace{}, []environment.Type{environment.TypeChe})
+		err := deleteFromCluster.CheckNamespacesAndUpdateTenant([]*tenant.Namespace{}, []environment.Type{environment.TypeChe})
 		// then
 		assert.NoError(s.T(), err)
 		tnnt, err := repoService.GetTenant(id)
 		test.AssertError(s.T(), err, test.IsOfType(errors.NotFoundError{}))
 		assert.Nil(s.T(), tnnt)
 	})
+}
+
+func createNamespaces(id uuid.UUID) []*tenant.Namespace {
+	return []*tenant.Namespace{newNs("che", tenant.Ready, id), newNs("jenkins", tenant.Ready, id)}
 }
 
 func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
@@ -284,19 +288,19 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 	defer reset()
 
 	// when
-	update := NewUpdate(repo, namespaces)
+	update := openshift.NewUpdate(repo, namespaces)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
-		assert.Equal(s.T(), "PATCH", update.methodName())
+		assert.Equal(s.T(), "PATCH", update.MethodName())
 	})
 
 	s.T().Run("filter method should always return true except for project request", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
 			if environment.GetKind(obj) == "ProjectRequest" {
-				assert.False(s.T(), update.filter()(obj))
+				assert.False(s.T(), update.Filter()(obj))
 			} else {
-				assert.True(s.T(), update.filter()(obj))
+				assert.True(s.T(), update.Filter()(obj))
 			}
 
 		}
@@ -306,7 +310,7 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 		// given
 		toSort := getObjectsOfAllKinds()
 		// when
-		update.sort(environment.ByKind(toSort))
+		update.Sort(environment.ByKind(toSort))
 		// then
 		assert.Equal(s.T(), environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
 		assert.Equal(s.T(), environment.ValKindRole, environment.GetKind(toSort[1]))
@@ -314,7 +318,7 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
-		assert.True(s.T(), update.forceMasterTokenGlobally())
+		assert.True(s.T(), update.ForceMasterTokenGlobally())
 	})
 
 	for _, envType := range environment.DefaultEnvTypes {
@@ -322,7 +326,7 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 		envService, envData := gewEnvServiceWithData(s.T(), envType, config)
 
 		// verify getting namespace - it should return only if exists
-		namespace, err := update.getNamespaceEntity(envService)
+		namespace, err := update.GetNamespaceEntity(envService)
 		assert.NoError(s.T(), err)
 
 		s.T().Run("verify new namespace is returned only if exists", func(t *testing.T) {
@@ -344,7 +348,7 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 		// verify namespace update to ready
 		s.T().Run("update namespace to ready", func(t *testing.T) {
 			// when
-			update.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
+			update.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
 			ns := getNs(s.T(), repo, envType)
 			assert.NotNil(s.T(), ns)
@@ -355,7 +359,7 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 		// verify namespace update to failed
 		s.T().Run("update namespace to failed", func(t *testing.T) {
 			// when
-			update.updateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
+			update.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
 			// then
 			ns := getNs(s.T(), repo, envType)
 			assert.NotNil(s.T(), ns)
@@ -364,22 +368,22 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 		})
 	}
 
-	s.T().Run("checkNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
 		// when
 		namespaces := []*tenant.Namespace{{State: tenant.Ready, Type: environment.TypeChe}, {State: tenant.Ready, Type: environment.TypeUser}}
-		assert.NoError(s.T(), update.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
+		assert.NoError(s.T(), update.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
 		// then
 		tnnt, err := repoService.GetTenant(id)
 		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), tnnt)
 	})
 
-	s.T().Run("checkNamespacesAndUpdateTenant should return error when botch namespaces are failed", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should return error when botch namespaces are failed", func(t *testing.T) {
 		// when
 		namespaces := []*tenant.Namespace{
 			{Name: "johny-che", State: tenant.Failed, Type: environment.TypeChe},
 			{Name: "johny", State: tenant.Failed, Type: environment.TypeUser}}
-		err := update.checkNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
+		err := update.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
 		// then
 		test.AssertError(s.T(), err, test.HasMessageContaining("applying PATCH action on namespaces [johny-che, johny] failed"))
 	})
@@ -406,15 +410,17 @@ func getNs(t *testing.T, repo tenant.Repository, envType environment.Type) *tena
 	return nil
 }
 
-func newOsContext(config *configuration.Data) *ServiceContext {
+func newOsContext(config *configuration.Data) *openshift.ServiceContext {
 	clusterMapping := singleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 
-	return NewServiceContext(
-		context.Background(), config, clusterMapping, "developer", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8", "developer1")
+	return openshift.NewServiceContext(
+		context.Background(), config, clusterMapping, "developer", "developer1", func(cluster cluster.Cluster) string {
+			return "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"
+		})
 }
 
-func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *configuration.Data) (EnvironmentTypeService, *environment.EnvData) {
-	service := NewEnvironmentTypeService(envType, newOsContext(config), environment.NewService())
+func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *configuration.Data) (openshift.EnvironmentTypeService, *environment.EnvData) {
+	service := openshift.NewEnvironmentTypeService(envType, newOsContext(config), environment.NewService())
 	data, _, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
 		return true
 	})

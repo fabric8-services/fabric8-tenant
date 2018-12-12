@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -80,18 +79,17 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		removeFromCluster = ctx.Remove
 	}
 
-	// creates openshift services
-	openShiftService, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
+	// create cluster mapping from existing namespaces
+	clusterMapping, err := GetClusterMapping(ctx, c.clusterService, namespaces)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"tenantID": user.ID,
-		}, "unable to create OpenShift service")
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
+	// creates openshift services
+	openShiftService := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterMapping)
+
 	// perform delete method on the list of existing namespaces
-	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster).ApplyAll()
+	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
 		namespaces, getErr := c.tenantRepository.GetNamespaces(dbTenant.ID)
 		if getErr != nil {
@@ -108,6 +106,23 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	return ctx.NoContent()
+}
+
+func GetClusterMapping(ctx context.Context, clusterService cluster.Service, namespaces []*tenant.Namespace) (cluster.ForType, error) {
+	clusterMapping := map[environment.Type]cluster.Cluster{}
+	for _, namespace := range namespaces {
+		// fetch the cluster info
+		clustr, err := clusterService.GetCluster(ctx, namespace.MasterURL)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"cluster_url": namespace.MasterURL,
+			}, "unable to fetch cluster for user")
+			return nil, err
+		}
+		clusterMapping[namespace.Type] = clustr
+	}
+	return cluster.ForTypeMapping(clusterMapping), nil
 }
 
 // Setup runs the setup action.
@@ -171,18 +186,21 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return ctx.Conflict()
 	}
 
-	// create openshift service
-	service, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
+	clusterNsMapping, err := c.clusterService.GetUserClusterForType(ctx, user)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"tenantID": user.ID,
-		}, "unable to create OpenShift service")
-		return jsonapi.JSONErrorResponse(ctx, err)
+			"err":         err,
+			"tenant":      user.ID,
+			"cluster_url": *user.UserData.Cluster,
+		}, "unable to fetch cluster for tenant")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
+	// create openshift service
+	service := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterNsMapping)
+
 	// perform post method on the list of missing environment types
-	err = service.WithPostMethod().ApplyAll(missing...)
+	err = service.WithPostMethod().ApplyAll(missing)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":             err,
@@ -247,48 +265,68 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 	}
 
+	TenantUpdater{Config: c.config, ClusterService: c.clusterService, TenantRepository: c.tenantRepository}.
+		Update(ctx, dbTenant, user, environment.DefaultEnvTypes)
+
+	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
+	return ctx.Accepted()
+}
+
+type UpdateExecutor interface {
+	Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error
+}
+
+type TenantUpdater struct {
+	ClusterService   cluster.Service
+	TenantRepository tenant.Service
+	Config           *configuration.Data
+}
+
+func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error {
 	// get tenant's namespaces
-	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
+	namespaces, err := u.TenantRepository.GetNamespaces(dbTenant.ID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
-			"tenantID": user.ID,
+			"tenantID": dbTenant.ID,
 		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	// update tenant OS username
-	dbTenant.OSUsername = user.OpenShiftUsername
-	if err = c.tenantRepository.SaveTenant(dbTenant); err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to update tenant configuration")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
+	// create cluster mapping from existing namespaces
+	clusterMapping, err := GetClusterMapping(ctx, u.ClusterService, namespaces)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	// create openshift service
-	openShiftService, err := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"tenantID": user.ID,
-		}, "unable to create OpenShift service")
-		return jsonapi.JSONErrorResponse(ctx, err)
+	nsRepo := u.TenantRepository.NewTenantRepository(dbTenant.ID)
+
+	var envService *environment.Service
+	var userTokenResolver openshift.UserTokenResolver
+	if user != nil {
+		envService = environment.NewServiceForUserData(user.UserData)
+		userTokenResolver = openshift.TokenResolverForUser(user)
+	} else {
+		envService = environment.NewService()
+		userTokenResolver = openshift.TokenResolver()
 	}
 
+	serviceContext := openshift.NewServiceContext(
+		ctx, u.Config, clusterMapping, dbTenant.OSUsername, dbTenant.NsBaseName, userTokenResolver)
+	openShiftService := openshift.NewService(serviceContext, nsRepo, envService)
+
 	// perform patch method on the list of exiting namespaces
-	err = openShiftService.WithPatchMethod(namespaces).ApplyAll()
+	err = openShiftService.WithPatchMethod(namespaces).ApplyAll(envTypes)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":                err,
-			"tenantID":           user.ID,
+			"tenantID":           dbTenant.ID,
 			"namespacesToUpdate": listNames(namespaces),
 		}, "update of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
-	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
-	return ctx.Accepted()
+	return nil
 }
 
 func listNames(namespaces []*tenant.Namespace) []string {
@@ -310,24 +348,14 @@ func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, 
 	return dbTenant, nil
 }
 
-func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User, nsBaseName string) (*openshift.ServiceBuilder, error) {
-	clusterNsMapping, err := c.clusterService.GetUserClusterForType(ctx, user)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"tenant":      user.ID,
-			"cluster_url": *user.UserData.Cluster,
-		}, "unable to fetch cluster for tenant")
-		return nil, jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
+func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User, nsBaseName string, clusterNsMapping cluster.ForType) *openshift.ServiceBuilder {
 	nsRepo := c.tenantRepository.NewTenantRepository(user.ID)
 
 	envService := environment.NewServiceForUserData(user.UserData)
 
 	serviceContext := openshift.NewServiceContext(
-		ctx, c.config, clusterNsMapping, user.OpenShiftUsername, user.OpenShiftUserToken, nsBaseName)
-	return openshift.NewService(serviceContext, nsRepo, envService), nil
+		ctx, c.config, clusterNsMapping, user.OpenShiftUsername, nsBaseName, openshift.TokenResolverForUser(user))
+	return openshift.NewService(serviceContext, nsRepo, envService)
 }
 
 func filterMissingAndExisting(namespaces []*tenant.Namespace) (missing []environment.Type, existing []environment.Type) {

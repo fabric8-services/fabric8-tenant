@@ -4,11 +4,15 @@ import (
 	"context"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 // A TestFixture object is the result of a call to
@@ -173,4 +177,58 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 		return nil, errs.Wrap(err, "test fixture did not pass checks")
 	}
 	return &fxt, nil
+}
+
+func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDate bool, state tenant.NamespaceState, envTypes ...environment.Type) *TestFixture {
+	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
+	var createNamespaces RecipeFunction = func(fxt *TestFixture) error {
+		return nil
+	}
+	numberOfNamespaces := len(tenantModifiers) * len(envTypes)
+
+	if numberOfNamespaces > 0 {
+		createNamespaces = Namespaces(numberOfNamespaces, func(fxt *TestFixture, idx int) error {
+			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/len(envTypes))].ID
+			fxt.Namespaces[idx].Type = environment.Type(envTypes[idx%len(envTypes)])
+			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
+			fxt.Namespaces[idx].UpdatedAt = time.Now()
+			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
+			fxt.Namespaces[idx].State = state
+			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/len(envTypes))].NsBaseName
+			if fxt.Namespaces[idx].Type != environment.TypeUser {
+				fxt.Namespaces[idx].Name += "-" + fxt.Namespaces[idx].Type.String()
+			}
+			if upToDate {
+				fxt.Namespaces[idx].Version = mappedVersions[fxt.Namespaces[idx].Type]
+			} else {
+				fxt.Namespaces[idx].Version = "0000"
+			}
+			return nil
+		})
+	}
+	return NewTestFixture(t, db, Tenants(len(tenantModifiers), func(fxt *TestFixture, idx int) error {
+		tenantModifiers[idx](fxt.Tenants[idx])
+		return nil
+	}), createNamespaces)
+}
+
+type TenantModifier func(tnnt *tenant.Tenant)
+
+func WithTenants(numberOfTenants int) []TenantModifier {
+	var tenantModifiers []TenantModifier
+	for i := 0; i < numberOfTenants; i++ {
+		tenantModifiers = append(tenantModifiers, func(tnnt *tenant.Tenant) {})
+	}
+	return tenantModifiers
+}
+
+func WithTenantsOfNames(names ...string) []TenantModifier {
+	var tenantModifiers []TenantModifier
+	for _, name := range names {
+		tenantModifiers = append(tenantModifiers, func(tnnt *tenant.Tenant) {
+			tnnt.OSUsername = name
+			tnnt.NsBaseName = name
+		})
+	}
+	return tenantModifiers
 }

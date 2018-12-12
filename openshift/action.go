@@ -14,38 +14,38 @@ import (
 // NamespaceAction represents the action that should be applied on the namespaces for the particular tenant - [post|update|delete].
 // It is mainly responsible for operation on DB and provides additional information specific to the action that is needed by other objects
 type NamespaceAction interface {
-	methodName() string
-	getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error)
-	updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool)
-	sort(toSort environment.ByKind)
-	filter() FilterFunc
-	forceMasterTokenGlobally() bool
-	checkNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error
+	MethodName() string
+	GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error)
+	UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool)
+	Sort(toSort environment.ByKind)
+	Filter() FilterFunc
+	ForceMasterTokenGlobally() bool
+	CheckNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error
 }
 
 type commonNamespaceAction struct {
 	method string
 }
 
-func (c *commonNamespaceAction) methodName() string {
+func (c *commonNamespaceAction) MethodName() string {
 	return c.method
 }
 
-func (c *commonNamespaceAction) sort(toSort environment.ByKind) {
+func (c *commonNamespaceAction) Sort(toSort environment.ByKind) {
 	sort.Sort(toSort)
 }
 
-func (c *commonNamespaceAction) filter() FilterFunc {
+func (c *commonNamespaceAction) Filter() FilterFunc {
 	return func(objects environment.Object) bool {
 		return true
 	}
 }
 
-func (c *commonNamespaceAction) forceMasterTokenGlobally() bool {
+func (c *commonNamespaceAction) ForceMasterTokenGlobally() bool {
 	return true
 }
 
-func (c *commonNamespaceAction) checkNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
+func (c *commonNamespaceAction) CheckNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
 	var failedNamespaces []string
 	for _, ns := range namespaces {
 		if ns.State == tenant.Failed {
@@ -74,13 +74,13 @@ type Create struct {
 	tenantRepo tenant.Repository
 }
 
-func (c *Create) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
+func (c *Create) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
 	namespace := c.tenantRepo.NewNamespace(nsTypeService.GetType(), nsTypeService.GetNamespaceName(), tenant.Provisioning)
 	err := c.tenantRepo.SaveNamespace(namespace)
 	return namespace, err
 }
 
-func (c *Create) updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
+func (c *Create) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	state := tenant.Ready
 	if failed {
 		state = tenant.Failed
@@ -97,7 +97,7 @@ func (c *Create) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	}
 }
 
-func (c *Create) forceMasterTokenGlobally() bool {
+func (c *Create) ForceMasterTokenGlobally() bool {
 	return false
 }
 
@@ -119,11 +119,11 @@ type Delete struct {
 	removeFromCluster bool
 }
 
-func (d *Delete) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
+func (d *Delete) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
 	return d.getNamespaceFor(nsTypeService.GetType()), nil
 }
 
-func (d *Delete) updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
+func (d *Delete) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	var err error
 	if failed {
 		namespace.State = tenant.Failed
@@ -142,14 +142,14 @@ func (d *Delete) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	}
 }
 
-func (d *Delete) filter() FilterFunc {
+func (d *Delete) Filter() FilterFunc {
 	if d.removeFromCluster {
 		return isOfKind(environment.ValKindProjectRequest)
 	}
 	return isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap)
 }
 
-func (d *Delete) sort(toSort environment.ByKind) {
+func (d *Delete) Sort(toSort environment.ByKind) {
 	sort.Sort(sort.Reverse(toSort))
 }
 
@@ -166,14 +166,14 @@ func (a withExistingNamespacesAction) getNamespaceFor(nsType environment.Type) *
 	return nil
 }
 
-func (d Delete) checkNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
+func (d Delete) CheckNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
 	if d.removeFromCluster {
 		if len(namespaces) == 0 {
 			return d.tenantRepo.DeleteTenant()
 		}
 		return fmt.Errorf("cannot remove tenant %s from DB - some namespace still exists", namespaces[0].TenantID)
 	}
-	return d.commonNamespaceAction.checkNamespacesAndUpdateTenant(namespaces, envTypes)
+	return d.commonNamespaceAction.CheckNamespacesAndUpdateTenant(namespaces, envTypes)
 }
 
 func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace) *Update {
@@ -192,11 +192,11 @@ type Update struct {
 	tenantRepo tenant.Repository
 }
 
-func (u *Update) getNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
+func (u *Update) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
 	return u.getNamespaceFor(nsTypeService.GetType()), nil
 }
 
-func (u *Update) updateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
+func (u *Update) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	state := tenant.Ready
 	if failed {
 		state = tenant.Failed
@@ -213,7 +213,7 @@ func (u *Update) updateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	}
 }
 
-func (d *Update) filter() FilterFunc {
+func (d *Update) Filter() FilterFunc {
 	return isNotOfKind(environment.ValKindProjectRequest)
 }
 

@@ -117,11 +117,13 @@ ALL_PKGS_EXCLUDE_PATTERN = 'vendor\|app\|tool\/cli\|design\|client\|test'
 GOANALYSIS_PKGS_EXCLUDE_PATTERN="vendor|app|client|tool/cli"
 GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS_EXCLUDE_PATTERN))
 
-MINISHIFT_USER_NAME ?= tenant.minishift.test.$(shell date +'%H.%M.%S')
-MINISHIFT_USER_TOKEN ?= $(shell oc login -u=$(MINISHIFT_USER_NAME) -p=developer > /dev/null && oc whoami -t)
-MINISHIFT_ADMIN_NAME ?= admin
-MINISHIFT_ADMIN_TOKEN ?= $(shell oc login -u=$(MINISHIFT_ADMIN_NAME) -p=admin > /dev/null && oc whoami -t)
+TEST_FLAGS?=-v -p 1 -vet off
+
 MINISHIFT_URL ?= https://$(shell minishift ip):8443
+MINISHIFT_USER_NAME ?= tenant.minishift.test.$(shell date +'%H.%M.%S')
+MINISHIFT_USER_TOKEN ?= $(shell oc login $(MINISHIFT_URL) -u=$(MINISHIFT_USER_NAME) -p=developer > /dev/null && oc whoami -t)
+MINISHIFT_ADMIN_NAME ?= admin
+MINISHIFT_ADMIN_TOKEN ?= $(shell oc login $(MINISHIFT_URL) -u=$(MINISHIFT_ADMIN_NAME) -p=admin > /dev/null && oc whoami -t)
 #-------------------------------------------------------------------------------
 # Normal test targets
 #
@@ -168,7 +170,7 @@ test-unit: test-templates-flags prebuild-check clean-coverage-unit $(COV_PATH_UN
 test-unit-no-coverage: test-templates-flags prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
-	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_UNIT_TEST=1 go test -v $(TEST_PACKAGES)
+	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_UNIT_TEST=1 go test $(TEST_FLAGS) $(TEST_PACKAGES)
 
 .PHONY: test-unit-no-coverage-junit
 test-unit-no-coverage-junit: prebuild-check ${GO_JUNIT_BIN} ${TMP_PATH}
@@ -186,7 +188,7 @@ test-integration: prebuild-check clean-coverage-integration migrate-database $(C
 test-integration-no-coverage: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
-	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_DATABASE=1 F8_RESOURCE_UNIT_TEST=0 F8_POSTGRES_DATABASE=postgres go test -v --vet off $(TEST_PACKAGES)
+	F8_LOG_LEVEL=error F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_DATABASE=1 F8_RESOURCE_UNIT_TEST=0 F8_POSTGRES_DATABASE=postgres go test $(TEST_FLAGS) $(TEST_PACKAGES)
 
 .PHONY: test-remote
 ## Runs the remote tests and produces coverage files for each package.
@@ -197,13 +199,13 @@ test-remote: prebuild-check clean-coverage-remote $(COV_PATH_REMOTE)
 test-remote-no-coverage: prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
-	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_REMOTE=1 F8_RESOURCE_UNIT_TEST=0 go test -v $(TEST_PACKAGES)
+	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_REMOTE=1 F8_RESOURCE_UNIT_TEST=0 go test $(TEST_FLAGS) $(TEST_PACKAGES)
 
 .PHONY: test-migration
 ## Runs the migration tests and should be executed before running the integration tests
 ## in order to have a clean database
 test-migration: prebuild-check
-	F8_RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test ${PACKAGE_NAME}/migration -v
+	F8_RESOURCE_DATABASE=1 F8_POSTGRES_DATABASE=postgres go test $(TEST_FLAGS) ${PACKAGE_NAME}/migration
 
 .PHONY: test-with-minishift
 ## Runs the tests which require availability of minishift as well as DB.
@@ -213,7 +215,7 @@ test-with-minishift: prebuild-check migrate-database
 	F8_DEVELOPER_MODE_ENABLED=1 F8_RESOURCE_DATABASE=1 F8_RESOURCE_UNIT_TEST=0 F8_POSTGRES_DATABASE=postgres \
 	F8_MINISHIFT_USER_NAME=$(MINISHIFT_USER_NAME) F8_MINISHIFT_USER_TOKEN=$(MINISHIFT_USER_TOKEN) F8_MINISHIFT_URL=$(MINISHIFT_URL) \
 	F8_MINISHIFT_ADMIN_NAME=$(MINISHIFT_ADMIN_NAME) F8_MINISHIFT_ADMIN_TOKEN=$(MINISHIFT_ADMIN_TOKEN) \
-	go test -v -run ".*Minishift.*" $(TEST_PACKAGES)
+	go test $(TEST_FLAGS) -run ".*Minishift.*" $(TEST_PACKAGES)
 
 .PHONY: clean-minishift-namespaces
 ## Deletes namespaces starting with tenant-minishift-test-* from Minishift
@@ -467,7 +469,7 @@ $(eval ALL_PKGS_COMMA_SEPARATED := $(6))
 $(eval COV_OUT_FILE := $(COV_DIR)/$(PACKAGE_NAME)/coverage.$(TEST_NAME).mode-$(COVERAGE_MODE))
 @$(ENV_VAR) F8_DEVELOPER_MODE_ENABLED=1 F8_POSTGRES_HOST=$(F8_POSTGRES_HOST) \
 	go test $(PACKAGE_NAME) \
-		-v \
+		$(TEST_FLAGS) \
 		-coverprofile $(COV_OUT_FILE) \
 		-coverpkg $(ALL_PKGS_COMMA_SEPARATED) \
 		-covermode=$(COVERAGE_MODE) \

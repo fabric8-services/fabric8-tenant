@@ -91,16 +91,14 @@ func (s *clusterService) Start() error {
 }
 
 func (s *clusterService) GetUserClusterForType(ctx context.Context, user *auth.User) (ForType, error) {
-	mapping := make(map[environment.Type]Cluster, len(environment.DefaultEnvTypes))
 	cluster, err := s.GetCluster(ctx, *user.UserData.Cluster)
 	if err != nil {
 		return nil, err
 	}
-	for _, envType := range environment.DefaultEnvTypes {
-		mapping[envType] = cluster
-	}
 
-	return ForTypeMapping(mapping), nil
+	return func(envType environment.Type) Cluster {
+		return cluster
+	}, nil
 }
 
 func ForTypeMapping(mapping map[environment.Type]Cluster) ForType {

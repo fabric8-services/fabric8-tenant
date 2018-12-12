@@ -39,7 +39,9 @@ func TestEnvironmentTypeService(t *testing.T) {
 	client := openshift.NewClient(nil, "https://starter.com", tokenProducer)
 
 	ctx := openshift.NewServiceContext(
-		context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "userToken", "developer1")
+		context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "developer1", func(cluster cluster.Cluster) string {
+			return "userToken"
+		})
 	envService := environment.NewService()
 
 	t.Run("test service behavior common for all types", func(t *testing.T) {
@@ -123,9 +125,15 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 				withNamespace("developer-jenkins")))
 	})
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
-		assert.NoError(t,
+		assert.Error(t,
 			contain(templateObjects,
 				environment.ValKindDeploymentConfig,
+				withNamespace("developer-che")))
+	})
+	t.Run("verify jenkins deployment config", func(t *testing.T) {
+		assert.NoError(t,
+			contain(templateObjects,
+				environment.ValKindPersistenceVolumeClaim,
 				withNamespace("developer-che")))
 	})
 

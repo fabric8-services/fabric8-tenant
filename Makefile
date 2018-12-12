@@ -30,10 +30,6 @@ export GIT_COMMITTER_NAME
 export GIT_COMMITTER_EMAIL
 
 COMMIT=$(shell git rev-parse HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GITUNTRACKEDCHANGES),)
-COMMIT := $(COMMIT)-dirty
-endif
 BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
 
 # For the global "clean" target all targets in this variable will be executed
@@ -41,7 +37,7 @@ CLEAN_TARGETS =
 
 # Pass in build time variables to main
 LDFLAGS_FOR_TEMPLATES=$(foreach template-path, $(TEMPLATES), $(call set-latest-commit-sha,$(template-path)))
-LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/controller.Commit=${COMMIT} -X ${PACKAGE_NAME}/controller.BuildTime=${BUILD_TIME} $(LDFLAGS_FOR_TEMPLATES)"
+LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/configuration.Commit=${COMMIT} -X ${PACKAGE_NAME}/configuration.BuildTime=${BUILD_TIME} $(LDFLAGS_FOR_TEMPLATES)"
 
 define set-latest-commit-sha
 -X ${PACKAGE_NAME}/environment.$(call get-variable-name, $(1))=$(shell git log -n 1 --pretty=format:%h -- $(1))

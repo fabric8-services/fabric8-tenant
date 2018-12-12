@@ -19,6 +19,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
+	"github.com/fabric8-services/fabric8-tenant/update"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -102,7 +103,7 @@ func main() {
 	}
 	defer clusterService.Stop()
 
-	haltSentry, err := sentry.InitializeLogger(config, controller.Commit)
+	haltSentry, err := sentry.InitializeLogger(config, configuration.Commit)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -111,6 +112,9 @@ func main() {
 	defer haltSentry()
 
 	tenantService := tenant.NewDBService(db)
+
+	// Check & do all tenants update
+	go update.NewTenantsUpdater(db, config, clusterService, controller.TenantUpdater{}).UpdateAllTenants()
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
@@ -123,9 +127,9 @@ func main() {
 	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, config)
 	app.MountTenantsController(service, tenantsCtrl)
 
-	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
-	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
-	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
+	log.Logger().Infoln("Git Commit SHA: ", configuration.Commit)
+	log.Logger().Infoln("UTC Build Time: ", configuration.BuildTime)
+	log.Logger().Infoln("UTC Start Time: ", configuration.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
 	log.Logger().Infoln("Auth URL:       ", config.GetAuthURL())
 
@@ -185,11 +189,6 @@ func checkTemplateVersions() string {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheMtFile")
 	} else {
 		logVersionInfo("fabric8-tenant-che-mt.yml", environment.VersionFabric8TenantCheMtFile)
-	}
-	if environment.VersionFabric8TenantCheFile == "" {
-		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheFile")
-	} else {
-		logVersionInfo("fabric8-tenant-che.yml", environment.VersionFabric8TenantCheFile)
 	}
 	if environment.VersionFabric8TenantCheQuotasFile == "" {
 		errorMsg = errorMsg + createNotSetVersionError("VersionFabric8TenantCheQuotasFile")

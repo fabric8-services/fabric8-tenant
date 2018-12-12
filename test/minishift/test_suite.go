@@ -1,6 +1,7 @@
 package minishift
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
@@ -13,10 +14,12 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	"github.com/fabric8-services/fabric8-tenant/test/stub"
-	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -80,9 +83,9 @@ func (s *TestSuite) GetConfig() *configuration.Data {
 func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 	resetVars := test.SetEnvironments(
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
-		test.Env("F8_API_SERVER_USE_TLS", "false"),
 		test.Env("F8_LOG_LEVEL", "error"),
-		test.Env("F8_KEYCLOAK_URL", "http://keycloak.url.com"))
+		test.Env("F8_KEYCLOAK_URL", "http://keycloak.url.com"),
+		test.Env("DISABLE_OSO_QUOTAS", "true"))
 	config, resetConf := test.LoadTestConfig(t)
 	reset := func() {
 		resetVars()
@@ -91,7 +94,7 @@ func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 	return config, reset
 }
 
-func (s *TestSuite) VerifyObjectsPresence(t *testing.T, nsBaseName, version string) {
+func (s *TestSuite) VerifyObjectsPresence(t *testing.T, nsBaseName, version string, required bool) {
 	minCfg := s.minishiftConfig
 	clusterMapping := testdoubles.SingleClusterMapping(minCfg.GetMinishiftURL(), minCfg.GetMinishiftAdminName(), minCfg.GetMinishiftAdminToken())
 	userInfo := testdoubles.UserInfo{
@@ -104,12 +107,21 @@ func (s *TestSuite) VerifyObjectsPresence(t *testing.T, nsBaseName, version stri
 	errorChan := make(chan error, len(templatesObjects))
 	defer func() {
 		close(errorChan)
+		errWasFound := false
 		for err := range errorChan {
 			assert.NoError(t, err)
+			errWasFound = errWasFound || err != nil
+		}
+		if required {
+			require.False(t, errWasFound)
 		}
 	}()
 
-	client := openshift.NewClient(nil, minCfg.GetMinishiftURL(), func(forceMasterToken bool) string {
+	client := openshift.NewClient(&http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}, minCfg.GetMinishiftURL(), func(forceMasterToken bool) string {
 		return minCfg.GetMinishiftAdminToken()
 	})
 
@@ -142,7 +154,7 @@ func objectIsUpToDate(obj environment.Object, ns string, client openshift.Client
 		var respondedObj environment.Object
 		err = yaml.Unmarshal(result.Body, &respondedObj)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "unable to unmarshal %s", string(result.Body))
 		}
 		if shouldVerifyVersion {
 			if version != environment.GetLabelVersion(respondedObj) {
@@ -157,28 +169,3 @@ func objectIsUpToDate(obj environment.Object, ns string, client openshift.Client
 		return nil
 	}
 }
-
-//func (s *TestSuite) GetMappedTemplateObjects(nsBaseName string) (map[string]environment.Objects, openshift.ApplyOptions) {
-//	config := openshift.Config{
-//		OriginalConfig: s.Config,
-//		MasterURL:      s.minishiftConfig.GetMinishiftURL(),
-//		ConsoleURL:     s.minishiftConfig.GetMinishiftURL(),
-//		HTTPTransport: &http.Transport{
-//			TLSClientConfig: &tls.Config{
-//				InsecureSkipVerify: true,
-//			},
-//		},
-//		MasterUser: s.minishiftConfig.GetMinishiftAdminName(),
-//		Token:      s.minishiftConfig.GetMinishiftAdminToken(),
-//	}
-//
-//	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, s.minishiftConfig.GetMinishiftUserName(), nsBaseName)
-//	assert.NoError(s.T(), err)
-//	mapped, err := openshift.MapByNamespaceAndSort(templs)
-//	assert.NoError(s.T(), err)
-//	masterOpts := openshift.ApplyOptions{
-//		Config:   config,
-//		Callback: nil,
-//	}
-//	return mapped, masterOpts
-//}

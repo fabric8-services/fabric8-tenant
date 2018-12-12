@@ -7,11 +7,13 @@ import (
 	. "github.com/fabric8-services/fabric8-tenant/test"
 	. "github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
-	"github.com/satori/go.uuid"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
+	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
+	"os"
 	"testing"
 )
 
@@ -65,6 +67,7 @@ type ServiceTestSuite struct {
 }
 
 func TestService(t *testing.T) {
+	os.Setenv(resource.Database, "1")
 	suite.Run(t, &ServiceTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
@@ -89,21 +92,19 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
 		Reply(200)
 
-	id := uuid.NewV4()
+	tnnt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("aslak"), true, tenant.Ready).Tenants[0]
 	service := NewOSService(
-		s.T(),
 		config,
-		WithTenant(id),
 		SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
 		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"),
-		s.DB)
+		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
 
 	// when
-	err := service.WithPostMethod().ApplyAll(environment.TypeRun)
+	err := service.WithPostMethod().ApplyAll([]environment.Type{environment.TypeRun})
 
 	// then
 	require.NoError(s.T(), err)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), namespaces, 1)
 	assert.Equal(s.T(), "aslak-run", namespaces[0].Name)
@@ -134,21 +135,19 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 		Reply(200).
 		BodyString(roleBindingRestrictionObject)
 
-	id := uuid.NewV4()
+	tnnt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("aslak"), true, tenant.Ready).Tenants[0]
 	service := NewOSService(
-		s.T(),
 		config,
-		WithTenant(id),
 		SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
 		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"),
-		s.DB)
+		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
 
 	// when
-	err := service.WithPostMethod().ApplyAll(environment.TypeRun)
+	err := service.WithPostMethod().ApplyAll([]environment.Type{environment.TypeRun})
 
 	// then
 	require.NoError(s.T(), err)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), namespaces, 1)
 	assert.Equal(s.T(), "aslak-run", namespaces[0].Name)
@@ -178,26 +177,25 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		SetMatcher(ExpectRequest(HasJWTWithSub("clusterUser"))).
 		Reply(200)
 
-	tenantId := uuid.NewV4()
-	namespaceCreator := Ns("aslak-run", environment.TypeRun)
+	//namespaceCreator := Ns("aslak-run", environment.TypeRun)
+	fxt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("aslak"), true, tenant.Ready, environment.TypeRun)
+	tnnt := fxt.Tenants[0]
 	service := NewOSService(
-		s.T(),
 		config,
-		WithTenant(tenantId, namespaceCreator),
 		SingleClusterMapping("http://starter.com", "clusterUser", tok.Raw),
 		WithUser(NewUserDataWithTenantConfig("", "12345", ""), "aslak", "abc123"),
-		s.DB)
+		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
 
 	// when
-	err = service.WithDeleteMethod([]*tenant.Namespace{namespaceCreator(tenantId)}, true).ApplyAll()
+	err = service.WithDeleteMethod(fxt.Namespaces, true).ApplyAll(environment.DefaultEnvTypes)
 
 	// then
 	require.NoError(s.T(), err)
 	repo := tenant.NewDBService(s.DB)
-	namespaces, err := repo.GetNamespaces(tenantId)
+	namespaces, err := repo.GetNamespaces(tnnt.ID)
 	require.NoError(s.T(), err)
 	assert.Empty(s.T(), namespaces)
-	assert.False(s.T(), repo.Exists(tenantId))
+	assert.False(s.T(), repo.Exists(tnnt.ID))
 }
 
 func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
@@ -212,23 +210,21 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	clusterMapping := SingleClusterMapping("http://my.cluster", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 	userCreator := WithUser(&authclient.UserDataAttributes{}, "developer", "12345")
 
-	id := uuid.NewV4()
+	tnnt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("developer"), true, tenant.Ready).Tenants[0]
 	service := NewOSService(
-		s.T(),
 		config,
-		WithTenant(id),
 		clusterMapping,
 		userCreator,
-		s.DB)
+		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
 
 	// when
-	err := service.WithPostMethod().ApplyAll(environment.DefaultEnvTypes...)
+	err := service.WithPostMethod().ApplyAll(environment.DefaultEnvTypes)
 
 	// then
 	require.NoError(s.T(), err)
 	// the expected number is number of all objects + 11 get calls to verify that objects are created + 1 to removed admin role binding
 	assert.Equal(s.T(), ExpectedNumberOfCallsWhenPost(s.T(), config, clusterMapping, userCreator.NewUserInfo("developer")), calls)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), namespaces, 5)
 }
