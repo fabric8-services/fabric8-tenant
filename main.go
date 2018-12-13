@@ -114,7 +114,12 @@ func main() {
 	tenantService := tenant.NewDBService(db)
 
 	// Check & do all tenants update
-	go update.NewTenantsUpdater(db, config, clusterService, controller.TenantUpdater{}).UpdateAllTenants()
+	if config.IsAutomatedUpdateEnabled() {
+		log.Info(nil, map[string]interface{}{}, "automated update is enabled")
+		go update.NewTenantsUpdater(db, config, clusterService, controller.TenantUpdater{}).UpdateAllTenants()
+	} else {
+		log.Info(nil, map[string]interface{}{}, "automated update is disabled")
+	}
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
