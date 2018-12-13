@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -15,7 +16,6 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
-	"github.com/fabric8-services/fabric8-tenant/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -157,7 +157,7 @@ func TestGetClusters(t *testing.T) {
 		require.NoError(t, err)
 		defer clusterService.Stop()
 		user := &auth.User{UserData: &authclient.UserDataAttributes{
-			Cluster: utils.String("http://api.cluster1/"),
+			Cluster: ptr.String("http://api.cluster1/"),
 		}}
 		// when
 		clusterForType, err := clusterService.GetUserClusterForType(context.Background(), user)

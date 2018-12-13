@@ -3,6 +3,8 @@ package tenant
 import (
 	"time"
 
+	"database/sql/driver"
+	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
@@ -62,4 +64,40 @@ func (n *Namespace) UpdateData(env *environment.EnvData, cluster *cluster.Cluste
 	n.MasterURL = cluster.APIURL
 	n.Type = env.EnvType
 	n.UpdatedBy = configuration.Commit
+}
+
+type NamespaceState string
+
+const (
+	Provisioning NamespaceState = "provisioning"
+	Updating     NamespaceState = "updating"
+	Ready        NamespaceState = "ready"
+	Failed       NamespaceState = "failed"
+)
+
+func (s NamespaceState) String() string {
+	return string(s)
+}
+
+// Value - Implementation of valuer for database/sql
+func (ns *NamespaceState) Value() (driver.Value, error) {
+	return string(*ns), nil
+}
+
+// Scan - Implement the database/sql scanner interface
+func (ns *NamespaceState) Scan(value interface{}) error {
+	if value == nil {
+		*ns = NamespaceState("")
+		return nil
+	}
+	if bv, err := driver.String.ConvertValue(value); err == nil {
+		// if this is a bool type
+		if v, ok := bv.(string); ok {
+			// set the value of the pointer yne to YesNoEnum(v)
+			*ns = NamespaceState(v)
+			return nil
+		}
+	}
+	// otherwise, return an error
+	return fmt.Errorf("failed to scan NamespaceState")
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"net/http"
 	"sync"
-	"github.com/pkg/errors"
 )
 
 type ServiceBuilder struct {
@@ -152,13 +151,12 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	for _, object := range objects {
 		_, err := Apply(*client, action.MethodName(), object)
 		if err != nil {
-			err = fmt.Errorf("%s method applied to the namespace failed", action.MethodName())
 			sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
 				"ns-type": nsTypeService.GetType(),
 				"action":  action.MethodName(),
 				"cluster": cluster.APIURL,
 				"ns-name": nsTypeService.GetNamespaceName(),
-			}, errors.WithStack(err), err.Error())
+			}, err, action.MethodName()+"method applied to the namespace failed")
 			failed = true
 			break
 		}

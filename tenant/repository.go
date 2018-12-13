@@ -11,19 +11,6 @@ import (
 	"strings"
 )
 
-type NamespaceState string
-
-const (
-	Provisioning NamespaceState = "provisioning"
-	Updating     NamespaceState = "updating"
-	Ready        NamespaceState = "ready"
-	Failed       NamespaceState = "failed"
-)
-
-func (s NamespaceState) String() string {
-	return string(s)
-}
-
 type Service interface {
 	Exists(tenantID uuid.UUID) bool
 	GetTenant(tenantID uuid.UUID) (*Tenant, error)

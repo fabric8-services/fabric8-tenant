@@ -7,13 +7,11 @@ import (
 	. "github.com/fabric8-services/fabric8-tenant/test"
 	. "github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
-	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
-	"os"
 	"testing"
 )
 
@@ -67,7 +65,6 @@ type ServiceTestSuite struct {
 }
 
 func TestService(t *testing.T) {
-	os.Setenv(resource.Database, "1")
 	suite.Run(t, &ServiceTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 

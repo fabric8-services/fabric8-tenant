@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/utils"
+	"github.com/fabric8-services/fabric8-wit/ptr"
 )
 
 type NamespaceFilter func(namespace tenant.Namespace) bool
@@ -26,17 +26,17 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			nsCluster = cluster.Cluster{}
 		}
 		nsAttributes = append(nsAttributes, &app.NamespaceAttributes{
-			CreatedAt:         &ns.CreatedAt,
-			UpdatedAt:         &ns.UpdatedAt,
-			ClusterURL:        &ns.MasterURL,
-			ClusterAppDomain:  &nsCluster.AppDNS,
-			ClusterConsoleURL: &nsCluster.ConsoleURL,
-			ClusterMetricsURL: &nsCluster.MetricsURL,
-			ClusterLoggingURL: &nsCluster.LoggingURL,
-			Name:              &ns.Name,
-			Type:              utils.String(ns.Type.String()),
-			Version:           &ns.Version,
-			State:             utils.String(ns.State.String()),
+			CreatedAt:                &ns.CreatedAt,
+			UpdatedAt:                &ns.UpdatedAt,
+			ClusterURL:               &ns.MasterURL,
+			ClusterAppDomain:         &nsCluster.AppDNS,
+			ClusterConsoleURL:        &nsCluster.ConsoleURL,
+			ClusterMetricsURL:        &nsCluster.MetricsURL,
+			ClusterLoggingURL:        &nsCluster.LoggingURL,
+			Name:                     &ns.Name,
+			Type:                     ptr.String(ns.Type.String()),
+			Version:                  &ns.Version,
+			State:                    ptr.String(ns.State.String()),
 			ClusterCapacityExhausted: &nsCluster.CapacityExhausted,
 		})
 	}

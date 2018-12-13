@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"fmt"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -135,15 +134,13 @@ func TestResolveServiceAccountToken(t *testing.T) {
 
 	t.Run("empty access token", func(t *testing.T) {
 		// given
-		authService, cleanup := newAuthService(t, "tenant_service", "../test/data/token/auth_resolve_target_token")
+		authService, cleanup :=
+			testdoubles.NewAuthService(t, "../test/data/token/auth_resolve_target_token", "http://authservice", "", recorder.WithJWTMatcher)
 		defer cleanup()
 		// when
-		user, token, err := authService.ResolveSaToken(context.Background(), "get_token")
+		_, _, err := authService.ResolveSaToken(context.Background(), "some_valid_openshift_resource")
 		// then
-		fmt.Println(err)
-		fmt.Println(user)
-		fmt.Println(token)
-
+		testsupport.AssertError(t, err, testsupport.HasMessage("token must not be empty"))
 	})
 }
 

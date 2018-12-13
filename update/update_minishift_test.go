@@ -84,7 +84,7 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	var goroutineCanContinue sync.WaitGroup
 	goroutineCanContinue.Add(1)
 	var goroutineFinished sync.WaitGroup
-	updateExec := controller.TenantUpdater{ClusterService:clusterService, TenantRepository:repo, Config:s.Config}
+	updateExec := controller.TenantUpdater{ClusterService: clusterService, TenantRepository: repo, Config: s.Config}
 	for i := 0; i < 10; i++ {
 		goroutineFinished.Add(1)
 		go func(updateExecutor controller.UpdateExecutor) {

@@ -84,21 +84,6 @@ interactions:
 		}'
 - request:
     method: GET
-    url: http://authservice/api/token?for=get_token&force_pull=false
-    headers:
-      sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token
-  response:
-    status: 200 OK
-    code: 200
-    body: '{
-               "access_token": "jA0EAwMCaBTkoCVDFLreyUcnmqX5P/EQebBJAGDq5nYXEuCXIy4Eez96U8Y9UBrMMTYf9NNmoEZckQeFx3oRUdJl91Xbv8dYkZVmUwk+UXrNsisefNQTYA==",
-               "provider_api_url": "https://api.starter-us-east-2a.openshift.com/",
-               "scope": "<unknown>",
-               "token_type": "bearer",
-               "username": "devtools-sre"
-           }'
-- request:
-    method: GET
     url: http://authservice/api/token?for=some_invalid_resource&force_pull=false
     headers:
       sub: ["tenant_service"] # will be compared against the `sub` claim in the incoming request's token

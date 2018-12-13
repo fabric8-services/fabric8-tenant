@@ -3,6 +3,7 @@ package testdoubles
 import (
 	"context"
 	vcrrecorder "github.com/dnaeon/go-vcr/recorder"
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -12,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
-	"github.com/fabric8-services/fabric8-tenant/utils"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
@@ -56,7 +56,7 @@ func NewUserDataWithTenantConfig(templatesRepo, templatesRepoBlob, templatesRepo
 				"templatesRepoBlob": templatesRepoBlob,
 				"templatesRepoDir":  templatesRepoDir,
 			}},
-		FeatureLevel: utils.String("internal"),
+		FeatureLevel: ptr.String("internal"),
 	}
 }
 
