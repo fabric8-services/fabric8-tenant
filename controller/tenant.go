@@ -215,9 +215,9 @@ func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, ver
 	for _, ns := range namespaces {
 		if nsVersion, found = versionMapping[string(ns.Type)]; found {
 			if failed {
-				ns.State = "failed"
+				ns.State = tenant.Failed
 			} else {
-				ns.State = "ready"
+				ns.State = tenant.Ready
 				ns.Version = nsVersion
 			}
 			ns.UpdatedBy = Commit
@@ -362,7 +362,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
-					State:     "created",
+					State:     tenant.Ready,
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
@@ -380,7 +380,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
-					State:     "created",
+					State:     tenant.Ready,
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
@@ -443,6 +443,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
+		namespaceState := ns.State.String()
 		result.Attributes.Namespaces = append(
 			result.Attributes.Namespaces,
 			&app.NamespaceAttributes{
@@ -456,7 +457,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				Name:                     &ns.Name,
 				Type:                     &tenantType,
 				Version:                  &ns.Version,
-				State:                    &ns.State,
+				State:                    &namespaceState,
 				ClusterCapacityExhausted: &c.CapacityExhausted,
 			})
 	}

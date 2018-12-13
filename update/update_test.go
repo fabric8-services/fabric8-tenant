@@ -46,7 +46,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 	for _, status := range []string{"finished", "updating", "failed"} {
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.numberOfCalls = 0
-			fxt := tf.FillDB(t, s.DB, 19, false, "ready", environment.DefaultEnvTypes...)
+			fxt := tf.FillDB(t, s.DB, 19, false, tenant.Ready, environment.DefaultEnvTypes...)
 			controller.Commit = "124abcd"
 			before := time.Now()
 
@@ -69,7 +69,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 				for _, ns := range namespaces {
 					assert.Equal(t, environment.RetrieveMappedTemplates()[string(ns.Type)].ConstructCompleteVersion(), ns.Version)
 					assert.Equal(t, "124abcd", ns.UpdatedBy)
-					assert.Equal(t, "ready", ns.State)
+					assert.Equal(t, tenant.Ready, ns.State)
 					assert.True(t, before.Before(ns.UpdatedAt))
 				}
 			}
@@ -113,7 +113,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 
 		s.T().Run(fmt.Sprintf("running automated update process should pass (without updating anything) when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.numberOfCalls = 0
-			fxt := tf.FillDB(t, s.DB, 5, true, "ready", environment.DefaultEnvTypes...)
+			fxt := tf.FillDB(t, s.DB, 5, true, tenant.Ready, environment.DefaultEnvTypes...)
 			after := time.Now()
 
 			s.tx(t, func(repo update.Repository) error {
@@ -134,7 +134,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
 					assert.Equal(t, "124abcd", ns.UpdatedBy)
-					assert.Equal(t, "ready", ns.State)
+					assert.Equal(t, tenant.Ready, ns.State)
 					assert.Equal(t, environment.RetrieveMappedTemplates()[string(ns.Type)].ConstructCompleteVersion(), ns.Version)
 					assert.True(t, after.After(ns.UpdatedAt))
 				}
@@ -153,7 +153,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 
 	testdoubles.SetTemplateVersions()
 	controller.Commit = "124abcd"
-	fxt := tf.FillDB(s.T(), s.DB, 1, false, "ready", environment.DefaultEnvTypes...)
+	fxt := tf.FillDB(s.T(), s.DB, 1, false, tenant.Ready, environment.DefaultEnvTypes...)
 	s.tx(s.T(), func(repo update.Repository) error {
 		return updateVersionsTo(repo, "0")
 	})
@@ -171,7 +171,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 		assert.NoError(s.T(), err)
 		for _, ns := range namespaces {
 			assert.Equal(s.T(), "xyz", ns.UpdatedBy)
-			assert.Equal(s.T(), "failed", ns.State)
+			assert.Equal(s.T(), tenant.Failed, ns.State)
 			assert.Equal(s.T(), "0000", ns.Version)
 			assert.True(s.T(), before.Before(ns.UpdatedAt))
 		}
@@ -219,7 +219,7 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, 
 	defer gock.Off()
 	createMocks()
 	testdoubles.SetTemplateVersions()
-	tf.FillDB(s.T(), s.DB, 5, false, "ready", environment.DefaultEnvTypes...)
+	tf.FillDB(s.T(), s.DB, 5, false, tenant.Ready, environment.DefaultEnvTypes...)
 	s.tx(s.T(), func(repo update.Repository) error {
 		return updateVersionsTo(repo, "0")
 	})

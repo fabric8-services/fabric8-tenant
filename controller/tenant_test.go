@@ -32,7 +32,7 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 			Name:      "test-che",
 			Type:      tenant.TypeChe,
 			Version:   "1.0",
-			State:     "created",
+			State:     tenant.Ready,
 		},
 		{
 			CreatedAt: ns2,
@@ -41,7 +41,7 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 			Name:      "test-jenkins",
 			Type:      tenant.TypeJenkins,
 			Version:   "1.0",
-			State:     "created",
+			State:     tenant.Ready,
 		},
 	}
 }
@@ -79,7 +79,7 @@ func Test_convertTenant(t *testing.T) {
 					Name:                     strToPtr("test-che"),
 					Type:                     strToPtr("che"),
 					Version:                  strToPtr("1.0"),
-					State:                    strToPtr("created"),
+					State:                    strToPtr("ready"),
 					ClusterCapacityExhausted: boolToPtr(true),
 				},
 				{
@@ -93,7 +93,7 @@ func Test_convertTenant(t *testing.T) {
 					Name:                     strToPtr("test-jenkins"),
 					Type:                     strToPtr("jenkins"),
 					Version:                  strToPtr("1.0"),
-					State:                    strToPtr("created"),
+					State:                    strToPtr("ready"),
 					ClusterCapacityExhausted: boolToPtr(true),
 				},
 			},
