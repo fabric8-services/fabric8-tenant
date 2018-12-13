@@ -76,6 +76,7 @@ type Namespace struct {
 	Type      NamespaceType
 	Version   string
 	State     string
+	UpdatedBy string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

@@ -83,7 +83,8 @@ func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
 		test.Env("F8_API_SERVER_USE_TLS", "false"),
 		test.Env("F8_LOG_LEVEL", "error"),
-		test.Env("F8_KEYCLOAK_URL", "http://keycloak.url.com"))
+		test.Env("F8_KEYCLOAK_URL", "http://keycloak.url.com"),
+		test.Env("DISABLE_OSO_QUOTAS", "true"))
 	config, resetConf := test.LoadTestConfig(t)
 	reset := func() {
 		resetVars()
@@ -92,7 +93,7 @@ func prepareConfig(t *testing.T) (*configuration.Data, func()) {
 	return config, reset
 }
 
-func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Objects, options openshift.ApplyOptions, version string) {
+func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Objects, options openshift.ApplyOptions, version string, required bool) {
 	size := 0
 	for _, objects := range mappedObjects {
 		size += len(objects)
@@ -100,8 +101,13 @@ func VerifyObjectsPresence(t *testing.T, mappedObjects map[string]environment.Ob
 	errorChan := make(chan error, size)
 	defer func() {
 		close(errorChan)
+		errWasFound := false
 		for err := range errorChan {
 			assert.NoError(t, err)
+			errWasFound = errWasFound || err != nil
+		}
+		if required {
+			require.False(t, errWasFound)
 		}
 	}()
 
@@ -160,7 +166,8 @@ func (s *TestSuite) GetMappedTemplateObjects(nsBaseName string) (map[string]envi
 		Token:      s.minishiftConfig.GetMinishiftAdminToken(),
 	}
 
-	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, s.minishiftConfig.GetMinishiftUserName(), nsBaseName)
+	templs, _, err :=
+		openshift.LoadProcessedTemplates(context.Background(), config, s.minishiftConfig.GetMinishiftUserName(), nsBaseName, environment.DefaultEnvTypes)
 	assert.NoError(s.T(), err)
 	mapped, err := openshift.MapByNamespaceAndSort(templs)
 	assert.NoError(s.T(), err)

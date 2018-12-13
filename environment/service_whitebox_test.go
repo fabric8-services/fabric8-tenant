@@ -20,7 +20,7 @@ func TestRetrieveCheMtParams(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-	templates := retrieveMappedTemplates()["che"]
+	templates := RetrieveMappedTemplates()["che"]
 	ctx := goajwt.WithJWT(context.Background(), token)
 
 	// when
@@ -41,7 +41,7 @@ func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
 		"../test/private_key.pem",
 	)
 	require.NoError(t, err)
-	templates := retrieveMappedTemplates()["che"]
+	templates := RetrieveMappedTemplates()["che"]
 	ctx := goajwt.WithJWT(context.Background(), token)
 
 	// when
@@ -53,7 +53,7 @@ func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
 
 func TestRetrieveCheMtParamsWhenTokenIsMissing(t *testing.T) {
 	// given
-	templates := retrieveMappedTemplates()["che"]
+	templates := RetrieveMappedTemplates()["che"]
 
 	// when
 	err := getCheParams(context.Background(), templates[0].DefaultParams)

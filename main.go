@@ -20,6 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
+	"github.com/fabric8-services/fabric8-tenant/update"
 	witmiddleware "github.com/fabric8-services/fabric8-wit/goamiddleware"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -114,6 +115,14 @@ func main() {
 	defer haltSentry()
 
 	tenantService := tenant.NewDBService(db)
+
+	// Check & do all tenants update
+	if config.IsAutomatedUpdateEnabled() {
+		log.Info(nil, map[string]interface{}{}, "automated update is enabled")
+		go update.NewTenantsUpdater(db, config, clusterService, controller.TenantUpdater{}).UpdateAllTenants()
+	} else {
+		log.Info(nil, map[string]interface{}{}, "automated update is disabled")
+	}
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)

@@ -21,6 +21,7 @@ import (
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	errs "github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -93,7 +94,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfigForUser(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 	tenant := &tenant.Tenant{
 		ID:         ttoken.Subject(),
 		Email:      ttoken.Email(),
@@ -163,7 +164,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfigForUser(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 
 	// update tenant config
 	tenant.OSUsername = user.OpenShiftUsername
@@ -177,25 +178,73 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
 	}
 
-	go func() {
-		ctx := ctx
-		t := tenant
-		err = openshift.RawUpdateTenant(
-			ctx,
-			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			user.OpenShiftUsername,
-			tenant.NsBaseName)
-
-		if err != nil {
-			sentry.LogError(ctx, map[string]interface{}{
-				"os_user": user.OpenShiftUsername,
-			}, err, "unable initialize tenant")
-		}
-	}()
+	go UpdateTenantWithErrorHandling(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
+}
+
+func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...string) {
+	err := UpdateTenant(updateExecutor, ctx, tenantService, openshiftConfig, t, envTypes...)
+	if err != nil {
+		sentry.LogError(ctx, map[string]interface{}{
+			"os_user":             t.OSUsername,
+			"tenant_id":           t.ID,
+			"env_types_to_update": envTypes,
+		}, err, "unable update tenant")
+	}
+}
+
+func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...string) error {
+	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
+	if err != nil {
+		updateNamespaceEntities(tenantService, t, versionMapping, true)
+		return err
+	}
+
+	return updateNamespaceEntities(tenantService, t, versionMapping, false)
+}
+
+func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[string]string, failed bool) error {
+	namespaces, err := tenantService.GetNamespaces(t.ID)
+	if err != nil {
+		return errs.Wrapf(err, "unable to get tenant namespaces")
+	}
+	var found bool
+	var nsVersion string
+	for _, ns := range namespaces {
+		if nsVersion, found = versionMapping[string(ns.Type)]; found {
+			if failed {
+				ns.State = "failed"
+			} else {
+				ns.State = "ready"
+				ns.Version = nsVersion
+			}
+			ns.UpdatedBy = Commit
+			err := tenantService.SaveNamespace(ns)
+			if err != nil {
+				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
+			}
+		}
+	}
+	return nil
+}
+
+type UpdateExecutor interface {
+	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error)
+}
+
+type TenantUpdater struct {
+}
+
+func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error) {
+	return openshift.RawUpdateTenant(
+		ctx,
+		openshiftConfig,
+		InitTenant(ctx, openshiftConfig.MasterURL, tenantService, t),
+		t.OSUsername,
+		t.NsBaseName,
+		envTypes)
 }
 
 // Clean runs the setup action for the tenant namespaces.
@@ -233,7 +282,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// create openshift config
-	openshiftConfig := openshift.NewConfig(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
+	openshiftConfig := openshift.NewConfigForUser(c.config, user.UserData, cluster.User, cluster.Token, cluster.APIURL)
 
 	nsBaseName := tenant.NsBaseName
 	if nsBaseName == "" {
@@ -280,7 +329,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32  // default is 0
-	return func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+	return func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[string]string) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
 			"method":      method,
@@ -308,13 +357,16 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 		} else if statusCode == http.StatusCreated {
 			if env.GetKind(request) == env.ValKindProjectRequest {
 				name := env.GetName(request)
+				envType := tenant.GetNamespaceType(name, currentTenant.NsBaseName)
+				templatesVersion := versionMapping[string(envType)]
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
-					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, currentTenant.NsBaseName),
+					Version:   templatesVersion,
+					Type:      envType,
 					MasterURL: masterURL,
+					UpdatedBy: Commit,
 				})
 
 				// HACK to workaround osio applying some dsaas-user permissions async
@@ -323,13 +375,16 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 
 			} else if env.GetKind(request) == env.ValKindNamespace {
 				name := env.GetName(request)
+				envType := tenant.GetNamespaceType(name, currentTenant.NsBaseName)
+				templatesVersion := versionMapping[string(envType)]
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
 					State:     "created",
-					Version:   env.GetLabelVersion(request),
-					Type:      tenant.GetNamespaceType(name, currentTenant.NsBaseName),
+					Version:   templatesVersion,
+					Type:      envType,
 					MasterURL: masterURL,
+					UpdatedBy: Commit,
 				})
 			} else if env.GetKind(request) == env.ValKindResourceQuota {
 				// trigger a check status loop

@@ -47,6 +47,8 @@ const (
 	varLogJSON                         = "log.json"
 	varEnvironment                     = "environment"
 	varSentryDSN                       = "sentry.dsn"
+	varAutomatedUpdateRetrySleep       = "automated.update.retry.sleep"
+	varAutomatedUpdateEnabled          = "automated.update.enabled"
 
 	varAuthURL              = "auth.url"
 	varClustersRefreshDelay = "cluster.refresh.delay"
@@ -140,6 +142,10 @@ func (c *Data) setConfigDefaults() {
 	// ----
 	c.v.SetDefault(varAuthClientID, "c211f1bd-17a7-4f8c-9f80-0917d167889d")
 	c.v.SetDefault(varClientSecret, "tenantsecretNew")
+
+	//	Duration how long the automated process should wait to detect other ongoing updates
+	c.v.SetDefault(varAutomatedUpdateRetrySleep, 10*time.Minute)
+	c.v.SetDefault(varAutomatedUpdateEnabled, false)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -330,6 +336,16 @@ func (c *Data) GetEnvironment() string {
 // GetSentryDSN returns the secret needed to securely communicate with https://errortracking.prod-preview.openshift.io/openshift_io/fabric8-tenant/
 func (c *Data) GetSentryDSN() string {
 	return c.v.GetString(varSentryDSN)
+}
+
+// GetAutomatedUpdateRetrySleep returns the duration the automated update should wait to detect if there is some other ongoing update
+func (c *Data) GetAutomatedUpdateRetrySleep() time.Duration {
+	return c.v.GetDuration(varAutomatedUpdateRetrySleep)
+}
+
+// IsAutomatedUpdateEnabled returns if the automated update is enabled
+func (c *Data) IsAutomatedUpdateEnabled() bool {
+	return c.v.GetBool(varAutomatedUpdateEnabled)
 }
 
 // IsLogJSON returns if we should log json format (as set via config file or environment variable)

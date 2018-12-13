@@ -29,7 +29,7 @@ func TestTenantOverride(t *testing.T) {
 				FeatureLevel:       &otherFeatureLevel,
 			}
 			// when
-			resultConfig := setTemplateRepoInfo(user, config)
+			resultConfig := NewTemplateRepoInfoSetter(user)(config)
 			// then
 			assert.Equal(t, config, resultConfig)
 		})
@@ -38,7 +38,7 @@ func TestTenantOverride(t *testing.T) {
 			// given
 			user := &authclient.UserDataAttributes{}
 			// when
-			resultConfig := setTemplateRepoInfo(user, config)
+			resultConfig := NewTemplateRepoInfoSetter(user)(config)
 			// then
 			assert.Equal(t, config, resultConfig)
 		})
@@ -53,7 +53,7 @@ func TestTenantOverride(t *testing.T) {
 				FeatureLevel:       &internalFeatureLevel,
 			}
 			// when
-			resultConfig := setTemplateRepoInfo(user, config)
+			resultConfig := NewTemplateRepoInfoSetter(user)(config)
 			// then
 			assert.Equal(t, resultConfig.TemplatesRepo, "http://my.own.repo")
 			assert.Equal(t, resultConfig.TemplatesRepoBlob, "12345")
@@ -66,7 +66,7 @@ func TestTenantOverride(t *testing.T) {
 				FeatureLevel: &internalFeatureLevel,
 			}
 			// when
-			resultConfig := setTemplateRepoInfo(user, config)
+			resultConfig := NewTemplateRepoInfoSetter(user)(config)
 			// then
 			assert.Equal(t, config, resultConfig)
 		})

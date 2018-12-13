@@ -57,3 +57,12 @@ func SetTemplateSameVersion(version string) {
 	environment.VersionFabric8TenantJenkinsFile = version
 	environment.VersionFabric8TenantJenkinsQuotasFile = version
 }
+
+func GetMappedVersions(envTypes ...string) map[string]string {
+	mappedTemplates := environment.RetrieveMappedTemplates()
+	typesWithVersion := map[string]string{}
+	for _, envType := range envTypes {
+		typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
+	}
+	return typesWithVersion
+}

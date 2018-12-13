@@ -56,7 +56,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 	})
 	assert.NoError(s.T(), err)
 	mappedObjects, masterOpts := s.GetMappedTemplateObjects(tnnt.NsBaseName)
-	minishift.VerifyObjectsPresence(s.T(), mappedObjects, masterOpts, "1abcd")
+	minishift.VerifyObjectsPresence(s.T(), mappedObjects, masterOpts, "1abcd", false)
 
 	s.T().Run("update namespaces", func(t *testing.T) {
 		// given
@@ -69,7 +69,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
 		assert.NoError(t, err)
 		assert.Len(t, namespaces, 5)
-		minishift.VerifyObjectsPresence(t, mappedObjects, masterOpts, "2abcd")
+		minishift.VerifyObjectsPresence(t, mappedObjects, masterOpts, "2abcd", false)
 	})
 
 	s.T().Run("only clean namespaces", func(t *testing.T) {

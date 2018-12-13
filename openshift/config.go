@@ -24,8 +24,14 @@ type Config struct {
 	TemplatesRepoDir  string
 }
 
+type TemplateRepoInfoSetter func(config Config) Config
+
+func NewConfigForUser(config *configuration.Data, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL string) Config {
+	return NewConfig(config, NewTemplateRepoInfoSetter(user), clusterUser, clusterToken, clusterURL)
+}
+
 // NewConfig builds openshift config for every user request depending on the user profile
-func NewConfig(config *configuration.Data, user *authclient.UserDataAttributes, clusterUser, clusterToken, clusterURL string) Config {
+func NewConfig(config *configuration.Data, setTemplateRepoInfo TemplateRepoInfoSetter, clusterUser, clusterToken, clusterURL string) Config {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: config.APIServerInsecureSkipTLSVerify(),
@@ -40,31 +46,33 @@ func NewConfig(config *configuration.Data, user *authclient.UserDataAttributes, 
 		Token:          clusterToken,
 		MasterURL:      clusterURL,
 	}
-	return setTemplateRepoInfo(user, conf)
+	return setTemplateRepoInfo(conf)
 }
 
 // setTemplateRepoInfo returns a new config in which the template repo info set
-func setTemplateRepoInfo(user *authclient.UserDataAttributes, config Config) Config {
-	if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
+func NewTemplateRepoInfoSetter(user *authclient.UserDataAttributes) TemplateRepoInfoSetter {
+	return func(config Config) Config {
+		if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
+			return config
+		}
+		userContext := user.ContextInformation
+		if tc, found := userContext["tenantConfig"]; found {
+			if tenantConfig, ok := tc.(map[string]interface{}); ok {
+				find := func(key string) string {
+					if rawValue, found := tenantConfig[key]; found {
+						if value, ok := rawValue.(string); ok {
+							return value
+						}
+					}
+					return ""
+				}
+				config.TemplatesRepo = find("templatesRepo")
+				config.TemplatesRepoBlob = find("templatesRepoBlob")
+				config.TemplatesRepoDir = find("templatesRepoDir")
+			}
+		}
 		return config
 	}
-	userContext := user.ContextInformation
-	if tc, found := userContext["tenantConfig"]; found {
-		if tenantConfig, ok := tc.(map[string]interface{}); ok {
-			find := func(key string) string {
-				if rawValue, found := tenantConfig[key]; found {
-					if value, ok := rawValue.(string); ok {
-						return value
-					}
-				}
-				return ""
-			}
-			config.TemplatesRepo = find("templatesRepo")
-			config.TemplatesRepoBlob = find("templatesRepoBlob")
-			config.TemplatesRepoDir = find("templatesRepoDir")
-		}
-	}
-	return config
 }
 
 type LogCallback func(message string)

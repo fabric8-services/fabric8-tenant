@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
 	"strings"
 )
@@ -109,9 +110,20 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 }
 
 func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
+	testdoubles.SetTemplateVersions()
 	config := openshift.Config{OriginalConfig: data, MasterUser: "master"}
-	templs, err := openshift.LoadProcessedTemplates(context.Background(), config, "developer", "developer")
+	templs, versionMapping, err := openshift.LoadProcessedTemplates(
+		context.Background(), config, "developer", "developer", environment.DefaultEnvTypes)
 	assert.NoError(t, err)
+
+	t.Run("verify version mapping", func(t *testing.T) {
+		assert.Len(t, versionMapping, len(environment.DefaultEnvTypes))
+		assert.Equal(t, "345cde", versionMapping["user"])
+		assert.Equal(t, "234bcd_zyx098", versionMapping["che"])
+		assert.Equal(t, "567efg_yxw987", versionMapping["jenkins"])
+		assert.Equal(t, "456def", versionMapping["run"])
+		assert.Equal(t, "456def", versionMapping["stage"])
+	})
 	return templs
 }
 

@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}) {
+var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[string]string) (string, map[interface{}]interface{}) {
 	return "", nil
 }
 
@@ -32,7 +32,7 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 		BodyString("{}")
 
 	user := &client.UserDataAttributes{}
-	config := openshift.NewConfig(data, user, "clusterUser", "clusterToken", "http://my.cluster")
+	config := openshift.NewConfigForUser(data, user, "clusterUser", "clusterToken", "http://my.cluster")
 	config.HTTPTransport = http.DefaultTransport
 	objectsInTemplates := tmplObjects(t, data)
 

@@ -30,10 +30,6 @@ export GIT_COMMITTER_NAME
 export GIT_COMMITTER_EMAIL
 
 COMMIT=$(shell git rev-parse HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GITUNTRACKEDCHANGES),)
-COMMIT := $(COMMIT)-dirty
-endif
 BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
 
 # For the global "clean" target all targets in this variable will be executed

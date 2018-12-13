@@ -60,40 +60,47 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 		"USER_NAME": "dev",
 	}
 
-	for _, envType := range environment.DefaultEnvTypes {
-		// when
-		env, err := service.GetEnvData(context.Background(), envType)
-		require.NoError(t, err)
-		objects, err := env.Templates[0].Process(vars)
+	for _, ctx := range []context.Context{nil, context.Background()} {
+		for _, envType := range environment.DefaultEnvTypes {
+			// when
+			env, err := service.GetEnvData(ctx, envType)
+			require.NoError(t, err)
+			objects, err := env.Templates[0].Process(vars)
 
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, env.Name, envType)
-		if envType == "che" || envType == "jenkins" {
-			assert.Len(t, env.Templates, 2)
-			assert.Contains(t, env.Templates[0].Filename, envType)
-			assert.Contains(t, env.Templates[1].Filename, "quotas")
-			if envType == "jenkins" {
-				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
-				assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-			} else {
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, env.Name, envType)
+			switch envType {
+			case "che":
+				assert.Len(t, env.Templates, 2)
+				assert.Contains(t, env.Templates[0].Filename, envType)
+				assert.Contains(t, env.Templates[1].Filename, "quotas")
 				assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
 				assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-			}
-		} else if envType == "user" {
-			assert.Len(t, env.Templates, 1)
-			assert.Contains(t, env.Templates[0].Filename, envType)
-			assert.Equal(t, "345cde", environment.GetLabelVersion(objects[0]))
-			assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-		} else {
-			assert.Len(t, env.Templates, 1)
-			assert.Contains(t, env.Templates[0].Filename, "deploy")
-			assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
-			assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-		}
 
-		for _, template := range env.Templates {
-			assert.NotEmpty(t, template.Content)
+			case "jenkins":
+				assert.Len(t, env.Templates, 2)
+				assert.Contains(t, env.Templates[0].Filename, envType)
+				assert.Contains(t, env.Templates[1].Filename, "quotas")
+				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
+				assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+
+			case "user":
+				assert.Len(t, env.Templates, 1)
+				assert.Contains(t, env.Templates[0].Filename, envType)
+				assert.Equal(t, "345cde", environment.GetLabelVersion(objects[0]))
+				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+
+			default:
+				assert.Len(t, env.Templates, 1)
+				assert.Contains(t, env.Templates[0].Filename, "deploy")
+				assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
+				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+			}
+
+			for _, template := range env.Templates {
+				assert.NotEmpty(t, template.Content)
+			}
 		}
 	}
 }
@@ -219,6 +226,50 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 }
 
 var dnsRegExp = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+
+func TestConstructCompleteVersion(t *testing.T) {
+	// given
+	testdoubles.SetTemplateVersions()
+
+	// when
+	mappedTemplates := environment.RetrieveMappedTemplates()
+
+	t.Run("check che-mt complete version", func(t *testing.T) {
+		// and when
+		completeVersion := mappedTemplates["che"].ConstructCompleteVersion()
+
+		// then
+		assert.Equal(t, "234bcd_zyx098", completeVersion)
+	})
+	t.Run("check jenkins complete version", func(t *testing.T) {
+		// and when
+		completeVersion := mappedTemplates["jenkins"].ConstructCompleteVersion()
+
+		// then
+		assert.Equal(t, "567efg_yxw987", completeVersion)
+	})
+	t.Run("check user complete version", func(t *testing.T) {
+		// and when
+		completeVersion := mappedTemplates["user"].ConstructCompleteVersion()
+
+		// then
+		assert.Equal(t, "345cde", completeVersion)
+	})
+	t.Run("check run complete version", func(t *testing.T) {
+		// and when
+		completeVersion := mappedTemplates["run"].ConstructCompleteVersion()
+
+		// then
+		assert.Equal(t, "456def", completeVersion)
+	})
+	t.Run("check stage complete version", func(t *testing.T) {
+		// and when
+		completeVersion := mappedTemplates["stage"].ConstructCompleteVersion()
+
+		// then
+		assert.Equal(t, "456def", completeVersion)
+	})
+}
 
 func TestCreateUsername(t *testing.T) {
 	assertName(t, "some", "some@email.com")
