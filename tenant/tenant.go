@@ -1,49 +1,11 @@
 package tenant
 
 import (
-	"database/sql/driver"
-	"errors"
 	"strings"
 	"time"
 
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
-)
-
-// NamespaceType describes which type of namespace this is
-type NamespaceType string
-
-// Value - Implementation of valuer for database/sql
-func (ns NamespaceType) Value() (driver.Value, error) {
-	return string(ns), nil
-}
-
-// Scan - Implement the database/sql scanner interface
-func (ns *NamespaceType) Scan(value interface{}) error {
-	if value == nil {
-		*ns = NamespaceType("")
-		return nil
-	}
-	if bv, err := driver.String.ConvertValue(value); err == nil {
-		// if this is a bool type
-		if v, ok := bv.(string); ok {
-			// set the value of the pointer yne to YesNoEnum(v)
-			*ns = NamespaceType(v)
-			return nil
-		}
-	}
-	// otherwise, return an error
-	return errors.New("failed to scan NamespaceType")
-}
-
-// Represents the namespace type
-const (
-	TypeChe     NamespaceType = "che"
-	TypeJenkins NamespaceType = "jenkins"
-	TypeTest    NamespaceType = "test"
-	TypeStage   NamespaceType = "stage"
-	TypeRun     NamespaceType = "run"
-	TypeUser    NamespaceType = "user"
-	TypeCustom  NamespaceType = "custom"
 )
 
 // Tenant is the owning OpenShift account
@@ -73,7 +35,7 @@ type Namespace struct {
 	DeletedAt *time.Time
 	Name      string
 	MasterURL string
-	Type      NamespaceType
+	Type      environment.Type
 	Version   string
 	State     string
 	UpdatedBy string
@@ -86,24 +48,24 @@ func (m Namespace) TableName() string {
 }
 
 // GetNamespaceType attempts to extract the namespace type based on namespace name
-func GetNamespaceType(name, nsBaseName string) NamespaceType {
+func GetNamespaceType(name, nsBaseName string) environment.Type {
 	if name == nsBaseName {
-		return TypeUser
+		return environment.TypeUser
 	}
 	if strings.HasSuffix(name, "-jenkins") {
-		return TypeJenkins
+		return environment.TypeJenkins
 	}
 	if strings.HasSuffix(name, "-che") {
-		return TypeChe
+		return environment.TypeChe
 	}
 	if strings.HasSuffix(name, "-test") {
-		return TypeTest
+		return environment.TypeTest
 	}
 	if strings.HasSuffix(name, "-stage") {
-		return TypeStage
+		return environment.TypeStage
 	}
 	if strings.HasSuffix(name, "-run") {
-		return TypeRun
+		return environment.TypeRun
 	}
-	return TypeCustom
+	return environment.TypeCustom
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 )
 
 var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
@@ -30,7 +31,7 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 			UpdatedAt: ns1,
 			MasterURL: "http://test1.org",
 			Name:      "test-che",
-			Type:      tenant.TypeChe,
+			Type:      environment.TypeChe,
 			Version:   "1.0",
 			State:     "created",
 		},
@@ -39,7 +40,7 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 			UpdatedAt: ns2,
 			MasterURL: "http://test2.org",
 			Name:      "test-jenkins",
-			Type:      tenant.TypeJenkins,
+			Type:      environment.TypeJenkins,
 			Version:   "1.0",
 			State:     "created",
 		},

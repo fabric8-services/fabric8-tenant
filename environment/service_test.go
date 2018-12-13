@@ -3,7 +3,6 @@ package environment_test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +68,7 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, env.Name, envType)
+			assert.Equal(t, env.EnvType, envType)
 			switch envType {
 			case "che":
 				assert.Len(t, env.Templates, 2)
@@ -115,7 +114,7 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 
 	for _, envType := range environment.DefaultEnvTypes {
 		nsName := "dev-" + envType
-		if envType == string(tenant.TypeUser) {
+		if envType == environment.TypeUser {
 			nsName = "dev"
 		}
 

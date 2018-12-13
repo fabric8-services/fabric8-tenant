@@ -1,9 +1,10 @@
 package testfixture
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 func makeTenants(fxt *TestFixture) error {
@@ -37,7 +38,7 @@ func makeNamespaces(fxt *TestFixture) error {
 	tenantService := tenant.NewDBService(fxt.db)
 	for i := range fxt.Namespaces {
 		fxt.Namespaces[i] = &tenant.Namespace{
-			Type:      tenant.TypeChe,
+			Type:      environment.TypeChe,
 			Name:      createRandomNamespaceName(),
 			MasterURL: "some.cluster.url",
 		}

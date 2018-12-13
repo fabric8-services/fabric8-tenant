@@ -43,8 +43,8 @@ func IsNotOfKind(kinds ...string) FilterFunc {
 	}
 }
 
-func LoadProcessedTemplates(ctx context.Context, config Config, osUsername, nsBaseName string, envTypes []string) (environment.Objects, map[string]string, error) {
-	versionMapping := map[string]string{}
+func LoadProcessedTemplates(ctx context.Context, config Config, osUsername, nsBaseName string, envTypes []environment.Type) (environment.Objects, map[environment.Type]string, error) {
+	versionMapping := map[environment.Type]string{}
 	envService := environment.NewService(config.TemplatesRepo, config.TemplatesRepoBlob, config.TemplatesRepoDir)
 	vars := environment.CollectVars(osUsername, nsBaseName, config.MasterUser, config.OriginalConfig)
 	var objs environment.Objects
