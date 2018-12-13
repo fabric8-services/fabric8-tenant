@@ -3,6 +3,7 @@ package openshift_test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,6 @@ import (
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
 	"testing"
-	"github.com/fabric8-services/fabric8-tenant/environment"
 )
 
 var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[environment.Type]string) (string, map[interface{}]interface{}) {

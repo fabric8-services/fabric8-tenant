@@ -9,9 +9,9 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/fabric8-services/fabric8-tenant/environment"
 )
 
 var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, error) {
