@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
@@ -47,7 +48,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.numberOfCalls = 0
 			fxt := tf.FillDB(t, s.DB, 19, false, "ready", environment.DefaultEnvTypes...)
-			controller.Commit = "124abcd"
+			configuration.Commit = "124abcd"
 			before := time.Now()
 
 			s.tx(t, func(repo update.Repository) error {
@@ -107,7 +108,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0)
 	defer reset()
 	testdoubles.SetTemplateVersions()
-	controller.Commit = "124abcd"
+	configuration.Commit = "124abcd"
 
 	for _, status := range []string{"finished", "updating", "failed"} {
 
@@ -152,13 +153,13 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	defer reset()
 
 	testdoubles.SetTemplateVersions()
-	controller.Commit = "124abcd"
+	configuration.Commit = "124abcd"
 	fxt := tf.FillDB(s.T(), s.DB, 1, false, "ready", environment.DefaultEnvTypes...)
 	s.tx(s.T(), func(repo update.Repository) error {
 		return updateVersionsTo(repo, "0")
 	})
 
-	controller.Commit = "xyz"
+	configuration.Commit = "xyz"
 	before := time.Now()
 
 	// when
