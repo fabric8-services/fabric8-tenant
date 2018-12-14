@@ -181,3 +181,5 @@ parameters:
   value: quay.io/openshiftio/rhel-fabric8-services-fabric8-tenant
 - name: IMAGE_TAG
   value: latest
+- name: f8_automated_update_enabled
+  value: false
