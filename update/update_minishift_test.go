@@ -5,6 +5,7 @@ import (
 	"fmt"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
@@ -88,11 +89,11 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	updateExec := DummyUpdateExecutor{shouldCallOriginalUpdater: true, numberOfCalls: Uint64(0)}
 	for i := 0; i < 10; i++ {
 		goroutineFinished.Add(1)
-		go func(updateExecutor controller.UpdateExecutor) {
+		go func(updateExecutor openshift.UpdateExecutor) {
 			defer goroutineFinished.Done()
 
 			goroutineCanContinue.Wait()
-			update.NewTenantsUpdater(s.DB, s.Config, clusterService, updateExecutor).UpdateAllTenants()
+			update.NewTenantsUpdater(s.DB, s.Config, clusterService, updateExecutor, update.AllTypes, "").UpdateAllTenants()
 		}(&updateExec)
 	}
 	goroutineCanContinue.Done()

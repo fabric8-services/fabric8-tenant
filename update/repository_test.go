@@ -148,6 +148,7 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 		assert.Equal(t, string(update.Updating), string(tenantsUpdate.Status))
 		assert.True(t, before.Before(tenantsUpdate.LastTimeUpdated))
 		assert.Equal(t, 0, tenantsUpdate.FailedCount)
+		assert.True(t, tenantsUpdate.CanContinue)
 	})
 }
 
@@ -269,6 +270,9 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			if err := updateVersionsTo(update.NewRepository(tx), ""); err != nil {
 				return err
 			}
+			if err := update.NewRepository(tx).Stop(); err != nil {
+				return err
+			}
 			return fmt.Errorf("any error")
 		})
 
@@ -284,8 +288,35 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 		assert.Equal(t, string(update.Failed), string(tenantsUpdate.Status))
 		assert.True(t, before.After(tenantsUpdate.LastTimeUpdated))
 		assert.Equal(t, 1, tenantsUpdate.FailedCount)
+		assert.True(t, tenantsUpdate.CanContinue)
 		for _, versionManager := range update.RetrieveVersionManagers() {
 			assert.False(t, versionManager.IsVersionUpToDate(tenantsUpdate))
 		}
+	})
+}
+
+func (s *UpdateRepoTestSuite) TestStopAndCanContinue() {
+
+	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
+		// given
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+			return update.NewRepository(tx).PrepareForUpdating()
+		})
+		require.NoError(t, err)
+
+		// when
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			return update.NewRepository(tx).Stop()
+		})
+
+		// then
+		assert.NoError(t, err)
+		var canContinue bool
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			canContinue, err = update.NewRepository(tx).CanContinue()
+			return err
+		})
+		assert.NoError(t, err)
+		assert.False(t, canContinue)
 	})
 }

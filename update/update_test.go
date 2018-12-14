@@ -44,7 +44,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 	defer reset()
 	testdoubles.SetTemplateVersions()
 
-	for _, status := range []string{"finished", "updating", "failed"} {
+	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.numberOfCalls = 0
 			fxt := tf.FillDB(t, s.DB, 19, false, tenant.Ready, environment.DefaultEnvTypes...)
@@ -110,7 +110,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
 
-	for _, status := range []string{"finished", "updating", "failed"} {
+	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 
 		s.T().Run(fmt.Sprintf("running automated update process should pass (without updating anything) when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.numberOfCalls = 0
@@ -179,9 +179,45 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	}
 }
 
+func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndStatusIsKilled() {
+	//given
+	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(50, 1, 0, time.Second)
+
+	// when
+	goroutinesCanContinue.Done()
+	test.WaitWithTimeout(5 * time.Second).Until(func() error {
+		var tenantsUpdate *update.TenantsUpdate
+		s.tx(s.T(), func(repo update.Repository) error {
+			var err error
+			tenantsUpdate, err = repo.GetTenantsUpdate()
+			return err
+		})
+		if tenantsUpdate.Status != update.Updating {
+			return fmt.Errorf("updating process hasn't started")
+		}
+		return nil
+	})
+	s.tx(s.T(), func(repo update.Repository) error {
+		return repo.Stop()
+	})
+	goroutinesFinished.Wait()
+
+	// then
+	var tenantsUpdate *update.TenantsUpdate
+	err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		var err error
+		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
+		return err
+	})
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), update.Killed, tenantsUpdate.Status)
+	assert.NotZero(s.T(), updateExecs[0].numberOfCalls)
+	assert.NotEqual(s.T(), 250, updateExecs[0].numberOfCalls)
+}
+
 func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 	//given
-	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(10, 3*time.Second, 10*time.Millisecond)
+	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(5, 10, 3*time.Second, 10*time.Millisecond)
 
 	// when
 	goroutinesCanContinue.Done()
@@ -201,7 +237,7 @@ func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 
 func (s *TenantsUpdaterTestSuite) TestTwoExecutorsDoUpdateBecauseOfLowerWaitTimeout() {
 	//given
-	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(2, time.Millisecond, 10*time.Millisecond)
+	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(5, 2, time.Millisecond, 10*time.Millisecond)
 
 	// when
 	goroutinesCanContinue.Done()
@@ -212,7 +248,7 @@ func (s *TenantsUpdaterTestSuite) TestTwoExecutorsDoUpdateBecauseOfLowerWaitTime
 	assert.NotZero(s.T(), *updateExecs[1].numberOfCalls)
 }
 
-func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, timeToSleep time.Duration) (*sync.WaitGroup, *sync.WaitGroup, []*DummyUpdateExecutor) {
+func (s *TenantsUpdaterTestSuite) prepareForParallelTest(numberOfTnnts, count int, timeToWait, timeToSleep time.Duration) (*sync.WaitGroup, *sync.WaitGroup, []*DummyUpdateExecutor) {
 	var goroutinesCanContinue sync.WaitGroup
 	goroutinesCanContinue.Add(1)
 	var goroutinesFinished sync.WaitGroup
@@ -220,7 +256,7 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(count int, timeToWait, 
 	defer gock.Off()
 	createMocks()
 	testdoubles.SetTemplateVersions()
-	tf.FillDB(s.T(), s.DB, 5, false, tenant.Ready, environment.DefaultEnvTypes...)
+	tf.FillDB(s.T(), s.DB, numberOfTnnts, false, tenant.Ready, environment.DefaultEnvTypes...)
 	s.tx(s.T(), func(repo update.Repository) error {
 		return updateVersionsTo(repo, "0")
 	})
@@ -301,7 +337,7 @@ func (s *TenantsUpdaterTestSuite) assertStatusAndAllVersionAreUpToDate(t *testin
 	assertStatusAndAllVersionAreUpToDate(t, s.DB, st)
 }
 
-func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.UpdateExecutor, timeout time.Duration) (*update.TenantsUpdater, func()) {
+func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor openshift.UpdateExecutor, timeout time.Duration) (*update.TenantsUpdater, func()) {
 	reset := test.SetEnvironments(
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
 		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()))
@@ -320,7 +356,7 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor controller.Up
 
 	require.NoError(s.T(), err)
 	config, reset := test.LoadTestConfig(s.T())
-	return update.NewTenantsUpdater(s.DB, config, clusterService, updateExecutor), func() {
+	return update.NewTenantsUpdater(s.DB, config, clusterService, updateExecutor, update.AllTypes, ""), func() {
 		cleanup()
 		reset()
 		clusterService.Stop()
