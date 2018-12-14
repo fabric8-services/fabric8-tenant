@@ -178,7 +178,7 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 	return &fxt, nil
 }
 
-func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state string, envTypes ...string) *TestFixture {
+func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state tenant.NamespaceState, envTypes ...string) *TestFixture {
 	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
 	return NewTestFixture(t, db, Tenants(numberOfTenants),
 		Namespaces(numberOfTenants*len(envTypes), func(fxt *TestFixture, idx int) error {
