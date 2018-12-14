@@ -182,4 +182,4 @@ parameters:
 - name: IMAGE_TAG
   value: latest
 - name: f8_automated_update_enabled
-  value: false
+  value: 'false'
