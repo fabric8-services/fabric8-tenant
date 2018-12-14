@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
@@ -179,7 +179,7 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 	return &fxt, nil
 }
 
-func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state string, envTypes ...environment.Type) *TestFixture {
+func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state tenant.NamespaceState, envTypes ...environment.Type) *TestFixture {
 	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
 	return NewTestFixture(t, db, Tenants(numberOfTenants),
 		Namespaces(numberOfTenants*len(envTypes), func(fxt *TestFixture, idx int) error {
@@ -187,7 +187,7 @@ func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state
 			fxt.Namespaces[idx].Type = environment.Type(envTypes[idx%len(envTypes)])
 			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
-			fxt.Namespaces[idx].UpdatedBy = controller.Commit
+			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
 			fxt.Namespaces[idx].State = state
 			if upToDate {
 				fxt.Namespaces[idx].Version = mappedVersions[fxt.Namespaces[idx].Type]

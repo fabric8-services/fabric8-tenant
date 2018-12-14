@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"database/sql/driver"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
 )
@@ -37,7 +38,7 @@ type Namespace struct {
 	MasterURL string
 	Type      environment.Type
 	Version   string
-	State     string
+	State     NamespaceState
 	UpdatedBy string
 }
 
@@ -68,4 +69,41 @@ func GetNamespaceType(name, nsBaseName string) environment.Type {
 		return environment.TypeRun
 	}
 	return environment.TypeCustom
+}
+
+type NamespaceState string
+
+const (
+	Provisioning NamespaceState = "provisioning"
+	Updating     NamespaceState = "updating"
+	Ready        NamespaceState = "ready"
+	Failed       NamespaceState = "failed"
+)
+
+func (s NamespaceState) String() string {
+	return string(s)
+}
+
+// Value - Implementation of valuer for database/sql
+func (ns *NamespaceState) Value() (driver.Value, error) {
+	return string(*ns), nil
+}
+
+// Scan - Implement the database/sql scanner interface
+func (ns *NamespaceState) Scan(value interface{}) error {
+	if value == nil {
+		*ns = NamespaceState(Ready)
+		return nil
+	}
+	if bv, err := driver.String.ConvertValue(value); err == nil {
+		// if this is a bool type
+		if v, ok := bv.(string); ok {
+			// set the value of the pointer yne to YesNoEnum(v)
+			*ns = NamespaceState(v)
+			return nil
+		}
+	}
+	// otherwise, set ready state
+	*ns = Ready
+	return nil
 }

@@ -215,12 +215,12 @@ func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, ver
 	for _, ns := range namespaces {
 		if nsVersion, found = versionMapping[ns.Type]; found {
 			if failed {
-				ns.State = "failed"
+				ns.State = tenant.Failed
 			} else {
-				ns.State = "ready"
+				ns.State = tenant.Ready
 				ns.Version = nsVersion
 			}
-			ns.UpdatedBy = Commit
+			ns.UpdatedBy = configuration.Commit
 			err := tenantService.SaveNamespace(ns)
 			if err != nil {
 				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
@@ -362,11 +362,11 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
-					State:     "created",
+					State:     tenant.Ready,
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
-					UpdatedBy: Commit,
+					UpdatedBy: configuration.Commit,
 				})
 
 				// HACK to workaround osio applying some dsaas-user permissions async
@@ -380,11 +380,11 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
-					State:     "created",
+					State:     tenant.Ready,
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
-					UpdatedBy: Commit,
+					UpdatedBy: configuration.Commit,
 				})
 			} else if env.GetKind(request) == env.ValKindResourceQuota {
 				// trigger a check status loop
@@ -443,6 +443,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
+		namespaceState := ns.State.String()
 		result.Attributes.Namespaces = append(
 			result.Attributes.Namespaces,
 			&app.NamespaceAttributes{
@@ -456,7 +457,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				Name:                     &ns.Name,
 				Type:                     &tenantType,
 				Version:                  &ns.Version,
-				State:                    &ns.State,
+				State:                    &namespaceState,
 				ClusterCapacityExhausted: &c.CapacityExhausted,
 			})
 	}
