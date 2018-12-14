@@ -235,7 +235,7 @@ func updateAllTenants(t *testing.T, toUpdate []*tenant.Tenant, svc tenant.Servic
 			if failed {
 				ns.State = tenant.Failed
 			} else {
-				ns.Version = mappedVersions[string(ns.Type)]
+				ns.Version = mappedVersions[ns.Type]
 				ns.State = tenant.Ready
 			}
 			ns.UpdatedBy = "xyz"

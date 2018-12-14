@@ -24,7 +24,7 @@ type Service interface {
 	DeleteAll(tenantID uuid.UUID) error
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
-	GetTenantsToUpdate(typeWithVersion map[string]string, count int, commit string) ([]*Tenant, error)
+	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -124,7 +124,7 @@ func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	return t, nil
 }
 
-func (s DBService) GetTenantsToUpdate(typeWithVersion map[string]string, count int, commit string) ([]*Tenant, error) {
+func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error) {
 	var tenants []*Tenant
 	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id").
 		Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
@@ -214,8 +214,8 @@ func constructNsBaseName(repo Service, username string, number int) (string, err
 	}
 	for _, nsType := range environment.DefaultEnvTypes {
 		nsName := nsBaseName
-		if nsType != "user" {
-			nsName += "-" + nsType
+		if nsType != environment.TypeUser {
+			nsName += "-" + nsType.String()
 		}
 		exists, err := repo.NamespaceExists(nsName)
 		if err != nil {

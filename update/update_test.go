@@ -68,7 +68,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
-					assert.Equal(t, environment.RetrieveMappedTemplates()[string(ns.Type)].ConstructCompleteVersion(), ns.Version)
+					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
 					assert.Equal(t, "124abcd", ns.UpdatedBy)
 					assert.Equal(t, tenant.Ready, ns.State)
 					assert.True(t, before.Before(ns.UpdatedAt))
@@ -136,7 +136,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 				for _, ns := range namespaces {
 					assert.Equal(t, "124abcd", ns.UpdatedBy)
 					assert.Equal(t, tenant.Ready, ns.State)
-					assert.Equal(t, environment.RetrieveMappedTemplates()[string(ns.Type)].ConstructCompleteVersion(), ns.Version)
+					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
 					assert.True(t, after.After(ns.UpdatedAt))
 				}
 			}
@@ -339,7 +339,7 @@ func Uint64(v uint64) *uint64 {
 	return &v
 }
 
-func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error) {
+func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []environment.Type) (map[environment.Type]string, error) {
 	atomic.AddUint64(e.numberOfCalls, 1)
 
 	time.Sleep(e.timeToSleep)

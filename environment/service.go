@@ -30,20 +30,20 @@ var (
 	VersionFabric8TenantJenkinsQuotasFile string
 	VersionFabric8TenantCheQuotasFile     string
 	VersionFabric8TenantDeployFile        string
-	DefaultEnvTypes                       = []string{"che", "jenkins", "user", "run", "stage"}
+	DefaultEnvTypes                       = []Type{TypeChe, TypeJenkins, TypeRun, TypeStage, TypeUser}
 )
 
 type Templates []*Template
 
-func RetrieveMappedTemplates() map[string]Templates {
-	return map[string]Templates{
-		"run":   tmpl(deploy("run"), "fabric8-tenant-deploy.yml"),
-		"stage": tmpl(deploy("stage"), "fabric8-tenant-deploy.yml"),
-		"che": tmplWithQuota(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
+func RetrieveMappedTemplates() map[Type]Templates {
+	return map[Type]Templates{
+		TypeRun:   tmpl(deploy("run"), "fabric8-tenant-deploy.yml"),
+		TypeStage: tmpl(deploy("stage"), "fabric8-tenant-deploy.yml"),
+		TypeChe: tmplWithQuota(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
 			"fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
-		"jenkins": tmplWithQuota(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
+		TypeJenkins: tmplWithQuota(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
 			"fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
-		"user": tmpl(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
+		TypeUser: tmpl(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
 	}
 }
 
@@ -92,15 +92,14 @@ func NewService(templatesRepo, templatesRepoBlob, templatesRepoDir string) *Serv
 }
 
 type EnvData struct {
-	NsType    string
-	Name      string
+	EnvType   Type
 	Templates Templates
 }
 
-func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, error) {
+func (s *Service) GetEnvData(ctx context.Context, envType Type) (*EnvData, error) {
 	var templates []*Template
 	var mappedTemplates = RetrieveMappedTemplates()
-	if envType == "che" {
+	if envType == TypeChe {
 		templates = mappedTemplates[envType]
 		err := getCheParams(ctx, templates[0].DefaultParams)
 		if err != nil {
@@ -117,8 +116,7 @@ func (s *Service) GetEnvData(ctx context.Context, envType string) (*EnvData, err
 
 	return &EnvData{
 		Templates: templates,
-		Name:      envType,
-		NsType:    envType,
+		EnvType:   envType,
 	}, nil
 }
 
