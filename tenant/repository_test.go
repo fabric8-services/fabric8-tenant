@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"fmt"
-	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
@@ -149,7 +149,7 @@ func (s *TenantServiceTestSuite) TestLookupTenantByNamespace() {
 func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 	s.T().Run("returns all tenants", func(t *testing.T) {
 		// given
-		controller.Commit = "123abc"
+		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
 		tf.FillDB(t, s.DB, 3, false, "ready", environment.DefaultEnvTypes...)
 		svc := tenant.NewDBService(s.DB)
@@ -164,7 +164,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 
 	s.T().Run("returns only the limited number of tenants", func(t *testing.T) {
 		// given
-		controller.Commit = "123abc"
+		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
 		tf.FillDB(t, s.DB, 10, false, "ready", environment.DefaultEnvTypes...)
 		svc := tenant.NewDBService(s.DB)
@@ -181,7 +181,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 	s.T().Run("will need to call GetTenantsToUpdate three times to get all tenants to update", func(t *testing.T) {
 		// given
-		controller.Commit = "123abc"
+		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
 		fxt := tf.FillDB(t, s.DB, 11, false, "ready", environment.DefaultEnvTypes...)
 		svc := tenant.NewDBService(s.DB)
@@ -265,9 +265,9 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfFailedTenantsToUpdate() {
 	s.T().Run("returns only those tenants whose namespaces have different updated_by", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		controller.Commit = "123abc"
+		configuration.Commit = "123abc"
 		previouslyFailed := tf.FillDB(t, s.DB, 1, false, "failed", environment.DefaultEnvTypes...)
-		controller.Commit = "234bcd"
+		configuration.Commit = "234bcd"
 		tf.FillDB(t, s.DB, 6, false, "failed", environment.DefaultEnvTypes...)
 
 		svc := tenant.NewDBService(s.DB)
@@ -286,7 +286,7 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatAreOutdatedToUpdate()
 	s.T().Run("returns only those tenants whose namespaces have different version", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		controller.Commit = "123abc"
+		configuration.Commit = "123abc"
 		outdated := tf.FillDB(t, s.DB, 1, false, "ready", environment.DefaultEnvTypes...)
 		tf.FillDB(t, s.DB, 6, true, "ready", environment.DefaultEnvTypes...)
 

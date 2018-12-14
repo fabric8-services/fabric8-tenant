@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-wit/resource"
@@ -186,7 +186,7 @@ func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state
 			fxt.Namespaces[idx].Type = tenant.NamespaceType(envTypes[idx%len(envTypes)])
 			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
-			fxt.Namespaces[idx].UpdatedBy = controller.Commit
+			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
 			fxt.Namespaces[idx].State = state
 			if upToDate {
 				fxt.Namespaces[idx].Version = mappedVersions[string(fxt.Namespaces[idx].Type)]

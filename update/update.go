@@ -86,7 +86,7 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 
 func HandleTenantUpdateError(db *gorm.DB, err error) {
 	sentry.LogError(nil, map[string]interface{}{
-		"commit": controller.Commit,
+		"commit": configuration.Commit,
 		"err":    err,
 	}, err, "automatic tenant update failed")
 	err = Transaction(db, lock(func(repo Repository) error {
@@ -94,7 +94,7 @@ func HandleTenantUpdateError(db *gorm.DB, err error) {
 	}))
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{
-			"commit": controller.Commit,
+			"commit": configuration.Commit,
 			"err":    err,
 		}, err, "unable to set state to failed in tenants_update table")
 	}
@@ -144,7 +144,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []string) followUpFunc {
 		}
 
 		for {
-			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, controller.Commit)
+			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit)
 			if err != nil {
 				return err
 			}

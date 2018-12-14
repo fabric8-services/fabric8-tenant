@@ -220,7 +220,7 @@ func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, ver
 				ns.State = tenant.Ready
 				ns.Version = nsVersion
 			}
-			ns.UpdatedBy = Commit
+			ns.UpdatedBy = configuration.Commit
 			err := tenantService.SaveNamespace(ns)
 			if err != nil {
 				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
@@ -366,7 +366,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
-					UpdatedBy: Commit,
+					UpdatedBy: configuration.Commit,
 				})
 
 				// HACK to workaround osio applying some dsaas-user permissions async
@@ -384,7 +384,7 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
-					UpdatedBy: Commit,
+					UpdatedBy: configuration.Commit,
 				})
 			} else if env.GetKind(request) == env.ValKindResourceQuota {
 				// trigger a check status loop
