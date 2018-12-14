@@ -178,27 +178,27 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
 	}
 
-	go UpdateTenantWithErrorHandling(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
+	err = UpdateTenant(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":       err,
+			"os_user":   tenant.OSUsername,
+			"tenant_id": tenant.ID,
+		}, "unable update tenant")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable update tenant")))
+	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 
-func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) {
-	err := UpdateTenant(updateExecutor, ctx, tenantService, openshiftConfig, t, envTypes...)
-	if err != nil {
-		sentry.LogError(ctx, map[string]interface{}{
-			"os_user":             t.OSUsername,
-			"tenant_id":           t.ID,
-			"env_types_to_update": envTypes,
-		}, err, "unable update tenant")
-	}
-}
-
 func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) error {
 	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
 	if err != nil {
-		updateNamespaceEntities(tenantService, t, versionMapping, true)
+		er := updateNamespaceEntities(tenantService, t, versionMapping, true)
+		if er != nil {
+			return fmt.Errorf("there occured two errors when doing update: \n1.[%s]\n2.[%s]", err, er)
+		}
 		return err
 	}
 
