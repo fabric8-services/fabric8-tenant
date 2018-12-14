@@ -106,7 +106,7 @@ func main() {
 
 	openshiftService := openshift.NewService()
 
-	haltSentry, err := sentry.InitializeLogger(config, controller.Commit)
+	haltSentry, err := sentry.InitializeLogger(config, configuration.Commit)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -135,9 +135,9 @@ func main() {
 	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService)
 	app.MountTenantsController(service, tenantsCtrl)
 
-	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
-	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
-	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
+	log.Logger().Infoln("Git Commit SHA: ", configuration.Commit)
+	log.Logger().Infoln("UTC Build Time: ", configuration.BuildTime)
+	log.Logger().Infoln("UTC Start Time: ", configuration.StartTime)
 	log.Logger().Infoln("Dev mode:       ", config.IsDeveloperModeEnabled())
 	log.Logger().Infoln("Auth URL:       ", config.GetAuthURL())
 

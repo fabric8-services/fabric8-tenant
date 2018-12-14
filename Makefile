@@ -37,7 +37,7 @@ CLEAN_TARGETS =
 
 # Pass in build time variables to main
 LDFLAGS_FOR_TEMPLATES=$(foreach template-path, $(TEMPLATES), $(call set-latest-commit-sha,$(template-path)))
-LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/controller.Commit=${COMMIT} -X ${PACKAGE_NAME}/controller.BuildTime=${BUILD_TIME} $(LDFLAGS_FOR_TEMPLATES)"
+LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/configuration.Commit=${COMMIT} -X ${PACKAGE_NAME}/configuration.BuildTime=${BUILD_TIME} $(LDFLAGS_FOR_TEMPLATES)"
 
 define set-latest-commit-sha
 -X ${PACKAGE_NAME}/environment.$(call get-variable-name, $(1))=$(shell git log -n 1 --pretty=format:%h -- $(1))

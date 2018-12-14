@@ -184,7 +184,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...string) {
+func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) {
 	err := UpdateTenant(updateExecutor, ctx, tenantService, openshiftConfig, t, envTypes...)
 	if err != nil {
 		sentry.LogError(ctx, map[string]interface{}{
@@ -195,7 +195,7 @@ func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Co
 	}
 }
 
-func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...string) error {
+func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) error {
 	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
 	if err != nil {
 		updateNamespaceEntities(tenantService, t, versionMapping, true)
@@ -205,7 +205,7 @@ func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantServ
 	return updateNamespaceEntities(tenantService, t, versionMapping, false)
 }
 
-func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[string]string, failed bool) error {
+func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[env.Type]string, failed bool) error {
 	namespaces, err := tenantService.GetNamespaces(t.ID)
 	if err != nil {
 		return errs.Wrapf(err, "unable to get tenant namespaces")
@@ -213,14 +213,14 @@ func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, ver
 	var found bool
 	var nsVersion string
 	for _, ns := range namespaces {
-		if nsVersion, found = versionMapping[string(ns.Type)]; found {
+		if nsVersion, found = versionMapping[ns.Type]; found {
 			if failed {
-				ns.State = "failed"
+				ns.State = tenant.Failed
 			} else {
-				ns.State = "ready"
+				ns.State = tenant.Ready
 				ns.Version = nsVersion
 			}
-			ns.UpdatedBy = Commit
+			ns.UpdatedBy = configuration.Commit
 			err := tenantService.SaveNamespace(ns)
 			if err != nil {
 				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
@@ -231,13 +231,13 @@ func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, ver
 }
 
 type UpdateExecutor interface {
-	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error)
+	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []env.Type) (map[env.Type]string, error)
 }
 
 type TenantUpdater struct {
 }
 
-func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []string) (map[string]string, error) {
+func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []env.Type) (map[env.Type]string, error) {
 	return openshift.RawUpdateTenant(
 		ctx,
 		openshiftConfig,
@@ -329,7 +329,7 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
 	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
 	var currentResourceQuotaStatusCheck int32  // default is 0
-	return func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[string]string) (string, map[interface{}]interface{}) {
+	return func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[env.Type]string) (string, map[interface{}]interface{}) {
 		log.Info(ctx, map[string]interface{}{
 			"status":      statusCode,
 			"method":      method,
@@ -358,15 +358,15 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			if env.GetKind(request) == env.ValKindProjectRequest {
 				name := env.GetName(request)
 				envType := tenant.GetNamespaceType(name, currentTenant.NsBaseName)
-				templatesVersion := versionMapping[string(envType)]
+				templatesVersion := versionMapping[envType]
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
-					State:     "created",
+					State:     tenant.Ready,
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
-					UpdatedBy: Commit,
+					UpdatedBy: configuration.Commit,
 				})
 
 				// HACK to workaround osio applying some dsaas-user permissions async
@@ -376,15 +376,15 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			} else if env.GetKind(request) == env.ValKindNamespace {
 				name := env.GetName(request)
 				envType := tenant.GetNamespaceType(name, currentTenant.NsBaseName)
-				templatesVersion := versionMapping[string(envType)]
+				templatesVersion := versionMapping[envType]
 				service.SaveNamespace(&tenant.Namespace{
 					TenantID:  currentTenant.ID,
 					Name:      name,
-					State:     "created",
+					State:     tenant.Ready,
 					Version:   templatesVersion,
 					Type:      envType,
 					MasterURL: masterURL,
-					UpdatedBy: Commit,
+					UpdatedBy: configuration.Commit,
 				})
 			} else if env.GetKind(request) == env.ValKindResourceQuota {
 				// trigger a check status loop
@@ -443,6 +443,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			c = cluster.Cluster{}
 		}
 		tenantType := string(ns.Type)
+		namespaceState := ns.State.String()
 		result.Attributes.Namespaces = append(
 			result.Attributes.Namespaces,
 			&app.NamespaceAttributes{
@@ -456,7 +457,7 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 				Name:                     &ns.Name,
 				Type:                     &tenantType,
 				Version:                  &ns.Version,
-				State:                    &ns.State,
+				State:                    &namespaceState,
 				ClusterCapacityExhausted: &c.CapacityExhausted,
 			})
 	}

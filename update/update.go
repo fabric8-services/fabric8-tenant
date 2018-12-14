@@ -35,7 +35,7 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 
 	var followUp followUpFunc = func() error { return nil }
 
-	prepareAndAssignStart := func(repo Repository, envTypes []string) error {
+	prepareAndAssignStart := func(repo Repository, envTypes []environment.Type) error {
 		err := repo.PrepareForUpdating()
 		if err != nil {
 			return err
@@ -86,7 +86,7 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 
 func HandleTenantUpdateError(db *gorm.DB, err error) {
 	sentry.LogError(nil, map[string]interface{}{
-		"commit": controller.Commit,
+		"commit": configuration.Commit,
 		"err":    err,
 	}, err, "automatic tenant update failed")
 	err = Transaction(db, lock(func(repo Repository) error {
@@ -94,7 +94,7 @@ func HandleTenantUpdateError(db *gorm.DB, err error) {
 	}))
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{
-			"commit": controller.Commit,
+			"commit": configuration.Commit,
 			"err":    err,
 		}, err, "unable to set state to failed in tenants_update table")
 	}
@@ -132,19 +132,19 @@ func (u *TenantsUpdater) isOlderThanTimeout(when time.Time) bool {
 	return when.Before(time.Now().Add(-u.config.GetAutomatedUpdateRetrySleep()))
 }
 
-func (u *TenantsUpdater) updateTenantsForTypes(envTypes []string) followUpFunc {
+func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) followUpFunc {
 	return func() error {
 		mappedTemplates := environment.RetrieveMappedTemplates()
 		tenantRepo := tenant.NewDBService(u.db)
 
-		typesWithVersion := map[string]string{}
+		typesWithVersion := map[environment.Type]string{}
 
 		for _, envType := range envTypes {
 			typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
 		}
 
 		for {
-			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, controller.Commit)
+			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit)
 			if err != nil {
 				return err
 			}
@@ -185,7 +185,7 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
-func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []string) {
+func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type) {
 	numberOfTriggeredUpdates := 0
 	var wg sync.WaitGroup
 
@@ -203,7 +203,7 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 	wg.Wait()
 }
 
-func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Service, envTypes []string, updater TenantsUpdater) {
+func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type, updater TenantsUpdater) {
 	defer wg.Done()
 
 	namespaces, err := tenantRepo.GetNamespaces(tnnt.ID)
@@ -218,7 +218,7 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 	for _, envType := range envTypes {
 		var namespace *tenant.Namespace
 		for _, ns := range namespaces {
-			if string(ns.Type) == envType {
+			if ns.Type == envType {
 				namespace = ns
 				break
 			}
@@ -261,8 +261,8 @@ var emptyTemplateRepoInfoSetter openshift.TemplateRepoInfoSetter = func(config o
 	return config
 }
 
-func checkVersions(tu *TenantsUpdate) ([]string, error) {
-	var types []string
+func checkVersions(tu *TenantsUpdate) ([]environment.Type, error) {
+	var types []environment.Type
 	for _, versionManager := range RetrieveVersionManagers() {
 		if !versionManager.IsVersionUpToDate(tu) {
 			addIfNotPresent(&types, versionManager.EnvTypes)
@@ -271,17 +271,17 @@ func checkVersions(tu *TenantsUpdate) ([]string, error) {
 	return types, nil
 }
 
-func addIfNotPresent(types *[]string, toAdd []tenant.NamespaceType) {
+func addIfNotPresent(types *[]environment.Type, toAdd []environment.Type) {
 	for _, toAddType := range toAdd {
 		found := false
 		for _, envType := range *types {
-			if envType == string(toAddType) {
+			if envType == toAddType {
 				found = true
 				break
 			}
 		}
 		if !found {
-			*types = append(*types, string(toAddType))
+			*types = append(*types, toAddType)
 		}
 	}
 }

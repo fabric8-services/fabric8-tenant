@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -30,18 +31,18 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 			UpdatedAt: ns1,
 			MasterURL: "http://test1.org",
 			Name:      "test-che",
-			Type:      tenant.TypeChe,
+			Type:      environment.TypeChe,
 			Version:   "1.0",
-			State:     "created",
+			State:     tenant.Ready,
 		},
 		{
 			CreatedAt: ns2,
 			UpdatedAt: ns2,
 			MasterURL: "http://test2.org",
 			Name:      "test-jenkins",
-			Type:      tenant.TypeJenkins,
+			Type:      environment.TypeJenkins,
 			Version:   "1.0",
-			State:     "created",
+			State:     tenant.Ready,
 		},
 	}
 }
@@ -79,7 +80,7 @@ func Test_convertTenant(t *testing.T) {
 					Name:                     strToPtr("test-che"),
 					Type:                     strToPtr("che"),
 					Version:                  strToPtr("1.0"),
-					State:                    strToPtr("created"),
+					State:                    strToPtr("ready"),
 					ClusterCapacityExhausted: boolToPtr(true),
 				},
 				{
@@ -93,7 +94,7 @@ func Test_convertTenant(t *testing.T) {
 					Name:                     strToPtr("test-jenkins"),
 					Type:                     strToPtr("jenkins"),
 					Version:                  strToPtr("1.0"),
-					State:                    strToPtr("created"),
+					State:                    strToPtr("ready"),
 					ClusterCapacityExhausted: boolToPtr(true),
 				},
 			},

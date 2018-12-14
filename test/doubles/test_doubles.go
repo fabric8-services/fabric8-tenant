@@ -58,9 +58,9 @@ func SetTemplateSameVersion(version string) {
 	environment.VersionFabric8TenantJenkinsQuotasFile = version
 }
 
-func GetMappedVersions(envTypes ...string) map[string]string {
+func GetMappedVersions(envTypes ...environment.Type) map[environment.Type]string {
 	mappedTemplates := environment.RetrieveMappedTemplates()
-	typesWithVersion := map[string]string{}
+	typesWithVersion := map[environment.Type]string{}
 	for _, envType := range envTypes {
 		typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
 	}

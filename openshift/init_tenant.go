@@ -34,7 +34,7 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	for key, val := range mapped {
 		namespaceType := tenant.GetNamespaceType(key, nsBaseName)
 
-		if namespaceType == tenant.TypeUser {
+		if namespaceType == env.TypeUser {
 			go func(namespace string, objects env.Objects, opts, userOpts ApplyOptions) {
 				defer wg.Done()
 				err := ApplyProcessed(Filter(objects, IsOfKind(env.ValKindProjectRequest, env.ValKindNamespace)), userOpts)
@@ -93,7 +93,7 @@ func RawInitTenant(ctx context.Context, config Config, callback Callback, opensh
 	return nil
 }
 
-func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUsername, nsBaseName string, envTypes []string) (map[string]string, error) {
+func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUsername, nsBaseName string, envTypes []env.Type) (map[env.Type]string, error) {
 	templs, versionMapping, err := LoadProcessedTemplates(ctx, config, osUsername, nsBaseName, envTypes)
 	if err != nil {
 		return versionMapping, err

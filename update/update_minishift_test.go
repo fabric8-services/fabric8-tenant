@@ -119,7 +119,7 @@ func (s *AutomatedUpdateMinishiftTestSuite) verifyAreUpdated(tenantIDs []uuid.UU
 				assert.True(t, wasBefore.Before(ns.UpdatedAt))
 				assert.Contains(t, ns.Version, "2abcd")
 				assert.NotContains(t, ns.Version, "1abcd")
-				assert.Equal(t, "ready", ns.State)
+				assert.Equal(t, tenant.Ready, ns.State)
 			}
 			mappedObjects, masterOpts := s.GetMappedTemplateObjects(tnnt.NsBaseName)
 			minishift.VerifyObjectsPresence(t, mappedObjects, masterOpts, "2abcd", false)

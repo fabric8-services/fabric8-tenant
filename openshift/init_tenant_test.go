@@ -3,6 +3,7 @@ package openshift_test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/auth/client"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,7 @@ import (
 	"testing"
 )
 
-var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[string]string) (string, map[interface{}]interface{}) {
+var emptyCallback = func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[environment.Type]string) (string, map[interface{}]interface{}) {
 	return "", nil
 }
 
