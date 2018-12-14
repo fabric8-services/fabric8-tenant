@@ -133,10 +133,7 @@ objects:
                 name: f8tenant
                 key: environment
           - name: F8_AUTOMATED_UPDATE_ENABLED
-            valueFrom:
-              configMapKeyRef:
-                name: f8tenant
-                key: automated.update.enabled
+            value: ${f8_automated_update_enabled}
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: f8tenant
@@ -184,3 +181,5 @@ parameters:
   value: quay.io/openshiftio/rhel-fabric8-services-fabric8-tenant
 - name: IMAGE_TAG
   value: latest
+- name: f8_automated_update_enabled
+  value: false
