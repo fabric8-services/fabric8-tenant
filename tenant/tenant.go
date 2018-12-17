@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"database/sql/driver"
-	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
@@ -87,7 +86,7 @@ func (ns *NamespaceState) Value() (driver.Value, error) {
 // Scan - Implement the database/sql scanner interface
 func (ns *NamespaceState) Scan(value interface{}) error {
 	if value == nil {
-		*ns = NamespaceState("")
+		*ns = NamespaceState(Ready)
 		return nil
 	}
 	if bv, err := driver.String.ConvertValue(value); err == nil {
@@ -98,6 +97,7 @@ func (ns *NamespaceState) Scan(value interface{}) error {
 			return nil
 		}
 	}
-	// otherwise, return an error
-	return fmt.Errorf("failed to scan NamespaceState")
+	// otherwise, set ready state
+	*ns = Ready
+	return nil
 }

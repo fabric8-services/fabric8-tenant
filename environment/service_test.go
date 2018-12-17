@@ -3,13 +3,12 @@ package environment_test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"regexp"
 	"testing"
-
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 )
 
 var defaultLocationTempl = `apiVersion: v1
@@ -69,6 +68,7 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
+			assert.Equal(t, env.EnvType, envType)
 			switch envType {
 			case "che":
 				assert.Len(t, env.Templates, 2)

@@ -233,10 +233,10 @@ func updateAllTenants(t *testing.T, toUpdate []*tenant.Tenant, svc tenant.Servic
 		assert.NoError(t, err)
 		for _, ns := range namespaces {
 			if failed {
-				ns.State = "failed"
+				ns.State = tenant.Failed
 			} else {
 				ns.Version = mappedVersions[ns.Type]
-				ns.State = "ready"
+				ns.State = tenant.Ready
 			}
 			ns.UpdatedBy = "xyz"
 			assert.NoError(t, svc.SaveNamespace(ns))

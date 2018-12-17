@@ -228,7 +228,7 @@ func constructNsBaseName(repo Service, username string, number int) (string, err
 	}
 	for _, nsType := range environment.DefaultEnvTypes {
 		nsName := nsBaseName
-		if nsType != "user" {
+		if nsType != environment.TypeUser {
 			nsName += "-" + nsType.String()
 		}
 		exists, err := repo.NamespaceExists(nsName)
