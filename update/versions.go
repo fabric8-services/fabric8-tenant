@@ -57,11 +57,7 @@ type VersionManager struct {
 	setCurrentVersion func(tu *TenantsUpdate, versionToSet string)
 }
 
-func versionManager(version string,
-	getStoredVersion func(tu *TenantsUpdate) string,
-	setCurrentVersion func(tu *TenantsUpdate, version string),
-	envTypes ...environment.Type) *VersionManager {
-
+func versionManager(version string, getStoredVersion func(tu *TenantsUpdate) string, setCurrentVersion func(tu *TenantsUpdate, version string), envTypes ...environment.Type) *VersionManager {
 	return &VersionManager{
 		Version:           version,
 		EnvTypes:          envTypes,
