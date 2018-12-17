@@ -3,8 +3,8 @@ package tenant
 import (
 	"fmt"
 
+	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	"github.com/fabric8-services/fabric8-wit/errors"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -24,7 +24,7 @@ type Service interface {
 	DeleteAll(tenantID uuid.UUID) error
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
-	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error)
+	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -124,10 +124,13 @@ func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	return t, nil
 }
 
-func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error) {
+func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
 	var tenants []*Tenant
-	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id").
-		Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
+	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
+	nsSubQuery = nsSubQuery.Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
+	if masterURL != "" {
+		nsSubQuery = nsSubQuery.Where("master_url = ?", masterURL)
+	}
 
 	var conditions []string
 	var params []interface{}

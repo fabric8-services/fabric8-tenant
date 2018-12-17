@@ -5,7 +5,7 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
-var updateInfo = a.Type("UpdateInfo", func() {
+var updateData = a.Type("UpdateData", func() {
 	a.Description(`JSONAPI for the update info object. See also http://jsonapi.org/format/#document-resource-object`)
 	a.Attribute("status", d.String, "The update status", func() {
 	})
@@ -23,6 +23,11 @@ var fileWithVersion = a.Type("FileWithVersion", func() {
 	a.Attribute("file-name", d.String, "Name of a file")
 	a.Attribute("version", d.String, "Version of the file that was set when the last update was finished")
 })
+
+var updateInfo = JSONSingle(
+	"UpdateData", "Holds information about last/ongoing update",
+	updateData,
+	nil)
 
 var _ = a.Resource("update", func() {
 	a.BasePath("/api/update")

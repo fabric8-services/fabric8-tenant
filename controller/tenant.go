@@ -407,17 +407,17 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 		result.Attributes.Namespaces = append(
 			result.Attributes.Namespaces,
 			&app.NamespaceAttributes{
-				CreatedAt:                &ns.CreatedAt,
-				UpdatedAt:                &ns.UpdatedAt,
-				ClusterURL:               &ns.MasterURL,
-				ClusterAppDomain:         &c.AppDNS,
-				ClusterConsoleURL:        &c.ConsoleURL,
-				ClusterMetricsURL:        &c.MetricsURL,
-				ClusterLoggingURL:        &c.LoggingURL,
-				Name:                     &ns.Name,
-				Type:                     &tenantType,
-				Version:                  &ns.Version,
-				State:                    &namespaceState,
+				CreatedAt:         &ns.CreatedAt,
+				UpdatedAt:         &ns.UpdatedAt,
+				ClusterURL:        &ns.MasterURL,
+				ClusterAppDomain:  &c.AppDNS,
+				ClusterConsoleURL: &c.ConsoleURL,
+				ClusterMetricsURL: &c.MetricsURL,
+				ClusterLoggingURL: &c.LoggingURL,
+				Name:              &ns.Name,
+				Type:              &tenantType,
+				Version:           &ns.Version,
+				State:             &namespaceState,
 				ClusterCapacityExhausted: &c.CapacityExhausted,
 			})
 	}

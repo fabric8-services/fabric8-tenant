@@ -104,7 +104,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varPostgresHost, "localhost")
 	c.v.SetDefault(varPostgresPort, 5432)
 	c.v.SetDefault(varPostgresUser, "postgres")
-	c.v.SetDefault(varPostgresDatabase, "tenant")
+	c.v.SetDefault(varPostgresDatabase, "postgres")
 	c.v.SetDefault(varPostgresPassword, "mysecretpassword")
 	c.v.SetDefault(varPostgresSSLMode, "disable")
 	c.v.SetDefault(varPostgresConnectionTimeout, 5)
@@ -372,9 +372,9 @@ func (c *Data) GetTemplateValues() (map[string]string, error) {
 	}
 
 	return map[string]string{
-		"RECOMMENDER_EXTERNAL_NAME":      c.v.GetString(varTemplateRecommenderExternalName),
-		"RECOMMENDER_API_TOKEN":          base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
-		"DOMAIN":                         c.v.GetString(varTemplateDomain),
+		"RECOMMENDER_EXTERNAL_NAME": c.v.GetString(varTemplateRecommenderExternalName),
+		"RECOMMENDER_API_TOKEN":     base64.StdEncoding.EncodeToString([]byte(c.v.GetString(varTemplateRecommenderAPIToken))),
+		"DOMAIN":                    c.v.GetString(varTemplateDomain),
 		"CHE_KEYCLOAK_AUTH__SERVER__URL": c.GetKeycloakURL() + "/auth",
 		"CHE_KEYCLOAK_REALM":             c.GetKeycloakRealm(),
 		"CHE_KEYCLOAK_CLIENT__ID":        c.GetKeycloakClientID(),

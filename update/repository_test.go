@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
+	"github.com/fabric8-services/fabric8-tenant/test/update"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
@@ -158,7 +159,7 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 		// given
 		testdoubles.SetTemplateVersions()
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
-			err := updateVersionsTo(update.NewRepository(tx), "000bbb")
+			err := testupdate.UpdateVersionsTo(update.NewRepository(tx), "000bbb")
 			require.NoError(t, err)
 			return err
 		})
@@ -183,7 +184,7 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 		// given
 		testdoubles.SetTemplateVersions()
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
-			return updateVersionsTo(update.NewRepository(tx), "123abc")
+			return testupdate.UpdateVersionsTo(update.NewRepository(tx), "123abc")
 		})
 		require.NoError(t, err)
 
@@ -211,7 +212,7 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 		// given
 		testdoubles.SetTemplateVersions()
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
-			return updateVersionsTo(update.NewRepository(tx), "")
+			return testupdate.UpdateVersionsTo(update.NewRepository(tx), "")
 		})
 		require.NoError(t, err)
 
@@ -248,7 +249,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			if err := repo.IncrementFailedCount(); err != nil {
 				return err
 			}
-			return updateVersionsTo(repo, "000abc")
+			return testupdate.UpdateVersionsTo(repo, "000abc")
 		})
 		require.NoError(t, err)
 		before := time.Now()
@@ -267,7 +268,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			if err := update.NewRepository(tx).IncrementFailedCount(); err != nil {
 				return err
 			}
-			if err := updateVersionsTo(update.NewRepository(tx), ""); err != nil {
+			if err := testupdate.UpdateVersionsTo(update.NewRepository(tx), ""); err != nil {
 				return err
 			}
 			if err := update.NewRepository(tx).Stop(); err != nil {

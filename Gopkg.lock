@@ -113,7 +113,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a157aa8628f7d72185545a96d05f050670d79d2ce9e8e85bcb5c5c15823c8356"
+  digest = "1:d351e4c44d0870372d990ca46985907473997da455237ac10167957703fcac6d"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "auth",
@@ -124,6 +124,7 @@
     "goasupport",
     "httpsupport",
     "log",
+    "resource",
     "sentry",
   ]
   pruneopts = "UT"
@@ -131,13 +132,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0757f5bb26b6223e69d4a361330b26726aadd42470ec898c8236ab27af7db726"
+  digest = "1:4810e82006048ad8c4b1ad648faa57e69956aa3c39b53fb69eee428b42f87505"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = [
     "configuration",
     "errors",
     "goamiddleware",
     "log",
+    "ptr",
     "resource",
     "rest",
   ]
@@ -592,9 +594,11 @@
     "github.com/fabric8-services/fabric8-common/convert/ptr",
     "github.com/fabric8-services/fabric8-common/errors",
     "github.com/fabric8-services/fabric8-common/log",
+    "github.com/fabric8-services/fabric8-common/resource",
     "github.com/fabric8-services/fabric8-common/sentry",
     "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
+    "github.com/fabric8-services/fabric8-wit/ptr",
     "github.com/fabric8-services/fabric8-wit/resource",
     "github.com/fabric8-services/fabric8-wit/rest",
     "github.com/getsentry/raven-go",

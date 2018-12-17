@@ -43,27 +43,27 @@ type TenantsUpdater struct {
 }
 
 type FilterEnvType interface {
-	isOk(envType environment.Type) bool
-	getLimit() string
+	IsOk(envType environment.Type) bool
+	GetLimit() string
 }
 
 var AllTypes = allTypes("no-limit")
 
 type allTypes string
 
-func (f allTypes) isOk(envType environment.Type) bool {
+func (f allTypes) IsOk(envType environment.Type) bool {
 	return true
 }
-func (f allTypes) getLimit() string {
+func (f allTypes) GetLimit() string {
 	return string(f)
 }
 
 type OneType environment.Type
 
-func (f OneType) isOk(envType environment.Type) bool {
+func (f OneType) IsOk(envType environment.Type) bool {
 	return envType == environment.Type(f)
 }
-func (f OneType) getLimit() string {
+func (f OneType) GetLimit() string {
 	return string(f)
 }
 
@@ -72,7 +72,7 @@ type FilterCluster func(cluster string) bool
 func (u *TenantsUpdater) UpdateAllTenants() {
 
 	log.Info(nil, map[string]interface{}{
-		"env-types-limit": u.filterEnvType.getLimit(),
+		"env-types-limit": u.filterEnvType.GetLimit(),
 		"cluster-limit":   u.limitToCluster,
 	}, "triggering tenants update process")
 
@@ -200,14 +200,14 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 
 		var filteredEnvTypes []environment.Type
 		for _, envType := range envTypes {
-			if u.filterEnvType.isOk(envType) {
+			if u.filterEnvType.IsOk(envType) {
 				typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
 				filteredEnvTypes = append(filteredEnvTypes, envType)
 			}
 		}
 
 		for {
-			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit)
+			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit, u.limitToCluster)
 			if err != nil {
 				return err
 			}
@@ -258,7 +258,7 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 	for _, versionManager := range RetrieveVersionManagers() {
 		isOk := true
 		for _, envType := range versionManager.EnvTypes {
-			isOk = isOk && u.filterEnvType.isOk(envType)
+			isOk = isOk && u.filterEnvType.IsOk(envType)
 		}
 		if isOk {
 			versionManager.SetCurrentVersion(tenantUpdate)
@@ -318,7 +318,7 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 				break
 			}
 		}
-		if namespace == nil || (updater.limitToCluster != "" && updater.limitToCluster != namespace.MasterURL) {
+		if namespace == nil {
 			continue
 		}
 

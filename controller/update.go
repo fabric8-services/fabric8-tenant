@@ -2,6 +2,7 @@ package controller
 
 import (
 	commonauth "github.com/fabric8-services/fabric8-common/auth"
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -11,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/update"
-	"github.com/fabric8-services/fabric8-wit/ptr"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 )
@@ -45,8 +45,8 @@ func (c *UpdateController) Start(ctx *app.StartUpdateContext) error {
 
 	var envTypesFilter update.FilterEnvType
 	if value(ctx.EnvType) != "" {
-		envType, ok := interface{}(value(ctx.EnvType)).(environment.Type)
-		if !ok {
+		envType := environment.Type(value(ctx.EnvType))
+		if !isOneOfDefaults(envType) {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("env-type", ctx.EnvType))
 		}
 		envTypesFilter = update.OneType(envType)
@@ -57,6 +57,15 @@ func (c *UpdateController) Start(ctx *app.StartUpdateContext) error {
 	go update.NewTenantsUpdater(c.db, c.config, c.clusterService, c.updateExecutor, envTypesFilter, value(ctx.ClusterURL)).UpdateAllTenants()
 
 	return ctx.Accepted()
+}
+
+func isOneOfDefaults(envType environment.Type) bool {
+	for _, defEnvType := range environment.DefaultEnvTypes {
+		if defEnvType == envType {
+			return true
+		}
+	}
+	return false
 }
 
 func value(ptr *string) string {
@@ -85,11 +94,11 @@ func (c *UpdateController) Show(ctx *app.ShowUpdateContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	updateInfo := convert(tenantsUpdate)
-	return ctx.OK(updateInfo)
+	updateData := convert(tenantsUpdate)
+	return ctx.OK(&app.UpdateDataSingle{Data: updateData})
 }
 
-func convert(tenantsUpdate *update.TenantsUpdate) *app.UpdateInfo {
+func convert(tenantsUpdate *update.TenantsUpdate) *app.UpdateData {
 	var fileVersions []*app.FileWithVersion
 	for _, verManager := range update.RetrieveVersionManagers() {
 		fileVersions = append(fileVersions,
@@ -98,7 +107,7 @@ func convert(tenantsUpdate *update.TenantsUpdate) *app.UpdateInfo {
 				Version:  ptr.String(verManager.GetStoredVersion(tenantsUpdate)),
 			})
 	}
-	return &app.UpdateInfo{
+	return &app.UpdateData{
 		Status:          ptr.String(tenantsUpdate.Status.String()),
 		LastTimeUpdated: ptr.Time(tenantsUpdate.LastTimeUpdated),
 		FailedCount:     ptr.Int(tenantsUpdate.FailedCount),
