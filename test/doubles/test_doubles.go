@@ -182,7 +182,7 @@ func MockCleanRequestsToOS(calls *int, cluster string) {
 	gock.New(cluster).
 		Delete("").
 		SetMatcher(test.ExpectRequest(
-			test.HasUrlMatching(`.*\/(persistentvolumeclaims|configmaps)\/.*`),
+			test.HasUrlMatching(`.*\/(persistentvolumeclaims|configmaps|services|deploymentconfigs|routes)\/.*`),
 			test.SpyOnCallsMatchFunc(calls))).
 		Persist().
 		Reply(200).
@@ -212,7 +212,8 @@ func NumberOfGetChecks(objects environment.Objects) int {
 }
 
 func NumberOfObjectsToClean(objects environment.Objects) int {
-	return CountObjectsThat(objects, isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap))
+	return CountObjectsThat(objects, isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap, environment.ValKindService,
+		environment.ValKindDeploymentConfig, environment.ValKindRoute))
 }
 
 func NumberOfObjectsToRemove(objects environment.Objects) int {

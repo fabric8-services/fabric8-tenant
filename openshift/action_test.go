@@ -167,7 +167,8 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 				assert.True(s.T(), deleteFromCluster.Filter()(obj), obj.ToString())
 			} else {
 				assert.False(s.T(), deleteFromCluster.Filter()(obj), obj.ToString())
-				if environment.GetKind(obj) == "PersistentVolumeClaim" || environment.GetKind(obj) == "ConfigMap" {
+				if environment.GetKind(obj) == "PersistentVolumeClaim" || environment.GetKind(obj) == "ConfigMap" ||
+					environment.GetKind(obj) == "Service" || environment.GetKind(obj) == "DeploymentConfig" || environment.GetKind(obj) == "Route" {
 					assert.True(s.T(), delete.Filter()(obj), obj.ToString())
 				} else {
 					assert.False(s.T(), delete.Filter()(obj), obj.ToString())

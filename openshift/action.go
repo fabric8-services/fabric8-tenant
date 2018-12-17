@@ -146,7 +146,8 @@ func (d *Delete) Filter() FilterFunc {
 	if d.removeFromCluster {
 		return isOfKind(environment.ValKindProjectRequest)
 	}
-	return isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap)
+	return isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap, environment.ValKindService,
+		environment.ValKindDeploymentConfig, environment.ValKindRoute)
 }
 
 func (d *Delete) Sort(toSort environment.ByKind) {
