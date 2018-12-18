@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -14,7 +15,6 @@ import (
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/fabric8-services/fabric8-tenant/test/update"
 	"github.com/fabric8-services/fabric8-tenant/update"
-	"github.com/fabric8-services/fabric8-wit/ptr"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
