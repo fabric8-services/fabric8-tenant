@@ -5,10 +5,12 @@ import (
 
 	"sync"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	env "github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -109,6 +111,7 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUs
 		return versionMapping, err
 	}
 	var wg sync.WaitGroup
+	errorChan := make(chan error, len(mapped))
 	wg.Add(len(mapped))
 	for key, val := range mapped {
 
@@ -128,6 +131,7 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUs
 					"output":    output,
 					"namespace": namespace,
 				}, err, "ns update failed")
+				errorChan <- errors.Wrap(err, output)
 				return
 			}
 			log.Info(ctx, map[string]interface{}{
@@ -137,6 +141,16 @@ func RawUpdateTenant(ctx context.Context, config Config, callback Callback, osUs
 		}(key, val, masterOpts)
 	}
 	wg.Wait()
+	var errs []error
+	close(errorChan)
+	for er := range errorChan {
+		if er != nil {
+			errs = append(errs, er)
+		}
+	}
+	if len(errs) > 0 {
+		return versionMapping, fmt.Errorf("update of namespaces failed with one or more errors %s", errs)
+	}
 	return versionMapping, nil
 }
 

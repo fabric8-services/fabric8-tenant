@@ -87,7 +87,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		// given
 		testdoubles.SetTemplateSameVersion("2abcd")
 		cls := *s.ClusterService
-		cls.Token = "123"
+		cls.APIURL = "123"
 		ctrl := controller.NewTenantController(svc, tenant.NewDBService(s.DB), &cls, s.GetAuthService(id), s.GetConfig())
 
 		// when update is called

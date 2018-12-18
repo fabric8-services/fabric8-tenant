@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
+	"github.com/pkg/errors"
 )
 
 // CleanTenant clean or remove
@@ -42,7 +43,7 @@ func CleanTenant(ctx context.Context, config Config, osUsername, nsBaseName stri
 					"cluster_url": opts.MasterURL,
 					"namespace":   namespace,
 				}, err, "clean failed")
-				errorChan <- err
+				errorChan <- errors.Wrap(err, output)
 				return
 			}
 			log.Info(ctx, map[string]interface{}{
