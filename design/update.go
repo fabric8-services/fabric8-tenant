@@ -8,6 +8,7 @@ import (
 var updateData = a.Type("UpdateData", func() {
 	a.Description(`JSONAPI for the update info object. See also http://jsonapi.org/format/#document-resource-object`)
 	a.Attribute("status", d.String, "The update status", func() {
+		a.Enum("finished", "updating", "failed", "killed", "incomplete")
 	})
 	a.Attribute("last-time-updated", d.DateTime, "When an update of the last batch of tenants was finished", func() {
 		a.Example("2016-11-29T23:18:14Z")
