@@ -113,7 +113,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d351e4c44d0870372d990ca46985907473997da455237ac10167957703fcac6d"
+  digest = "1:72583b4ded2792465a6c4a86bd205d6324134b540a0d753471fde3698b931130"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "auth",
@@ -128,7 +128,7 @@
     "sentry",
   ]
   pruneopts = "UT"
-  revision = "b10e057d860d730661b2440dc1326c7d82606acc"
+  revision = "bc9d95714463edd385a524802810097ef7373618"
 
 [[projects]]
   branch = "master"

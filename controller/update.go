@@ -16,8 +16,6 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-var fabric8TenantUpdateSA = "fabric8-tenant-update"
-
 // UpdateController implements the update resource.
 type UpdateController struct {
 	*goa.Controller
@@ -39,7 +37,7 @@ func NewUpdateController(service *goa.Service, db *gorm.DB, config *configuratio
 
 // Start runs the start action.
 func (c *UpdateController) Start(ctx *app.StartUpdateContext) error {
-	if !commonauth.IsSpecificServiceAccount(ctx, fabric8TenantUpdateSA) {
+	if !commonauth.IsSpecificServiceAccount(ctx, commonauth.TenantUpdate) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -77,7 +75,7 @@ func value(ptr *string) string {
 
 // Show runs the show action.
 func (c *UpdateController) Show(ctx *app.ShowUpdateContext) error {
-	if !commonauth.IsSpecificServiceAccount(ctx, fabric8TenantUpdateSA) {
+	if !commonauth.IsSpecificServiceAccount(ctx, commonauth.TenantUpdate) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
@@ -112,7 +110,7 @@ func convert(tenantsUpdate *update.TenantsUpdate) *app.UpdateData {
 
 // Stop runs the stop action.
 func (c *UpdateController) Stop(ctx *app.StopUpdateContext) error {
-	if !commonauth.IsSpecificServiceAccount(ctx, fabric8TenantUpdateSA) {
+	if !commonauth.IsSpecificServiceAccount(ctx, commonauth.TenantUpdate) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
