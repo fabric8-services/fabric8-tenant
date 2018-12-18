@@ -81,12 +81,7 @@ func (c *UpdateController) Show(ctx *app.ShowUpdateContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
-	var tenantsUpdate *update.TenantsUpdate
-	err := update.Transaction(c.db, func(tx *gorm.DB) error {
-		var err error
-		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
-		return err
-	})
+	tenantsUpdate, err := update.NewRepository(c.db).GetTenantsUpdate()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
