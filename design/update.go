@@ -39,7 +39,9 @@ var _ = a.Resource("update", func() {
 		)
 		a.Params(func() {
 			a.Param("cluster_url", d.String, "the URL of the OSO cluster the update should be limited to")
-			a.Param("env_type", d.String, "environment type the update should be executed for")
+			a.Param("env_type", d.String, "environment type the update should be executed for", func() {
+				a.Enum("user", "che", "jenkins", "stage", "run")
+			})
 		})
 
 		a.Description("Start new cluster-wide update.")
