@@ -60,7 +60,13 @@ func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 	})
 
 	s.T().Run("Bad parameter", func(t *testing.T) {
-		// when/then
+		// expect
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic because of wrong parameter")
+			}
+		}()
+		// when
 		goatest.StartUpdateBadRequest(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, nil, ptr.String("wrong"))
 	})
 }
