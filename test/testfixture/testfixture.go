@@ -179,7 +179,7 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 	return &fxt, nil
 }
 
-func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state tenant.NamespaceState, envTypes ...environment.Type) *TestFixture {
+func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, nssModifier NamespacesModifier, envTypes ...environment.Type) *TestFixture {
 	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
 	return NewTestFixture(t, db, Tenants(numberOfTenants),
 		Namespaces(numberOfTenants*len(envTypes), func(fxt *TestFixture, idx int) error {
@@ -188,12 +188,33 @@ func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, state
 			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
 			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
-			fxt.Namespaces[idx].State = state
 			if upToDate {
 				fxt.Namespaces[idx].Version = mappedVersions[fxt.Namespaces[idx].Type]
 			} else {
 				fxt.Namespaces[idx].Version = "0000"
 			}
+			nssModifier(fxt.Namespaces[idx])
 			return nil
 		}))
+}
+
+type NamespacesModifier func(*tenant.Namespace)
+
+func With() NamespacesModifier {
+	return func(ns *tenant.Namespace) {
+	}
+}
+
+func (m NamespacesModifier) State(state tenant.NamespaceState) NamespacesModifier {
+	return func(ns *tenant.Namespace) {
+		m(ns)
+		ns.State = state
+	}
+}
+
+func (m NamespacesModifier) MasterURL(masterURL string) NamespacesModifier {
+	return func(ns *tenant.Namespace) {
+		m(ns)
+		ns.MasterURL = masterURL
+	}
 }

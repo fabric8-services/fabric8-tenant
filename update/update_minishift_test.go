@@ -5,11 +5,13 @@ import (
 	"fmt"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/minishift"
+	"github.com/fabric8-services/fabric8-tenant/test/update"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -71,11 +73,11 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	}
 	defer s.clean(tenantIDs)
 
-	tx(s.T(), s.DB, func(repo update.Repository) error {
+	testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
 		if err := repo.UpdateStatus(update.Finished); err != nil {
 			return err
 		}
-		return updateVersionsTo(repo, "1abcd")
+		return testupdate.UpdateVersionsTo(repo, "1abcd")
 	})
 	before := time.Now()
 
@@ -85,21 +87,22 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	var goroutineCanContinue sync.WaitGroup
 	goroutineCanContinue.Add(1)
 	var goroutineFinished sync.WaitGroup
-	updateExec := DummyUpdateExecutor{shouldCallOriginalUpdater: true, numberOfCalls: Uint64(0)}
+	updateExec := testupdate.NewDummyUpdateExecutor()
+	updateExec.ShouldCallOriginalUpdater = true
 	for i := 0; i < 10; i++ {
 		goroutineFinished.Add(1)
-		go func(updateExecutor controller.UpdateExecutor) {
+		go func(updateExecutor openshift.UpdateExecutor) {
 			defer goroutineFinished.Done()
 
 			goroutineCanContinue.Wait()
-			update.NewTenantsUpdater(s.DB, s.Config, clusterService, updateExecutor).UpdateAllTenants()
-		}(&updateExec)
+			update.NewTenantsUpdater(s.DB, s.Config, clusterService, updateExecutor, update.AllTypes, "").UpdateAllTenants()
+		}(updateExec)
 	}
 	goroutineCanContinue.Done()
 	goroutineFinished.Wait()
 	// then
-	assertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Finished)
-	assert.Equal(s.T(), 5*len(tenantIDs), int(*updateExec.numberOfCalls))
+	testupdate.AssertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Finished, update.AllTypes)
+	assert.Equal(s.T(), 5*len(tenantIDs), int(*updateExec.NumberOfCalls))
 	s.verifyAreUpdated(tenantIDs, before)
 }
 

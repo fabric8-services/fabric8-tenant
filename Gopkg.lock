@@ -113,7 +113,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a157aa8628f7d72185545a96d05f050670d79d2ce9e8e85bcb5c5c15823c8356"
+  digest = "1:72583b4ded2792465a6c4a86bd205d6324134b540a0d753471fde3698b931130"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "auth",
@@ -124,10 +124,11 @@
     "goasupport",
     "httpsupport",
     "log",
+    "resource",
     "sentry",
   ]
   pruneopts = "UT"
-  revision = "b10e057d860d730661b2440dc1326c7d82606acc"
+  revision = "bc9d95714463edd385a524802810097ef7373618"
 
 [[projects]]
   branch = "master"
@@ -592,6 +593,7 @@
     "github.com/fabric8-services/fabric8-common/convert/ptr",
     "github.com/fabric8-services/fabric8-common/errors",
     "github.com/fabric8-services/fabric8-common/log",
+    "github.com/fabric8-services/fabric8-common/resource",
     "github.com/fabric8-services/fabric8-common/sentry",
     "github.com/fabric8-services/fabric8-wit/errors",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",

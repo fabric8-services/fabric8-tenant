@@ -1,0 +1,1 @@
+ALTER TABLE tenants_update ADD COLUMN can_continue BOOLEAN;
