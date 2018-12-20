@@ -21,7 +21,8 @@ type Service interface {
 	// SaveTenant will update on dupliate 'insert'
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
-	DeleteAll(tenantID uuid.UUID) error
+	DeleteTenant(tenantID uuid.UUID) error
+	DeleteNamespaces(tenantID uuid.UUID) error
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
@@ -147,20 +148,14 @@ func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]strin
 	return tenants, err
 }
 
-func (s DBService) DeleteAll(tenantID uuid.UUID) error {
-	err := s.deleteNamespaces(tenantID)
-	err = s.deleteTenant(tenantID)
-	return err
-}
-
-func (s DBService) deleteNamespaces(tenantID uuid.UUID) error {
+func (s DBService) DeleteNamespaces(tenantID uuid.UUID) error {
 	if tenantID == uuid.Nil {
 		return nil
 	}
 	return s.db.Unscoped().Delete(&Namespace{}, "tenant_id = ?", tenantID).Error
 }
 
-func (s DBService) deleteTenant(tenantID uuid.UUID) error {
+func (s DBService) DeleteTenant(tenantID uuid.UUID) error {
 	if tenantID == uuid.Nil {
 		return nil
 	}

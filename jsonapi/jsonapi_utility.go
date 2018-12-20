@@ -142,8 +142,13 @@ type Conflict interface {
 // JSONErrorResponse auto maps the provided error to the correct response type
 // If all else fails, InternalServerError is returned
 func JSONErrorResponse(obj interface{}, err error) error {
-	x := obj.(InternalServerError)
 	c := obj.(context.Context)
+	x, ok := obj.(InternalServerError)
+
+	if !ok {
+		sentry.Sentry().CaptureError(c, err)
+		return errs.WithStack(errors.NewInternalError(c, err))
+	}
 
 	jsonErr, status := ErrorToJSONAPIErrors(c, err)
 	switch status {

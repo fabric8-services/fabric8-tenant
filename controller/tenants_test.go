@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
@@ -266,8 +265,7 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 }
 func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
 	clusterService, authService, _, reset := prepareConfigClusterAndAuthService(s.T())
-	openshiftService := openshift.NewService()
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, openshiftService)
+	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService)
 	return svc, ctrl, reset
 }

@@ -2,6 +2,7 @@ package openshift
 
 import (
 	"context"
+	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
@@ -9,13 +10,19 @@ import (
 )
 
 type UpdateExecutor interface {
-	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig Config, t *tenant.Tenant, envTypes []environment.Type) (map[environment.Type]string, error)
+	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig Config, t *tenant.Tenant,
+		envTypes []environment.Type, usertoken string, allowSelfHealing bool) (map[environment.Type]string, error)
 }
 
-func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig Config, t *tenant.Tenant, envTypes ...environment.Type) error {
-	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
+func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig Config,
+	t *tenant.Tenant, usertoken string, allowSelfHealing bool, envTypes ...environment.Type) error {
+
+	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes, usertoken, allowSelfHealing)
 	if err != nil {
-		updateNamespaceEntities(tenantService, t, versionMapping, true)
+		er := updateNamespaceEntities(tenantService, t, versionMapping, true)
+		if er != nil {
+			return fmt.Errorf("there occured two errors when doing update: \n1.[%s]\n2.[%s]", err, er)
+		}
 		return err
 	}
 

@@ -179,15 +179,24 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 	return &fxt, nil
 }
 
-func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, nssModifier NamespacesModifier, envTypes ...environment.Type) *TestFixture {
+func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDate bool, nssModifier NamespacesModifier, envTypes ...environment.Type) *TestFixture {
 	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
-	return NewTestFixture(t, db, Tenants(numberOfTenants),
-		Namespaces(numberOfTenants*len(envTypes), func(fxt *TestFixture, idx int) error {
+	var createNamespaces RecipeFunction = func(fxt *TestFixture) error {
+		return nil
+	}
+	numberOfNamespaces := len(tenantModifiers) * len(envTypes)
+
+	if numberOfNamespaces > 0 {
+		createNamespaces = Namespaces(numberOfNamespaces, func(fxt *TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/len(envTypes))].ID
 			fxt.Namespaces[idx].Type = environment.Type(envTypes[idx%len(envTypes)])
 			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
 			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
+			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/len(envTypes))].NsBaseName
+			if fxt.Namespaces[idx].Type != environment.TypeUser {
+				fxt.Namespaces[idx].Name += "-" + fxt.Namespaces[idx].Type.String()
+			}
 			if upToDate {
 				fxt.Namespaces[idx].Version = mappedVersions[fxt.Namespaces[idx].Type]
 			} else {
@@ -195,7 +204,36 @@ func FillDB(t *testing.T, db *gorm.DB, numberOfTenants int, upToDate bool, nssMo
 			}
 			nssModifier(fxt.Namespaces[idx])
 			return nil
-		}))
+		})
+	}
+	return NewTestFixture(t, db, Tenants(len(tenantModifiers), func(fxt *TestFixture, idx int) error {
+		tenantModifiers[idx](fxt.Tenants[idx])
+		return nil
+	}), createNamespaces)
+}
+
+type TenantModifier func(tnnt *tenant.Tenant)
+
+func WithTenants(numberOfTenants int) []TenantModifier {
+	var tenantModifiers []TenantModifier
+	for i := 0; i < numberOfTenants; i++ {
+		tenantModifiers = append(tenantModifiers, func(tnnt *tenant.Tenant) {})
+	}
+	return tenantModifiers
+}
+
+func WithTenantsOfNames(names ...string) []TenantModifier {
+	var tenantModifiers []TenantModifier
+	for _, name := range names {
+		modifier := func(nameToSet string) func(tnnt *tenant.Tenant) {
+			return func(tnnt *tenant.Tenant) {
+				tnnt.OSUsername = nameToSet
+				tnnt.NsBaseName = nameToSet
+			}
+		}
+		tenantModifiers = append(tenantModifiers, modifier(name))
+	}
+	return tenantModifiers
 }
 
 type NamespacesModifier func(*tenant.Namespace)

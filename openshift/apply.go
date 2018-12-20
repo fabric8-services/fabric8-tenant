@@ -120,8 +120,8 @@ metadata:
 )
 
 // Callback is called after initial action
-type Callback func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[env.Type]string) (string, map[interface{}]interface{})
-type CallbackWithVersionMapping func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{})
+type Callback func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[env.Type]string) (string, map[interface{}]interface{}, error)
+type CallbackWithVersionMapping func(statusCode int, method string, request, response map[interface{}]interface{}) (string, map[interface{}]interface{}, error)
 
 // ApplyOptions contains options for connecting to the target API
 type ApplyOptions struct {
@@ -229,7 +229,10 @@ func Apply(object env.Object, action string, opts ApplyOptions) (env.Object, err
 	}
 
 	if opts.Callback != nil {
-		act, newObject := opts.Callback(resp.StatusCode, action, object, respType)
+		act, newObject, err := opts.Callback(resp.StatusCode, action, object, respType)
+		if err != nil {
+			return nil, err
+		}
 		if act != "" {
 			return Apply(newObject, act, opts)
 		}

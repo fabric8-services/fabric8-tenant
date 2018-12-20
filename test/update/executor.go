@@ -26,7 +26,9 @@ func NewDummyUpdateExecutor() *DummyUpdateExecutor {
 	return &DummyUpdateExecutor{NumberOfCalls: ptr.Uint64(0)}
 }
 
-func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []environment.Type) (map[environment.Type]string, error) {
+func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant,
+	envTypes []environment.Type, usertoken string, allowSelfHealing bool) (map[environment.Type]string, error) {
+
 	atomic.AddUint64(e.NumberOfCalls, 1)
 
 	time.Sleep(e.TimeToSleep)
@@ -34,7 +36,7 @@ func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.S
 		e.waitGroup.Wait()
 	}
 	if e.ShouldCallOriginalUpdater {
-		return controller.TenantUpdater{}.Update(ctx, tenantService, openshiftConfig, t, envTypes)
+		return controller.TenantUpdater{}.Update(ctx, tenantService, openshiftConfig, t, envTypes, usertoken, allowSelfHealing)
 	}
 	if e.ShouldFail {
 		return testdoubles.GetMappedVersions(envTypes...), fmt.Errorf("failing")

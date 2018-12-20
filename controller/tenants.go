@@ -5,6 +5,7 @@ import (
 
 	commonauth "github.com/fabric8-services/fabric8-common/auth"
 	"github.com/fabric8-services/fabric8-common/errors"
+	errs "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
@@ -21,7 +22,6 @@ var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
 type TenantsController struct {
 	*goa.Controller
 	tenantService     tenant.Service
-	openshiftService  openshift.Service
 	clusterService    cluster.Service
 	authClientService auth.Service
 }
@@ -31,13 +31,11 @@ func NewTenantsController(service *goa.Service,
 	tenantService tenant.Service,
 	clusterService cluster.Service,
 	authClientService auth.Service,
-	openshiftService openshift.Service,
 ) *TenantsController {
 	return &TenantsController{
 		Controller:        service.NewController("TenantsController"),
 		tenantService:     tenantService,
 		clusterService:    clusterService,
-		openshiftService:  openshiftService,
 		authClientService: authClientService,
 	}
 }
@@ -100,38 +98,28 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	for _, namespace := range namespaces {
+	if len(namespaces) > 0 {
 		// fetch the cluster info
-		clustr, err := c.clusterService.GetCluster(ctx, namespace.MasterURL)
+		clustr, err := c.clusterService.GetCluster(ctx, namespaces[0].MasterURL)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
-				"cluster_url": namespace.MasterURL,
+				"cluster_url": namespaces[0].MasterURL,
 				"tenant_id":   tenantID,
 			}, "unable to fetch cluster for user")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			return jsonapi.JSONErrorResponse(ctx, errs.NewInternalError(ctx, err))
 		}
-
 		openshiftConfig := openshift.Config{
-			MasterURL: namespace.MasterURL,
+			MasterURL: clustr.APIURL,
 			Token:     clustr.Token,
 		}
-		log.Info(ctx, map[string]interface{}{"tenant_id": tenantID, "namespace": namespace.Name}, "deleting namespace...")
-		// delete the namespace in the cluster
-		err = c.openshiftService.DeleteNamespace(ctx, openshiftConfig, namespace.Name)
+		err = openshift.DeleteNamespaces(ctx, tenantID, openshiftConfig, c.tenantService)
 		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"cluster_url": namespace.MasterURL,
-				"namespace":   namespace.Name,
-				"tenant_id":   tenantID,
-			}, "failed to delete namespace")
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return err
 		}
-		// then delete the corresponding record in the DB
 	}
 	// finally, delete the tenant record (all NS were already deleted, but that's fine)
-	err = c.tenantService.DeleteAll(tenantID)
+	err = c.tenantService.DeleteTenant(tenantID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

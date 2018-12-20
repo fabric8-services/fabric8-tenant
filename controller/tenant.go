@@ -3,10 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"sync/atomic"
-	"time"
-
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
@@ -22,7 +18,6 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 // TenantController implements the status resource.
@@ -112,13 +107,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	go func() {
 		ctx := ctx
 		t := tenant
-		err = openshift.RawInitTenant(
-			ctx,
-			openshiftConfig,
-			InitTenant(ctx, openshiftConfig.MasterURL, c.tenantService, t),
-			user.OpenShiftUsername,
-			nsBaseName,
-			user.OpenShiftUserToken)
+		_, err = openshift.RawInitTenant(ctx, openshiftConfig, t, user.OpenShiftUserToken, c.tenantService, true)
 
 		if err != nil {
 			sentry.LogError(ctx, map[string]interface{}{
@@ -178,7 +167,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
 	}
 
-	err = UpdateTenant(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
+	err = openshift.UpdateTenant(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, user.OpenShiftUserToken, true, env.DefaultEnvTypes...)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":       err,
@@ -192,59 +181,13 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) error {
-	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
-	if err != nil {
-		er := updateNamespaceEntities(tenantService, t, versionMapping, true)
-		if er != nil {
-			return fmt.Errorf("there occured two errors when doing update: \n1.[%s]\n2.[%s]", err, er)
-		}
-		return err
-	}
-
-	return updateNamespaceEntities(tenantService, t, versionMapping, false)
-}
-
-func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[env.Type]string, failed bool) error {
-	namespaces, err := tenantService.GetNamespaces(t.ID)
-	if err != nil {
-		return errs.Wrapf(err, "unable to get tenant namespaces")
-	}
-	var found bool
-	var nsVersion string
-	for _, ns := range namespaces {
-		if nsVersion, found = versionMapping[ns.Type]; found {
-			if failed {
-				ns.State = tenant.Failed
-			} else {
-				ns.State = tenant.Ready
-				ns.Version = nsVersion
-			}
-			ns.UpdatedBy = configuration.Commit
-			err := tenantService.SaveNamespace(ns)
-			if err != nil {
-				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
-			}
-		}
-	}
-	return nil
-}
-
-type UpdateExecutor interface {
-	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []env.Type) (map[env.Type]string, error)
-}
-
 type TenantUpdater struct {
 }
 
-func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []env.Type) (map[env.Type]string, error) {
-	return openshift.RawUpdateTenant(
-		ctx,
-		openshiftConfig,
-		InitTenant(ctx, openshiftConfig.MasterURL, tenantService, t),
-		t.OSUsername,
-		t.NsBaseName,
-		envTypes)
+func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant,
+	envTypes []env.Type, usertoken string, allowSelfHealing bool) (map[env.Type]string, error) {
+
+	return openshift.RawUpdateTenant(ctx, openshiftConfig, t, envTypes, usertoken, tenantService, allowSelfHealing)
 }
 
 // Clean runs the setup action for the tenant namespaces.
@@ -294,7 +237,11 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	if removeFromCluster {
-		err = c.tenantService.DeleteAll(ttoken.Subject())
+		err = c.tenantService.DeleteNamespaces(ttoken.Subject())
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		err = c.tenantService.DeleteTenant(ttoken.Subject())
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -323,103 +270,6 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 
 	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)}
 	return ctx.OK(result)
-}
-
-// InitTenant is a Callback that assumes a new tenant is being created
-func InitTenant(ctx context.Context, masterURL string, service tenant.Service, currentTenant *tenant.Tenant) openshift.Callback {
-	var maxResourceQuotaStatusCheck int32 = 50 // technically a global retry count across all ResourceQuota on all Tenant Namespaces
-	var currentResourceQuotaStatusCheck int32  // default is 0
-	return func(statusCode int, method string, request, response map[interface{}]interface{}, versionMapping map[env.Type]string) (string, map[interface{}]interface{}) {
-		log.Info(ctx, map[string]interface{}{
-			"status":      statusCode,
-			"method":      method,
-			"cluster_url": masterURL,
-			"namespace":   env.GetNamespace(request),
-			"name":        env.GetName(request),
-			"kind":        env.GetKind(request),
-			"request":     yamlString(request),
-			"response":    yamlString(response),
-		}, "resource requested")
-		if statusCode == http.StatusConflict {
-			if env.GetKind(request) == env.ValKindNamespace {
-				return "", nil
-			}
-			if env.GetKind(request) == env.ValKindProjectRequest {
-				return "", nil
-			}
-			if env.GetKind(request) == env.ValKindPersistenceVolumeClaim {
-				return "", nil
-			}
-			if env.GetKind(request) == env.ValKindServiceAccount {
-				return "", nil
-			}
-			return "DELETE", request
-		} else if statusCode == http.StatusCreated {
-			if env.GetKind(request) == env.ValKindProjectRequest {
-				name := env.GetName(request)
-				envType := tenant.GetNamespaceType(name, currentTenant.NsBaseName)
-				templatesVersion := versionMapping[envType]
-				service.SaveNamespace(&tenant.Namespace{
-					TenantID:  currentTenant.ID,
-					Name:      name,
-					State:     tenant.Ready,
-					Version:   templatesVersion,
-					Type:      envType,
-					MasterURL: masterURL,
-					UpdatedBy: configuration.Commit,
-				})
-
-				// HACK to workaround osio applying some dsaas-user permissions async
-				// Should loop on a Check if allowed type of call instead
-				time.Sleep(time.Second * 5)
-
-			} else if env.GetKind(request) == env.ValKindNamespace {
-				name := env.GetName(request)
-				envType := tenant.GetNamespaceType(name, currentTenant.NsBaseName)
-				templatesVersion := versionMapping[envType]
-				service.SaveNamespace(&tenant.Namespace{
-					TenantID:  currentTenant.ID,
-					Name:      name,
-					State:     tenant.Ready,
-					Version:   templatesVersion,
-					Type:      envType,
-					MasterURL: masterURL,
-					UpdatedBy: configuration.Commit,
-				})
-			} else if env.GetKind(request) == env.ValKindResourceQuota {
-				// trigger a check status loop
-				time.Sleep(time.Millisecond * 50)
-				return "GET", response
-			}
-			return "", nil
-		} else if statusCode == http.StatusOK {
-			if method == "DELETE" {
-				return "POST", request
-			} else if method == "GET" {
-				if env.GetKind(request) == env.ValKindResourceQuota {
-
-					if env.HasValidStatus(response) || atomic.LoadInt32(&currentResourceQuotaStatusCheck) >= maxResourceQuotaStatusCheck {
-						return "", nil
-					}
-					atomic.AddInt32(&currentResourceQuotaStatusCheck, 1)
-					time.Sleep(time.Millisecond * 50)
-					return "GET", response
-				}
-			}
-			return "", nil
-		}
-		log.Info(ctx, map[string]interface{}{
-			"status":      statusCode,
-			"method":      method,
-			"namespace":   env.GetNamespace(request),
-			"cluster_url": masterURL,
-			"name":        env.GetName(request),
-			"kind":        env.GetKind(request),
-			"request":     yamlString(request),
-			"response":    yamlString(response),
-		}, "unhandled resource response")
-		return "", nil
-	}
 }
 
 func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*tenant.Namespace, resolveCluster cluster.GetCluster) *app.Tenant {
@@ -462,12 +312,4 @@ func convertTenant(ctx context.Context, tenant *tenant.Tenant, namespaces []*ten
 			})
 	}
 	return &result
-}
-
-func yamlString(data map[interface{}]interface{}) string {
-	b, err := yaml.Marshal(data)
-	if err != nil {
-		return fmt.Sprintf("Could not marshal yaml %v", data)
-	}
-	return string(b)
 }

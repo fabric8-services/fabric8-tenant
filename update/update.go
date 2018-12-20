@@ -341,7 +341,7 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 		}, "starting update of tenant for outdated namespace")
 
 		osConfig := openshift.NewConfig(updater.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
-		err = openshift.UpdateTenant(updater.updateExecutor, nil, tenantRepo, osConfig, tnnt, envType)
+		err = openshift.UpdateTenant(updater.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envTypes...)
 		if err != nil {
 			err = Transaction(updater.db, lock(func(repo Repository) error {
 				return repo.IncrementFailedCount()
