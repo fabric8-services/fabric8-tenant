@@ -1,6 +1,7 @@
 package testdoubles
 
 import (
+	"fmt"
 	vcrrecorder "github.com/dnaeon/go-vcr/recorder"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -8,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/h2non/gock.v1"
 	"testing"
 )
 
@@ -65,4 +67,66 @@ func GetMappedVersions(envTypes ...environment.Type) map[environment.Type]string
 		typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
 	}
 	return typesWithVersion
+}
+
+func MockCommunicationWithAuth(cluster string, otherClusters ...string) {
+	clusterList := ""
+	var clusters []string
+	clusters = append(otherClusters, cluster)
+	for _, cl := range clusters {
+		gock.New("http://authservice").
+			Get("/api/token").
+			Persist().
+			MatchParam("for", cl+"/").
+			MatchParam("force_pull", "false").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
+			Reply(200).
+			BodyString(`{ 
+			"access_token": "jA0ECQMCYyjV8Zo7wgNg0sDQAUvut+valbh3k/zKDx+KPXcR7mmt7toLkc9Px7XaVMT6lQ6S7aOl6T8hpoPIWIEJuY33hZmJGmEXKkFzkU4BKcDaMnZXhiuwz4ECxOaeREpsUNCd7KSLayFGwuTuXbVwErmZau12CCCIjvlyJH89dCIkZD2hcElOhY6avEXfxQprtDF9iLddHiT+EOwZCSDOMKQbXVyAKR5FDaW8NXQpr7xsTmbe7dpoeS/uvIe2C5vEAH7dnc/TN5HmWYf0Is4ukfznKYef/+E+oSg3UkAO3i7PTFVsRuJCaN4pTIOcgeWjT7pvB49rb9UAZSfwSLDqbHgEfzjEatlC9PszMDlVckqvzg0Y0vhr+HpcvaJuu1VMy6Y5KH6NT4VlnL8tPFIcEeDJZLOreSmi43gkcl8YgTQp8G9C4h5h2nmS4E+1oU14uoBKwpjlek9r/x/o/hinYUrmSsht9FnQbbJAq7Umm/RbmanE47q86gy59UCTlW+zig8cp02pwQ7BW23YRrpZkiVB2QVmOGqB3+NCmK0pMg==",
+			"token_type": "bearer",
+			"username": "tenant_service"
+    }`)
+
+		gock.New(cl).
+			Get("/apis/user.openshift.io/v1/users/~").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
+			Persist().
+			Reply(200).
+			BodyString(`{
+     "kind":"User",
+     "apiVersion":"user.openshift.io/v1",
+     "metadata":{
+       "name":"tenant_service",
+       "selfLink":"/apis/user.openshift.io/v1/users/tenant_service",
+       "uid":"bcdd0b29-123d-11e8-a8bc-b69930b94f5c",
+       "resourceVersion":"814",
+       "creationTimestamp":"2018-02-15T10:48:20Z"
+     },
+     "identities":[],
+     "groups":[]
+   }`)
+
+		clusterList += fmt.Sprintf(`
+        {
+          "name": "cluster_name",
+          "api-url": "%s/",
+          "console-url": "http://console.cluster1/console/",
+          "metrics-url": "http://metrics.cluster1/",
+          "logging-url": "http://logging.cluster1/",
+          "app-dns": "foo",
+          "capacity-exhausted": false
+        },`, cl)
+
+	}
+
+	gock.New("http://authservice").
+		Get("/api/clusters/").
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
+		Persist().
+		Reply(200).
+		BodyString(fmt.Sprintf(`{
+      "data":[
+        %s
+      ]
+    }`, clusterList[:len(clusterList)-1]))
 }

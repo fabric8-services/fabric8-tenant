@@ -21,7 +21,6 @@ import (
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	errs "github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -184,8 +183,8 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	return ctx.Accepted()
 }
 
-func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) {
-	err := UpdateTenant(updateExecutor, ctx, tenantService, openshiftConfig, t, envTypes...)
+func UpdateTenantWithErrorHandling(updateExecutor openshift.UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) {
+	err := openshift.UpdateTenant(updateExecutor, ctx, tenantService, openshiftConfig, t, envTypes...)
 	if err != nil {
 		sentry.LogError(ctx, map[string]interface{}{
 			"os_user":             t.OSUsername,
@@ -193,45 +192,6 @@ func UpdateTenantWithErrorHandling(updateExecutor UpdateExecutor, ctx context.Co
 			"env_types_to_update": envTypes,
 		}, err, "unable update tenant")
 	}
-}
-
-func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) error {
-	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
-	if err != nil {
-		updateNamespaceEntities(tenantService, t, versionMapping, true)
-		return err
-	}
-
-	return updateNamespaceEntities(tenantService, t, versionMapping, false)
-}
-
-func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[env.Type]string, failed bool) error {
-	namespaces, err := tenantService.GetNamespaces(t.ID)
-	if err != nil {
-		return errs.Wrapf(err, "unable to get tenant namespaces")
-	}
-	var found bool
-	var nsVersion string
-	for _, ns := range namespaces {
-		if nsVersion, found = versionMapping[ns.Type]; found {
-			if failed {
-				ns.State = tenant.Failed
-			} else {
-				ns.State = tenant.Ready
-				ns.Version = nsVersion
-			}
-			ns.UpdatedBy = configuration.Commit
-			err := tenantService.SaveNamespace(ns)
-			if err != nil {
-				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
-			}
-		}
-	}
-	return nil
-}
-
-type UpdateExecutor interface {
-	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []env.Type) (map[env.Type]string, error)
 }
 
 type TenantUpdater struct {

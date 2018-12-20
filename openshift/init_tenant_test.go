@@ -26,7 +26,7 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 	}()
 	calls := 0
 	gock.New("http://my.cluster").
-		SetMatcher(SpyOnCalls(&calls)).
+		SetMatcher(test.SpyOnCalls(&calls)).
 		Times(78).
 		Persist().
 		Reply(200).
@@ -44,14 +44,4 @@ func TestNumberOfCallsToCluster(t *testing.T) {
 	require.NoError(t, err)
 	// the number of calls should be equal to the number of parsed objects plus one call that removes admin role from user's namespace
 	assert.Equal(t, len(objectsInTemplates)+1, calls)
-}
-
-// SpyOnCalls checks the number of calls
-func SpyOnCalls(counter *int) gock.Matcher {
-	matcher := gock.NewBasicMatcher()
-	matcher.Add(func(_ *http.Request, _ *gock.Request) (bool, error) {
-		*counter++
-		return true, nil
-	})
-	return matcher
 }

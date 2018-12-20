@@ -2,13 +2,12 @@ package controller_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-tenant/app/test"
-	"github.com/fabric8-services/fabric8-tenant/client"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -19,15 +18,13 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
 )
 
 type TenantsControllerTestSuite struct {
@@ -35,7 +32,6 @@ type TenantsControllerTestSuite struct {
 }
 
 func TestTenantsController(t *testing.T) {
-	resource.Require(t, resource.Database)
 	suite.Run(t, &TenantsControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
@@ -52,10 +48,11 @@ var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, 
 }
 
 func (s *TenantsControllerTestSuite) TestShowTenants() {
-
 	// given
-	svc, ctrl, err := s.newTestTenantsController("show-tenants")
-	require.NoError(s.T(), err)
+	defer gock.Off()
+	testdoubles.MockCommunicationWithAuth("https://api.cluster1")
+	svc, ctrl, reset := s.newTestTenantsController()
+	defer reset()
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
@@ -94,8 +91,10 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
-	svc, ctrl, err := s.newTestTenantsController("search-tenants")
-	require.NoError(s.T(), err)
+	defer gock.Off()
+	testdoubles.MockCommunicationWithAuth("https://api.cluster1")
+	svc, ctrl, reset := s.newTestTenantsController()
+	defer reset()
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
@@ -128,115 +127,68 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 	})
 }
 
-func (s *TenantsControllerTestSuite) TestDeleteTenants() {
-
-	s.T().Run("Success", func(t *testing.T) {
-
-		t.Run("delete method", func(t *testing.T) {
-			cl := client.New(nil)
-			req, err := cl.NewDeleteTenantsRequest(context.Background(), "")
-			require.NoError(s.T(), err)
-			assert.Equal(s.T(), "DELETE", req.Method)
-		})
-
-		t.Run("all ok", func(t *testing.T) {
-			// given
-			fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
-				id, err := uuid.FromString("8c97b9fc-2a3f-4bef-8579-75e676ab1348") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
-				if err != nil {
-					return err
-				}
-				fxt.Tenants[0].ID = id
-				return nil
-			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
-				if idx == 0 {
-					fxt.Namespaces[idx].Name = "foo"
-					fxt.Namespaces[idx].Type = "user"
-				} else if idx == 1 {
-					fxt.Namespaces[idx].Name = "foo-che"
-					fxt.Namespaces[idx].Type = "che"
-				}
-				return nil
-			}))
-			svc, ctrl, err := s.newTestTenantsController("delete-tenants-204")
-			require.NoError(t, err)
-			// when
-			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
-			// then
-			_, err = tenant.NewDBService(s.DB).GetTenant(fxt.Tenants[0].ID)
-			require.IsType(t, errors.NotFoundError{}, err)
-			namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(fxt.Tenants[0].ID)
-			require.NoError(t, err)
-			assert.Empty(t, namespaces)
-		})
-
-		t.Run("ok even if namespace missing", func(t *testing.T) {
-			// if the namespace record exist in the DB, but the `delete namespace` call on the cluster endpoint fails with a 404
-			// given
-			fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
-				id, err := uuid.FromString("0257147d-0bb8-4624-a054-853e49c97d07") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
-				if err != nil {
-					return err
-				}
-				fxt.Tenants[0].ID = id
-				return nil
-			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
-				if idx == 0 {
-					fxt.Namespaces[idx].Name = "bar"
-					fxt.Namespaces[idx].Type = "user"
-				} else if idx == 1 {
-					fxt.Namespaces[idx].Name = "bar-che"
-					fxt.Namespaces[idx].Type = "che"
-				}
-				return nil
-			}))
-			svc, ctrl, err := s.newTestTenantsController("delete-tenants-403")
-			require.NoError(t, err)
-			// when
-			test.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
-			// then
-			_, err = tenant.NewDBService(s.DB).GetTenant(fxt.Tenants[0].ID)
-			require.IsType(t, errors.NotFoundError{}, err)
-			namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(fxt.Tenants[0].ID)
-			require.NoError(t, err)
-			assert.Empty(t, namespaces)
-		})
-
-	})
-
+func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 	s.T().Run("Failures", func(t *testing.T) {
+		t.Run("Unauhorized failures", func(t *testing.T) {
+			defer gock.Off()
+			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
+			gock.New("https://api.cluster1").
+				Delete("/oapi/v1/projects/foo").
+				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				Reply(200).
+				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+			gock.New("https://api.cluster1").
+				Delete("/oapi/v1/projects/foo-che").
+				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				Reply(200).
+				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
-		svc, ctrl, err := s.newTestTenantsController("delete-tenants-204")
-		require.NoError(t, err)
+			svc, ctrl, reset := s.newTestTenantsController()
+			defer reset()
 
-		t.Run("Unauhorized - no token", func(t *testing.T) {
-			// when/then
-			test.DeleteTenantsUnauthorized(t, context.Background(), svc, ctrl, uuid.NewV4())
-		})
+			t.Run("Unauhorized - no token", func(t *testing.T) {
+				// when/then
+				test.DeleteTenantsUnauthorized(t, context.Background(), svc, ctrl, uuid.NewV4())
+			})
 
-		t.Run("Unauhorized - no SA token", func(t *testing.T) {
-			// when/then
-			test.DeleteTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, uuid.NewV4())
-		})
+			t.Run("Unauhorized - no SA token", func(t *testing.T) {
+				// when/then
+				test.DeleteTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, uuid.NewV4())
+			})
 
-		t.Run("Unauhorized - wrong SA token", func(t *testing.T) {
-			// when/then
-			test.DeleteTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, uuid.NewV4())
+			t.Run("Unauhorized - wrong SA token", func(t *testing.T) {
+				// when/then
+				test.DeleteTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, uuid.NewV4())
+			})
 		})
 
 		t.Run("namespace deletion failed", func(t *testing.T) {
 			// case where the first namespace could not be deleted: the tenant and the namespaces should still be in the DB
 			// given
+			repo := tenant.NewDBService(s.DB)
+			defer gock.Off()
+			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
+			gock.New("https://api.cluster1").
+				Delete("/oapi/v1/projects/baz-che").
+				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				Reply(200).
+				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+			gock.New("https://api.cluster1").
+				Delete("/oapi/v1/projects/baz").
+				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				Reply(500).
+				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Internal Server Error"}`)
+
+			svc, ctrl, reset := s.newTestTenantsController()
+			defer reset()
 			fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
 				id, err := uuid.FromString("5a95c51b-120a-4d03-b529-98bd7d4a5689") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
 				if err != nil {
 					return err
 				}
 				fxt.Tenants[0].ID = id
+				fxt.Tenants[0].OSUsername = "baz"
+				fxt.Tenants[0].NsBaseName = "baz"
 				return nil
 			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
 				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
@@ -251,17 +203,14 @@ func (s *TenantsControllerTestSuite) TestDeleteTenants() {
 				}
 				return nil
 			}))
-			svc, ctrl, err := s.newTestTenantsController("delete-tenants-500")
-			require.NoError(t, err)
+
 			// when
 			test.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 			// then
-			_, err = tenant.NewDBService(s.DB).GetTenant(fxt.Tenants[0].ID)
+			_, err := repo.GetTenant(fxt.Tenants[0].ID)
 			require.NoError(t, err)
-			namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(fxt.Tenants[0].ID)
+			namespaces, err := repo.GetNamespaces(fxt.Tenants[0].ID)
 			require.NoError(t, err)
-
-			// firs namespace could not be deleted, both still exist in the DB (and in the cluster)
 			assertContainsNames(t, namespaces, "baz", "baz-che")
 		})
 	})
@@ -291,34 +240,34 @@ func createInvalidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func (s *TenantsControllerTestSuite) newTestTenantsController(filename string) (*goa.Service, *controller.TenantsController, error) {
-	reset := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"))
-	defer reset()
+func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
 	saToken, err := testsupport.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
 		},
 		"../test/private_key.pem",
 	)
-	if err != nil {
-		fmt.Printf("error occurred: %v", err)
-		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
-	}
-	cassetteFile := fmt.Sprintf("../test/data/controller/%s", filename)
-	authService, r, cleanup :=
-		testdoubles.NewAuthServiceWithRecorder(s.T(), cassetteFile, "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
-	defer cleanup()
+	require.NoError(t, err)
 
-	clusterService := cluster.NewClusterService(time.Hour, authService, configuration.WithRoundTripper(r))
+	resetVars := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"), testsupport.Env("F8_API_SERVER_USE_TLS", "false"))
+	authService, _, cleanup :=
+		testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
+	config, resetConf := testsupport.LoadTestConfig(t)
+	reset := func() {
+		resetVars()
+		cleanup()
+		resetConf()
+	}
+
+	clusterService := cluster.NewClusterService(time.Hour, authService)
 	err = clusterService.Start()
-	if err != nil {
-		return nil, nil, errs.Wrapf(err, "unable to initialize tenant controller")
-	}
-
-	tenantService := tenant.NewDBService(s.DB)
-
-	openshiftService := openshift.NewService(configuration.WithRoundTripper(r))
+	require.NoError(t, err)
+	return clusterService, authService, config, reset
+}
+func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
+	clusterService, authService, _, reset := prepareConfigClusterAndAuthService(s.T())
+	openshiftService := openshift.NewService()
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenantService, clusterService, authService, openshiftService)
-	return svc, ctrl, nil
+	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, openshiftService)
+	return svc, ctrl, reset
 }

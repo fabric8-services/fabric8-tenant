@@ -13,9 +13,11 @@ const TenantsUpdateTableName = "tenants_update"
 type Status string
 
 const (
-	Finished Status = "finished"
-	Updating Status = "updating"
-	Failed   Status = "failed"
+	Finished   Status = "finished"
+	Updating   Status = "updating"
+	Failed     Status = "failed"
+	Killed     Status = "killed"
+	Incomplete Status = "incomplete"
 )
 
 // Value - Implementation of valuer for database/sql
@@ -41,6 +43,10 @@ func (s *Status) Scan(value interface{}) error {
 	return errors.New("failed to scan status")
 }
 
+func (s Status) String() string {
+	return string(s)
+}
+
 type TenantsUpdate struct {
 	LastVersionFabric8TenantUserFile          string
 	LastVersionFabric8TenantCheMtFile         string
@@ -51,6 +57,7 @@ type TenantsUpdate struct {
 	Status                                    Status
 	FailedCount                               int
 	LastTimeUpdated                           time.Time
+	CanContinue                               bool
 }
 
 type Repository interface {
@@ -60,6 +67,8 @@ type Repository interface {
 	UpdateLastTimeUpdated() error
 	PrepareForUpdating() error
 	IncrementFailedCount() error
+	CanContinue() (bool, error)
+	Stop() error
 }
 
 type GormRepository struct {
@@ -109,7 +118,8 @@ func (r *GormRepository) PrepareForUpdating() error {
 	err := r.tx.Table(TenantsUpdateTableName).
 		UpdateColumn("status", Updating).
 		UpdateColumn("failed_count", 0).
-		UpdateColumn("last_time_updated", time.Now()).Error
+		UpdateColumn("last_time_updated", time.Now()).
+		UpdateColumn("can_continue", true).Error
 	if err != nil {
 		return errors.Wrapf(err, "failed to update status in %s table", TenantsUpdateTableName)
 	}
@@ -120,6 +130,23 @@ func (r *GormRepository) UpdateLastTimeUpdated() error {
 	err := r.tx.Table(TenantsUpdateTableName).UpdateColumn("last_time_updated", time.Now()).Error
 	if err != nil {
 		return errors.Wrapf(err, "failed to set last_time_updated to NOW() in %s table", TenantsUpdateTableName)
+	}
+	return nil
+}
+
+func (r *GormRepository) CanContinue() (bool, error) {
+	var tenantsUpdate TenantsUpdate
+	err := r.tx.Table(TenantsUpdateTableName).Select("can_continue").Find(&tenantsUpdate).Error
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get can_continue column of TenantsUpdate entity from the table %s", TenantsUpdateTableName)
+	}
+	return tenantsUpdate.CanContinue, nil
+}
+
+func (r *GormRepository) Stop() error {
+	err := r.tx.Table(TenantsUpdateTableName).UpdateColumn("can_continue", false).Error
+	if err != nil {
+		return errors.Wrapf(err, "failed to set can_continue to false in %s table", TenantsUpdateTableName)
 	}
 	return nil
 }
