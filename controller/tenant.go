@@ -21,6 +21,7 @@ import (
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	errs "github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -177,21 +178,60 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, fmt.Errorf("unable to update tenant configuration: %v", err)))
 	}
 
-	go UpdateTenantWithErrorHandling(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
+	err = UpdateTenant(&TenantUpdater{}, ctx, c.tenantService, openshiftConfig, tenant, env.DefaultEnvTypes...)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":       err,
+			"os_user":   tenant.OSUsername,
+			"tenant_id": tenant.ID,
+		}, "unable update tenant")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable update tenant")))
+	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 
-func UpdateTenantWithErrorHandling(updateExecutor openshift.UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) {
-	err := openshift.UpdateTenant(updateExecutor, ctx, tenantService, openshiftConfig, t, envTypes...)
+func UpdateTenant(updateExecutor UpdateExecutor, ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes ...env.Type) error {
+	versionMapping, err := updateExecutor.Update(ctx, tenantService, openshiftConfig, t, envTypes)
 	if err != nil {
-		sentry.LogError(ctx, map[string]interface{}{
-			"os_user":             t.OSUsername,
-			"tenant_id":           t.ID,
-			"env_types_to_update": envTypes,
-		}, err, "unable update tenant")
+		er := updateNamespaceEntities(tenantService, t, versionMapping, true)
+		if er != nil {
+			return fmt.Errorf("there occured two errors when doing update: \n1.[%s]\n2.[%s]", err, er)
+		}
+		return err
 	}
+
+	return updateNamespaceEntities(tenantService, t, versionMapping, false)
+}
+
+func updateNamespaceEntities(tenantService tenant.Service, t *tenant.Tenant, versionMapping map[env.Type]string, failed bool) error {
+	namespaces, err := tenantService.GetNamespaces(t.ID)
+	if err != nil {
+		return errs.Wrapf(err, "unable to get tenant namespaces")
+	}
+	var found bool
+	var nsVersion string
+	for _, ns := range namespaces {
+		if nsVersion, found = versionMapping[ns.Type]; found {
+			if failed {
+				ns.State = tenant.Failed
+			} else {
+				ns.State = tenant.Ready
+				ns.Version = nsVersion
+			}
+			ns.UpdatedBy = configuration.Commit
+			err := tenantService.SaveNamespace(ns)
+			if err != nil {
+				return errs.Wrapf(err, "unable to save tenant namespace %+v", ns)
+			}
+		}
+	}
+	return nil
+}
+
+type UpdateExecutor interface {
+	Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant, envTypes []env.Type) (map[env.Type]string, error)
 }
 
 type TenantUpdater struct {

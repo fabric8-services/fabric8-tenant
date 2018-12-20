@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
+	"github.com/pkg/errors"
 )
 
 // CleanTenant clean or remove
@@ -23,6 +24,7 @@ func CleanTenant(ctx context.Context, config Config, osUsername, nsBaseName stri
 	}
 	masterOpts := ApplyOptions{Config: config}
 	var wg sync.WaitGroup
+	errorChan := make(chan error, len(mapped))
 	wg.Add(len(mapped))
 	for key, val := range mapped {
 		go func(namespace string, objects []map[interface{}]interface{}, opts ApplyOptions, remove bool) {
@@ -41,6 +43,7 @@ func CleanTenant(ctx context.Context, config Config, osUsername, nsBaseName stri
 					"cluster_url": opts.MasterURL,
 					"namespace":   namespace,
 				}, err, "clean failed")
+				errorChan <- errors.Wrap(err, output)
 				return
 			}
 			log.Info(ctx, map[string]interface{}{
@@ -51,6 +54,16 @@ func CleanTenant(ctx context.Context, config Config, osUsername, nsBaseName stri
 		}(key, val, masterOpts, remove)
 	}
 	wg.Wait()
+	var errs []error
+	close(errorChan)
+	for er := range errorChan {
+		if er != nil {
+			errs = append(errs, er)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("cleanup of namespaces failed with one or more errors %s", errs)
+	}
 	return nil
 }
 
