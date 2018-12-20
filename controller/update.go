@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	commonauth "github.com/fabric8-services/fabric8-common/auth"
 	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-common/errors"
@@ -50,6 +51,22 @@ func (c *UpdateController) Start(ctx *app.StartUpdateContext) error {
 		envTypesFilter = update.OneType(envType)
 	} else {
 		envTypesFilter = update.AllTypes
+	}
+
+	tenantsUpdate, err := update.NewRepository(c.db).GetTenantsUpdate()
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "retrieval of TenantsUpdate entity failed")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+	if tenantsUpdate.Status == update.Updating && !update.IsOlderThanTimeout(tenantsUpdate.LastTimeUpdated, c.config) {
+		msg := fmt.Sprintf("There is an ongoing update with the last updated timestamp %s. "+
+			"To be sure that the update was interupted and a new one can be started, you have to wait %s since that time.",
+			tenantsUpdate.LastTimeUpdated, c.config.GetAutomatedUpdateRetrySleep())
+		ctx.Conflict(&app.ConflictMsgSingle{
+			Data: &app.ConflictMsg{
+				ConflictMsg: &msg}})
 	}
 
 	go update.NewTenantsUpdater(c.db, c.config, c.clusterService, c.updateExecutor, envTypesFilter, value(ctx.ClusterURL)).UpdateAllTenants()
