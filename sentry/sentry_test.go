@@ -98,10 +98,23 @@ func TestExtractUserInfo(t *testing.T) {
 
 	t.Run("context without token", func(t *testing.T) {
 		// when
-		_, err := extractUserInfo()(context.Background())
+		user, err := extractUserInfo()(context.Background())
 
 		// then
-		require.Error(t, err)
-		assert.Equal(t, err.Error(), "no token found in context")
+		assert.NoError(t, err)
+		assert.Equal(t, uuid.UUID{}.String(), user.ID)
+		assert.Equal(t, "unknown/update", user.Username)
+		assert.Equal(t, "unknown/update", user.Email)
+	})
+
+	t.Run("context is nil", func(t *testing.T) {
+		// when
+		user, err := extractUserInfo()(nil)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, uuid.UUID{}.String(), user.ID)
+		assert.Equal(t, "unknown/update", user.Username)
+		assert.Equal(t, "unknown/update", user.Email)
 	})
 }
