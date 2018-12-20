@@ -2,7 +2,6 @@ package sentry
 
 import (
 	"context"
-	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-common/sentry"
 	"github.com/fabric8-services/fabric8-tenant/auth"
@@ -10,6 +9,7 @@ import (
 	"github.com/getsentry/raven-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 )
 
 // InitializeLogger initializes sentry client
@@ -26,9 +26,12 @@ func InitializeLogger(config *configuration.Data, commit string) (func(), error)
 
 func extractUserInfo() func(ctx context.Context) (*raven.User, error) {
 	return func(ctx context.Context) (*raven.User, error) {
+		if ctx == nil {
+			return unknownUser, nil
+		}
 		userToken := goajwt.ContextJWT(ctx)
 		if userToken == nil {
-			return nil, fmt.Errorf("no token found in context")
+			return unknownUser, nil
 		}
 		ttoken := &auth.TenantToken{Token: userToken}
 		return &raven.User{
@@ -37,6 +40,12 @@ func extractUserInfo() func(ctx context.Context) (*raven.User, error) {
 			ID:       ttoken.Subject().String(),
 		}, nil
 	}
+}
+
+var unknownUser = &raven.User{
+	Username: "unknown/update",
+	Email:    "unknown/update",
+	ID:       uuid.UUID{}.String(),
 }
 
 // LogError logs the given error and reports it to sentry
