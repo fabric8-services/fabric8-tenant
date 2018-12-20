@@ -30,6 +30,15 @@ var updateInfo = JSONSingle(
 	updateData,
 	nil)
 
+var conflictMsg = a.Type("ConflictMsg", func() {
+	a.Attribute("conflict-msg", d.String, "Conflict message")
+})
+
+var conflictInfo = JSONSingle(
+	"ConflictMsg", "Contains info about conflict circumstances",
+	conflictMsg,
+	nil)
+
 var _ = a.Resource("update", func() {
 	a.BasePath("/api/update")
 	a.Action("start", func() {
@@ -46,6 +55,7 @@ var _ = a.Resource("update", func() {
 
 		a.Description("Start new cluster-wide update.")
 		a.Response(d.Accepted)
+		a.Response(d.Conflict, conflictInfo)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
