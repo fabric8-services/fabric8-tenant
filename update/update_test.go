@@ -43,7 +43,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.NumberOfCalls = 0
-			fxt := tf.FillDB(t, s.DB, 19, false, tf.With().State(tenant.Ready), environment.DefaultEnvTypes...)
+			fxt := tf.FillDB(t, s.DB, tf.AddTenants(19), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 			configuration.Commit = "124abcd"
 			before := time.Now()
 
@@ -110,7 +110,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 
 		s.T().Run(fmt.Sprintf("running automated update process should pass (without updating anything) when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.NumberOfCalls = 0
-			fxt := tf.FillDB(t, s.DB, 5, true, tf.With().State(tenant.Ready), environment.DefaultEnvTypes...)
+			fxt := tf.FillDB(t, s.DB, tf.AddTenants(5), true, tf.AddDefaultNamespaces().State(tenant.Ready))
 			after := time.Now()
 
 			s.tx(t, func(repo update.Repository) error {
@@ -151,7 +151,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
-	fxt := tf.FillDB(s.T(), s.DB, 1, false, tf.With().State(tenant.Ready), environment.DefaultEnvTypes...)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
@@ -186,10 +186,10 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificCluster() {
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
-	fxt1 := tf.FillDB(s.T(), s.DB, 2, false,
-		tf.With().State(tenant.Ready).MasterURL("http://api.cluster1"), environment.DefaultEnvTypes...)
-	fxt2 := tf.FillDB(s.T(), s.DB, 3, false,
-		tf.With().State(tenant.Ready).MasterURL("http://api.cluster2"), environment.DefaultEnvTypes...)
+	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(2), false,
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
+	fxt2 := tf.FillDB(s.T(), s.DB, tf.AddTenants(3), false,
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
@@ -234,7 +234,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
-	fxt1 := tf.FillDB(s.T(), s.DB, 5, false, tf.With().State(tenant.Ready), environment.DefaultEnvTypes...)
+	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(5), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
@@ -342,7 +342,7 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(numberOfTnnts, count in
 	defer gock.Off()
 	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
 	testdoubles.SetTemplateVersions()
-	tf.FillDB(s.T(), s.DB, numberOfTnnts, false, tf.With().State(tenant.Ready), environment.DefaultEnvTypes...)
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(numberOfTnnts), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
