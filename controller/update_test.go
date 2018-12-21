@@ -18,6 +18,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
 	"testing"
@@ -36,7 +37,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 	// given
 	defer gock.Off()
 	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
-	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(), 0)
+	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(), 9*time.Minute)
 	defer reset()
 
 	s.T().Run("Unauhorized - no token", func(t *testing.T) {
@@ -68,6 +69,18 @@ func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 		}()
 		// when
 		goatest.StartUpdateBadRequest(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, nil, ptr.String("wrong"))
+	})
+
+	s.T().Run("Conflict", func(t *testing.T) {
+		// expect
+		testupdate.Tx(t, s.DB, func(repo update.Repository) error {
+			return repo.PrepareForUpdating()
+		})
+		// when
+		_, msg := goatest.StartUpdateConflict(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, nil, nil)
+		require.NotNil(t, msg)
+		assert.Contains(t, *msg.Data.ConflictMsg, "There is an ongoing update with the last updated timestamp")
+		assert.Contains(t, *msg.Data.ConflictMsg, "9m")
 	})
 }
 

@@ -40,6 +40,15 @@ func TestInitializeSentryLoggerAndSendRecord(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("use directly sentry method to send a record with nil context", func(t *testing.T) {
+		// when
+		haltSentry, err := InitializeLogger(config, "123abc")
+		defer haltSentry()
+		sentry.Sentry().CaptureError(nil, testError)
+		// then
+		require.NoError(t, err)
+	})
+
 	t.Run("use log error wrapper to send a record", func(t *testing.T) {
 		// given
 		fields := map[string]interface{}{

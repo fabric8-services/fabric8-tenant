@@ -114,12 +114,12 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 			return prepareAndAssignStart(repo, environment.DefaultEnvTypes)
 
 		} else if tenantUpdate.Status == Updating {
-			log.Info(nil, map[string]interface{}{
-				"automated_update_retry_sleep": u.config.GetAutomatedUpdateRetrySleep().String(),
-			}, "there seems to be an ongoing update - going to wait for if the update still continues")
-			if u.isOlderThanTimeout(tenantUpdate.LastTimeUpdated) {
+			if IsOlderThanTimeout(tenantUpdate.LastTimeUpdated, u.config) {
 				return prepareAndAssignStart(repo, environment.DefaultEnvTypes)
 			} else {
+				log.Info(nil, map[string]interface{}{
+					"automated_update_retry_sleep": u.config.GetAutomatedUpdateRetrySleep().String(),
+				}, "there seems to be an ongoing update - going to wait for if the update still continues")
 				followUp = u.waitAndRecheck
 			}
 		}
@@ -165,7 +165,7 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 		if err != nil {
 			return err
 		}
-		if u.isOlderThanTimeout(tenantUpdate.LastTimeUpdated) {
+		if IsOlderThanTimeout(tenantUpdate.LastTimeUpdated, u.config) {
 			log.Info(nil, map[string]interface{}{}, "last update was interrupted - restarting a new one")
 			err := repo.PrepareForUpdating()
 			if err != nil {
@@ -187,8 +187,8 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 	return followUp()
 }
 
-func (u *TenantsUpdater) isOlderThanTimeout(when time.Time) bool {
-	return when.Before(time.Now().Add(-u.config.GetAutomatedUpdateRetrySleep()))
+func IsOlderThanTimeout(when time.Time, config *configuration.Data) bool {
+	return when.Before(time.Now().Add(-config.GetAutomatedUpdateRetrySleep()))
 }
 
 func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) followUpFunc {
