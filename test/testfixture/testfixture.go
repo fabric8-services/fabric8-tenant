@@ -214,7 +214,7 @@ func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDat
 
 type TenantModifier func(tnnt *tenant.Tenant)
 
-func WithTenants(numberOfTenants int) []TenantModifier {
+func AddTenants(numberOfTenants int) []TenantModifier {
 	var tenantModifiers []TenantModifier
 	for i := 0; i < numberOfTenants; i++ {
 		tenantModifiers = append(tenantModifiers, func(tnnt *tenant.Tenant) {})
@@ -222,7 +222,7 @@ func WithTenants(numberOfTenants int) []TenantModifier {
 	return tenantModifiers
 }
 
-func WithTenantsOfNames(names ...string) []TenantModifier {
+func AddTenantsNamed(names ...string) []TenantModifier {
 	var tenantModifiers []TenantModifier
 	for _, name := range names {
 		modifier := func(nameToSet string) func(tnnt *tenant.Tenant) {
@@ -238,7 +238,7 @@ func WithTenantsOfNames(names ...string) []TenantModifier {
 
 type NamespacesModifier func(*tenant.Namespace)
 
-func With() NamespacesModifier {
+func SetToNamespaces() NamespacesModifier {
 	return func(ns *tenant.Namespace) {
 	}
 }
