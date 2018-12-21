@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-tenant/app/test"
+	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	testsupport "github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
@@ -58,7 +58,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 		// given
 		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
 		// when
-		_, tenant := test.ShowTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Tenants[0].ID)
+		_, tenant := goatest.ShowTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Tenants[0].ID)
 		// then
 		assert.Equal(t, fxt.Tenants[0].ID, *tenant.Data.ID)
 		assert.Equal(t, 1, len(tenant.Data.Attributes.Namespaces))
@@ -68,22 +68,22 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
 			// when/then
-			test.ShowTenantsUnauthorized(t, context.Background(), svc, ctrl, uuid.NewV4())
+			goatest.ShowTenantsUnauthorized(t, context.Background(), svc, ctrl, uuid.NewV4())
 		})
 
 		t.Run("Unauhorized - no SA token", func(t *testing.T) {
 			// when/then
-			test.ShowTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, uuid.NewV4())
+			goatest.ShowTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, uuid.NewV4())
 		})
 
 		t.Run("Unauhorized - wrong SA token", func(t *testing.T) {
 			// when/then
-			test.ShowTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, uuid.NewV4())
+			goatest.ShowTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, uuid.NewV4())
 		})
 
 		t.Run("Not found", func(t *testing.T) {
 			// when/then
-			test.ShowTenantsNotFound(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, uuid.NewV4())
+			goatest.ShowTenantsNotFound(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, uuid.NewV4())
 		})
 	})
 }
@@ -100,7 +100,7 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 		// given
 		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
 		// when
-		_, tenant := test.SearchTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
+		_, tenant := goatest.SearchTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
 		// then
 		require.Len(t, tenant.Data, 1)
 		assert.Equal(t, fxt.Tenants[0].ID, *tenant.Data[0].ID)
@@ -110,19 +110,19 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 	s.T().Run("Failures", func(t *testing.T) {
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
-			test.SearchTenantsUnauthorized(t, context.Background(), svc, ctrl, "foo", "bar")
+			goatest.SearchTenantsUnauthorized(t, context.Background(), svc, ctrl, "foo", "bar")
 		})
 
 		t.Run("Unauhorized - no SA token", func(t *testing.T) {
-			test.SearchTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, "foo", "bar")
+			goatest.SearchTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, "foo", "bar")
 		})
 
 		t.Run("Unauhorized - wrong SA token", func(t *testing.T) {
-			test.SearchTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, "foo", "bar")
+			goatest.SearchTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, "foo", "bar")
 		})
 
 		t.Run("Not found", func(t *testing.T) {
-			test.SearchTenantsNotFound(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, "foo", "bar")
+			goatest.SearchTenantsNotFound(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, "foo", "bar")
 		})
 	})
 }
@@ -134,12 +134,12 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/foo").
-				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/foo-che").
-				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
@@ -148,17 +148,17 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 
 			t.Run("Unauhorized - no token", func(t *testing.T) {
 				// when/then
-				test.DeleteTenantsUnauthorized(t, context.Background(), svc, ctrl, uuid.NewV4())
+				goatest.DeleteTenantsUnauthorized(t, context.Background(), svc, ctrl, uuid.NewV4())
 			})
 
 			t.Run("Unauhorized - no SA token", func(t *testing.T) {
 				// when/then
-				test.DeleteTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, uuid.NewV4())
+				goatest.DeleteTenantsUnauthorized(t, createInvalidSAContext(), svc, ctrl, uuid.NewV4())
 			})
 
 			t.Run("Unauhorized - wrong SA token", func(t *testing.T) {
 				// when/then
-				test.DeleteTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, uuid.NewV4())
+				goatest.DeleteTenantsUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, uuid.NewV4())
 			})
 		})
 
@@ -170,12 +170,12 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/baz-che").
-				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/baz").
-				SetMatcher(testsupport.ExpectRequest(testsupport.HasJWTWithSub("devtools-sre"))).
+				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Internal Server Error"}`)
 
@@ -205,7 +205,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			}))
 
 			// when
-			test.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
+			goatest.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 			// then
 			_, err := repo.GetTenant(fxt.Tenants[0].ID)
 			require.NoError(t, err)
@@ -241,7 +241,7 @@ func createInvalidSAContext() context.Context {
 }
 
 func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
-	saToken, err := testsupport.NewToken(
+	saToken, err := test.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
 		},
@@ -249,10 +249,10 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 	)
 	require.NoError(t, err)
 
-	resetVars := testsupport.SetEnvironments(testsupport.Env("F8_AUTH_TOKEN_KEY", "foo"), testsupport.Env("F8_API_SERVER_USE_TLS", "false"))
+	resetVars := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"), test.Env("F8_API_SERVER_USE_TLS", "false"))
 	authService, _, cleanup :=
 		testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
-	config, resetConf := testsupport.LoadTestConfig(t)
+	config, resetConf := test.LoadTestConfig(t)
 	reset := func() {
 		resetVars()
 		cleanup()
