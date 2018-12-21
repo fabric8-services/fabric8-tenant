@@ -94,8 +94,8 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 	testdoubles.SetTemplateVersions()
 
 	s.T().Run("without parameter", func(t *testing.T) {
-		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.SetToNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"), environment.DefaultEnvTypes...)
-		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.SetToNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"), environment.DefaultEnvTypes...)
+		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
+		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
 		configuration.Commit = "124abcd"
 		before := time.Now()
 
@@ -135,8 +135,8 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 
 	s.T().Run("with parameters", func(t *testing.T) {
 		updateExecutor.NumberOfCalls = ptr.Uint64(0)
-		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.SetToNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"), environment.DefaultEnvTypes...)
-		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.SetToNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"), environment.DefaultEnvTypes...)
+		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
+		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
 		configuration.Commit = "xyz"
 		before := time.Now()
 
@@ -294,7 +294,7 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 	defer reset()
 	testdoubles.SetTemplateVersions()
 
-	tf.FillDB(s.T(), s.DB, tf.AddTenants(50), false, tf.SetToNamespaces().State(tenant.Ready), environment.DefaultEnvTypes...)
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(50), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 	configuration.Commit = "124abcd"
 
 	testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {

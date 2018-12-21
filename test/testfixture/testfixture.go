@@ -179,21 +179,21 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 	return &fxt, nil
 }
 
-func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDate bool, nssModifier NamespacesModifier, envTypes ...environment.Type) *TestFixture {
-	mappedVersions := testdoubles.GetMappedVersions(envTypes...)
+func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDate bool, nssSetter *NamespacesSetter) *TestFixture {
+	mappedVersions := testdoubles.GetMappedVersions(nssSetter.envTypes...)
 	var createNamespaces RecipeFunction = func(fxt *TestFixture) error {
 		return nil
 	}
-	numberOfNamespaces := len(tenantModifiers) * len(envTypes)
+	numberOfNamespaces := len(tenantModifiers) * len(nssSetter.envTypes)
 
 	if numberOfNamespaces > 0 {
 		createNamespaces = Namespaces(numberOfNamespaces, func(fxt *TestFixture, idx int) error {
-			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/len(envTypes))].ID
-			fxt.Namespaces[idx].Type = environment.Type(envTypes[idx%len(envTypes)])
+			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/len(nssSetter.envTypes))].ID
+			fxt.Namespaces[idx].Type = environment.Type(nssSetter.envTypes[idx%len(nssSetter.envTypes)])
 			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
 			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
-			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/len(envTypes))].NsBaseName
+			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/len(nssSetter.envTypes))].NsBaseName
 			if fxt.Namespaces[idx].Type != environment.TypeUser {
 				fxt.Namespaces[idx].Name += "-" + fxt.Namespaces[idx].Type.String()
 			}
@@ -202,7 +202,7 @@ func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDat
 			} else {
 				fxt.Namespaces[idx].Version = "0000"
 			}
-			nssModifier(fxt.Namespaces[idx])
+			nssSetter.modifier(fxt.Namespaces[idx])
 			return nil
 		})
 	}
@@ -237,22 +237,38 @@ func AddTenantsNamed(names ...string) []TenantModifier {
 }
 
 type NamespacesModifier func(*tenant.Namespace)
+type NamespacesSetter struct {
+	modifier func(*tenant.Namespace)
+	envTypes []environment.Type
+}
 
-func SetToNamespaces() NamespacesModifier {
-	return func(ns *tenant.Namespace) {
+func AddNamespaces(envTypes ...environment.Type) *NamespacesSetter {
+	return &NamespacesSetter{
+		modifier: func(ns *tenant.Namespace) {},
+		envTypes: envTypes,
 	}
 }
 
-func (m NamespacesModifier) State(state tenant.NamespaceState) NamespacesModifier {
-	return func(ns *tenant.Namespace) {
-		m(ns)
-		ns.State = state
-	}
+func AddDefaultNamespaces() *NamespacesSetter {
+	return AddNamespaces(environment.DefaultEnvTypes...)
 }
 
-func (m NamespacesModifier) MasterURL(masterURL string) NamespacesModifier {
-	return func(ns *tenant.Namespace) {
-		m(ns)
-		ns.MasterURL = masterURL
-	}
+func (m *NamespacesSetter) State(state tenant.NamespaceState) *NamespacesSetter {
+	m.modifier = func(originalModifier NamespacesModifier) NamespacesModifier {
+		return func(ns *tenant.Namespace) {
+			originalModifier(ns)
+			ns.State = state
+		}
+	}(m.modifier)
+	return m
+}
+
+func (m *NamespacesSetter) MasterURL(masterURL string) *NamespacesSetter {
+	m.modifier = func(originalModifier NamespacesModifier) NamespacesModifier {
+		return func(ns *tenant.Namespace) {
+			originalModifier(ns)
+			ns.MasterURL = masterURL
+		}
+	}(m.modifier)
+	return m
 }
