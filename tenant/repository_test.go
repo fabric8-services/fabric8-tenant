@@ -322,7 +322,7 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatMatchesRequiredCluste
 	})
 }
 
-func (s *TenantServiceTestSuite) TestDelete() {
+func (s *TenantServiceTestSuite) TestDeleteNamespaces() {
 	s.T().Run("all info", func(t *testing.T) {
 		// given
 		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(2), tf.Namespaces(10, func(fxt *tf.TestFixture, idx int) error {
@@ -337,15 +337,52 @@ func (s *TenantServiceTestSuite) TestDelete() {
 		tenant1 := fxt.Tenants[0]
 		tenant2 := fxt.Tenants[1]
 		// when
-		svc.DeleteAll(tenant1.ID)
+		svc.DeleteNamespaces(tenant1.ID)
 		// then
 		// should be deleted
-		ten1, _ := svc.GetTenant(tenant1.ID)
-		require.Nil(t, ten1)
-		ns1, _ := svc.GetNamespaces(tenant1.ID)
+		ns1, err := svc.GetNamespaces(tenant1.ID)
+		require.NoError(t, err)
 		require.Len(t, ns1, 0)
 
 		// should not be deleted
+		ten1, err := svc.GetTenant(tenant1.ID)
+		require.NoError(t, err)
+		require.NotNil(t, ten1)
+		ten2, err := svc.GetTenant(tenant2.ID)
+		require.NotNil(t, ten2)
+		require.NoError(t, err)
+		ns2, err := svc.GetNamespaces(tenant2.ID)
+		require.NoError(t, err)
+		require.Len(t, ns2, 5)
+	})
+}
+
+func (s *TenantServiceTestSuite) TestDeleteTenant() {
+	s.T().Run("all info", func(t *testing.T) {
+		// given
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(2), tf.Namespaces(10, func(fxt *tf.TestFixture, idx int) error {
+			if idx < 5 {
+				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
+			} else {
+				fxt.Namespaces[idx].TenantID = fxt.Tenants[1].ID
+			}
+			return nil
+		}))
+		svc := tenant.NewDBService(s.DB)
+		tenant1 := fxt.Tenants[0]
+		tenant2 := fxt.Tenants[1]
+		// when
+		svc.DeleteTenant(tenant1.ID)
+		// then
+		// should be deleted
+		ten1, err := svc.GetTenant(tenant1.ID)
+		test.AssertError(t, err)
+		require.Nil(t, ten1)
+
+		// should not be deleted
+		ns1, err := svc.GetNamespaces(tenant1.ID)
+		require.NoError(t, err)
+		require.Len(t, ns1, 5)
 		ten2, err := svc.GetTenant(tenant2.ID)
 		require.NotNil(t, ten2)
 		require.NoError(t, err)

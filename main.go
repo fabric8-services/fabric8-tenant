@@ -16,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/migration"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
@@ -104,8 +103,6 @@ func main() {
 	}
 	defer clusterService.Stop()
 
-	openshiftService := openshift.NewService()
-
 	haltSentry, err := sentry.InitializeLogger(config, configuration.Commit)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -132,7 +129,7 @@ func main() {
 	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, config)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, openshiftService)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	// Mount "update" controller

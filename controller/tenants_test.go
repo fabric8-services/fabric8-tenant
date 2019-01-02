@@ -11,13 +11,13 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
-	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
+	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
@@ -56,7 +56,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
 		_, tenant := goatest.ShowTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Tenants[0].ID)
 		// then
@@ -98,7 +98,7 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
 		_, tenant := goatest.SearchTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
 		// then
@@ -181,28 +181,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 
 			svc, ctrl, reset := s.newTestTenantsController()
 			defer reset()
-			fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
-				id, err := uuid.FromString("5a95c51b-120a-4d03-b529-98bd7d4a5689") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
-				if err != nil {
-					return err
-				}
-				fxt.Tenants[0].ID = id
-				fxt.Tenants[0].OSUsername = "baz"
-				fxt.Tenants[0].NsBaseName = "baz"
-				return nil
-			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
-				if idx == 0 {
-					fxt.Namespaces[idx].Name = "baz"
-					fxt.Namespaces[idx].Type = "user"
-				} else if idx == 1 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-					fxt.Namespaces[idx].Name = "baz-che"
-					fxt.Namespaces[idx].Type = "che"
-				}
-				return nil
-			}))
+			fxt := tf.FillDB(t, s.DB, tf.AddTenantsNamed("baz"), true, tf.AddNamespaces(environment.TypeUser, environment.TypeChe).State(tenant.Ready))
 
 			// when
 			goatest.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
@@ -266,8 +245,7 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 }
 func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
 	clusterService, authService, _, reset := prepareConfigClusterAndAuthService(s.T())
-	openshiftService := openshift.NewService()
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, openshiftService)
+	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService)
 	return svc, ctrl, reset
 }
