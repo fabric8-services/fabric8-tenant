@@ -308,7 +308,7 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 	goatest.StartUpdateAccepted(s.T(), createValidSAContext("fabric8-tenant-update"), svc, ctrl, nil, nil)
 
 	// then
-	test.WaitWithTimeout(5 * time.Second).Until(func() error {
+	err := test.WaitWithTimeout(5 * time.Second).Until(func() error {
 		var tenantsUpdate *update.TenantsUpdate
 		testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
 			var err error
@@ -320,12 +320,13 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 		}
 		return nil
 	})
+	require.NoError(s.T(), err)
 	testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
 		return repo.Stop()
 	})
 
 	var tenantsUpdate *update.TenantsUpdate
-	err := test.WaitWithTimeout(10 * time.Second).Until(func() error {
+	err = test.WaitWithTimeout(10 * time.Second).Until(func() error {
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			var err error
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()

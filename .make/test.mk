@@ -117,7 +117,7 @@ ALL_PKGS_EXCLUDE_PATTERN = 'vendor\|app\|tool\/cli\|design\|client\|test'
 GOANALYSIS_PKGS_EXCLUDE_PATTERN="vendor|app|client|tool/cli"
 GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS_EXCLUDE_PATTERN))
 
-TEST_FLAGS?=-v -p 1 -vet off
+TEST_FLAGS ?= -v -p 1 -vet off
 
 MINISHIFT_URL ?= https://$(shell minishift ip):8443
 MINISHIFT_USER_NAME ?= tenant.minishift.test.$(shell date +'%H.%M.%S')
