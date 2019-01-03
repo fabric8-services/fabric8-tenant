@@ -198,11 +198,9 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 
 		typesWithVersion := map[environment.Type]string{}
 
-		var filteredEnvTypes []environment.Type
 		for _, envType := range envTypes {
 			if u.filterEnvType.IsOk(envType) {
 				typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
-				filteredEnvTypes = append(filteredEnvTypes, envType)
 			}
 		}
 
@@ -218,7 +216,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 				"number_of_tenants_to_update": len(toUpdate),
 			}, "starting update for next batch of outdated/failed tenants")
 
-			canContinue, err := u.updateTenants(toUpdate, tenantRepo, filteredEnvTypes)
+			canContinue, err := u.updateTenants(toUpdate, tenantRepo, typesWithVersion)
 			if err != nil {
 				return err
 			}
@@ -267,7 +265,7 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
-func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type) (bool, error) {
+func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) (bool, error) {
 	numberOfTriggeredUpdates := 0
 	var wg sync.WaitGroup
 	canContinue := true
@@ -286,7 +284,7 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 
 		wg.Add(1)
 
-		go updateTenant(&wg, tnnt, tenantRepo, envTypes, *u)
+		go updateTenant(&wg, tnnt, tenantRepo, typesWithVersion, *u)
 
 		numberOfTriggeredUpdates++
 		if numberOfTriggeredUpdates == 10 {
@@ -298,7 +296,7 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 	return canContinue, err
 }
 
-func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type, updater TenantsUpdater) {
+func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string, updater TenantsUpdater) {
 	defer wg.Done()
 
 	namespaces, err := tenantRepo.GetNamespaces(tnnt.ID)
@@ -310,10 +308,10 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 		return
 	}
 
-	for _, envType := range envTypes {
+	for envType, version := range typesWithVersion {
 		var namespace *tenant.Namespace
 		for _, ns := range namespaces {
-			if ns.Type == envType {
+			if ns.Type == envType && (ns.Version != version || ns.State == tenant.Failed) {
 				namespace = ns
 				break
 			}
@@ -341,7 +339,7 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 		}, "starting update of tenant for outdated namespace")
 
 		osConfig := openshift.NewConfig(updater.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
-		err = openshift.UpdateTenant(updater.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envTypes...)
+		err = openshift.UpdateTenant(updater.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envType)
 		if err != nil {
 			err = Transaction(updater.db, lock(func(repo Repository) error {
 				return repo.IncrementFailedCount()

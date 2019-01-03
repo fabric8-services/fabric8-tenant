@@ -43,7 +43,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.NumberOfCalls = 0
-			fxt := tf.FillDB(t, s.DB, tf.AddTenants(19), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+			fxt := tf.FillDB(t, s.DB, tf.AddTenants(19), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 			configuration.Commit = "124abcd"
 			before := time.Now()
 
@@ -58,7 +58,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 			tenantsUpdater.UpdateAllTenants()
 
 			// then
-			assert.Equal(t, uint64(95), *updateExecutor.NumberOfCalls)
+			assert.Equal(t, 95, int(*updateExecutor.NumberOfCalls))
 			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
 				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
@@ -68,6 +68,58 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 					assert.Equal(t, "124abcd", ns.UpdatedBy)
 					assert.Equal(t, tenant.Ready, ns.State)
 					assert.True(t, before.Before(ns.UpdatedAt))
+				}
+			}
+		})
+	}
+}
+
+func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses() {
+	// given
+	defer gock.Off()
+	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	updateExecutor := testupdate.NewDummyUpdateExecutor()
+	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.AllTypes, "")
+	defer reset()
+	testdoubles.SetTemplateVersions()
+
+	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
+		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
+			configuration.Commit = "xyz"
+			*updateExecutor.NumberOfCalls = 0
+			fxt := tf.FillDB(t, s.DB, tf.AddTenants(5),
+				tf.AddNamespaces(environment.TypeChe).State(tenant.Ready).Outdated(),
+				tf.AddNamespaces(environment.TypeJenkins).State(tenant.Failed),
+				tf.AddNamespaces(environment.TypeRun, environment.TypeUser, environment.TypeStage).State(tenant.Ready))
+			configuration.Commit = "124abcd"
+			before := time.Now()
+
+			s.tx(t, func(repo update.Repository) error {
+				return repo.UpdateStatus(update.Status(status))
+			})
+			s.tx(t, func(repo update.Repository) error {
+				return testupdate.UpdateVersionsTo(repo, "0xy")
+			})
+
+			// when
+			tenantsUpdater.UpdateAllTenants()
+
+			// then
+			assert.Equal(t, 10, int(*updateExecutor.NumberOfCalls))
+			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
+			for _, tnnt := range fxt.Tenants {
+				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+				assert.NoError(t, err)
+				for _, ns := range namespaces {
+					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
+					assert.Equal(t, tenant.Ready, ns.State)
+					if ns.Type == environment.TypeChe || ns.Type == environment.TypeJenkins {
+						assert.Equal(t, "124abcd", ns.UpdatedBy)
+						assert.True(t, before.Before(ns.UpdatedAt))
+					} else {
+						assert.Equal(t, "xyz", ns.UpdatedBy)
+						assert.True(t, before.After(ns.UpdatedAt))
+					}
 				}
 			}
 		})
@@ -110,7 +162,7 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 
 		s.T().Run(fmt.Sprintf("running automated update process should pass (without updating anything) when status %s is set", status), func(t *testing.T) {
 			*updateExecutor.NumberOfCalls = 0
-			fxt := tf.FillDB(t, s.DB, tf.AddTenants(5), true, tf.AddDefaultNamespaces().State(tenant.Ready))
+			fxt := tf.FillDB(t, s.DB, tf.AddTenants(5), tf.AddDefaultNamespaces().State(tenant.Ready))
 			after := time.Now()
 
 			s.tx(t, func(repo update.Repository) error {
@@ -151,7 +203,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
@@ -186,10 +238,10 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificCluster() {
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
-	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(2), false,
-		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
-	fxt2 := tf.FillDB(s.T(), s.DB, tf.AddTenants(3), false,
-		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
+	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(2),
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
+	fxt2 := tf.FillDB(s.T(), s.DB, tf.AddTenants(3),
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
@@ -234,7 +286,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
-	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(5), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})
@@ -342,7 +394,7 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(numberOfTnnts, count in
 	defer gock.Off()
 	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
 	testdoubles.SetTemplateVersions()
-	tf.FillDB(s.T(), s.DB, tf.AddTenants(numberOfTnnts), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(numberOfTnnts), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 	s.tx(s.T(), func(repo update.Repository) error {
 		return testupdate.UpdateVersionsTo(repo, "0")
 	})

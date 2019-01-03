@@ -68,7 +68,7 @@ func (s *InitTenantTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenFail
 		gock.OffAll()
 		reset()
 	}()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenantsNamed("johndoe"), true, tf.AddDefaultNamespaces().State(tenant.Provisioning))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenantsNamed("johndoe"), tf.AddDefaultNamespaces().State(tenant.Provisioning))
 	johndoeCalls := 0
 	projectRequestCalls := 0
 	deleteCalls := 0
@@ -131,7 +131,7 @@ func (s *InitTenantTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenFail
 		gock.OffAll()
 		reset()
 	}()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenantsNamed("johndoe", "johndoe2"), true, tf.AddDefaultNamespaces().State(tenant.Provisioning))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenantsNamed("johndoe", "johndoe2"), tf.AddDefaultNamespaces().State(tenant.Provisioning))
 
 	gock.New("http://api.cluster1").
 		Post("/api/v1/namespaces/johndoe-jenkins/persistentvolumeclaims").

@@ -179,30 +179,39 @@ func newFixture(db *gorm.DB, isolatedCreation bool, recipeFuncs ...RecipeFunctio
 	return &fxt, nil
 }
 
-func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, upToDate bool, nssSetter *NamespacesSetter) *TestFixture {
-	mappedVersions := testdoubles.GetMappedVersions(nssSetter.envTypes...)
+func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, mandatoryNssSetter *NamespacesSetter, otherNssSetters ...*NamespacesSetter) *TestFixture {
+
+	allNsSetters := append(otherNssSetters, mandatoryNssSetter)
+	nsModifiers := map[environment.Type]NamespacesModifier{}
+	var allEnvTypes []environment.Type
+	for _, setter := range allNsSetters {
+		for _, envType := range setter.envTypes {
+			nsModifiers[envType] = setter.modifier
+			allEnvTypes = append(allEnvTypes, envType)
+		}
+	}
+
+	mappedVersions := testdoubles.GetMappedVersions(allEnvTypes...)
 	var createNamespaces RecipeFunction = func(fxt *TestFixture) error {
 		return nil
 	}
-	numberOfNamespaces := len(tenantModifiers) * len(nssSetter.envTypes)
+	numberOfEnvTypes := len(allEnvTypes)
+	numberOfNamespaces := len(tenantModifiers) * numberOfEnvTypes
 
 	if numberOfNamespaces > 0 {
 		createNamespaces = Namespaces(numberOfNamespaces, func(fxt *TestFixture, idx int) error {
-			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/len(nssSetter.envTypes))].ID
-			fxt.Namespaces[idx].Type = environment.Type(nssSetter.envTypes[idx%len(nssSetter.envTypes)])
+			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/numberOfEnvTypes)].ID
+			fxt.Namespaces[idx].Type = environment.Type(allEnvTypes[idx%numberOfEnvTypes])
 			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
 			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
-			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/len(nssSetter.envTypes))].NsBaseName
+			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/numberOfEnvTypes)].NsBaseName
 			if fxt.Namespaces[idx].Type != environment.TypeUser {
 				fxt.Namespaces[idx].Name += "-" + fxt.Namespaces[idx].Type.String()
 			}
-			if upToDate {
-				fxt.Namespaces[idx].Version = mappedVersions[fxt.Namespaces[idx].Type]
-			} else {
-				fxt.Namespaces[idx].Version = "0000"
-			}
-			nssSetter.modifier(fxt.Namespaces[idx])
+			fxt.Namespaces[idx].Version = mappedVersions[fxt.Namespaces[idx].Type]
+
+			nsModifiers[fxt.Namespaces[idx].Type](fxt.Namespaces[idx])
 			return nil
 		})
 	}
@@ -238,7 +247,7 @@ func AddTenantsNamed(names ...string) []TenantModifier {
 
 type NamespacesModifier func(*tenant.Namespace)
 type NamespacesSetter struct {
-	modifier func(*tenant.Namespace)
+	modifier NamespacesModifier
 	envTypes []environment.Type
 }
 
@@ -258,6 +267,16 @@ func (m *NamespacesSetter) State(state tenant.NamespaceState) *NamespacesSetter 
 		return func(ns *tenant.Namespace) {
 			originalModifier(ns)
 			ns.State = state
+		}
+	}(m.modifier)
+	return m
+}
+
+func (m *NamespacesSetter) Outdated() *NamespacesSetter {
+	m.modifier = func(originalModifier NamespacesModifier) NamespacesModifier {
+		return func(ns *tenant.Namespace) {
+			originalModifier(ns)
+			ns.Version = "0000"
 		}
 	}(m.modifier)
 	return m
