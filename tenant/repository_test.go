@@ -149,7 +149,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 		// given
 		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
-		tf.FillDB(t, s.DB, tf.AddTenants(3), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+		tf.FillDB(t, s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 		svc := tenant.NewDBService(s.DB)
 
 		// when
@@ -164,7 +164,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 		// given
 		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
-		tf.FillDB(t, s.DB, tf.AddTenants(10), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+		tf.FillDB(t, s.DB, tf.AddTenants(10), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 		svc := tenant.NewDBService(s.DB)
 
 		// when
@@ -181,7 +181,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		// given
 		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
-		fxt := tf.FillDB(t, s.DB, tf.AddTenants(11), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+		fxt := tf.FillDB(t, s.DB, tf.AddTenants(11), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 		svc := tenant.NewDBService(s.DB)
 		mappedVersions := testdoubles.GetMappedVersions(environment.DefaultEnvTypes...)
 
@@ -264,9 +264,9 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfFailedTenantsToUpdate() {
 		// given
 		testdoubles.SetTemplateVersions()
 		configuration.Commit = "123abc"
-		previouslyFailed := tf.FillDB(t, s.DB, tf.AddTenants(1), false, tf.AddDefaultNamespaces().State(tenant.Failed))
+		previouslyFailed := tf.FillDB(t, s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().State(tenant.Failed).Outdated())
 		configuration.Commit = "234bcd"
-		tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Failed))
+		tf.FillDB(t, s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Failed).Outdated())
 
 		svc := tenant.NewDBService(s.DB)
 
@@ -285,8 +285,8 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatAreOutdatedToUpdate()
 		// given
 		testdoubles.SetTemplateVersions()
 		configuration.Commit = "123abc"
-		outdated := tf.FillDB(t, s.DB, tf.AddTenants(1), false, tf.AddDefaultNamespaces().State(tenant.Ready))
-		tf.FillDB(t, s.DB, tf.AddTenants(6), true, tf.AddDefaultNamespaces().State(tenant.Ready))
+		outdated := tf.FillDB(t, s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
+		tf.FillDB(t, s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Ready))
 
 		svc := tenant.NewDBService(s.DB)
 
@@ -305,10 +305,10 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatMatchesRequiredCluste
 		// given
 		testdoubles.SetTemplateVersions()
 		configuration.Commit = "123abc"
-		toBeFound := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), false,
-			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
-		tf.FillDB(s.T(), s.DB, tf.AddTenants(3), false,
-			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
+		toBeFound := tf.FillDB(s.T(), s.DB, tf.AddTenants(1),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(3),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
 
 		svc := tenant.NewDBService(s.DB)
 

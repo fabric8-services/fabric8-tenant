@@ -181,7 +181,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 
 			svc, ctrl, reset := s.newTestTenantsController()
 			defer reset()
-			fxt := tf.FillDB(t, s.DB, tf.AddTenantsNamed("baz"), true, tf.AddNamespaces(environment.TypeUser, environment.TypeChe).State(tenant.Ready))
+			fxt := tf.FillDB(t, s.DB, tf.AddTenantsNamed("baz"), tf.AddNamespaces(environment.TypeUser, environment.TypeChe).State(tenant.Ready))
 
 			// when
 			goatest.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
