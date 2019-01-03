@@ -838,7 +838,7 @@ parameters:
 - name: USER_NAME
   value: developer
 - name: JENKINS_OPENSHIFT_VERSION
-  value: vaaf8961
+  value: vb355188
 - name: PROJECT_USER
   value: developer
 - name: RECOMMENDER_EXTERNAL_NAME
