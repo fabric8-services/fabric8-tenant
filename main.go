@@ -116,7 +116,7 @@ func main() {
 	// Check & do all tenants update
 	if config.IsAutomatedUpdateEnabled() {
 		log.Info(nil, map[string]interface{}{}, "automated update is enabled")
-		go update.NewTenantsUpdater(db, config, clusterService, controller.TenantUpdater{}).UpdateAllTenants()
+		go update.NewTenantsUpdater(db, config, clusterService, controller.TenantUpdater{}, update.AllTypes, "").UpdateAllTenants()
 	} else {
 		log.Info(nil, map[string]interface{}{}, "automated update is disabled")
 	}
@@ -131,6 +131,10 @@ func main() {
 
 	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, config)
 	app.MountTenantsController(service, tenantsCtrl)
+
+	// Mount "update" controller
+	updateCtrl := controller.NewUpdateController(service, db, config, clusterService, controller.TenantUpdater{})
+	app.MountUpdateController(service, updateCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", configuration.Commit)
 	log.Logger().Infoln("UTC Build Time: ", configuration.BuildTime)

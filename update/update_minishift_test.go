@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/minishift"
+	"github.com/fabric8-services/fabric8-tenant/test/update"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -70,11 +71,11 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	}
 	defer s.clean(tenantIDs)
 
-	tx(s.T(), s.DB, func(repo update.Repository) error {
+	testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
 		if err := repo.UpdateStatus(update.Finished); err != nil {
 			return err
 		}
-		return updateVersionsTo(repo, "1abcd")
+		return testupdate.UpdateVersionsTo(repo, "1abcd")
 	})
 	before := time.Now()
 
@@ -87,17 +88,17 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	updateExec := controller.TenantUpdater{ClusterService: clusterService, TenantRepository: repo, Config: s.Config}
 	for i := 0; i < 10; i++ {
 		goroutineFinished.Add(1)
-		go func(updateExecutor controller.UpdateExecutor) {
+		go func(updateExecutor update.UpdateExecutor) {
 			defer goroutineFinished.Done()
 
 			goroutineCanContinue.Wait()
-			update.NewTenantsUpdater(s.DB, s.Config, clusterService, updateExecutor).UpdateAllTenants()
-		}(&updateExec)
+			update.NewTenantsUpdater(s.DB, s.Config, clusterService, updateExecutor, update.AllTypes, "").UpdateAllTenants()
+		}(updateExec)
 	}
 	goroutineCanContinue.Done()
 	goroutineFinished.Wait()
 	// then
-	assertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Finished)
+	testupdate.AssertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Finished, update.AllTypes)
 	s.verifyAreUpdated(tenantIDs, before)
 }
 

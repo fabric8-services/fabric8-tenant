@@ -43,7 +43,6 @@ var (
 func (s *TenantControllerTestSuite) TestShowTenant() {
 	// given
 	defer gock.Off()
-	mockCommunicationWithAuth()
 	svc, ctrl, _, reset := s.newTestTenantController()
 	defer reset()
 
@@ -86,11 +85,10 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 	// given
 	// given
 	defer gock.Off()
-	mockCommunicationWithAuth()
 	svc, ctrl, config, reset := s.newTestTenantController()
 	defer reset()
 	calls := 0
-	testdoubles.MockPostRequestsToOS(&calls, "https://api.cluster1/")
+	testdoubles.MockPostRequestsToOS(&calls, "http://api.cluster1/")
 	// when
 	goatest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	// then
@@ -101,13 +99,12 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	// given
 	defer gock.Off()
-	mockCommunicationWithAuth()
-	id := uuid.NewV4()
-	s.createFixtures(id, environment.TypeChe)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddNamespaces(environment.TypeChe))
+	id := fxt.Tenants[0].ID
 	svc, ctrl, config, reset := s.newTestTenantController()
 	defer reset()
 	calls := 0
-	testdoubles.MockPostRequestsToOS(&calls, "https://api.cluster1/")
+	testdoubles.MockPostRequestsToOS(&calls, "http://api.cluster1/")
 
 	// when
 	goatest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
@@ -121,7 +118,6 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 
 	defer gock.Off()
-	mockCommunicationWithAuth()
 	svc, ctrl, _, reset := s.newTestTenantController()
 	defer reset()
 
@@ -142,14 +138,13 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 	s.T().Run("Internal error because of 500 returned from OS", func(t *testing.T) {
 		// given
 		defer gock.Off()
-		mockCommunicationWithAuth()
 		svc, ctrl, _, reset := s.newTestTenantController()
 		defer reset()
 		calls := 0
-		gock.New("https://api.cluster1/").
-			Post("/oapi/v1/namespaces/johny-jenkins/rolebindingrestrictions").
+		gock.New("http://api.cluster1/").
+			Post(".*/rolebindingrestrictions").
 			Reply(500)
-		testdoubles.MockPostRequestsToOS(&calls, "https://api.cluster1/")
+		testdoubles.MockPostRequestsToOS(&calls, "http://api.cluster1/")
 		// when
 		goatest.SetupTenantInternalServerError(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	})
@@ -157,9 +152,8 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
 
 	defer gock.Off()
-	mockCommunicationWithAuth()
-	id := uuid.NewV4()
-	s.createFixtures(id, environment.DefaultEnvTypes...)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+	id := fxt.Tenants[0].ID
 	svc, ctrl, _, reset := s.newTestTenantController()
 	defer reset()
 
@@ -170,12 +164,11 @@ func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
 func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 	// given
 	defer gock.Off()
-	id := uuid.NewV4()
 	repo := tenant.NewDBService(s.DB)
 
 	s.T().Run("with existing namespaces", func(t *testing.T) {
-		s.createFixtures(id, environment.DefaultEnvTypes...)
-		mockCommunicationWithAuth()
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+		id := fxt.Tenants[0].ID
 		svc, ctrl, config, reset := s.newTestTenantController()
 		defer reset()
 
@@ -183,7 +176,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// given
 			defer gock.Off()
 			calls := 0
-			testdoubles.MockCleanRequestsToOS(&calls, "https://api.cluster1/")
+			testdoubles.MockCleanRequestsToOS(&calls, "http://api.cluster1/")
 			// when
 			goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl, false)
 			// then
@@ -200,7 +193,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// given
 			defer gock.Off()
 			calls := 0
-			testdoubles.MockRemoveRequestsToOS(&calls, "https://api.cluster1/")
+			testdoubles.MockRemoveRequestsToOS(&calls, "http://api.cluster1/")
 			// when
 			goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
@@ -218,15 +211,15 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 		// given
 		defer gock.Off()
 		calls := 0
-		s.createFixtures(id, environment.DefaultEnvTypes...)
-		mockCommunicationWithAuth()
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+		id := fxt.Tenants[0].ID
 		svc, ctrl, _, reset := s.newTestTenantController()
 		defer reset()
-		gock.New("https://api.cluster1").
+		gock.New("http://api.cluster1").
 			Delete("/oapi/v1/projects/johny1-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 			Reply(404)
-		testdoubles.MockRemoveRequestsToOS(&calls, "https://api.cluster1/")
+		testdoubles.MockRemoveRequestsToOS(&calls, "http://api.cluster1/")
 		// when
 		goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 		// then
@@ -240,8 +233,6 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 
 func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 	// given
-	defer gock.Off()
-	mockCommunicationWithAuth()
 	svc, ctrl, _, reset := s.newTestTenantController()
 	repo := tenant.NewDBService(s.DB)
 	defer reset()
@@ -273,20 +264,19 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 		// given
 		defer gock.Off()
 		calls := 0
-		id := uuid.NewV4()
-		s.createFixtures(id, environment.DefaultEnvTypes...)
-		mockCommunicationWithAuth()
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+		id := fxt.Tenants[0].ID
 		svc, ctrl, _, reset := s.newTestTenantController()
 		defer reset()
 
 		t.Run("clean tenant fails when one namespace removal fails", func(t *testing.T) {
 			// given
 			defer gock.Off()
-			gock.New("https://api.cluster1").
+			gock.New("http://api.cluster1").
 				Delete("/api/v1/namespaces/johny1-jenkins/configmaps").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
-			testdoubles.MockCleanRequestsToOS(&calls, "https://api.cluster1/")
+			testdoubles.MockCleanRequestsToOS(&calls, "http://api.cluster1")
 			// when
 			goatest.CleanTenantInternalServerError(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, false)
 			// then
@@ -300,19 +290,19 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 		t.Run("remove tenant fails when one namespace removal fails", func(t *testing.T) {
 			// given
 			defer gock.Off()
-			gock.New("https://api.cluster1").
+			gock.New("http://api.cluster1").
 				Delete("/oapi/v1/projects/johny1-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
-			testdoubles.MockRemoveRequestsToOS(&calls, "https://api.cluster1/")
+			testdoubles.MockRemoveRequestsToOS(&calls, "http://api.cluster1/")
 			// when
 			goatest.CleanTenantInternalServerError(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
 			_, err := repo.GetTenant(id)
 			assert.NoError(t, err)
 			namespaces, err := repo.GetNamespaces(id)
-			assert.NoError(t, err)
-			assert.Len(t, namespaces, 1)
+			require.NoError(t, err)
+			require.Len(t, namespaces, 1)
 			assert.Equal(t, "johny1-che", namespaces[0].Name)
 		})
 	})
@@ -321,10 +311,8 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 func (s *TenantControllerTestSuite) TestUpdateTenant() {
 	// given
 	defer gock.Off()
-	mockCommunicationWithAuth()
-	id := uuid.NewV4()
-	s.createFixtures(id, environment.DefaultEnvTypes...)
-	mockCommunicationWithAuth()
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+	id := fxt.Tenants[0].ID.String()
 	svc, ctrl, config, reset := s.newTestTenantController()
 	defer reset()
 
@@ -332,9 +320,9 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 		// given
 		defer gock.Off()
 		calls := 0
-		testdoubles.MockPatchRequestsToOS(&calls, "https://api.cluster1/")
+		testdoubles.MockPatchRequestsToOS(&calls, "http://api.cluster1/")
 		// when
-		goatest.UpdateTenantAccepted(t, createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
+		goatest.UpdateTenantAccepted(t, createAndMockUserAndToken(s.T(), id, false), svc, ctrl)
 		// then
 		objects := testdoubles.AllTemplatesObjects(t, config, clusterMapping, userInfo)
 		// get and patch requests for all objects but ProjectRequest
@@ -366,19 +354,20 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 		t.Run("fails when an update of one object fails", func(t *testing.T) {
 			// given
 			defer gock.Off()
-			gock.New("https://api.cluster1").
+			gock.New("http://api.cluster1").
 				Path("/api/v1/namespaces/johny1-jenkins/configmaps").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
 			calls := 0
-			testdoubles.MockPatchRequestsToOS(&calls, "https://api.cluster1/")
+			testdoubles.MockPatchRequestsToOS(&calls, "http://api.cluster1/")
 			// when/then
-			goatest.UpdateTenantInternalServerError(t, createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
+			goatest.UpdateTenantInternalServerError(t, createAndMockUserAndToken(s.T(), id, false), svc, ctrl)
 		})
 	})
 }
 
 func (s *TenantControllerTestSuite) newTestTenantController() (*goa.Service, *controller.TenantController, *configuration.Data, func()) {
+	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
 	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
@@ -388,28 +377,6 @@ func (s *TenantControllerTestSuite) newTestTenantController() (*goa.Service, *co
 func createAndMockUserAndToken(t *testing.T, sub string, internal bool) context.Context {
 	createTokenMock(sub)
 	return createAndMockUser(t, sub, internal)
-}
-
-func (s *TenantControllerTestSuite) createFixtures(tenantId uuid.UUID, envTypes ...environment.Type) {
-	tf.NewTestFixture(s.T(), s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
-		fxt.Tenants[0].ID = tenantId
-		fxt.Tenants[0].OSUsername = "johny"
-		fxt.Tenants[0].NsBaseName = "johny1"
-		return nil
-	}), tf.Namespaces(len(envTypes), func(fxt *tf.TestFixture, idx int) error {
-		fxt.Namespaces[idx].TenantID = tenantId
-		fxt.Namespaces[idx].Name = constuctNamespaceName("johny1", envTypes[idx])
-		fxt.Namespaces[idx].Type = envTypes[idx]
-		fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
-		return nil
-	}))
-}
-
-func constuctNamespaceName(nsBaseName string, envType environment.Type) string {
-	if envType != environment.TypeUser {
-		return nsBaseName + "-" + envType.String()
-	}
-	return nsBaseName
 }
 
 func createAndMockUser(t *testing.T, sub string, internal bool) context.Context {
@@ -440,7 +407,7 @@ func createUserMock(tenantId string, featureLevel string) {
            	  "data": {
            		"attributes": {
                   "identityID": "%s",
-           		  "cluster": "https://api.cluster1/",
+           		  "cluster": "http://api.cluster1/",
            		  "email": "johny@redhat.com",
                   "featureLevel": "%s"
            		}
@@ -450,7 +417,7 @@ func createUserMock(tenantId string, featureLevel string) {
 func createTokenMock(tenantId string) {
 	gock.New("http://authservice").
 		Get("/api/token").
-		MatchParam("for", "https://api.cluster1").
+		MatchParam("for", "http://api.cluster1").
 		MatchParam("force_pull", "false").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub(tenantId))).
 		Reply(200).

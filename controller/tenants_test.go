@@ -51,8 +51,7 @@ var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, 
 func (s *TenantsControllerTestSuite) TestShowTenants() {
 	// given
 	defer gock.Off()
-
-	mockCommunicationWithAuth()
+	testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
 
@@ -94,7 +93,7 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
 	defer gock.Off()
-	mockCommunicationWithAuth()
+	testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
 
@@ -142,7 +141,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 	s.T().Run("all ok", func(t *testing.T) {
 		// given
 		defer gock.Off()
-		mockCommunicationWithAuth()
+		testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 		gock.New("https://api.cluster1").
 			Delete("/oapi/v1/projects/foo-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -192,7 +191,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 		// if the namespace record exist in the DB, but the `delete namespace` call on the cluster endpoint fails with a 404
 		// given
 		defer gock.Off()
-		mockCommunicationWithAuth()
+		testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 		gock.New("https://api.cluster1").
 			Delete("/oapi/v1/projects/bar-che").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -244,7 +243,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 	s.T().Run("Failures", func(t *testing.T) {
 		t.Run("Unauhorized failures", func(t *testing.T) {
 			defer gock.Off()
-			mockCommunicationWithAuth()
+			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/foo").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -276,11 +275,11 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 		})
 
 		t.Run("namespace deletion failed", func(t *testing.T) {
-			// case where the first namespace could not be deleted: the tenant and the namespaces should still be in the DB
+			// case where the first namespace could not be deleted: the tenant and the namespace that failed should still be in the DB - the rest should be deleted
 			// given
 			repo := tenant.NewDBService(s.DB)
 			defer gock.Off()
-			mockCommunicationWithAuth()
+			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
 			gock.New("https://api.cluster1").
 				Delete("/oapi/v1/projects/baz-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
@@ -382,50 +381,4 @@ func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
 	return svc, ctrl, reset
-}
-
-func mockCommunicationWithAuth() {
-	gock.New("http://authservice").
-		Get("/api/clusters/").
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
-		Reply(200).
-		BodyString(`{
-      "data":[
-        {
-          "name": "cluster_name",
-          "api-url": "https://api.cluster1/",
-          "console-url": "http://console.cluster1/",
-          "metrics-url": "http://metrics.cluster1/",
-          "logging-url": "http://logs.cluster1/",
-          "app-dns": "foo"
-        }
-      ]
-    }`)
-
-	gock.New("http://authservice").
-		Get("/api/token").
-		MatchParam("for", "https://api.cluster1").
-		MatchParam("force_pull", "false").
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
-		Persist().
-		Reply(200).
-		BodyString(`{ 
-      "token_type": "bearer",
-      "username": "devtools-sre",
-      "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
-    }`)
-
-	gock.New("https://api.cluster1").
-		Get("/apis/user.openshift.io/v1/users/~").
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
-		Reply(200).
-		BodyString(`{
-      "kind":"User",
-      "apiVersion":"user.openshift.io/v1",
-      "metadata":{
-        "name":"devtools-sre",
-      },
-      "identities":[],
-      "groups":[]
-    }`)
 }

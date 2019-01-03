@@ -28,7 +28,7 @@ import (
 // TestSuite is a base for tests using Minishift and gorm db
 type TestSuite struct {
 	gormsupport.DBTestSuite
-	clusterService  *stub.ClusterService
+	ClusterService  *stub.ClusterService
 	authService     *stub.AuthService
 	Config          *configuration.Data
 	toReset         func()
@@ -51,7 +51,7 @@ func (s *TestSuite) SetupTest() {
 
 	log.InitializeLogger(s.Config.IsLogJSON(), s.Config.GetLogLevel())
 
-	s.clusterService = &stub.ClusterService{
+	s.ClusterService = &stub.ClusterService{
 		APIURL: s.minishiftConfig.GetMinishiftURL(),
 		User:   s.minishiftConfig.GetMinishiftAdminName(),
 		Token:  s.minishiftConfig.GetMinishiftAdminToken(),
@@ -68,7 +68,7 @@ func (s *TestSuite) TearDownTest() {
 }
 
 func (s *TestSuite) GetClusterService() cluster.Service {
-	return s.clusterService
+	return s.ClusterService
 }
 
 func (s *TestSuite) GetAuthService(tenantID uuid.UUID) auth.Service {

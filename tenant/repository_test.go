@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
-	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -25,7 +24,6 @@ type TenantServiceTestSuite struct {
 }
 
 func TestTenantService(t *testing.T) {
-	resource.Require(t, resource.Database)
 	suite.Run(t, &TenantServiceTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
@@ -151,11 +149,11 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 		// given
 		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
-		tf.FillDB(t, s.DB, tf.WithTenants(3), false, tenant.Ready, environment.DefaultEnvTypes...)
+		tf.FillDB(t, s.DB, tf.AddTenants(3), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 		svc := tenant.NewDBService(s.DB)
 
 		// when
-		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "xyz")
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "xyz", "")
 
 		// then
 		assert.NoError(t, err)
@@ -166,11 +164,11 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 		// given
 		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
-		tf.FillDB(t, s.DB, tf.WithTenants(10), false, tenant.Ready, environment.DefaultEnvTypes...)
+		tf.FillDB(t, s.DB, tf.AddTenants(10), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 		svc := tenant.NewDBService(s.DB)
 
 		// when
-		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 5, "xyz")
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 5, "xyz", "")
 
 		// then
 		assert.NoError(t, err)
@@ -183,12 +181,12 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		// given
 		configuration.Commit = "123abc"
 		testdoubles.SetTemplateVersions()
-		fxt := tf.FillDB(t, s.DB, tf.WithTenants(11), false, tenant.Ready, environment.DefaultEnvTypes...)
+		fxt := tf.FillDB(t, s.DB, tf.AddTenants(11), false, tf.AddDefaultNamespaces().State(tenant.Ready))
 		svc := tenant.NewDBService(s.DB)
 		mappedVersions := testdoubles.GetMappedVersions(environment.DefaultEnvTypes...)
 
 		// when
-		firstBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+		firstBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz", "")
 
 		// then
 		require.NoError(t, err)
@@ -197,7 +195,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		updateAllTenants(t, firstBatch, svc, false)
 
 		// and when
-		secondBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+		secondBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz", "")
 
 		// then
 		require.NoError(t, err)
@@ -207,7 +205,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		updateAllTenants(t, secondBatch, svc, true)
 
 		// and when
-		thirdBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+		thirdBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz", "")
 
 		// then
 		require.NoError(t, err)
@@ -218,7 +216,7 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 		updateAllTenants(t, thirdBatch, svc, false)
 
 		// and when
-		lastBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz")
+		lastBatch, err := svc.GetTenantsToUpdate(mappedVersions, 5, "xyz", "")
 
 		// then
 		require.NoError(t, err)
@@ -266,14 +264,14 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfFailedTenantsToUpdate() {
 		// given
 		testdoubles.SetTemplateVersions()
 		configuration.Commit = "123abc"
-		previouslyFailed := tf.FillDB(t, s.DB, tf.WithTenants(1), false, tenant.Failed, environment.DefaultEnvTypes...)
+		previouslyFailed := tf.FillDB(t, s.DB, tf.AddTenants(1), false, tf.AddDefaultNamespaces().State(tenant.Failed))
 		configuration.Commit = "234bcd"
-		tf.FillDB(t, s.DB, tf.WithTenants(6), false, tenant.Failed, environment.DefaultEnvTypes...)
+		tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Failed))
 
 		svc := tenant.NewDBService(s.DB)
 
 		// when
-		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd")
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd", "")
 
 		// then
 		require.NoError(t, err)
@@ -287,18 +285,40 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatAreOutdatedToUpdate()
 		// given
 		testdoubles.SetTemplateVersions()
 		configuration.Commit = "123abc"
-		outdated := tf.FillDB(t, s.DB, tf.WithTenants(1), false, tenant.Ready, environment.DefaultEnvTypes...)
-		tf.FillDB(t, s.DB, tf.WithTenants(6), true, tenant.Ready, environment.DefaultEnvTypes...)
+		outdated := tf.FillDB(t, s.DB, tf.AddTenants(1), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+		tf.FillDB(t, s.DB, tf.AddTenants(6), true, tf.AddDefaultNamespaces().State(tenant.Ready))
 
 		svc := tenant.NewDBService(s.DB)
 
 		// when
-		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd")
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd", "")
 
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		assert.Equal(t, outdated.Tenants[0].ID, result[0].ID)
+	})
+}
+
+func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatMatchesRequiredCluster() {
+	s.T().Run("returns only those tenants whose namespaces have different version", func(t *testing.T) {
+		// given
+		testdoubles.SetTemplateVersions()
+		configuration.Commit = "123abc"
+		toBeFound := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), false,
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(3), false,
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
+
+		svc := tenant.NewDBService(s.DB)
+
+		// when
+		result, err := svc.GetTenantsToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), 10, "234bcd", "http://api.cluster1")
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, toBeFound.Tenants[0].ID, result[0].ID)
 	})
 }
 

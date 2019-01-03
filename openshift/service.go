@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/pkg/errors"
 	"net/http"
 	"sync"
 )
@@ -102,22 +103,20 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 	var nsTypesWait sync.WaitGroup
 	nsTypesWait.Add(len(nsTypes))
 
+	errorChan := make(chan error, len(nsTypes)*2)
 	for _, nsType := range nsTypes {
 		nsTypeService := NewEnvironmentTypeService(nsType, s.context, s.envService)
-		go processAndApplyNs(&nsTypesWait, nsTypeService, action, s.httpTransport)
+		go processAndApplyNs(&nsTypesWait, nsTypeService, action, s.httpTransport, errorChan)
 	}
 	nsTypesWait.Wait()
+	close(errorChan)
 
-	namespaces, err := s.tenantRepository.GetNamespaces()
-	if err != nil {
-		return err
-	}
-	return action.CheckNamespacesAndUpdateTenant(namespaces, nsTypes)
+	return action.CheckNamespacesAndUpdateTenant(errorChan, nsTypes)
 }
 
 type ObjectChecker func(object environment.Object) bool
 
-func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentTypeService, action NamespaceAction, transport http.RoundTripper) {
+func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentTypeService, action NamespaceAction, transport http.RoundTripper, errorChan chan error) {
 	defer nsTypeWait.Done()
 
 	namespace, err := action.GetNamespaceEntity(nsTypeService)
@@ -151,12 +150,7 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	for _, object := range objects {
 		_, err := Apply(*client, action.MethodName(), object)
 		if err != nil {
-			sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
-				"ns-type": nsTypeService.GetType(),
-				"action":  action.MethodName(),
-				"cluster": cluster.APIURL,
-				"ns-name": nsTypeService.GetNamespaceName(),
-			}, err, action.MethodName()+"method applied to the namespace failed")
+			errorChan <- errors.Wrapf(err, action.MethodName()+" method applied to the namespace %s in the cluster %s failed", nsTypeService.GetNamespaceName(), cluster.APIURL)
 			failed = true
 			break
 		}
@@ -164,12 +158,7 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 
 	err = nsTypeService.AfterCallback(client, action.MethodName())
 	if err != nil {
-		sentry.LogError(nsTypeService.GetRequestsContext(), map[string]interface{}{
-			"ns-type": nsTypeService.GetType(),
-			"action":  action.MethodName(),
-			"cluster": cluster.APIURL,
-			"ns-name": nsTypeService.GetNamespaceName(),
-		}, err, "the after callback failed")
+		errorChan <- errors.Wrapf(err, "the after callback of a namespace %s failed for the type %s", action.MethodName(), nsTypeService.GetNamespaceName())
 	}
 	namespace.Version = env.Version()
 	action.UpdateNamespace(env, &cluster, namespace, failed || err != nil)

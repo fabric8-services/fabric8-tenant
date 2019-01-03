@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/resource"
+	"github.com/fabric8-services/fabric8-tenant/test/update"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
@@ -148,6 +149,7 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 		assert.Equal(t, string(update.Updating), string(tenantsUpdate.Status))
 		assert.True(t, before.Before(tenantsUpdate.LastTimeUpdated))
 		assert.Equal(t, 0, tenantsUpdate.FailedCount)
+		assert.True(t, tenantsUpdate.CanContinue)
 	})
 }
 
@@ -157,7 +159,7 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 		// given
 		testdoubles.SetTemplateVersions()
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
-			err := updateVersionsTo(update.NewRepository(tx), "000bbb")
+			err := testupdate.UpdateVersionsTo(update.NewRepository(tx), "000bbb")
 			require.NoError(t, err)
 			return err
 		})
@@ -182,7 +184,7 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 		// given
 		testdoubles.SetTemplateVersions()
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
-			return updateVersionsTo(update.NewRepository(tx), "123abc")
+			return testupdate.UpdateVersionsTo(update.NewRepository(tx), "123abc")
 		})
 		require.NoError(t, err)
 
@@ -210,7 +212,7 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 		// given
 		testdoubles.SetTemplateVersions()
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
-			return updateVersionsTo(update.NewRepository(tx), "")
+			return testupdate.UpdateVersionsTo(update.NewRepository(tx), "")
 		})
 		require.NoError(t, err)
 
@@ -247,7 +249,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			if err := repo.IncrementFailedCount(); err != nil {
 				return err
 			}
-			return updateVersionsTo(repo, "000abc")
+			return testupdate.UpdateVersionsTo(repo, "000abc")
 		})
 		require.NoError(t, err)
 		before := time.Now()
@@ -266,7 +268,10 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 			if err := update.NewRepository(tx).IncrementFailedCount(); err != nil {
 				return err
 			}
-			if err := updateVersionsTo(update.NewRepository(tx), ""); err != nil {
+			if err := testupdate.UpdateVersionsTo(update.NewRepository(tx), ""); err != nil {
+				return err
+			}
+			if err := update.NewRepository(tx).Stop(); err != nil {
 				return err
 			}
 			return fmt.Errorf("any error")
@@ -284,8 +289,35 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 		assert.Equal(t, string(update.Failed), string(tenantsUpdate.Status))
 		assert.True(t, before.After(tenantsUpdate.LastTimeUpdated))
 		assert.Equal(t, 1, tenantsUpdate.FailedCount)
+		assert.True(t, tenantsUpdate.CanContinue)
 		for _, versionManager := range update.RetrieveVersionManagers() {
 			assert.False(t, versionManager.IsVersionUpToDate(tenantsUpdate))
 		}
+	})
+}
+
+func (s *UpdateRepoTestSuite) TestStopAndCanContinue() {
+
+	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
+		// given
+		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+			return update.NewRepository(tx).PrepareForUpdating()
+		})
+		require.NoError(t, err)
+
+		// when
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			return update.NewRepository(tx).Stop()
+		})
+
+		// then
+		assert.NoError(t, err)
+		var canContinue bool
+		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+			canContinue, err = update.NewRepository(tx).CanContinue()
+			return err
+		})
+		assert.NoError(t, err)
+		assert.False(t, canContinue)
 	})
 }

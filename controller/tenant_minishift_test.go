@@ -71,6 +71,28 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		s.VerifyObjectsPresence(t, tnnt.NsBaseName, "2abcd", false)
 	})
 
+	s.T().Run("update namespaces should fail", func(t *testing.T) {
+		// given
+		testdoubles.SetTemplateSameVersion("2abcd")
+		cls := *s.ClusterService
+		cls.APIURL = "123"
+		ctrl := controller.NewTenantController(svc, tenant.NewDBService(s.DB), &cls, s.GetAuthService(id), s.GetConfig())
+
+		// when update is called
+		goatest.UpdateTenantInternalServerError(t, createUserContext(t, id.String()), svc, ctrl)
+	})
+
+	s.T().Run("clean namespaces should fail", func(t *testing.T) {
+		// given
+		testdoubles.SetTemplateSameVersion("2abcd")
+		cls := *s.ClusterService
+		cls.APIURL = "123"
+		ctrl := controller.NewTenantController(svc, tenant.NewDBService(s.DB), &cls, s.GetAuthService(id), s.GetConfig())
+
+		// when update is called
+		goatest.CleanTenantInternalServerError(t, createUserContext(t, id.String()), svc, ctrl, false)
+	})
+
 	s.T().Run("only clean namespaces", func(t *testing.T) {
 
 		// when clean is called

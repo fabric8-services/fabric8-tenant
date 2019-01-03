@@ -89,7 +89,7 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
 		Reply(200)
 
-	tnnt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("aslak"), true, tenant.Ready).Tenants[0]
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), true, tf.AddNamespaces()).Tenants[0]
 	service := NewOSService(
 		config,
 		SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
@@ -132,7 +132,7 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 		Reply(200).
 		BodyString(roleBindingRestrictionObject)
 
-	tnnt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("aslak"), true, tenant.Ready).Tenants[0]
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), true, tf.AddNamespaces()).Tenants[0]
 	service := NewOSService(
 		config,
 		SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"),
@@ -175,7 +175,7 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		Reply(200)
 
 	//namespaceCreator := Ns("aslak-run", environment.TypeRun)
-	fxt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("aslak"), true, tenant.Ready, environment.TypeRun)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), true, tf.AddNamespaces(environment.TypeRun))
 	tnnt := fxt.Tenants[0]
 	service := NewOSService(
 		config,
@@ -207,7 +207,7 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	clusterMapping := SingleClusterMapping("http://my.cluster", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
 	userCreator := WithUser(&authclient.UserDataAttributes{}, "developer", "12345")
 
-	tnnt := tf.FillDB(s.T(), s.DB, tf.WithTenantsOfNames("developer"), true, tenant.Ready).Tenants[0]
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), true, tf.AddNamespaces()).Tenants[0]
 	service := NewOSService(
 		config,
 		clusterMapping,

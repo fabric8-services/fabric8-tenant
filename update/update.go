@@ -1,9 +1,11 @@
 package update
 
 import (
+	"context"
+	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
-	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
@@ -14,12 +16,25 @@ import (
 
 type followUpFunc func() error
 
-func NewTenantsUpdater(db *gorm.DB, config *configuration.Data, clusterService cluster.Service, updateExecutor controller.UpdateExecutor) *TenantsUpdater {
+type UpdateExecutor interface {
+	Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error
+}
+
+func NewTenantsUpdater(
+	db *gorm.DB,
+	config *configuration.Data,
+	clusterService cluster.Service,
+	updateExecutor UpdateExecutor,
+	filterEnvType FilterEnvType,
+	limitToCluster string) *TenantsUpdater {
+
 	return &TenantsUpdater{
 		db:             db,
 		config:         config,
 		clusterService: clusterService,
 		updateExecutor: updateExecutor,
+		filterEnvType:  filterEnvType,
+		limitToCluster: limitToCluster,
 	}
 }
 
@@ -27,14 +42,51 @@ type TenantsUpdater struct {
 	db             *gorm.DB
 	config         *configuration.Data
 	clusterService cluster.Service
-	updateExecutor controller.UpdateExecutor
+	updateExecutor UpdateExecutor
+	filterEnvType  FilterEnvType
+	limitToCluster string
 }
 
+type FilterEnvType interface {
+	IsOk(envType environment.Type) bool
+	GetLimit() string
+}
+
+var AllTypes = allTypes("no-limit")
+
+type allTypes string
+
+func (f allTypes) IsOk(envType environment.Type) bool {
+	return true
+}
+func (f allTypes) GetLimit() string {
+	return string(f)
+}
+
+type OneType environment.Type
+
+func (f OneType) IsOk(envType environment.Type) bool {
+	return envType == environment.Type(f)
+}
+func (f OneType) GetLimit() string {
+	return string(f)
+}
+
+type FilterCluster func(cluster string) bool
+
 func (u *TenantsUpdater) UpdateAllTenants() {
+
+	log.Info(nil, map[string]interface{}{
+		"env-types-limit": u.filterEnvType.GetLimit(),
+		"cluster-limit":   u.limitToCluster,
+	}, "triggering tenants update process")
 
 	var followUp followUpFunc = func() error { return nil }
 
 	prepareAndAssignStart := func(repo Repository, envTypes []environment.Type) error {
+		log.Info(nil, map[string]interface{}{
+			"env_types": envTypes,
+		}, "starting update for outdated types")
 		err := repo.PrepareForUpdating()
 		if err != nil {
 			return err
@@ -50,6 +102,7 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 			return err
 		}
 		if tenantUpdate.Status == Finished {
+			log.Info(nil, map[string]interface{}{}, "last update was successfully finished")
 			envTypesToUpdate, err := checkVersions(tenantUpdate)
 			if err != nil {
 				return err
@@ -57,14 +110,21 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 			if len(envTypesToUpdate) > 0 {
 				return prepareAndAssignStart(repo, envTypesToUpdate)
 			}
+			log.Info(nil, map[string]interface{}{}, "there is nothing to be updated")
 
-		} else if tenantUpdate.Status == Failed {
+		} else if tenantUpdate.Status == Failed || tenantUpdate.Status == Killed || tenantUpdate.Status == Incomplete {
+			log.Info(nil, map[string]interface{}{
+				"failed_count": tenantUpdate.FailedCount,
+			}, "last update has status \"%s\" - going to check failed or incomplete updates", tenantUpdate.Status)
 			return prepareAndAssignStart(repo, environment.DefaultEnvTypes)
 
 		} else if tenantUpdate.Status == Updating {
-			if u.isOlderThanTimeout(tenantUpdate.LastTimeUpdated) {
+			if IsOlderThanTimeout(tenantUpdate.LastTimeUpdated, u.config) {
 				return prepareAndAssignStart(repo, environment.DefaultEnvTypes)
 			} else {
+				log.Info(nil, map[string]interface{}{
+					"automated_update_retry_sleep": u.config.GetAutomatedUpdateRetrySleep().String(),
+				}, "there seems to be an ongoing update - going to wait for if the update still continues")
 				followUp = u.waitAndRecheck
 			}
 		}
@@ -110,12 +170,17 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 		if err != nil {
 			return err
 		}
-		if u.isOlderThanTimeout(tenantUpdate.LastTimeUpdated) {
+		if IsOlderThanTimeout(tenantUpdate.LastTimeUpdated, u.config) {
+			log.Info(nil, map[string]interface{}{}, "last update was interrupted - restarting a new one")
 			err := repo.PrepareForUpdating()
 			if err != nil {
 				return err
 			}
 			followUp = u.updateTenantsForTypes(environment.DefaultEnvTypes)
+		} else {
+			log.Info(nil, map[string]interface{}{
+				"last_time_updated": tenantUpdate.LastTimeUpdated,
+			}, "there is still an ongoing update in process")
 		}
 		return nil
 	}))
@@ -127,8 +192,8 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 	return followUp()
 }
 
-func (u *TenantsUpdater) isOlderThanTimeout(when time.Time) bool {
-	return when.Before(time.Now().Add(-u.config.GetAutomatedUpdateRetrySleep()))
+func IsOlderThanTimeout(when time.Time, config *configuration.Data) bool {
+	return when.Before(time.Now().Add(-config.GetAutomatedUpdateRetrySleep()))
 }
 
 func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) followUpFunc {
@@ -138,20 +203,33 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 
 		typesWithVersion := map[environment.Type]string{}
 
+		var filteredEnvTypes []environment.Type
 		for _, envType := range envTypes {
-			typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
+			if u.filterEnvType.IsOk(envType) {
+				typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
+				filteredEnvTypes = append(filteredEnvTypes, envType)
+			}
 		}
 
 		for {
-			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit)
+			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit, u.limitToCluster)
 			if err != nil {
 				return err
 			}
 			if len(toUpdate) == 0 {
 				break
 			}
+			log.Info(nil, map[string]interface{}{
+				"number_of_tenants_to_update": len(toUpdate),
+			}, "starting update for next batch of outdated/failed tenants")
 
-			u.updateTenants(toUpdate, tenantRepo, envTypes)
+			canContinue, err := u.updateTenants(toUpdate, tenantRepo, filteredEnvTypes)
+			if err != nil {
+				return err
+			}
+			if !canContinue {
+				break
+			}
 
 			err = Transaction(u.db, lock(func(repo Repository) error {
 				return repo.UpdateLastTimeUpdated()
@@ -173,22 +251,44 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 	if err != nil {
 		return err
 	}
-	if tenantUpdate.FailedCount > 0 {
+	if !tenantUpdate.CanContinue {
+		tenantUpdate.Status = Killed
+	} else if tenantUpdate.FailedCount > 0 {
 		tenantUpdate.Status = Failed
+	} else if u.filterEnvType != AllTypes || u.limitToCluster != "" {
+		tenantUpdate.Status = Incomplete
 	} else {
 		tenantUpdate.Status = Finished
 	}
 	for _, versionManager := range RetrieveVersionManagers() {
-		versionManager.SetCurrentVersion(tenantUpdate)
+		isOk := true
+		for _, envType := range versionManager.EnvTypes {
+			isOk = isOk && u.filterEnvType.IsOk(envType)
+		}
+		if isOk {
+			versionManager.SetCurrentVersion(tenantUpdate)
+		}
 	}
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
-func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type) {
+func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type) (bool, error) {
 	numberOfTriggeredUpdates := 0
 	var wg sync.WaitGroup
+	canContinue := true
+	var err error
 
 	for _, tnnt := range tenants {
+		err := Transaction(u.db, func(tx *gorm.DB) error {
+			var err error
+			canContinue, err = NewRepository(tx).CanContinue()
+			return err
+		})
+		if !canContinue || err != nil {
+			log.Info(nil, map[string]interface{}{}, "stopping tenants update process")
+			break
+		}
+
 		wg.Add(1)
 
 		go updateTenant(&wg, u.updateExecutor, tnnt, envTypes, u.db)
@@ -200,23 +300,29 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 		}
 	}
 	wg.Wait()
+	return canContinue, err
 }
 
-func updateTenant(wg *sync.WaitGroup, updateExecutor controller.UpdateExecutor, tnnt *tenant.Tenant, envTypes []environment.Type, db *gorm.DB) {
+func updateTenant(wg *sync.WaitGroup, updateExecutor UpdateExecutor, tnnt *tenant.Tenant, envTypes []environment.Type, db *gorm.DB) {
 	defer wg.Done()
+	logParams := map[string]interface{}{
+		"os_user":            tnnt.OSUsername,
+		"tenant_id":          tnnt.ID,
+		"env_type_to_update": envTypes,
+	}
+	log.Info(nil, logParams, "starting update of tenant for outdated namespace")
 	err := updateExecutor.Update(nil, tnnt, nil, envTypes)
+
 	if err != nil {
-		err = Transaction(db, lock(func(repo Repository) error {
+		errIncr := Transaction(db, lock(func(repo Repository) error {
 			return repo.IncrementFailedCount()
 		}))
-		if err != nil {
-			sentry.LogError(nil, map[string]interface{}{}, err, "unable to increment failed_count")
+		if errIncr != nil {
+			sentry.LogError(nil, map[string]interface{}{}, errIncr, "unable to increment failed_count")
 		}
-		sentry.LogError(nil, map[string]interface{}{
-			"os_user":             tnnt.OSUsername,
-			"tenant_id":           tnnt.ID,
-			"env_types_to_update": envTypes,
-		}, err, "unable to automatically update tenant")
+		sentry.LogError(nil, logParams, err, "unable to automatically update tenant")
+	} else {
+		log.Info(nil, logParams, "update of tenant for outdated namespace finished")
 	}
 }
 

@@ -25,7 +25,7 @@ type Service interface {
 	NewTenantRepository(tenantID uuid.UUID) Repository
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
-	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error)
+	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -132,10 +132,13 @@ func (s DBService) DeleteNamespace(tenantID uuid.UUID, envType environment.Type)
 	return s.db.Unscoped().Delete(&Namespace{}, "tenant_id = ? and type = ?", tenantID, envType).Error
 }
 
-func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string) ([]*Tenant, error) {
+func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
 	var tenants []*Tenant
-	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id").
-		Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
+	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
+	nsSubQuery = nsSubQuery.Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
+	if masterURL != "" {
+		nsSubQuery = nsSubQuery.Where("master_url = ?", masterURL)
+	}
 
 	var conditions []string
 	var params []interface{}

@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"net/http"
 	"sort"
-	"strings"
 )
 
 // NamespaceAction represents the action that should be applied on the namespaces for the particular tenant - [post|update|delete].
@@ -20,7 +19,7 @@ type NamespaceAction interface {
 	Sort(toSort environment.ByKind)
 	Filter() FilterFunc
 	ForceMasterTokenGlobally() bool
-	CheckNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error
+	CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []environment.Type) error
 }
 
 type commonNamespaceAction struct {
@@ -45,19 +44,17 @@ func (c *commonNamespaceAction) ForceMasterTokenGlobally() bool {
 	return true
 }
 
-func (c *commonNamespaceAction) CheckNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
-	var failedNamespaces []string
-	for _, ns := range namespaces {
-		if ns.State == tenant.Failed {
-			for _, envType := range envTypes {
-				if ns.Type == envType {
-					failedNamespaces = append(failedNamespaces, ns.Name)
-				}
-			}
+func (c *commonNamespaceAction) CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []environment.Type) error {
+	var msg string
+	index := 1
+	for er := range errorChan {
+		if er != nil {
+			msg += fmt.Sprintf("#%d: %s\n", index, er.Error())
+			index++
 		}
 	}
-	if len(failedNamespaces) > 0 {
-		return fmt.Errorf("applying %s action on namespaces [%s] failed", c.method, strings.Join(failedNamespaces, ", "))
+	if len(msg) > 0 {
+		return fmt.Errorf("%s method applied to namespace types %s failed with one or more errors:\n%s", c.method, envTypes, msg)
 	}
 	return nil
 }
@@ -167,14 +164,26 @@ func (a withExistingNamespacesAction) getNamespaceFor(nsType environment.Type) *
 	return nil
 }
 
-func (d Delete) CheckNamespacesAndUpdateTenant(namespaces []*tenant.Namespace, envTypes []environment.Type) error {
+func (d Delete) CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []environment.Type) error {
+	err := d.commonNamespaceAction.CheckNamespacesAndUpdateTenant(errorChan, envTypes)
+	if err != nil {
+		return err
+	}
+	namespaces, err := d.tenantRepo.GetNamespaces()
+	if err != nil {
+		return err
+	}
 	if d.removeFromCluster {
 		if len(namespaces) == 0 {
 			return d.tenantRepo.DeleteTenant()
 		}
-		return fmt.Errorf("cannot remove tenant %s from DB - some namespace still exists", namespaces[0].TenantID)
+		var names []string
+		for _, ns := range namespaces {
+			names = append(names, ns.Name)
+		}
+		return fmt.Errorf("cannot remove tenant %s from DB - some namespaces %s still exist", namespaces[0].TenantID, names)
 	}
-	return d.commonNamespaceAction.CheckNamespacesAndUpdateTenant(namespaces, envTypes)
+	return nil
 }
 
 func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace) *Update {

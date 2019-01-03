@@ -2,6 +2,7 @@ package openshift_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -13,19 +14,20 @@ import (
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
 
-type ActionWhiteboxTestSuite struct {
+type ActionTestSuite struct {
 	gormsupport.DBTestSuite
 }
 
-func TestActionWhitebox(t *testing.T) {
-	suite.Run(t, &ActionWhiteboxTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
+func TestAction(t *testing.T) {
+	suite.Run(t, &ActionTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
-func (s *ActionWhiteboxTestSuite) TestCreateAction() {
+func (s *ActionTestSuite) TestCreateAction() {
 	// given
 	id := uuid.NewV4()
 	tf.NewTestFixture(s.T(), s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
@@ -42,12 +44,12 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
-		assert.Equal(s.T(), "POST", create.MethodName())
+		assert.Equal(t, "POST", create.MethodName())
 	})
 
 	s.T().Run("filter method should always return true", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
-			assert.True(s.T(), create.Filter()(obj))
+			assert.True(t, create.Filter()(obj))
 		}
 	})
 
@@ -57,13 +59,13 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 		// when
 		create.Sort(environment.ByKind(toSort))
 		// then
-		assert.Equal(s.T(), environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
-		assert.Equal(s.T(), environment.ValKindRole, environment.GetKind(toSort[1]))
-		assert.Equal(s.T(), environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[2]))
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(toSort[1]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[2]))
 	})
 
 	s.T().Run("it should not require master token globally", func(t *testing.T) {
-		assert.False(s.T(), create.ForceMasterTokenGlobally())
+		assert.False(t, create.ForceMasterTokenGlobally())
 	})
 
 	for idx, envType := range environment.DefaultEnvTypes {
@@ -74,104 +76,103 @@ func (s *ActionWhiteboxTestSuite) TestCreateAction() {
 		// then
 		assert.NoError(s.T(), err)
 		s.T().Run("verify new namespace was created", func(t *testing.T) {
-			assert.NotNil(s.T(), getNs(s.T(), repo, envType))
-			assert.NotEmpty(s.T(), namespace.ID)
-			assert.Equal(s.T(), envType, namespace.Type)
-			assert.Equal(s.T(), tenant.Provisioning, namespace.State)
+			assert.NotNil(t, getNs(t, repo, envType))
+			assert.NotEmpty(t, namespace.ID)
+			assert.Equal(t, envType, namespace.Type)
+			assert.Equal(t, tenant.Provisioning, namespace.State)
 			namespaces, err := repo.GetNamespaces()
-			assert.NoError(s.T(), err)
-			assert.Len(s.T(), namespaces, idx+1)
+			assert.NoError(t, err)
+			assert.Len(t, namespaces, idx+1)
 		})
 
 		s.T().Run("update namespace to ready", func(t *testing.T) {
 			// when
 			create.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
-			ns := getNs(s.T(), repo, envType)
-			assert.NotNil(s.T(), ns)
-			assert.Equal(s.T(), tenant.Ready, ns.State)
-			assert.Equal(s.T(), "my-cluster.com", ns.MasterURL)
+			ns := getNs(t, repo, envType)
+			assert.NotNil(t, ns)
+			assert.Equal(t, tenant.Ready, ns.State)
+			assert.Equal(t, "my-cluster.com", ns.MasterURL)
 			expName := "developer1"
 			if envType != environment.TypeUser {
 				expName += "-" + envType.String()
 			}
-			assert.Equal(s.T(), expName, ns.Name)
+			assert.Equal(t, expName, ns.Name)
 		})
 
 		s.T().Run("update namespace to failed", func(t *testing.T) {
 			// when
 			create.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
 			// then
-			ns := getNs(s.T(), repo, envType)
-			assert.NotNil(s.T(), ns)
-			assert.Equal(s.T(), tenant.Failed, ns.State)
-			assert.Equal(s.T(), "my-cluster.com", ns.MasterURL)
+			ns := getNs(t, repo, envType)
+			assert.NotNil(t, ns)
+			assert.Equal(t, tenant.Failed, ns.State)
+			assert.Equal(t, "my-cluster.com", ns.MasterURL)
 			expName := "developer1"
 			if envType != environment.TypeUser {
 				expName += "-" + envType.String()
 			}
-			assert.Equal(s.T(), expName, ns.Name)
+			assert.Equal(t, expName, ns.Name)
 		})
 	}
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when err channel is empty", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		close(errorChan)
 		// when
-		namespaces := []*tenant.Namespace{{State: tenant.Ready, Type: environment.TypeChe}, {State: tenant.Ready, Type: environment.TypeUser}}
-		assert.NoError(s.T(), create.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
+		assert.NoError(t, create.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}))
 		// then
 		tnnt, err := repoService.GetTenant(id)
-		assert.NoError(s.T(), err)
-		assert.NotNil(s.T(), tnnt)
+		assert.NoError(t, err)
+		assert.NotNil(t, tnnt)
 	})
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should return error when one namespace is failed", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should return error when err channel is not empty", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		errorChan <- fmt.Errorf("first dummy error")
+		errorChan <- fmt.Errorf("second dummy error")
+		close(errorChan)
 		// when
-		namespaces := []*tenant.Namespace{
-			{Name: "johny-che", State: tenant.Ready, Type: environment.TypeChe},
-			{Name: "johny", State: tenant.Failed, Type: environment.TypeUser}}
-		err := create.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
+		err := create.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser})
 		// then
-		test.AssertError(s.T(), err, test.HasMessageContaining("applying POST action on namespaces [johny] failed"))
+		test.AssertError(t, err, test.HasMessageContaining("POST method applied to namespace types [che user] failed with one or more errors"),
+			test.HasMessageContaining("#1: first dummy error"),
+			test.HasMessageContaining("#2: second dummy error"))
 	})
 }
 
-func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
+func (s *ActionTestSuite) TestDeleteAction() {
 	// given
-	id := uuid.NewV4()
-	nss := createNamespaces(id)
-	tf.NewTestFixture(s.T(), s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
-		fxt.Tenants[0].ID = id
-		return nil
-	}), tf.Namespaces(len(nss), func(fxt *tf.TestFixture, idx int) error {
-		fxt.Namespaces[idx] = nss[idx]
-		return nil
-	}))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), true, tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+	id := fxt.Tenants[0].ID
 	repoService := tenant.NewDBService(s.DB)
 	repo := repoService.NewTenantRepository(id)
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 
 	// when
-	delete := openshift.NewDelete(repo, false, nss)
-	deleteFromCluster := openshift.NewDelete(repo, true, nss)
+	delete := openshift.NewDelete(repo, false, fxt.Namespaces)
+	deleteFromCluster := openshift.NewDelete(repo, true, fxt.Namespaces)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
-		assert.Equal(s.T(), "DELETE", delete.MethodName())
+		assert.Equal(t, "DELETE", delete.MethodName())
 	})
 
 	s.T().Run("verify filter method", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
 			if environment.GetKind(obj) == "ProjectRequest" {
-				assert.False(s.T(), delete.Filter()(obj), obj.ToString())
-				assert.True(s.T(), deleteFromCluster.Filter()(obj), obj.ToString())
+				assert.False(t, delete.Filter()(obj), obj.ToString())
+				assert.True(t, deleteFromCluster.Filter()(obj), obj.ToString())
 			} else {
-				assert.False(s.T(), deleteFromCluster.Filter()(obj), obj.ToString())
+				assert.False(t, deleteFromCluster.Filter()(obj), obj.ToString())
 				if environment.GetKind(obj) == "PersistentVolumeClaim" || environment.GetKind(obj) == "ConfigMap" ||
 					environment.GetKind(obj) == "Service" || environment.GetKind(obj) == "DeploymentConfig" || environment.GetKind(obj) == "Route" {
-					assert.True(s.T(), delete.Filter()(obj), obj.ToString())
+					assert.True(t, delete.Filter()(obj), obj.ToString())
 				} else {
-					assert.False(s.T(), delete.Filter()(obj), obj.ToString())
+					assert.False(t, delete.Filter()(obj), obj.ToString())
 				}
 			}
 		}
@@ -184,13 +185,13 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 		delete.Sort(environment.ByKind(toSort))
 		// then
 		length := len(toSort)
-		assert.Equal(s.T(), environment.ValKindProjectRequest, environment.GetKind(toSort[length-1]))
-		assert.Equal(s.T(), environment.ValKindRole, environment.GetKind(toSort[length-2]))
-		assert.Equal(s.T(), environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[length-3]))
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(toSort[length-1]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(toSort[length-2]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[length-3]))
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
-		assert.True(s.T(), delete.ForceMasterTokenGlobally())
+		assert.True(t, delete.ForceMasterTokenGlobally())
 	})
 
 	for _, envType := range environment.DefaultEnvTypes {
@@ -203,11 +204,11 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 
 		s.T().Run("verify new namespace is returned only if exists", func(t *testing.T) {
 			if envType == environment.TypeChe || envType == environment.TypeJenkins {
-				assert.NotEmpty(s.T(), namespace.ID)
-				assert.Equal(s.T(), envType, namespace.Type)
-				assert.Equal(s.T(), tenant.Ready, namespace.State)
+				assert.NotEmpty(t, namespace.ID)
+				assert.Equal(t, envType, namespace.Type)
+				assert.Equal(t, tenant.Ready, namespace.State)
 			} else {
-				assert.Nil(s.T(), namespace)
+				assert.Nil(t, namespace)
 			}
 		})
 		if namespace == nil {
@@ -218,61 +219,79 @@ func (s *ActionWhiteboxTestSuite) TestDeleteAction() {
 			// when
 			delete.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
-			nsToUpdate := getNs(s.T(), repo, envType)
-			assert.NotNil(s.T(), nsToUpdate)
-			assert.Equal(s.T(), tenant.Ready, nsToUpdate.State)
-			assert.Equal(s.T(), "cluster.com", nsToUpdate.MasterURL)
+			nsToUpdate := getNs(t, repo, envType)
+			assert.NotNil(t, nsToUpdate)
+			assert.Equal(t, tenant.Ready, nsToUpdate.State)
+			assert.Equal(t, "http://api.cluster1/", nsToUpdate.MasterURL)
 		})
 
 		s.T().Run("update namespace set state to failed", func(t *testing.T) {
 			// when
 			delete.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
 			// then
-			ns := getNs(s.T(), repo, envType)
-			assert.NotNil(s.T(), ns)
-			assert.Equal(s.T(), tenant.Failed, ns.State)
+			ns := getNs(t, repo, envType)
+			assert.NotNil(t, ns)
+			assert.Equal(t, tenant.Failed, ns.State)
 		})
 
 		s.T().Run("update namespace deletes entity when it should be removed from cluster", func(t *testing.T) {
 			// when
 			deleteFromCluster.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
-			assert.Nil(s.T(), getNs(s.T(), repo, envType))
+			assert.Nil(t, getNs(t, repo, envType))
 		})
 	}
 
 	s.T().Run("CheckNamespacesAndUpdateTenant should keep entity when one namespace is present", func(t *testing.T) {
+		// given
+		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
+			tnnt.ID = id
+		}), true, tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+
+		errorChan := make(chan error, 10)
+		close(errorChan)
 		// when
-		err := deleteFromCluster.CheckNamespacesAndUpdateTenant(createNamespaces(id), []environment.Type{environment.TypeChe})
+		err := deleteFromCluster.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe})
 		// then
-		test.AssertError(s.T(), err, test.HasMessageContaining("cannot remove tenant %s from DB - some namespace still exist", id))
+		test.AssertError(t, err, test.HasMessageContaining("cannot remove tenant %s from DB - some namespaces", id))
 
 	})
 
 	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespace were only cleaned", func(t *testing.T) {
+		// given
+		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
+			tnnt.ID = id
+		}), true, tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		errorChan := make(chan error, 10)
+		close(errorChan)
 		// when
-		err := delete.CheckNamespacesAndUpdateTenant(createNamespaces(id), []environment.Type{environment.TypeChe})
+		err := delete.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe})
 		// then
-		assert.NoError(s.T(), err)
+		assert.NoError(t, err)
 
 	})
 
 	s.T().Run("CheckNamespacesAndUpdateTenant should delete entity when no namespace is present", func(t *testing.T) {
+		// given
+		repo := tenant.NewDBService(s.DB).NewTenantRepository(id)
+		namespaces, err := repo.GetNamespaces()
+		require.NoError(t, err)
+		for _, ns := range namespaces {
+			require.NoError(t, repo.DeleteNamespace(ns))
+		}
+		errorChan := make(chan error, 10)
+		close(errorChan)
 		// when
-		err := deleteFromCluster.CheckNamespacesAndUpdateTenant([]*tenant.Namespace{}, []environment.Type{environment.TypeChe})
+		err = deleteFromCluster.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe})
 		// then
-		assert.NoError(s.T(), err)
+		assert.NoError(t, err)
 		tnnt, err := repoService.GetTenant(id)
-		test.AssertError(s.T(), err, test.IsOfType(errors.NotFoundError{}))
-		assert.Nil(s.T(), tnnt)
+		test.AssertError(t, err, test.IsOfType(errors.NotFoundError{}))
+		assert.Nil(t, tnnt)
 	})
 }
 
-func createNamespaces(id uuid.UUID) []*tenant.Namespace {
-	return []*tenant.Namespace{newNs("che", tenant.Ready, id), newNs("jenkins", tenant.Ready, id)}
-}
-
-func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
+func (s *ActionTestSuite) TestUpdateAction() {
 	// given
 	id := uuid.NewV4()
 	namespaces := []*tenant.Namespace{newNs("che", "updating", id), newNs("jenkins", "updating", id)}
@@ -293,15 +312,15 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
-		assert.Equal(s.T(), "PATCH", update.MethodName())
+		assert.Equal(t, "PATCH", update.MethodName())
 	})
 
 	s.T().Run("filter method should always return true except for project request", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
 			if environment.GetKind(obj) == "ProjectRequest" {
-				assert.False(s.T(), update.Filter()(obj))
+				assert.False(t, update.Filter()(obj))
 			} else {
-				assert.True(s.T(), update.Filter()(obj))
+				assert.True(t, update.Filter()(obj))
 			}
 
 		}
@@ -313,13 +332,13 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 		// when
 		update.Sort(environment.ByKind(toSort))
 		// then
-		assert.Equal(s.T(), environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
-		assert.Equal(s.T(), environment.ValKindRole, environment.GetKind(toSort[1]))
-		assert.Equal(s.T(), environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[2]))
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(toSort[1]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[2]))
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
-		assert.True(s.T(), update.ForceMasterTokenGlobally())
+		assert.True(t, update.ForceMasterTokenGlobally())
 	})
 
 	for _, envType := range environment.DefaultEnvTypes {
@@ -332,14 +351,14 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 
 		s.T().Run("verify new namespace is returned only if exists", func(t *testing.T) {
 			if envType == environment.TypeChe || envType == environment.TypeJenkins {
-				assert.NotEmpty(s.T(), namespace.ID)
-				assert.Equal(s.T(), envType, namespace.Type)
-				assert.Equal(s.T(), tenant.Updating, namespace.State)
+				assert.NotEmpty(t, namespace.ID)
+				assert.Equal(t, envType, namespace.Type)
+				assert.Equal(t, tenant.Updating, namespace.State)
 				namespaces, err := repo.GetNamespaces()
-				assert.NoError(s.T(), err)
-				assert.Len(s.T(), namespaces, 2)
+				assert.NoError(t, err)
+				assert.Len(t, namespaces, 2)
 			} else {
-				assert.Nil(s.T(), namespace)
+				assert.Nil(t, namespace)
 			}
 		})
 		if namespace == nil {
@@ -351,10 +370,10 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 			// when
 			update.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, false)
 			// then
-			ns := getNs(s.T(), repo, envType)
-			assert.NotNil(s.T(), ns)
-			assert.Equal(s.T(), tenant.Ready, ns.State)
-			assert.Equal(s.T(), "my-cluster.com", ns.MasterURL)
+			ns := getNs(t, repo, envType)
+			assert.NotNil(t, ns)
+			assert.Equal(t, tenant.Ready, ns.State)
+			assert.Equal(t, "my-cluster.com", ns.MasterURL)
 		})
 
 		// verify namespace update to failed
@@ -362,31 +381,38 @@ func (s *ActionWhiteboxTestSuite) TestUpdateAction() {
 			// when
 			update.UpdateNamespace(envData, &cluster.Cluster{APIURL: "my-cluster.com"}, namespace, true)
 			// then
-			ns := getNs(s.T(), repo, envType)
-			assert.NotNil(s.T(), ns)
-			assert.Equal(s.T(), tenant.Failed, ns.State)
-			assert.Equal(s.T(), "my-cluster.com", ns.MasterURL)
+			ns := getNs(t, repo, envType)
+			assert.NotNil(t, ns)
+			assert.Equal(t, tenant.Failed, ns.State)
+			assert.Equal(t, "my-cluster.com", ns.MasterURL)
 		})
 	}
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespaces are ready", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when err channel is empty", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		close(errorChan)
 		// when
-		namespaces := []*tenant.Namespace{{State: tenant.Ready, Type: environment.TypeChe}, {State: tenant.Ready, Type: environment.TypeUser}}
-		assert.NoError(s.T(), update.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser}))
+		assert.NoError(t, update.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}))
 		// then
 		tnnt, err := repoService.GetTenant(id)
-		assert.NoError(s.T(), err)
-		assert.NotNil(s.T(), tnnt)
+		assert.NoError(t, err)
+		assert.NotNil(t, tnnt)
 	})
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should return error when botch namespaces are failed", func(t *testing.T) {
+	s.T().Run("CheckNamespacesAndUpdateTenant should return error when err channel is not empty", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		errorChan <- fmt.Errorf("first dummy error")
+		errorChan <- fmt.Errorf("second dummy error")
+		close(errorChan)
 		// when
-		namespaces := []*tenant.Namespace{
-			{Name: "johny-che", State: tenant.Failed, Type: environment.TypeChe},
-			{Name: "johny", State: tenant.Failed, Type: environment.TypeUser}}
-		err := update.CheckNamespacesAndUpdateTenant(namespaces, []environment.Type{environment.TypeChe, environment.TypeUser})
+		err := update.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser})
 		// then
-		test.AssertError(s.T(), err, test.HasMessageContaining("applying PATCH action on namespaces [johny-che, johny] failed"))
+		test.AssertError(t, err,
+			test.HasMessageContaining("PATCH method applied to namespace types [che user] failed with one or more errors"),
+			test.HasMessageContaining("#1: first dummy error"),
+			test.HasMessageContaining("#2: second dummy error"))
 	})
 }
 

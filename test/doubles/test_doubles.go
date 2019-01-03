@@ -2,6 +2,7 @@ package testdoubles
 
 import (
 	"context"
+	"fmt"
 	vcrrecorder "github.com/dnaeon/go-vcr/recorder"
 	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-tenant/auth"
@@ -258,4 +259,66 @@ func GetMappedVersions(envTypes ...environment.Type) map[environment.Type]string
 		typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
 	}
 	return typesWithVersion
+}
+
+func MockCommunicationWithAuth(cluster string, otherClusters ...string) {
+	clusterList := ""
+	var clusters []string
+	clusters = append(otherClusters, cluster)
+	for _, cl := range clusters {
+		gock.New("http://authservice").
+			Get("/api/token").
+			Persist().
+			MatchParam("for", cl+"/").
+			MatchParam("force_pull", "false").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
+			Reply(200).
+			BodyString(`{ 
+			"access_token": "jA0ECQMCVXRaahUCbbtg0sDRAe2Yy9f/is3vsRXD2xDjZtSOBcQG/IvvzFA40TbMmTyo3csGKsEs+xr3TOBzHX/oIRLpO74d0mDHy+c6e72eRitmKNssb7pTyx9fD+v1FqJ/PTGFtWVp9XjbtXybkoCQHjYtt7i4di2tfm6rSHCuKB3FA/4a59sN542R3fxS488PKhCLPfq1RbHVi4mg47dsrOlVrJITpNsEH1RTL8w6+pX6FjossE+qB3QwZwopPeNOMUn1vF2O6BfhVO80RyLLHr8EEigBhpxTb6we+IFYztToPJXjNS4LYEVz74zAjyrkqXBNrND09jSCo0oQOtUtuzuv76lJQVe0tLwjM7AwFHHDgQvUykdnHg8jyJtI5OYWypmHpnyHay4ocMRO/hHcx7a+Lbz9Uj40cdtl3+XRUOoJt01OcgK7sKqwG4UCoRzh/RN/vYDEgH8CBrnZ67qG+0cKxdqayPJXrX3gtukXcDnHntiSRCCbryrYlAoTb1ypghdUCWgRWVEsSXDG/lgNW3DMEEnZ+HV23l9fGGudfPY=",
+			"token_type": "bearer",
+			"username": "devtools-sre"
+    }`)
+
+		gock.New(cl).
+			Get("/apis/user.openshift.io/v1/users/~").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Persist().
+			Reply(200).
+			BodyString(`{
+     "kind":"User",
+     "apiVersion":"user.openshift.io/v1",
+     "metadata":{
+       "name":"devtools-sre",
+       "selfLink":"/apis/user.openshift.io/v1/users/tenant_service",
+       "uid":"bcdd0b29-123d-11e8-a8bc-b69930b94f5c",
+       "resourceVersion":"814",
+       "creationTimestamp":"2018-02-15T10:48:20Z"
+     },
+     "identities":[],
+     "groups":[]
+   }`)
+
+		clusterList += fmt.Sprintf(`
+        {
+          "name": "cluster_name",
+          "api-url": "%s/",
+          "console-url": "%s/console/",
+          "metrics-url": "%s/",
+          "logging-url": "%s/",
+          "app-dns": "foo",
+          "capacity-exhausted": false
+        },`, cl, cl, cl, cl)
+
+	}
+
+	gock.New("http://authservice").
+		Get("/api/clusters/").
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
+		Persist().
+		Reply(200).
+		BodyString(fmt.Sprintf(`{
+      "data":[
+        %s
+      ]
+    }`, clusterList[:len(clusterList)-1]))
 }
