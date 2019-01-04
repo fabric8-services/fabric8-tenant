@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/jinzhu/gorm"
-	"sync"
 	"time"
 )
 
@@ -262,12 +261,14 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 			versionManager.SetCurrentVersion(tenantUpdate)
 		}
 	}
+	log.Info(nil, map[string]interface{}{
+		"status":                   tenantUpdate.Status,
+		"number_of_failed_tenants": tenantUpdate.FailedCount,
+	}, "the whole tenants update process has been finished")
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
 func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) (bool, error) {
-	numberOfTriggeredUpdates := 0
-	var wg sync.WaitGroup
 	canContinue := true
 	var err error
 
@@ -282,22 +283,13 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 			break
 		}
 
-		wg.Add(1)
-
-		go updateTenant(&wg, tnnt, tenantRepo, typesWithVersion, *u)
-
-		numberOfTriggeredUpdates++
-		if numberOfTriggeredUpdates == 10 {
-			wg.Wait()
-			numberOfTriggeredUpdates = 0
-		}
+		u.updateTenant(tnnt, tenantRepo, typesWithVersion)
+		time.Sleep(u.config.GetAutomatedUpdateTimeGap())
 	}
-	wg.Wait()
 	return canContinue, err
 }
 
-func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string, updater TenantsUpdater) {
-	defer wg.Done()
+func (u *TenantsUpdater) updateTenant(tnnt *tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) {
 
 	namespaces, err := tenantRepo.GetNamespaces(tnnt.ID)
 	if err != nil {
@@ -320,7 +312,7 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 			continue
 		}
 
-		userCluster, err := updater.clusterService.GetCluster(nil, namespace.MasterURL)
+		userCluster, err := u.clusterService.GetCluster(nil, namespace.MasterURL)
 		if err != nil {
 			sentry.LogError(nil, map[string]interface{}{
 				"err":         err,
@@ -338,10 +330,10 @@ func updateTenant(wg *sync.WaitGroup, tnnt *tenant.Tenant, tenantRepo tenant.Ser
 			"namespace_name":     namespace.Name,
 		}, "starting update of tenant for outdated namespace")
 
-		osConfig := openshift.NewConfig(updater.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
-		err = openshift.UpdateTenant(updater.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envType)
+		osConfig := openshift.NewConfig(u.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
+		err = openshift.UpdateTenant(u.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envType)
 		if err != nil {
-			err = Transaction(updater.db, lock(func(repo Repository) error {
+			err = Transaction(u.db, lock(func(repo Repository) error {
 				return repo.IncrementFailedCount()
 			}))
 			if err != nil {
