@@ -349,7 +349,8 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 func (s *UpdateControllerTestSuite) newUpdateController(executor *testupdate.DummyUpdateExecutor, timeout time.Duration) (*goa.Service, *controller.UpdateController, func()) {
 	resetEnvs := test.SetEnvironments(
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
-		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()))
+		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()),
+		test.Env("F8_AUTOMATED_UPDATE_TIME_GAP", "0"))
 	clusterService, _, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
 	return svc, controller.NewUpdateController(svc, s.DB, config, clusterService, executor), func() {

@@ -48,6 +48,7 @@ const (
 	varEnvironment                     = "environment"
 	varSentryDSN                       = "sentry.dsn"
 	varAutomatedUpdateRetrySleep       = "automated.update.retry.sleep"
+	varAutomatedUpdateTimeGap          = "automated.update.time.gap"
 	varAutomatedUpdateEnabled          = "automated.update.enabled"
 
 	varAuthURL              = "auth.url"
@@ -145,6 +146,7 @@ func (c *Data) setConfigDefaults() {
 
 	//	Duration how long the automated process should wait to detect other ongoing updates
 	c.v.SetDefault(varAutomatedUpdateRetrySleep, 10*time.Minute)
+	c.v.SetDefault(varAutomatedUpdateTimeGap, 4*time.Second)
 	c.v.SetDefault(varAutomatedUpdateEnabled, false)
 }
 
@@ -341,6 +343,11 @@ func (c *Data) GetSentryDSN() string {
 // GetAutomatedUpdateRetrySleep returns the duration the automated update should wait to detect if there is some other ongoing update
 func (c *Data) GetAutomatedUpdateRetrySleep() time.Duration {
 	return c.v.GetDuration(varAutomatedUpdateRetrySleep)
+}
+
+// GetAutomatedUpdateTimeGap returns the duration the automated update should wait after single tenant update
+func (c *Data) GetAutomatedUpdateTimeGap() time.Duration {
+	return c.v.GetDuration(varAutomatedUpdateTimeGap)
 }
 
 // IsAutomatedUpdateEnabled returns if the automated update is enabled
