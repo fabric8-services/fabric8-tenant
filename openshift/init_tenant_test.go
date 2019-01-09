@@ -124,6 +124,61 @@ func (s *InitTenantTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenFail
 	assert.Equal(s.T(), "johndoe2", updatedTnnt.NsBaseName)
 }
 
+func (s *InitTenantTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLimitRangesReturnsConflict() {
+	// given
+	data, reset := test.LoadTestConfig(s.T())
+	defer func() {
+		gock.OffAll()
+		reset()
+	}()
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenantsNamed("johndoe"), tf.AddDefaultNamespaces().State(tenant.Provisioning))
+	johndoeCalls := 0
+	projectRequestCalls := 0
+	deleteCalls := 0
+
+	gock.New("http://api.cluster1").
+		Post("/api/v1/namespaces/johndoe-jenkins/limitranges").
+		Reply(409).
+		BodyString("{}")
+	gock.New("http://api.cluster1").
+		Delete("/api/v1/namespaces/johndoe-jenkins/limitranges/resource-limits").
+		SetMatcher(test.SpyOnCalls(&deleteCalls)).
+		Times(1).
+		Reply(200).
+		BodyString("{}")
+	gock.New("http://api.cluster1").
+		Path(`.*johndoe[^2].*`).
+		SetMatcher(test.SpyOnCalls(&johndoeCalls)).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+	gock.New("http://api.cluster1").
+		Post("/oapi/v1/projectrequests").
+		SetMatcher(test.SpyOnCalls(&projectRequestCalls)).
+		Times(5).
+		Reply(200).
+		BodyString("{}")
+
+	user := &client.UserDataAttributes{}
+	config := openshift.NewConfigForUser(data, user, "clusterUser", "clusterToken", "http://api.cluster1/")
+	config.HTTPTransport = http.DefaultTransport
+	objsNumber := len(tmplObjects(s.T(), data))
+	repo := tenant.NewDBService(s.DB)
+
+	// when
+	_, err := openshift.RawInitTenant(context.Background(), config, fxt.Tenants[0], "12345", repo, true)
+
+	// then
+	require.NoError(s.T(), err)
+	// the number of calls should be equal to the number of parsed objects plus one call that removes admin role from user's namespace
+	assert.Equal(s.T(), objsNumber-4, johndoeCalls)
+	assert.Equal(s.T(), 5, projectRequestCalls)
+	assert.Equal(s.T(), 1, deleteCalls)
+	updatedTnnt, err := repo.GetTenant(fxt.Tenants[0].ID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "johndoe", updatedTnnt.NsBaseName)
+}
+
 func (s *InitTenantTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenFailsAnd2Exists() {
 	// given
 	data, reset := test.LoadTestConfig(s.T())
