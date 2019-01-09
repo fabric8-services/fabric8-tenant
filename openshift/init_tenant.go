@@ -58,6 +58,7 @@ func RawInitTenant(ctx context.Context, config Config, tnnt *tenant.Tenant, user
 					sentry.LogError(ctx, map[string]interface{}{
 						"namespace": namespace,
 					}, err, "error init user project, RoleBindingRestrictions")
+					errorChan <- err
 				}
 				err = ApplyProcessed(Filter(objects, IsNotOfKind(env.ValKindProjectRequest, env.ValKindNamespace, env.ValKindRoleBindingRestriction)), userOpts)
 				if err != nil {
@@ -166,11 +167,11 @@ func RawUpdateTenant(ctx context.Context, config Config, tnnt *tenant.Tenant, en
 func handleErrors(errorChan chan error, action string, ctx context.Context, config Config, tnnt *tenant.Tenant,
 	usertoken string, repo tenant.Service, allowSelfHealing bool) (map[env.Type]string, error) {
 
-	var errs []error
+	var errs []string
 	close(errorChan)
 	for er := range errorChan {
 		if er != nil {
-			errs = append(errs, er)
+			errs = append(errs, er.Error())
 		}
 	}
 	if len(errs) > 0 {
@@ -187,7 +188,10 @@ func handleErrors(errorChan chan error, action string, ctx context.Context, conf
 				return nil, errors.Wrapf(err, "unable to construct namespace base name for user wit OSname %s", tnnt.OSUsername)
 			}
 			tnnt.NsBaseName = newNsBaseName
-			repo.SaveTenant(tnnt)
+			err = repo.SaveTenant(tnnt)
+			if err != nil {
+				return nil, errors.Wrapf(err, "unable to update tenant %s", tnnt.ID)
+			}
 			return RawInitTenant(ctx, config, tnnt, usertoken, repo, false)
 		}
 		return nil, fmt.Errorf("%s of namespaces failed with one or more errors %s", action, errs)
@@ -222,7 +226,11 @@ func InitTenant(ctx context.Context, masterURL string, service tenant.Service, c
 			"response":    yamlString(response),
 		}, "resource requested")
 		if statusCode == http.StatusConflict || statusCode == http.StatusForbidden {
-			return "", nil, fmt.Errorf("unable to create - should create with other base-name")
+			if env.GetKind(request) == env.ValKindNamespace || env.GetKind(request) == env.ValKindProjectRequest ||
+				env.GetKind(request) == env.ValKindPersistenceVolumeClaim {
+				return "", nil, fmt.Errorf("unable to create %s - should create with other base-name", env.GetNamespace(request))
+			}
+			return "DELETE", request, nil
 		} else if statusCode == http.StatusCreated {
 			if env.GetKind(request) == env.ValKindProjectRequest {
 				name := env.GetName(request)
