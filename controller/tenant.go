@@ -187,7 +187,7 @@ type TenantUpdater struct {
 func (u TenantUpdater) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant,
 	envTypes []env.Type, usertoken string, allowSelfHealing bool) (map[env.Type]string, error) {
 
-	return openshift.RawUpdateTenant(ctx, openshiftConfig, t, envTypes, usertoken, tenantService, allowSelfHealing)
+	return openshift.RawUpdateTenant(ctx, openshiftConfig, t, envTypes, tenantService, allowSelfHealing)
 }
 
 // Clean runs the setup action for the tenant namespaces.
