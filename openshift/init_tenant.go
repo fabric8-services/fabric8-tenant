@@ -105,14 +105,15 @@ func RawInitTenant(ctx context.Context, config Config, tnnt *tenant.Tenant, user
 		}
 	}
 	wg.Wait()
-	vm, err := handleErrors(errorChan, "creation", ctx, config, tnnt, usertoken, repo, allowSelfHealing)
+	healing := recreateSelfHealing(ctx, config, tnnt, usertoken, repo, allowSelfHealing)
+	vm, err := handleErrors(errorChan, "creation", ctx, healing)
 	if vm != nil {
 		return vm, err
 	}
 	return versionMapping, err
 }
 
-func RawUpdateTenant(ctx context.Context, config Config, tnnt *tenant.Tenant, envTypes []env.Type, usertoken string,
+func RawUpdateTenant(ctx context.Context, config Config, tnnt *tenant.Tenant, envTypes []env.Type,
 	repo tenant.Service, allowSelfHealing bool) (map[env.Type]string, error) {
 
 	templs, versionMapping, err := LoadProcessedTemplates(ctx, config, tnnt.OSUsername, tnnt.NsBaseName, envTypes)
@@ -157,15 +158,15 @@ func RawUpdateTenant(ctx context.Context, config Config, tnnt *tenant.Tenant, en
 		}(key, val, masterOpts)
 	}
 	wg.Wait()
-	vm, err := handleErrors(errorChan, "update", ctx, config, tnnt, usertoken, repo, allowSelfHealing)
+	healing := waitAndReupdateSelfHealing(ctx, config, tnnt, envTypes, repo, allowSelfHealing)
+	vm, err := handleErrors(errorChan, "update", ctx, healing)
 	if vm != nil {
 		return vm, err
 	}
 	return versionMapping, err
 }
 
-func handleErrors(errorChan chan error, action string, ctx context.Context, config Config, tnnt *tenant.Tenant,
-	usertoken string, repo tenant.Service, allowSelfHealing bool) (map[env.Type]string, error) {
+func handleErrors(errorChan chan error, action string, ctx context.Context, heal func(error) (map[env.Type]string, error)) (map[env.Type]string, error) {
 
 	var errs []string
 	close(errorChan)
@@ -178,6 +179,25 @@ func handleErrors(errorChan chan error, action string, ctx context.Context, conf
 		log.Error(ctx, map[string]interface{}{
 			"errs": errs,
 		}, "%s of namespaces failed with one or more errors", action)
+		return heal(fmt.Errorf("%s of namespaces failed with one or more errors %s", action, errs))
+	}
+	return nil, nil
+}
+
+func waitAndReupdateSelfHealing(ctx context.Context, config Config, tnnt *tenant.Tenant, envTypes []env.Type,
+	repo tenant.Service, allowSelfHealing bool) func(error) (map[env.Type]string, error) {
+	return func(originalError error) (map[env.Type]string, error) {
+		if allowSelfHealing {
+			time.Sleep(10 * time.Second)
+			return RawUpdateTenant(ctx, config, tnnt, envTypes, repo, false)
+		}
+		return nil, originalError
+	}
+}
+
+func recreateSelfHealing(ctx context.Context, config Config, tnnt *tenant.Tenant, usertoken string, repo tenant.Service,
+	allowSelfHealing bool) func(error) (map[env.Type]string, error) {
+	return func(originalError error) (map[env.Type]string, error) {
 		if allowSelfHealing && usertoken != "" {
 			err := DeleteNamespaces(ctx, tnnt.ID, config, repo)
 			if err != nil {
@@ -194,9 +214,8 @@ func handleErrors(errorChan chan error, action string, ctx context.Context, conf
 			}
 			return RawInitTenant(ctx, config, tnnt, usertoken, repo, false)
 		}
-		return nil, fmt.Errorf("%s of namespaces failed with one or more errors %s", action, errs)
+		return nil, originalError
 	}
-	return nil, nil
 }
 
 func listToTemplate(objects env.Objects) string {
