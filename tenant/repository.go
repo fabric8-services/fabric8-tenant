@@ -23,6 +23,7 @@ type Service interface {
 	SaveNamespace(namespace *Namespace) error
 	DeleteTenant(tenantID uuid.UUID) error
 	NewTenantRepository(tenantID uuid.UUID) Repository
+	//DeleteNamespaces(tenantID uuid.UUID) error
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
@@ -155,7 +156,7 @@ func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]strin
 	return tenants, err
 }
 
-func (s DBService) deleteNamespaces(tenantID uuid.UUID) error {
+func (s DBService) DeleteNamespaces(tenantID uuid.UUID) error {
 	if tenantID == uuid.Nil {
 		return nil
 	}
@@ -174,11 +175,14 @@ func (s DBService) NewTenantRepository(tenantID uuid.UUID) Repository {
 }
 
 type Repository interface {
+	GetTenant() (*Tenant, error)
 	NewNamespace(envType environment.Type, nsName string, state NamespaceState) *Namespace
 	GetNamespaces() ([]*Namespace, error)
 	SaveNamespace(namespace *Namespace) error
 	DeleteNamespace(namespace *Namespace) error
+	//DeleteNamespaces() error
 	DeleteTenant() error
+	Service() Service
 }
 
 type DBTenantRepository struct {
@@ -195,6 +199,10 @@ func (n DBTenantRepository) NewNamespace(envType environment.Type, nsName string
 	}
 }
 
+func (n DBTenantRepository) GetTenant() (*Tenant, error) {
+	return n.service.GetTenant(n.tenantID)
+}
+
 func (n DBTenantRepository) GetNamespaces() ([]*Namespace, error) {
 	return n.service.GetNamespaces(n.tenantID)
 }
@@ -208,8 +216,16 @@ func (n DBTenantRepository) DeleteNamespace(namespace *Namespace) error {
 	return n.service.db.Unscoped().Delete(namespace).Error
 }
 
+func (n DBTenantRepository) DeleteNamespaces() error {
+	return n.service.DeleteNamespaces(n.tenantID)
+}
+
 func (n DBTenantRepository) DeleteTenant() error {
 	return n.service.DeleteTenant(n.tenantID)
+}
+
+func (n DBTenantRepository) Service() Service {
+	return n.service
 }
 
 func ConstructNsBaseName(repo Service, username string) (string, error) {

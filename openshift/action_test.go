@@ -10,12 +10,17 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
+	"os"
 	"testing"
 )
 
@@ -24,23 +29,26 @@ type ActionTestSuite struct {
 }
 
 func TestAction(t *testing.T) {
+	os.Setenv(resource.Database, "1")
 	suite.Run(t, &ActionTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
+}
+
+var emptyHealing = openshift.NoHealing(nil)
+var returnErrHealing openshift.Healing = func(originalError error) error {
+	return fmt.Errorf("healing error")
 }
 
 func (s *ActionTestSuite) TestCreateAction() {
 	// given
-	id := uuid.NewV4()
-	tf.NewTestFixture(s.T(), s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
-		fxt.Tenants[0].ID = id
-		return nil
-	}))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddNamespaces())
+	id := fxt.Tenants[0].ID
 	repoService := tenant.NewDBService(s.DB)
 	repo := repoService.NewTenantRepository(id)
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 
 	// when
-	create := openshift.NewCreate(repo)
+	create := openshift.NewCreate(repo, true)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -116,36 +124,52 @@ func (s *ActionTestSuite) TestCreateAction() {
 		})
 	}
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when err channel is empty", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should do nothing when err channel is empty", func(t *testing.T) {
 		// given
 		errorChan := make(chan error, 10)
 		close(errorChan)
 		// when
-		assert.NoError(t, create.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}))
+		assert.NoError(t, create.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}, emptyHealing))
 		// then
 		tnnt, err := repoService.GetTenant(id)
 		assert.NoError(t, err)
 		assert.NotNil(t, tnnt)
 	})
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should return error when err channel is not empty", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should return error when err channel is not empty and healing is empty", func(t *testing.T) {
 		// given
 		errorChan := make(chan error, 10)
 		errorChan <- fmt.Errorf("first dummy error")
 		errorChan <- fmt.Errorf("second dummy error")
 		close(errorChan)
 		// when
-		err := create.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser})
+		err := create.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}, emptyHealing)
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("POST method applied to namespace types [che user] failed with one or more errors"),
 			test.HasMessageContaining("#1: first dummy error"),
 			test.HasMessageContaining("#2: second dummy error"))
 	})
+
+	s.T().Run("HealingStrategy should return healing strategy that re-creates new namespaces (with new base name) when error is not nil", func(t *testing.T) {
+		testRecreateHealingStrategy(t, s.DB, config, func(repo tenant.Repository, allowSelfHealing bool) openshift.NamespaceAction {
+			return openshift.NewCreate(repo, allowSelfHealing)
+		})
+	})
+
+	s.T().Run("when there was no error then it should not run healing", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		close(errorChan)
+		// when
+		err := openshift.NewCreate(repo, true).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+		// then
+		assert.NoError(t, err)
+	})
 }
 
 func (s *ActionTestSuite) TestDeleteAction() {
 	// given
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), true, tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
 	id := fxt.Tenants[0].ID
 	repoService := tenant.NewDBService(s.DB)
 	repo := repoService.NewTenantRepository(id)
@@ -153,8 +177,8 @@ func (s *ActionTestSuite) TestDeleteAction() {
 	defer reset()
 
 	// when
-	delete := openshift.NewDelete(repo, false, fxt.Namespaces)
-	deleteFromCluster := openshift.NewDelete(repo, true, fxt.Namespaces)
+	delete := openshift.NewDelete(repo, false, true, fxt.Namespaces)
+	deleteFromCluster := openshift.NewDelete(repo, true, false, fxt.Namespaces)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -242,36 +266,36 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		})
 	}
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should keep entity when one namespace is present", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should keep entity when one namespace is present", func(t *testing.T) {
 		// given
 		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
 			tnnt.ID = id
-		}), true, tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		}), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
 
 		errorChan := make(chan error, 10)
 		close(errorChan)
 		// when
-		err := deleteFromCluster.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe})
+		err := deleteFromCluster.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, emptyHealing)
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("cannot remove tenant %s from DB - some namespaces", id))
 
 	})
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when namespace were only cleaned", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should do nothing when namespace were only cleaned", func(t *testing.T) {
 		// given
 		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
 			tnnt.ID = id
-		}), true, tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		}), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
 		errorChan := make(chan error, 10)
 		close(errorChan)
 		// when
-		err := delete.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe})
+		err := delete.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, emptyHealing)
 		// then
 		assert.NoError(t, err)
 
 	})
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should delete entity when no namespace is present", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should delete entity when no namespace is present", func(t *testing.T) {
 		// given
 		repo := tenant.NewDBService(s.DB).NewTenantRepository(id)
 		namespaces, err := repo.GetNamespaces()
@@ -282,12 +306,38 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		errorChan := make(chan error, 10)
 		close(errorChan)
 		// when
-		err = deleteFromCluster.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe})
+		err = deleteFromCluster.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, emptyHealing)
 		// then
 		assert.NoError(t, err)
 		tnnt, err := repoService.GetTenant(id)
 		test.AssertError(t, err, test.IsOfType(errors.NotFoundError{}))
 		assert.Nil(t, tnnt)
+	})
+
+	s.T().Run("HealingStrategy should return healing strategy that does nothing and just return original error", func(t *testing.T) {
+		originalErr := fmt.Errorf("some error")
+		// when
+		err := deleteFromCluster.HealingStrategy()(nil)(originalErr)
+		// then
+		assert.Equal(t, originalErr, err)
+		// and also when
+		err = delete.HealingStrategy()(nil)(originalErr)
+		// then
+		assert.Equal(t, originalErr, err)
+	})
+
+	s.T().Run("when there was no error then it should not run healing", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		close(errorChan)
+		// when
+		err := deleteFromCluster.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+		// then
+		assert.NoError(t, err)
+		// and also when
+		err = delete.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+		// then
+		assert.NoError(t, err)
 	})
 }
 
@@ -308,7 +358,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 	defer reset()
 
 	// when
-	update := openshift.NewUpdate(repo, namespaces)
+	update := openshift.NewUpdate(repo, namespaces, true)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -388,31 +438,47 @@ func (s *ActionTestSuite) TestUpdateAction() {
 		})
 	}
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should do nothing when err channel is empty", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should do nothing when err channel is empty", func(t *testing.T) {
 		// given
 		errorChan := make(chan error, 10)
 		close(errorChan)
 		// when
-		assert.NoError(t, update.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}))
+		assert.NoError(t, update.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}, emptyHealing))
 		// then
 		tnnt, err := repoService.GetTenant(id)
 		assert.NoError(t, err)
 		assert.NotNil(t, tnnt)
 	})
 
-	s.T().Run("CheckNamespacesAndUpdateTenant should return error when err channel is not empty", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should return error when err channel is not empty", func(t *testing.T) {
 		// given
 		errorChan := make(chan error, 10)
 		errorChan <- fmt.Errorf("first dummy error")
 		errorChan <- fmt.Errorf("second dummy error")
 		close(errorChan)
 		// when
-		err := update.CheckNamespacesAndUpdateTenant(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser})
+		err := update.ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe, environment.TypeUser}, emptyHealing)
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("PATCH method applied to namespace types [che user] failed with one or more errors"),
 			test.HasMessageContaining("#1: first dummy error"),
 			test.HasMessageContaining("#2: second dummy error"))
+	})
+
+	s.T().Run("HealingStrategy should return healing strategy that re-creates new namespaces (with new base name) when error is not nil", func(t *testing.T) {
+		testRecreateHealingStrategy(t, s.DB, config, func(repo tenant.Repository, allowSelfHealing bool) openshift.NamespaceAction {
+			return openshift.NewUpdate(repo, namespaces, allowSelfHealing)
+		})
+	})
+
+	s.T().Run("when there was no error then it should not run healing", func(t *testing.T) {
+		// given
+		errorChan := make(chan error, 10)
+		close(errorChan)
+		// when
+		err := openshift.NewUpdate(repo, namespaces,true).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+		// then
+		assert.NoError(t, err)
 	})
 }
 
@@ -437,32 +503,17 @@ func getNs(t *testing.T, repo tenant.Repository, envType environment.Type) *tena
 	return nil
 }
 
-func newOsContext(config *configuration.Data) *openshift.ServiceContext {
-	clusterMapping := singleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
-
-	return openshift.NewServiceContext(
-		context.Background(), config, clusterMapping, "developer", "developer1", func(cluster cluster.Cluster) string {
+func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *configuration.Data) (openshift.EnvironmentTypeService, *environment.EnvData) {
+	osContext := openshift.NewServiceContext(
+		context.Background(), config, testdoubles.DefaultClusterMapping, "developer", "developer1", func(cluster cluster.Cluster) string {
 			return "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"
 		})
-}
-
-func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *configuration.Data) (openshift.EnvironmentTypeService, *environment.EnvData) {
-	service := openshift.NewEnvironmentTypeService(envType, newOsContext(config), environment.NewService())
+	service := openshift.NewEnvironmentTypeService(envType, osContext, environment.NewService())
 	data, _, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
 		return true
 	})
 	assert.NoError(t, err)
 	return service, data
-}
-
-func singleClusterMapping(url, user, token string) cluster.ForType {
-	return func(envType environment.Type) cluster.Cluster {
-		return cluster.Cluster{
-			APIURL: url,
-			User:   user,
-			Token:  token,
-		}
-	}
 }
 
 var allKinds = []string{environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap,
@@ -478,4 +529,140 @@ func getObjectsOfAllKinds() environment.Objects {
 		objects = append(objects, obj)
 	}
 	return objects
+}
+
+
+func testRecreateHealingStrategy(t *testing.T, db *gorm.DB, config *configuration.Data,
+	actionCreator func(repo tenant.Repository, allowSelfHealing bool) openshift.NamespaceAction) {
+
+	t.Run("when there was an error, then should delete and create with basename developer2", func(t *testing.T) {
+		// given
+		fxt := tf.FillDB(t, db, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		id := fxt.Tenants[0].ID
+		fmt.Println(id)
+		repoService := tenant.NewDBService(db)
+		repo := repoService.NewTenantRepository(id)
+
+		defer gock.Off()
+		deleteCalls := 0
+		postCalls := 0
+		testdoubles.MockPostRequestsToOS(&postCalls, "http://api.cluster1/")
+		testdoubles.MockRemoveRequestsToOS(&deleteCalls, "http://api.cluster1/")
+		userModifier := testdoubles.AddUser("developer")
+		serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
+		// when
+		err := actionCreator(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+		// then
+		assert.NoError(t, err)
+		assert.EqualValues(t, testdoubles.ExpectedNumberOfCallsWhenPost(t, config), postCalls)
+		assert.EqualValues(t, 2, deleteCalls)
+		tnnt, err := repo.GetTenant()
+		assert.NoError(t, err)
+		assert.Equal(t, "developer2", tnnt.NsBaseName)
+	})
+
+	t.Run("healing should not be executed when disabled", func(t *testing.T) {
+		// given
+		fxt := tf.FillDB(t, db, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		id := fxt.Tenants[0].ID
+		fmt.Println(id)
+		repoService := tenant.NewDBService(db)
+		repo := repoService.NewTenantRepository(id)
+		userModifier := testdoubles.AddUser("developer")
+		serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
+		// when
+		err := actionCreator(repo, false).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+		// then
+		test.AssertError(t, err, test.HasMessage("some error"))
+		tnnt, err := repo.GetTenant()
+		assert.NoError(t, err)
+		assert.Equal(t, "developer", tnnt.NsBaseName)
+	})
+
+	t.Run("when there was an error and dev2 already exists then it should create dev3", func(t *testing.T) {
+		// given
+		fxt := tf.FillDB(t, db, tf.AddSpecificTenants(tf.SingleWithName("dev"), tf.SingleWithName("dev2")),
+			tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		id := fxt.Tenants[0].ID
+		fmt.Println(id)
+		repoService := tenant.NewDBService(db)
+		repo := repoService.NewTenantRepository(id)
+
+		defer gock.Off()
+		deleteCalls := 0
+		postCalls := 0
+		testdoubles.MockPostRequestsToOS(&postCalls, "http://api.cluster1/")
+		testdoubles.MockRemoveRequestsToOS(&deleteCalls, "http://api.cluster1/")
+		userModifier := testdoubles.AddUser("dev")
+		serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
+		// when
+		err := actionCreator(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+		// then
+		assert.NoError(t, err)
+		assert.EqualValues(t, testdoubles.ExpectedNumberOfCallsWhenPost(t, config), postCalls)
+		assert.EqualValues(t, 2, deleteCalls)
+		tnnt, err := repo.GetTenant()
+		assert.NoError(t, err)
+		assert.Equal(t, "dev3", tnnt.NsBaseName)
+	})
+
+	t.Run("when deletion fails then it should stop recreation and return an error", func(t *testing.T) {
+		// given
+		fxt := tf.FillDB(t, db, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		id := fxt.Tenants[0].ID
+		repoService := tenant.NewDBService(db)
+		repo := repoService.NewTenantRepository(id)
+
+		defer gock.Off()
+		deleteCalls := 0
+		gock.New("http://api.cluster1/").
+			Delete(".*/developer-jenkins.*").
+			Reply(500).
+			BodyString("{}")
+		testdoubles.MockRemoveRequestsToOS(&deleteCalls, "http://api.cluster1/")
+		userModifier := testdoubles.AddUser("developer")
+		serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
+		// when
+		err := actionCreator(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("DELETE method applied to namespace types [che jenkins run stage user] failed"),
+			test.HasMessageContaining("server responded with status: 500 for the DELETE request"),
+			test.HasMessageContaining("while doing self-healing operations triggered by error: [some error]"))
+		assert.EqualValues(t, 1, deleteCalls)
+		tnnt, err := repo.GetTenant()
+		assert.NoError(t, err)
+		assert.Equal(t, "developer", tnnt.NsBaseName)
+	})
+
+	t.Run("when recreation fails then it should not do another one and return an error", func(t *testing.T) {
+		// given
+		fxt := tf.FillDB(t, db, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		id := fxt.Tenants[0].ID
+		repoService := tenant.NewDBService(db)
+		repo := repoService.NewTenantRepository(id)
+
+		defer gock.Off()
+		deleteCalls := 0
+		postCalls := 0
+		gock.New("http://api.cluster1/").
+			Post(".*/anotherdev-jenkins.*").
+			Reply(500).
+			BodyString("{}")
+		testdoubles.MockPostRequestsToOS(&postCalls, "http://api.cluster1/")
+		testdoubles.MockRemoveRequestsToOS(&deleteCalls, "http://api.cluster1/")
+		userModifier := testdoubles.AddUser("anotherdev")
+		serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
+		// when
+		err := actionCreator(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("POST method applied to namespace types [che jenkins run stage user] failed"),
+			test.HasMessageContaining("server responded with status: 500 for the POST request"),
+			test.HasMessageContaining("while doing self-healing operations triggered by error: [some error]"))
+		assert.EqualValues(t, 2, deleteCalls)
+		tnnt, err := repo.GetTenant()
+		assert.NoError(t, err)
+		assert.Equal(t, "anotherdev2", tnnt.NsBaseName)
+	})
 }

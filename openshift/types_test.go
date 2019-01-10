@@ -14,15 +14,6 @@ import (
 	"testing"
 )
 
-var (
-	clusterMapping = testdoubles.SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
-	userInfo       = testdoubles.UserInfo{
-		OsUsername:  "developer",
-		OsUserToken: "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8",
-		NsBaseName:  "developer",
-	}
-)
-
 func TestEnvironmentTypeService(t *testing.T) {
 	// given
 	config, reset := test.LoadTestConfig(t)
@@ -102,7 +93,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 			// then
 			test.AssertError(t, err,
 				test.HasMessageContaining("unable to remove admin rolebinding in developer1 namespace"),
-				test.HasMessageContaining("server responded with status: 505 for the request DELETE"))
+				test.HasMessageContaining("server responded with status: 505 for the DELETE request"))
 		})
 		t.Run("when action is other than post then it does nothing", func(t *testing.T) {
 			// when
@@ -116,7 +107,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 func TestPresenceOfTemplateObjects(t *testing.T) {
 	data, reset := test.LoadTestConfig(t)
 	defer reset()
-	templateObjects := testdoubles.AllTemplatesObjects(t, data, clusterMapping, userInfo)
+	templateObjects := testdoubles.AllDefaultObjects(t, data)
 
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
 		assert.NoError(t,
@@ -190,7 +181,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 		defer resetEnv()
 		data, reset := test.LoadTestConfig(t)
 		defer reset()
-		templateObjects := testdoubles.AllTemplatesObjects(t, data, clusterMapping, userInfo)
+		templateObjects := testdoubles.AllDefaultObjects(t, data)
 
 		assert.Error(t,
 			contain(templateObjects,

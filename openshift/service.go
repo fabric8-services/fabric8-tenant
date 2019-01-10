@@ -28,7 +28,7 @@ type Service struct {
 	envService       *environment.Service
 }
 
-func NewService(context *ServiceContext, namespaceRepository tenant.Repository, envService *environment.Service) *ServiceBuilder {
+func NewService(context *ServiceContext, repo tenant.Repository, envService *environment.Service) *ServiceBuilder {
 	transport := http.DefaultTransport
 	if context.config.APIServerUseTLS() {
 		transport = &http.Transport{
@@ -37,7 +37,7 @@ func NewService(context *ServiceContext, namespaceRepository tenant.Repository, 
 			},
 		}
 	}
-	return NewBuilderWithTransport(context, namespaceRepository, transport, envService)
+	return NewBuilderWithTransport(context, repo, transport, envService)
 }
 
 func NewBuilderWithTransport(context *ServiceContext, namespaceRepository tenant.Repository, transport http.RoundTripper, envService *environment.Service) *ServiceBuilder {
@@ -78,24 +78,24 @@ func (s *WithActionBuilder) ApplyAll(nsTypes []environment.Type) error {
 	return s.service.processAndApplyAll(nsTypes, s.action)
 }
 
-func (b *ServiceBuilder) WithPostMethod() *WithActionBuilder {
+func (b *ServiceBuilder) WithPostMethod(allowSelfHealing bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewCreate(b.service.tenantRepository),
+		action:  NewCreate(b.service.tenantRepository, allowSelfHealing),
 	}
 }
 
-func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace) *WithActionBuilder {
+func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace, allowSelfHealing bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewUpdate(b.service.tenantRepository, existingNamespaces),
+		action:  NewUpdate(b.service.tenantRepository, existingNamespaces, allowSelfHealing),
 	}
 }
 
-func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster bool) *WithActionBuilder {
+func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster, keepTenant bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewDelete(b.service.tenantRepository, removeFromCluster, existingNamespaces),
+		action:  NewDelete(b.service.tenantRepository, removeFromCluster, keepTenant, existingNamespaces),
 	}
 }
 
@@ -111,7 +111,9 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 	nsTypesWait.Wait()
 	close(errorChan)
 
-	return action.CheckNamespacesAndUpdateTenant(errorChan, nsTypes)
+	healingStrategy := action.HealingStrategy()
+	return action.ManageAndUpdateResults(errorChan, nsTypes, healingStrategy(&ServiceBuilder{service: s}))
+
 }
 
 type ObjectChecker func(object environment.Object) bool
@@ -150,7 +152,8 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	for _, object := range objects {
 		_, err := Apply(*client, action.MethodName(), object)
 		if err != nil {
-			errorChan <- errors.Wrapf(err, action.MethodName()+" method applied to the namespace %s in the cluster %s failed", nsTypeService.GetNamespaceName(), cluster.APIURL)
+			errorChan <- errors.Wrapf(err, "for the namespace [%s] the method %s failed for the cluster %s with following error",
+				nsTypeService.GetNamespaceName(), action.MethodName(), cluster.APIURL)
 			failed = true
 			break
 		}

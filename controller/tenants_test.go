@@ -13,12 +13,13 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
-	"github.com/fabric8-services/fabric8-tenant/test/testfixture"
+	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
@@ -57,7 +58,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
 		_, tenant := goatest.ShowTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Tenants[0].ID)
 		// then
@@ -99,7 +100,7 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1), testfixture.Namespaces(1))
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
 		_, tenant := goatest.SearchTenantsOK(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, fxt.Namespaces[0].MasterURL, fxt.Namespaces[0].Name)
 		// then
@@ -153,7 +154,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			Reply(200).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
-		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
 			id, err := uuid.FromString("8c97b9fc-2a3f-4bef-8579-75e676ab1348") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
 			if err != nil {
 				return err
@@ -162,7 +163,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			fxt.Tenants[0].OSUsername = "foo"
 			fxt.Tenants[0].NsBaseName = "foo"
 			return nil
-		}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
+		}), tf.Namespaces(2, func(fxt *tf.TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 			fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
 			if idx == 0 {
@@ -203,7 +204,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			Reply(200).
 			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
 
-		fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
+		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1, func(fxt *tf.TestFixture, idx int) error {
 			id, err := uuid.FromString("0257147d-0bb8-4624-a054-853e49c97d07") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
 			if err != nil {
 				return err
@@ -212,7 +213,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			fxt.Tenants[0].OSUsername = "bar"
 			fxt.Tenants[0].NsBaseName = "bar"
 			return nil
-		}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
+		}), tf.Namespaces(2, func(fxt *tf.TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
 			fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
 			if idx == 0 {
@@ -279,13 +280,13 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			// given
 			repo := tenant.NewDBService(s.DB)
 			defer gock.Off()
-			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
-			gock.New("https://api.cluster1").
+			testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+			gock.New("http://api.cluster1").
 				Delete("/oapi/v1/projects/baz-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
-			gock.New("https://api.cluster1").
+			gock.New("http://api.cluster1").
 				Delete("/oapi/v1/projects/baz").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500).
@@ -293,28 +294,8 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 
 			svc, ctrl, reset := s.newTestTenantsController()
 			defer reset()
-			fxt := testfixture.NewTestFixture(t, s.DB, testfixture.Tenants(1, func(fxt *testfixture.TestFixture, idx int) error {
-				id, err := uuid.FromString("5a95c51b-120a-4d03-b529-98bd7d4a5689") // force the ID to match the go-vcr cassette in the `delete-tenants.yaml` file
-				if err != nil {
-					return err
-				}
-				fxt.Tenants[0].ID = id
-				fxt.Tenants[0].OSUsername = "baz"
-				fxt.Tenants[0].NsBaseName = "baz"
-				return nil
-			}), testfixture.Namespaces(2, func(fxt *testfixture.TestFixture, idx int) error {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-				fxt.Namespaces[idx].MasterURL = "https://api.cluster1"
-				if idx == 0 {
-					fxt.Namespaces[idx].Name = "baz"
-					fxt.Namespaces[idx].Type = "user"
-				} else if idx == 1 {
-					fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-					fxt.Namespaces[idx].Name = "baz-che"
-					fxt.Namespaces[idx].Type = "che"
-				}
-				return nil
-			}))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("baz")),
+				tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 
 			// when
 			goatest.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)

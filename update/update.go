@@ -16,15 +16,15 @@ import (
 
 type followUpFunc func() error
 
-type UpdateExecutor interface {
-	Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error
+type Executor interface {
+	Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type, allowSelfHealing bool) error
 }
 
 func NewTenantsUpdater(
 	db *gorm.DB,
 	config *configuration.Data,
 	clusterService cluster.Service,
-	updateExecutor UpdateExecutor,
+	updateExecutor Executor,
 	filterEnvType FilterEnvType,
 	limitToCluster string) *TenantsUpdater {
 
@@ -42,7 +42,7 @@ type TenantsUpdater struct {
 	db             *gorm.DB
 	config         *configuration.Data
 	clusterService cluster.Service
-	updateExecutor UpdateExecutor
+	updateExecutor Executor
 	filterEnvType  FilterEnvType
 	limitToCluster string
 }
@@ -203,11 +203,9 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 
 		typesWithVersion := map[environment.Type]string{}
 
-		var filteredEnvTypes []environment.Type
 		for _, envType := range envTypes {
 			if u.filterEnvType.IsOk(envType) {
 				typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
-				filteredEnvTypes = append(filteredEnvTypes, envType)
 			}
 		}
 
@@ -223,7 +221,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 				"number_of_tenants_to_update": len(toUpdate),
 			}, "starting update for next batch of outdated/failed tenants")
 
-			canContinue, err := u.updateTenants(toUpdate, tenantRepo, filteredEnvTypes)
+			canContinue, err := u.updateTenants(toUpdate, tenantRepo, typesWithVersion)
 			if err != nil {
 				return err
 			}
@@ -272,7 +270,7 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
-func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, envTypes []environment.Type) (bool, error) {
+func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) (bool, error) {
 	numberOfTriggeredUpdates := 0
 	var wg sync.WaitGroup
 	canContinue := true
@@ -291,7 +289,7 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 
 		wg.Add(1)
 
-		go updateTenant(&wg, u.updateExecutor, tnnt, envTypes, u.db)
+		go updateTenant(&wg, u.updateExecutor, tnnt, typesWithVersion, u.db)
 
 		numberOfTriggeredUpdates++
 		if numberOfTriggeredUpdates == 10 {
@@ -303,15 +301,37 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 	return canContinue, err
 }
 
-func updateTenant(wg *sync.WaitGroup, updateExecutor UpdateExecutor, tnnt *tenant.Tenant, envTypes []environment.Type, db *gorm.DB) {
+func updateTenant(wg *sync.WaitGroup,updateExecutor Executor, tnnt *tenant.Tenant, typesWithVersion map[environment.Type]string, db *gorm.DB) {
 	defer wg.Done()
+
+	namespaces, err := tenant.NewDBService(db).GetNamespaces(tnnt.ID)
+	if err != nil {
+		sentry.LogError(nil, map[string]interface{}{
+			"err":         err,
+			"tenant":      tnnt.ID,
+		}, err, "unable to get current tenant namespaces during cluster-wide update")
+		return
+	}
+
+	var envTypesToUpdate []environment.Type
+	var nsNamesToUpdate []string
+	for envType, version := range typesWithVersion {
+		for _, ns := range namespaces {
+			if ns.Type == envType && (ns.Version != version || ns.State == tenant.Failed) {
+				envTypesToUpdate = append(envTypesToUpdate, envType)
+				nsNamesToUpdate = append(nsNamesToUpdate, ns.Name)
+				break
+			}
+		}
+	}
+
 	logParams := map[string]interface{}{
 		"os_user":            tnnt.OSUsername,
 		"tenant_id":          tnnt.ID,
-		"env_type_to_update": envTypes,
+		"ns_names_to_update": nsNamesToUpdate,
 	}
-	log.Info(nil, logParams, "starting update of tenant for outdated namespace")
-	err := updateExecutor.Update(nil, tnnt, nil, envTypes)
+	log.Info(nil, logParams, "starting update of tenant for outdated namespaces")
+	err = updateExecutor.Update(nil, tnnt, nil, envTypesToUpdate, false)
 
 	if err != nil {
 		errIncr := Transaction(db, lock(func(repo Repository) error {

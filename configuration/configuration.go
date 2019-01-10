@@ -105,7 +105,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varPostgresHost, "localhost")
 	c.v.SetDefault(varPostgresPort, 5432)
 	c.v.SetDefault(varPostgresUser, "postgres")
-	c.v.SetDefault(varPostgresDatabase, "tenant")
+	c.v.SetDefault(varPostgresDatabase, "postgres")
 	c.v.SetDefault(varPostgresPassword, "mysecretpassword")
 	c.v.SetDefault(varPostgresSSLMode, "disable")
 	c.v.SetDefault(varPostgresConnectionTimeout, 5)

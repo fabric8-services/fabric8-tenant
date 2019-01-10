@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
@@ -70,17 +71,35 @@ func SetTemplateVersions() {
 	environment.VersionFabric8TenantJenkinsQuotasFile = "yxw987"
 }
 
-type UserCreator func() *auth.User
+type UserModifier func(user *auth.User)
 
-func WithUser(data *authclient.UserDataAttributes, osUsername, osUserToken string) UserCreator {
-	return func() *auth.User {
-		return &auth.User{
-			UserData:           data,
-			OpenShiftUserToken: osUserToken,
-			OpenShiftUsername:  osUsername,
-		}
+func AddUser(osUsername string) UserModifier {
+	return func(user *auth.User) {
+		user.OpenShiftUsername = osUsername
 	}
 }
+
+func (m UserModifier) WithData(data *authclient.UserDataAttributes) UserModifier {
+	return func(user *auth.User) {
+		m(user)
+		user.UserData = data
+	}
+}
+
+func (m UserModifier) WithToken(osUserToken string) UserModifier {
+	return func(user *auth.User) {
+		m(user)
+		user.OpenShiftUserToken = osUserToken
+	}
+}
+
+var defaultClusterToken, _ = test.NewToken(
+	map[string]interface{}{
+		"sub": "devtools-sre",
+	},
+	"../test/private_key.pem",
+)
+var DefaultClusterMapping = SingleClusterMapping("http://api.cluster1/", "clusterUser", defaultClusterToken.Raw)
 
 func SingleClusterMapping(url, user, token string) cluster.ForType {
 	return func(envType environment.Type) cluster.Cluster {
@@ -92,8 +111,9 @@ func SingleClusterMapping(url, user, token string) cluster.ForType {
 	}
 }
 
-func (c UserCreator) NewUserInfo(nsBaseName string) UserInfo {
-	user := c()
+func (m UserModifier) NewUserInfo(nsBaseName string) UserInfo {
+	user := &auth.User{ID: uuid.NewV4()}
+	m(user)
 	return UserInfo{
 		OsUsername:  user.OpenShiftUsername,
 		OsUserToken: user.OpenShiftUserToken,
@@ -101,10 +121,11 @@ func (c UserCreator) NewUserInfo(nsBaseName string) UserInfo {
 	}
 }
 
-func NewOSService(config *configuration.Data, clusterMapping cluster.ForType, createUser UserCreator, repository tenant.Repository) *openshift.ServiceBuilder {
-	user := createUser()
+func NewOSService(config *configuration.Data, modifier UserModifier, repository tenant.Repository) *openshift.ServiceBuilder {
+	user := &auth.User{ID: uuid.NewV4()}
+	modifier(user)
 	envService := environment.NewServiceForUserData(user.UserData)
-	ctx := openshift.NewServiceContext(context.Background(), config, clusterMapping, user.OpenShiftUsername,
+	ctx := openshift.NewServiceContext(context.Background(), config, DefaultClusterMapping, user.OpenShiftUsername,
 		environment.RetrieveUserName(user.OpenShiftUsername), openshift.TokenResolverForUser(user))
 
 	return openshift.NewBuilderWithTransport(ctx, repository, http.DefaultTransport, envService)
@@ -116,12 +137,18 @@ type UserInfo struct {
 	NsBaseName  string
 }
 
-func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
+var DefaultUserInfo = UserInfo{
+	OsUsername:  "developer",
+	OsUserToken: "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8",
+	NsBaseName:  "developer",
+}
+
+func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type) environment.Objects {
 	envService := environment.NewService()
 
 	ctx := openshift.NewServiceContext(
-		context.Background(), config, clusterMapping, userInfo.OsUsername, userInfo.NsBaseName, func(cluster cluster.Cluster) string {
-			return userInfo.OsUserToken
+		context.Background(), config, DefaultClusterMapping, DefaultUserInfo.OsUsername, DefaultUserInfo.NsBaseName, func(cluster cluster.Cluster) string {
+			return DefaultUserInfo.OsUserToken
 		})
 
 	nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
@@ -132,13 +159,17 @@ func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType en
 	return objects
 }
 
-func AllTemplatesObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
+func AllObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
 	var objs environment.Objects
 	for _, envType := range environment.DefaultEnvTypes {
-		objects := SingleTemplatesObjects(t, config, envType, clusterMapping, userInfo)
+		objects := SingleTemplatesObjects(t, config, envType)
 		objs = append(objs, objects...)
 	}
 	return objs
+}
+
+func AllDefaultObjects(t *testing.T, config *configuration.Data) environment.Objects {
+	return AllObjects(t, config, DefaultClusterMapping, DefaultUserInfo)
 }
 
 func MockPostRequestsToOS(calls *int, cluster string) {
@@ -201,8 +232,8 @@ func MockRemoveRequestsToOS(calls *int, cluster string) {
 		BodyString("{}")
 }
 
-func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo) int {
-	objectsInTemplates := AllTemplatesObjects(t, config, clusterMapping, userInfo)
+func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int {
+	objectsInTemplates := AllDefaultObjects(t, config)
 	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1
 }
 

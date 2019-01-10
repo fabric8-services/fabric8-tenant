@@ -28,7 +28,7 @@ func TestAccumulateErrorsWhenAllFailed(t *testing.T) {
 
 func TestRetryExecuteOnce(t *testing.T) {
 	// given
-	maxRetries := 0
+	maxRetries := 1
 	executions := 0
 	toRetry := func() error {
 		executions++

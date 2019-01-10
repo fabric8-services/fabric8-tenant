@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/fabric8-services/fabric8-common/errors"
-	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 
 	"github.com/fabric8-services/fabric8-common/sentry"
@@ -37,7 +36,7 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 	var title, code string
 	var statusCode int
 	var id *string
-	log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
+	//log.Error(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
 	switch cause := cause.(type) {
 	case errors.NotFoundError:
 		code = ErrorCodeNotFound
@@ -147,6 +146,12 @@ func JSONErrorResponse(obj interface{}, err error) error {
 	}
 	x := obj.(InternalServerError)
 	c := obj.(context.Context)
+	x, ok := obj.(InternalServerError)
+
+	if !ok {
+		sentry.Sentry().CaptureError(c, err)
+		return errs.WithStack(errors.NewInternalError(c, err))
+	}
 
 	jsonErr, status := ErrorToJSONAPIErrors(c, err)
 	switch status {

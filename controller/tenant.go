@@ -89,7 +89,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	openShiftService := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterMapping)
 
 	// perform delete method on the list of existing namespaces
-	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster).ApplyAll(environment.DefaultEnvTypes)
+	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster, !removeFromCluster).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
 		namespaces, getErr := c.tenantRepository.GetNamespaces(dbTenant.ID)
 		if getErr != nil {
@@ -200,7 +200,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	service := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterNsMapping)
 
 	// perform post method on the list of missing environment types
-	err = service.WithPostMethod().ApplyAll(missing)
+	err = service.WithPostMethod(true).ApplyAll(missing)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":             err,
@@ -266,14 +266,10 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 	}
 
 	TenantUpdater{Config: c.config, ClusterService: c.clusterService, TenantRepository: c.tenantRepository}.
-		Update(ctx, dbTenant, user, environment.DefaultEnvTypes)
+		Update(ctx, dbTenant, user, environment.DefaultEnvTypes, true)
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
-}
-
-type UpdateExecutor interface {
-	Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error
 }
 
 type TenantUpdater struct {
@@ -282,7 +278,7 @@ type TenantUpdater struct {
 	Config           *configuration.Data
 }
 
-func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error {
+func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type, allowSelfHealing bool) error {
 	// get tenant's namespaces
 	namespaces, err := u.TenantRepository.GetNamespaces(dbTenant.ID)
 	if err != nil {
@@ -317,7 +313,7 @@ func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user
 	openShiftService := openshift.NewService(serviceContext, nsRepo, envService)
 
 	// perform patch method on the list of exiting namespaces
-	err = openShiftService.WithPatchMethod(namespaces).ApplyAll(envTypes)
+	err = openShiftService.WithPatchMethod(namespaces, true).ApplyAll(envTypes)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":                err,
@@ -369,6 +365,7 @@ func filterMissingAndExisting(namespaces []*tenant.Namespace) (missing []environ
 			missingNamespaces = append(missingNamespaces, nsType)
 		} else {
 			existingNamespaces = append(existingNamespaces, nsType)
+
 		}
 	}
 	return missingNamespaces, existingNamespaces

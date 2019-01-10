@@ -16,15 +16,15 @@ type ObjectEndpoints struct {
 var (
 	AllObjectEndpoints = map[string]*ObjectEndpoints{
 		environment.ValKindNamespace: endpoints(
-			endpoint(`/api/v1/namespaces`, POST(IgnoreConflicts, GetObject)),
+			endpoint(`/api/v1/namespaces`, POST(GetObject)),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindProject: endpoints(
-			endpoint(`/oapi/v1/projects`, POST(WhenConflictThenDeleteAndRedo, GetObject)),
+			endpoint(`/oapi/v1/projects`, POST(GetObject)),
 			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindProjectRequest: endpoints(
-			endpoint(`/oapi/v1/projectrequests`, POST(IgnoreConflicts, GetObject)),
+			endpoint(`/oapi/v1/projectrequests`, POST(GetObject)),
 			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindRole: endpoints(
@@ -53,7 +53,7 @@ var (
 			endpoint(`/apis/apps.openshift.io/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindPersistenceVolumeClaim: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`, POST(IgnoreConflicts)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`, POST(WhenConflictThenDeleteAndRedo)),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindService: endpoints(
@@ -65,7 +65,7 @@ var (
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindServiceAccount: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts`, POST(IgnoreConflicts)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts`, POST(WhenConflictThenDeleteAndRedo)),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindConfigMap: endpoints(

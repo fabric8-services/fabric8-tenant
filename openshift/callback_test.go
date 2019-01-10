@@ -133,7 +133,7 @@ func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 		err = openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
-		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the request POST"))
+		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the POST request"))
 	})
 
 	t.Run("original response nil and error is not nil, so the same error is returned", func(t *testing.T) {
@@ -188,7 +188,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("delete request failed while removing an object because of a conflict"),
-			test.HasMessageContaining("server responded with status: 404 for the request DELETE"))
+			test.HasMessageContaining("server responded with status: 404 for the DELETE request"))
 	})
 
 	t.Run("when there is a second conflict while redoing the action, then it return an error and stops redoing", func(t *testing.T) {
@@ -209,7 +209,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("redoing an action POST failed after the object was successfully removed because of a previous conflict"),
-			test.HasMessageContaining("server responded with status: 409 for the request POST"))
+			test.HasMessageContaining("server responded with status: 409 for the POST request"))
 	})
 }
 
@@ -261,7 +261,7 @@ func TestIgnoreConflicts(t *testing.T) {
 		err = openshift.IgnoreConflicts.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
-		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the request POST"))
+		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the POST request"))
 	})
 
 	t.Run("when there is no conflict but and no error it returns nil", func(t *testing.T) {
@@ -289,7 +289,7 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusNotFound}, []byte{}, fmt.Errorf("not found"))
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		assert.NoError(t, err)
@@ -300,7 +300,18 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusForbidden}, []byte{}, fmt.Errorf("forbidden"))
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+	})
+
+	t.Run("when there is 409, then it ignores it even if there is an error", func(t *testing.T) {
+		// given
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, fmt.Errorf("conflict"))
+
+		// when
+		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		assert.NoError(t, err)
@@ -313,7 +324,7 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, fmt.Errorf("wrong request"))
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		test.AssertError(t, err, test.HasMessage("wrong request"))
@@ -334,10 +345,10 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		}, []byte{}, nil)
 
 		// when
-		err = openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+		err = openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
-		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 500 for the request DELETE"))
+		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 500 for the DELETE request"))
 	})
 
 	t.Run("when the status code is 200 and no error then it returns nil", func(t *testing.T) {
@@ -347,13 +358,13 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExist.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		assert.NoError(t, err)
 	})
 
-	assert.Equal(t, openshift.IgnoreWhenDoesNotExistName, openshift.IgnoreWhenDoesNotExist.Name)
+	assert.Equal(t, openshift.IgnoreWhenDoesNotExistName, openshift.IgnoreWhenDoesNotExistOrConflicts.Name)
 }
 
 func TestGetObject(t *testing.T) {
@@ -474,7 +485,7 @@ func TestGetObject(t *testing.T) {
 		err = openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
-		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the request POST"))
+		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the POST request"))
 	})
 
 	t.Run("when there is an error in the result, then returns it", func(t *testing.T) {

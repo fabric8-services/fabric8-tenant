@@ -96,8 +96,10 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 	s.T().Run("without parameter", func(t *testing.T) {
 		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
 		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster2/")
-		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1"))
-		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2"))
+		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
+		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
 		configuration.Commit = "124abcd"
 		before := time.Now()
 
@@ -138,8 +140,11 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 	s.T().Run("with parameters", func(t *testing.T) {
 		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
 		updateExecutor.NumberOfCalls = ptr.Uint64(0)
-		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1/"))
-		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), false, tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2/"))
+		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1/").Outdated())
+		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2/").Outdated())
+
 		configuration.Commit = "xyz"
 		before := time.Now()
 
@@ -297,7 +302,7 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 	defer reset()
 	testdoubles.SetTemplateVersions()
 
-	tf.FillDB(s.T(), s.DB, tf.AddTenants(50), false, tf.AddDefaultNamespaces().State(tenant.Ready))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(50), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 	configuration.Commit = "124abcd"
 
 	testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
@@ -311,7 +316,7 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 	goatest.StartUpdateAccepted(s.T(), createValidSAContext("fabric8-tenant-update"), svc, ctrl, nil, nil)
 
 	// then
-	test.WaitWithTimeout(5 * time.Second).Until(func() error {
+	err := test.WaitWithTimeout(5 * time.Second).Until(func() error {
 		var tenantsUpdate *update.TenantsUpdate
 		testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
 			var err error
@@ -323,12 +328,13 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 		}
 		return nil
 	})
+	require.NoError(s.T(), err)
 	testupdate.Tx(s.T(), s.DB, func(repo update.Repository) error {
 		return repo.Stop()
 	})
 
 	var tenantsUpdate *update.TenantsUpdate
-	err := test.WaitWithTimeout(10 * time.Second).Until(func() error {
+	err = test.WaitWithTimeout(10 * time.Second).Until(func() error {
 		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
 			var err error
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()

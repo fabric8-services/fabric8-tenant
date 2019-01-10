@@ -22,11 +22,11 @@ type UpdateController struct {
 	db             *gorm.DB
 	config         *configuration.Data
 	clusterService cluster.Service
-	updateExecutor update.UpdateExecutor
+	updateExecutor update.Executor
 }
 
 // NewUpdateController creates a update controller.
-func NewUpdateController(service *goa.Service, db *gorm.DB, config *configuration.Data, clusterService cluster.Service, updateExecutor update.UpdateExecutor) *UpdateController {
+func NewUpdateController(service *goa.Service, db *gorm.DB, config *configuration.Data, clusterService cluster.Service, updateExecutor update.Executor) *UpdateController {
 	return &UpdateController{
 		Controller:     service.NewController("UpdateController"),
 		db:             db,

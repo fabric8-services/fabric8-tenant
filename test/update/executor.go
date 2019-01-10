@@ -29,7 +29,7 @@ func NewDummyUpdateExecutor(db *gorm.DB, config *configuration.Data) *DummyUpdat
 	return &DummyUpdateExecutor{db: db, config: config, NumberOfCalls: ptr.Uint64(0)}
 }
 
-func (e *DummyUpdateExecutor) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type) error {
+func (e *DummyUpdateExecutor) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type, allowSelfHealing bool) error {
 	atomic.AddUint64(e.NumberOfCalls, 1)
 
 	time.Sleep(e.TimeToSleep)
@@ -44,5 +44,5 @@ func (e *DummyUpdateExecutor) Update(ctx context.Context, dbTenant *tenant.Tenan
 		Config:         e.config,
 		ClusterService: e.ClusterService,
 	}
-	return tenantUpdater.Update(ctx, dbTenant, user, envTypes)
+	return tenantUpdater.Update(ctx, dbTenant, user, envTypes, allowSelfHealing)
 }

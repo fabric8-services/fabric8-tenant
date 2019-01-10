@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/retry"
+	"github.com/fabric8-services/fabric8-tenant/utils"
 	ghodssYaml "github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -29,13 +30,17 @@ const (
 	WhenConflictThenDeleteAndRedoName = "WhenConflictThenDeleteAndRedo"
 	IgnoreConflictsName               = "IgnoreConflicts"
 	GetObjectName                     = "GetObject"
-	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExist"
+	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExistOrConflicts"
 )
 
 // Before callbacks
 var GetObjectAndMerge = BeforeDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error) {
 		result, err := objEndpoints.Apply(client, object, http.MethodGet)
+		fmt.Println("####################################")
+		fmt.Println(string(result.Body))
+		// should check state
+		fmt.Println("####################################")
 		if err != nil {
 			if result != nil && result.response.StatusCode == http.StatusNotFound {
 				return getMethodAndMarshalObject(objEndpoints, http.MethodPost, object)
@@ -104,6 +109,16 @@ var IgnoreConflicts = AfterDoCallback{
 	Name: IgnoreConflictsName,
 }
 
+var WhenConflictThenFail = AfterDoCallback{
+	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
+		if result.response.StatusCode == http.StatusConflict {
+			return nil
+		}
+		return checkHTTPCode(result, result.err)
+	},
+	Name: IgnoreConflictsName,
+}
+
 var GetObject = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		err := checkHTTPCode(result, result.err)
@@ -111,7 +126,7 @@ var GetObject = AfterDoCallback{
 			return err
 		}
 		retries := 50
-		errs := retry.Do(retries, time.Millisecond*100, func() error {
+		errorChan := retry.Do(retries, time.Millisecond*100, func() error {
 			getResponse, err := objEndpoints.Apply(client, object, http.MethodGet)
 			err = checkHTTPCode(getResponse, err)
 			if err != nil {
@@ -126,25 +141,28 @@ var GetObject = AfterDoCallback{
 			}
 			return nil
 		})
-		if len(errs) > 0 {
+		msg := utils.ListErrorsInMessage(errorChan)
+		if len(msg) > 0 {
 			return fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
-				"to get the created objects from the cluster %s", method.action, object, retries, client.MasterURL)
+				"to get the created objects from the cluster %s. The retrieved errors:%s",
+				method.action, object, retries, client.MasterURL, msg)
 		}
 		return nil
 	},
 	Name: GetObjectName,
 }
 
-var IgnoreWhenDoesNotExist = AfterDoCallback{
+var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		if result.response.StatusCode == http.StatusNotFound || result.response.StatusCode == http.StatusForbidden {
+		code := result.response.StatusCode
+		if code == http.StatusNotFound || code == http.StatusForbidden || code == http.StatusConflict{
 			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
 			//log.Warn(nil, map[string]interface{}{
 			//	"action":  method.action,
 			//	"status":  result.response.Status,
 			//	"object":  object.ToString(),
 			//	"message": result.Body,
-			//}, "failed to %s the object. Ignoring this error because it probably does not exist", method.action)
+			//}, "failed to %s the object. Ignoring this error because it probably does not exist or is being removed", method.action)
 			return nil
 		}
 		return checkHTTPCode(result, result.err)
@@ -154,8 +172,8 @@ var IgnoreWhenDoesNotExist = AfterDoCallback{
 
 func checkHTTPCode(result *Result, e error) error {
 	if e == nil && result.response != nil && (result.response.StatusCode < 200 || result.response.StatusCode >= 300) {
-		return fmt.Errorf("server responded with status: %d for the request %s %s with the Body %s",
-			result.response.StatusCode, result.response.Request.Method, result.response.Request.URL, result.Body)
+		return fmt.Errorf("server responded with status: %d for the %s request %s with the Body [%s]",
+			result.response.StatusCode, result.response.Request.Method, result.response.Request.URL, string(result.Body))
 	}
 	return e
 }

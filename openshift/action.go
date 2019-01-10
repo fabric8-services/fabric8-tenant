@@ -6,6 +6,8 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/utils"
+	"github.com/pkg/errors"
 	"net/http"
 	"sort"
 )
@@ -19,11 +21,21 @@ type NamespaceAction interface {
 	Sort(toSort environment.ByKind)
 	Filter() FilterFunc
 	ForceMasterTokenGlobally() bool
-	CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []environment.Type) error
+	HealingStrategy() HealingFuncGenerator
+	ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error
 }
+
+type HealingFuncGenerator func(openShiftService *ServiceBuilder) Healing
+type Healing func(originalError error) error
 
 type commonNamespaceAction struct {
 	method string
+}
+
+type withSelfHealing struct {
+	*commonNamespaceAction
+	allowSelfHealing bool
+	tenantRepo       tenant.Repository
 }
 
 func (c *commonNamespaceAction) MethodName() string {
@@ -44,31 +56,76 @@ func (c *commonNamespaceAction) ForceMasterTokenGlobally() bool {
 	return true
 }
 
-func (c *commonNamespaceAction) CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []environment.Type) error {
-	var msg string
-	index := 1
-	for er := range errorChan {
-		if er != nil {
-			msg += fmt.Sprintf("#%d: %s\n", index, er.Error())
-			index++
-		}
+var NoHealing = func(openShiftService *ServiceBuilder) Healing {
+	return func(originalError error) error {
+		return originalError
 	}
+}
+
+func (c *commonNamespaceAction) HealingStrategy() HealingFuncGenerator {
+	return NoHealing
+}
+
+func (c *commonNamespaceAction) ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error {
+	msg := utils.ListErrorsInMessage(errorChan)
 	if len(msg) > 0 {
-		return fmt.Errorf("%s method applied to namespace types %s failed with one or more errors:\n%s", c.method, envTypes, msg)
+		err := fmt.Errorf("%s method applied to namespace types %s failed with one or more errors:%s", c.method, envTypes, msg)
+		return healing(err)
 	}
 	return nil
 }
 
-func NewCreate(tenantRepo tenant.Repository) *Create {
+func (c *withSelfHealing) HealingStrategy() HealingFuncGenerator {
+	return func(openShiftService *ServiceBuilder) Healing {
+		return func(originalError error) error {
+			if !c.allowSelfHealing {
+				return originalError
+			}
+			openShiftUsername := openShiftService.service.context.openShiftUsername
+			tnnt, err := c.tenantRepo.GetTenant()
+			errMsgSuffix := fmt.Sprintf("while doing self-healing operations triggered by error: [%s]", originalError)
+			if err != nil {
+				return errors.Wrapf(err, "unable to get tenant %s", errMsgSuffix)
+			}
+			namespaces, err := c.tenantRepo.GetNamespaces()
+			fmt.Println(namespaces[0].ID)
+			if err != nil {
+				return errors.Wrapf(err, "unable to get namespaces of tenant %s %s", tnnt.ID, errMsgSuffix)
+			}
+			err = openShiftService.WithDeleteMethod(namespaces, true, true).ApplyAll(environment.DefaultEnvTypes)
+			if err != nil {
+				return errors.Wrapf(err, "deletion of namespaces failed %s", errMsgSuffix)
+			}
+			newNsBaseName, err := tenant.ConstructNsBaseName(c.tenantRepo.Service(), environment.RetrieveUserName(openShiftUsername))
+			if err != nil {
+				return errors.Wrapf(err, "unable to construct namespace base name for user with OSname %s %s", openShiftUsername, errMsgSuffix)
+			}
+			tnnt.NsBaseName = newNsBaseName
+			err = c.tenantRepo.Service().SaveTenant(tnnt)
+			if err != nil {
+				return errors.Wrapf(err, "unable to update tenant db entity %s", errMsgSuffix)
+			}
+			err = openShiftService.WithPostMethod(false).ApplyAll(environment.DefaultEnvTypes)
+			if err != nil {
+				return errors.Wrapf(err, "unable to create new namespaces %s", errMsgSuffix)
+			}
+			return nil
+		}
+	}
+}
+
+func NewCreate(tenantRepo tenant.Repository, allowSelfHealing bool) *Create {
 	return &Create{
-		commonNamespaceAction: &commonNamespaceAction{method: http.MethodPost},
-		tenantRepo:            tenantRepo,
+		withSelfHealing: &withSelfHealing{
+			commonNamespaceAction: &commonNamespaceAction{method: http.MethodPost},
+			tenantRepo:            tenantRepo,
+			allowSelfHealing:      allowSelfHealing,
+		},
 	}
 }
 
 type Create struct {
-	*commonNamespaceAction
-	tenantRepo tenant.Repository
+	*withSelfHealing
 }
 
 func (c *Create) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
@@ -98,7 +155,7 @@ func (c *Create) ForceMasterTokenGlobally() bool {
 	return false
 }
 
-func NewDelete(tenantRepo tenant.Repository, removeFromCluster bool, existingNamespaces []*tenant.Namespace) *Delete {
+func NewDelete(tenantRepo tenant.Repository, removeFromCluster, keepTenant bool, existingNamespaces []*tenant.Namespace) *Delete {
 	return &Delete{
 		commonNamespaceAction: &commonNamespaceAction{method: http.MethodDelete},
 		withExistingNamespacesAction: &withExistingNamespacesAction{
@@ -106,6 +163,7 @@ func NewDelete(tenantRepo tenant.Repository, removeFromCluster bool, existingNam
 		},
 		tenantRepo:        tenantRepo,
 		removeFromCluster: removeFromCluster,
+		keepTenant:        keepTenant,
 	}
 }
 
@@ -114,6 +172,7 @@ type Delete struct {
 	*withExistingNamespacesAction
 	tenantRepo        tenant.Repository
 	removeFromCluster bool
+	keepTenant        bool
 }
 
 func (d *Delete) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
@@ -164,8 +223,8 @@ func (a withExistingNamespacesAction) getNamespaceFor(nsType environment.Type) *
 	return nil
 }
 
-func (d Delete) CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []environment.Type) error {
-	err := d.commonNamespaceAction.CheckNamespacesAndUpdateTenant(errorChan, envTypes)
+func (d *Delete) ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error {
+	err := d.commonNamespaceAction.ManageAndUpdateResults(errorChan, envTypes, healing)
 	if err != nil {
 		return err
 	}
@@ -174,32 +233,44 @@ func (d Delete) CheckNamespacesAndUpdateTenant(errorChan chan error, envTypes []
 		return err
 	}
 	if d.removeFromCluster {
-		if len(namespaces) == 0 {
-			return d.tenantRepo.DeleteTenant()
-		}
 		var names []string
 		for _, ns := range namespaces {
 			names = append(names, ns.Name)
 		}
-		return fmt.Errorf("cannot remove tenant %s from DB - some namespaces %s still exist", namespaces[0].TenantID, names)
+		if d.keepTenant {
+			if 	len(namespaces) != 0 {
+				return fmt.Errorf("all namespaces of the tenant %s weren't properly removed - some namespaces %s still exist", namespaces[0].TenantID, names)
+			}
+		} else {
+			if len(namespaces) == 0 {
+				return d.tenantRepo.DeleteTenant()
+			}
+			return fmt.Errorf("cannot remove tenant %s from DB - some namespaces %s still exist", namespaces[0].TenantID, names)
+		}
 	}
 	return nil
 }
 
-func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace) *Update {
+func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, allowSelfHealing bool) *Update {
 	return &Update{
-		commonNamespaceAction: &commonNamespaceAction{method: http.MethodPatch},
+		withSelfHealing: &withSelfHealing{
+			commonNamespaceAction: &commonNamespaceAction{method: http.MethodPatch},
+			tenantRepo:            tenantRepo,
+			allowSelfHealing:      allowSelfHealing,
+		},
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			existingNamespaces: existingNamespaces,
 		},
-		tenantRepo: tenantRepo,
+		tenantRepo:       tenantRepo,
+		allowSelfHealing: allowSelfHealing,
 	}
 }
 
 type Update struct {
-	*commonNamespaceAction
+	*withSelfHealing
 	*withExistingNamespacesAction
-	tenantRepo tenant.Repository
+	tenantRepo       tenant.Repository
+	allowSelfHealing bool
 }
 
 func (u *Update) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {

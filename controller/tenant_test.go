@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -20,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
+	"os"
 	"testing"
 )
 
@@ -28,17 +30,9 @@ type TenantControllerTestSuite struct {
 }
 
 func TestTenantController(t *testing.T) {
+	os.Setenv(resource.Database, "1")
 	suite.Run(t, &TenantControllerTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
-
-var (
-	clusterMapping = testdoubles.SingleClusterMapping("http://starter.com", "clusterUser", "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8")
-	userInfo       = testdoubles.UserInfo{
-		OsUsername:  "developer",
-		OsUserToken: "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8",
-		NsBaseName:  "developer",
-	}
-)
 
 func (s *TenantControllerTestSuite) TestShowTenant() {
 	// given
@@ -92,14 +86,14 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 	// when
 	goatest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	// then
-	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config, clusterMapping, userInfo), calls)
+	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
 
 }
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	// given
 	defer gock.Off()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddNamespaces(environment.TypeChe))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddNamespaces(environment.TypeChe))
 	id := fxt.Tenants[0].ID
 	svc, ctrl, config, reset := s.newTestTenantController()
 	defer reset()
@@ -109,8 +103,8 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	// when
 	goatest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
 	// then
-	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config, clusterMapping, userInfo)
-	cheObjects := testdoubles.SingleTemplatesObjects(s.T(), config, environment.TypeChe, clusterMapping, userInfo)
+	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
+	cheObjects := testdoubles.SingleTemplatesObjects(s.T(), config, environment.TypeChe)
 	numberOfGetChecksForChe := testdoubles.NumberOfGetChecks(cheObjects)
 	assert.Equal(s.T(), totalNumber-(len(cheObjects)+numberOfGetChecksForChe), calls)
 }
@@ -152,7 +146,7 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
 
 	defer gock.Off()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 	id := fxt.Tenants[0].ID
 	svc, ctrl, _, reset := s.newTestTenantController()
 	defer reset()
@@ -167,7 +161,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 	repo := tenant.NewDBService(s.DB)
 
 	s.T().Run("with existing namespaces", func(t *testing.T) {
-		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 		id := fxt.Tenants[0].ID
 		svc, ctrl, config, reset := s.newTestTenantController()
 		defer reset()
@@ -180,7 +174,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// when
 			goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl, false)
 			// then
-			objects := testdoubles.AllTemplatesObjects(s.T(), config, clusterMapping, userInfo)
+			objects := testdoubles.AllDefaultObjects(s.T(), config)
 			assert.Equal(s.T(), testdoubles.NumberOfObjectsToClean(objects), calls)
 			_, err := repo.GetTenant(id)
 			assert.NoError(t, err)
@@ -197,7 +191,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// when
 			goatest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
-			objects := testdoubles.AllTemplatesObjects(s.T(), config, clusterMapping, userInfo)
+			objects := testdoubles.AllDefaultObjects(s.T(), config)
 			assert.Equal(s.T(), testdoubles.NumberOfObjectsToRemove(objects), calls)
 			_, err := repo.GetTenant(id)
 			test.AssertError(t, err, test.IsOfType(errors.NotFoundError{}))
@@ -211,7 +205,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 		// given
 		defer gock.Off()
 		calls := 0
-		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 		id := fxt.Tenants[0].ID
 		svc, ctrl, _, reset := s.newTestTenantController()
 		defer reset()
@@ -264,7 +258,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 		// given
 		defer gock.Off()
 		calls := 0
-		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 		id := fxt.Tenants[0].ID
 		svc, ctrl, _, reset := s.newTestTenantController()
 		defer reset()
@@ -311,7 +305,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 func (s *TenantControllerTestSuite) TestUpdateTenant() {
 	// given
 	defer gock.Off()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), true, tf.AddDefaultNamespaces())
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 	id := fxt.Tenants[0].ID.String()
 	svc, ctrl, config, reset := s.newTestTenantController()
 	defer reset()
@@ -324,7 +318,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 		// when
 		goatest.UpdateTenantAccepted(t, createAndMockUserAndToken(s.T(), id, false), svc, ctrl)
 		// then
-		objects := testdoubles.AllTemplatesObjects(t, config, clusterMapping, userInfo)
+		objects := testdoubles.AllDefaultObjects(t, config)
 		// get and patch requests for all objects but ProjectRequest
 		assert.Equal(t, (len(objects)-5)*2, calls)
 	})

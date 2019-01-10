@@ -79,7 +79,7 @@ func TestEachMethodSeparately(t *testing.T) {
 		// then
 		assert.Empty(t, methodDefinition.beforeDoCallbacks)
 		assert.Len(t, methodDefinition.afterDoCallbacks, 1)
-		assert.Equal(t, methodDefinition.afterDoCallbacks[0].Name, IgnoreWhenDoesNotExist.Name)
+		assert.Equal(t, methodDefinition.afterDoCallbacks[0].Name, IgnoreWhenDoesNotExistOrConflicts.Name)
 		assert.Equal(t, http.MethodDelete, methodDefinition.action)
 		request, err := methodDefinition.requestCreator.createRequestFor("http://starter", object[0], []byte(objectToBeParsed))
 		assert.NoError(t, err)

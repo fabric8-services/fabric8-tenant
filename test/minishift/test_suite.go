@@ -102,7 +102,7 @@ func (s *TestSuite) VerifyObjectsPresence(t *testing.T, nsBaseName, version stri
 		OsUsername:  minCfg.GetMinishiftUserName(),
 		NsBaseName:  nsBaseName,
 	}
-	templatesObjects := testdoubles.AllTemplatesObjects(t, s.Config, clusterMapping, userInfo)
+	templatesObjects := testdoubles.AllObjects(t, s.Config, clusterMapping, userInfo)
 
 	errorChan := make(chan error, len(templatesObjects))
 	defer func() {
