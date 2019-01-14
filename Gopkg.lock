@@ -113,7 +113,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:72c645ef73d99d380515b2b9cf83e9aa283101506a20dcddd1556b5cc9c6d85e"
+  digest = "1:0ecc9f1813be5c07cda1f89d4deafb12700174a8250556156cfad495ad47d8f7"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "auth",
@@ -128,11 +128,11 @@
     "sentry",
   ]
   pruneopts = "UT"
-  revision = "db1d4922a4c57d0c6786ce889d1eb399247ddbf5"
+  revision = "988ec38ba27dc10cc955f19cce227e7cd8d58528"
 
 [[projects]]
-  branch = "master"
-  digest = "1:0757f5bb26b6223e69d4a361330b26726aadd42470ec898c8236ab27af7db726"
+  branch = "fche-patch-1"
+  digest = "1:a05c8566b175fc717d456f0e8b73e48da1de8a654a0c076ffa8e98cd21288c6a"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = [
     "configuration",
@@ -143,7 +143,7 @@
     "rest",
   ]
   pruneopts = "UT"
-  revision = "35506932bba65be9e1c03f60e4308e1d0cf72af6"
+  revision = "e8f82458e1b7d9df66357910b6374bf147bc4baa"
 
 [[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
@@ -283,6 +283,14 @@
   version = "v3.0.7"
 
 [[projects]]
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:8ef506fc2bb9ced9b151dafa592d4046063d744c646c1bbe801982ce87e4bc24"
   name = "github.com/lib/pq"
   packages = [
@@ -402,12 +410,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:8011d6367a04c40f1a9f50274e5e22b1cd5c05104d87cd8cf21d5a56c0cc3bd8"
+  digest = "1:87c2e02fb01c27060ccc5ba7c5a407cc91147726f8f40b70cceeedbc52b1f3a8"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "ba1b36c82c5e05c4f912a88eab0dcd91a171688f"
-  version = "v0.11.5"
+  revision = "e1e72e9de974bd926e5c56f83753fba2df402ce5"
+  version = "v1.3.0"
 
 [[projects]]
   digest = "1:6a4a11ba764a56d2758899ec6f3848d24698d48442ebce85ee7a3f63284526cd"
@@ -488,7 +496,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2a462848004a3bcf6da449ce9207afb67e97d98e86f65b0bae9df0dae55e7971"
+  digest = "1:ffed7cb8f110ca9938846a0011d45b375e9fba15db4717b1bd26f0338822829f"
   name = "golang.org/x/crypto"
   packages = [
     "cast5",
@@ -501,6 +509,7 @@
     "openpgp/packet",
     "openpgp/s2k",
     "pbkdf2",
+    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "c05539cddb594cf33f1f0f5871d2964e9f813749"
@@ -518,9 +527,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:225564f71149334315118db714e1ea87513e4a11cf4acb27e26bc7577cebfa0b"
+  digest = "1:f343f077a5b0bc3a3788b3a04e24dd417e3e25b2acb529c413e212d2c42416ef"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "unix",
+    "windows",
+  ]
   pruneopts = "UT"
   revision = "62eef0e2fa9b2c385f7b2778e763486da6880d37"
 
