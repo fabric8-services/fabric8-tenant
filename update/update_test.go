@@ -466,7 +466,8 @@ func (s *TenantsUpdaterTestSuite) newTenantsUpdater(updateExecutor *testupdate.D
 	reset := test.SetEnvironments(
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
 		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()),
-		test.Env("F8_API_SERVER_USE_TLS", "false"))
+		test.Env("F8_API_SERVER_USE_TLS", "false"),
+		test.Env("F8_AUTOMATED_UPDATE_TIME_GAP", "0"))
 
 	saToken, err := test.NewToken(
 		map[string]interface{}{

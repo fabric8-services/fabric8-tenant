@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/jinzhu/gorm"
-	"sync"
 	"time"
 )
 
@@ -268,12 +267,14 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 			versionManager.SetCurrentVersion(tenantUpdate)
 		}
 	}
+	log.Info(nil, map[string]interface{}{
+		"status":                   tenantUpdate.Status,
+		"number_of_failed_tenants": tenantUpdate.FailedCount,
+	}, "the whole tenants update process has been finished")
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
 func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) (bool, error) {
-	numberOfTriggeredUpdates := 0
-	var wg sync.WaitGroup
 	canContinue := true
 	var err error
 
@@ -288,23 +289,13 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 			break
 		}
 
-		wg.Add(1)
-
-		go updateTenant(&wg, u.updateExecutor, tnnt, typesWithVersion, u.db)
-
-		numberOfTriggeredUpdates++
-		if numberOfTriggeredUpdates == 10 {
-			wg.Wait()
-			numberOfTriggeredUpdates = 0
-		}
+		updateTenant(u.updateExecutor, tnnt, typesWithVersion, u.db)
+		time.Sleep(u.config.GetAutomatedUpdateTimeGap())
 	}
-	wg.Wait()
 	return canContinue, err
 }
 
-func updateTenant(wg *sync.WaitGroup, updateExecutor Executor, tnnt *tenant.Tenant, typesWithVersion map[environment.Type]string, db *gorm.DB) {
-	defer wg.Done()
-
+func updateTenant(updateExecutor Executor, tnnt *tenant.Tenant, typesWithVersion map[environment.Type]string, db *gorm.DB) {
 	namespaces, err := tenant.NewDBService(db).GetNamespaces(tnnt.ID)
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{

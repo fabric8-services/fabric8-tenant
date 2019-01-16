@@ -214,7 +214,6 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 
 	// then
 	require.NoError(s.T(), err)
-	// the expected number is number of all objects + 11 get calls to verify that objects are created + 1 to removed admin role binding
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
 	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 	require.NoError(s.T(), err)
@@ -299,4 +298,44 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 	assertion.AssertTenant(s.T(), repo).
 		HasNsBaseName("johndoe3").
 		HasNumberOfNamespaces(5)
+}
+
+func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLimitRangesReturnsConflict() {
+	// given
+	defer gock.Off()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+	testdoubles.SetTemplateVersions()
+
+	deleteCalls := 0
+	gock.New(test.ClusterURL).
+		Post("/api/v1/namespaces/johndoe-jenkins/limitranges").
+		Reply(409).
+		BodyString("{}")
+	gock.New(test.ClusterURL).
+		Delete("/api/v1/namespaces/johndoe-jenkins/limitranges/resource-limits").
+		SetMatcher(test.SpyOnCalls(&deleteCalls)).
+		Times(1).
+		Reply(200).
+		BodyString("{}")
+	calls := 0
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johndoe")
+	userCreator := testdoubles.AddUser("johndoe").WithToken("12345")
+
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johndoe")), tf.AddNamespaces()).Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		userCreator,
+		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
+
+	// when
+	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
+	assert.Equal(s.T(), 1, deleteCalls)
+	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), namespaces, 5)
 }

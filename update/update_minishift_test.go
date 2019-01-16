@@ -31,7 +31,8 @@ var numberOfTenants = 11
 
 func TestAutomatedUpdateWithMinishift(t *testing.T) {
 	toReset := test.SetEnvironments(
-		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", (time.Duration(numberOfTenants) * 8 * time.Second).String()))
+		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", (time.Duration(numberOfTenants)*8*time.Second).String()),
+		test.Env("F8_AUTOMATED_UPDATE_TIME_GAP", "0"))
 	defer toReset()
 
 	suite.Run(t, &AutomatedUpdateMinishiftTestSuite{

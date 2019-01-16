@@ -56,7 +56,12 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	tenantID := ctx.TenantID
 	tenant, err := c.tenantService.GetTenant(tenantID)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{"tenant_id": tenantID, "error_type": reflect.TypeOf(err)}, "error while looking-up tenant record")
+		serviceAccountName, _ := commonauth.ExtractServiceAccountName(ctx)
+		log.Error(ctx, map[string]interface{}{
+			"tenant_id":  tenantID,
+			"error_type": reflect.TypeOf(err),
+			"caller":     serviceAccountName,
+		}, "error while looking-up tenant record")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
