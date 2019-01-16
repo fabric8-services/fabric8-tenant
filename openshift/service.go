@@ -106,7 +106,7 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 	errorChan := make(chan error, len(nsTypes)*2)
 	for _, nsType := range nsTypes {
 		nsTypeService := NewEnvironmentTypeService(nsType, s.context, s.envService)
-		processAndApplyNs(&nsTypesWait, nsTypeService, action, s.httpTransport, errorChan)
+		go processAndApplyNs(&nsTypesWait, nsTypeService, action, s.httpTransport, errorChan)
 	}
 	nsTypesWait.Wait()
 	close(errorChan)
