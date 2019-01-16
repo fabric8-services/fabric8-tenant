@@ -143,12 +143,12 @@ var DefaultUserInfo = UserInfo{
 	NsBaseName:  "developer",
 }
 
-func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type) environment.Objects {
+func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
 	envService := environment.NewService()
 
 	ctx := openshift.NewServiceContext(
-		context.Background(), config, DefaultClusterMapping, DefaultUserInfo.OsUsername, DefaultUserInfo.NsBaseName, func(cluster cluster.Cluster) string {
-			return DefaultUserInfo.OsUserToken
+		context.Background(), config, clusterMapping, userInfo.OsUsername, userInfo.NsBaseName, func(cluster cluster.Cluster) string {
+			return userInfo.OsUserToken
 		})
 
 	nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
@@ -159,42 +159,61 @@ func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType en
 	return objects
 }
 
-func AllObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
+func SingleTemplatesObjectsWithDefaults(t *testing.T, config *configuration.Data, envType environment.Type) environment.Objects {
+	return SingleTemplatesObjects(t, config, envType, DefaultClusterMapping, DefaultUserInfo)
+}
+
+func RetrieveObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo, envTypes ...environment.Type) environment.Objects {
 	var objs environment.Objects
-	for _, envType := range environment.DefaultEnvTypes {
-		objects := SingleTemplatesObjects(t, config, envType)
+	for _, envType := range envTypes {
+		objects := SingleTemplatesObjects(t, config, envType, clusterMapping, userInfo)
 		objs = append(objs, objects...)
 	}
 	return objs
 }
 
 func AllDefaultObjects(t *testing.T, config *configuration.Data) environment.Objects {
-	return AllObjects(t, config, DefaultClusterMapping, DefaultUserInfo)
+	return RetrieveObjects(t, config, DefaultClusterMapping, DefaultUserInfo, environment.DefaultEnvTypes...)
 }
 
-func MockPostRequestsToOS(calls *int, cluster string) {
-	gock.New(cluster).
-		Post("").
-		SetMatcher(test.SpyOnCalls(calls)).
-		Persist().
-		Reply(200).
-		BodyString("{}")
+func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, nsBaseName string) {
+	cluster = test.Normalize(cluster)
+	for _, env := range envs {
+		namespaceName := nsBaseName
+		if env != environment.TypeUser {
+			namespaceName = nsBaseName + "-" + env.String()
+		} else {
+			gock.New(cluster).
+				Delete(fmt.Sprintf("/oapi/v1/namespaces/%s/rolebindings/%s", nsBaseName, "admin")).
+				SetMatcher(test.SpyOnCalls(calls)).
+				Reply(200).
+				BodyString(`{"status": {"phase":"Active"}}`)
+		}
 
-	gock.New(cluster).
-		Get("").
-		SetMatcher(test.SpyOnCalls(calls)).
-		Persist().
-		Reply(200).
-		BodyString(`{"status": {"phase":"Active"}}`)
+		gock.New(cluster).
+			Get("/oapi/v1/projects/" + namespaceName).
+			SetMatcher(test.SpyOnCalls(calls)).
+			Reply(404)
 
-	gock.New(cluster).
-		Delete("").
-		SetMatcher(test.SpyOnCalls(calls)).
-		Reply(200).
-		BodyString(`{"status": {"phase":"Active"}}`)
+		basePath := fmt.Sprintf(".*(%s|projectrequests).*", namespaceName)
+		gock.New(cluster).
+			Post(basePath).
+			SetMatcher(test.SpyOnCalls(calls)).
+			Persist().
+			Reply(200).
+			BodyString("{}")
+
+		gock.New(cluster).
+			Get(basePath).
+			SetMatcher(test.SpyOnCalls(calls)).
+			Persist().
+			Reply(200).
+			BodyString(`{"status": {"phase":"Active"}}`)
+	}
 }
 
 func MockPatchRequestsToOS(calls *int, cluster string) {
+	cluster = test.Normalize(cluster)
 	gock.New(cluster).
 		Path("").
 		SetMatcher(test.SpyOnCalls(calls)).
@@ -211,6 +230,7 @@ func MockPatchRequestsToOS(calls *int, cluster string) {
 }
 
 func MockCleanRequestsToOS(calls *int, cluster string) {
+	cluster = test.Normalize(cluster)
 	gock.New(cluster).
 		Delete("").
 		SetMatcher(test.ExpectRequest(
@@ -222,6 +242,7 @@ func MockCleanRequestsToOS(calls *int, cluster string) {
 }
 
 func MockRemoveRequestsToOS(calls *int, cluster string) {
+	cluster = test.Normalize(cluster)
 	gock.New(cluster).
 		Delete("").
 		SetMatcher(test.ExpectRequest(
@@ -234,7 +255,20 @@ func MockRemoveRequestsToOS(calls *int, cluster string) {
 
 func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int {
 	objectsInTemplates := AllDefaultObjects(t, config)
-	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1
+	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1 + 5
+}
+
+func ExpectedNumberOfCallsWhenClean(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
+	objectsInTemplates := RetrieveObjects(t, config, DefaultClusterMapping, DefaultUserInfo, envTypes...)
+	return NumberOfObjectsToClean(objectsInTemplates)
+}
+
+func ExpectedNumberOfCallsWhenPatch(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
+	numberOfObjects := 0
+	for _, envType := range envTypes {
+		numberOfObjects += len(SingleTemplatesObjectsWithDefaults(t, config, envType))
+	}
+	return 2 * (numberOfObjects - len(envTypes))
 }
 
 func NumberOfGetChecks(objects environment.Objects) int {

@@ -2,6 +2,7 @@ package testfixture
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-tenant/test"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -202,7 +203,7 @@ func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, mandato
 		createNamespaces = Namespaces(numberOfNamespaces, func(fxt *TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/numberOfEnvTypes)].ID
 			fxt.Namespaces[idx].Type = environment.Type(allEnvTypes[idx%numberOfEnvTypes])
-			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
+			fxt.Namespaces[idx].MasterURL = test.Normalize(test.ClusterURL)
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
 			fxt.Namespaces[idx].State = tenant.Ready
 			fxt.Namespaces[idx].UpdatedBy = configuration.Commit

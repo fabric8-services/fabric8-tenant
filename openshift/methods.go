@@ -12,49 +12,68 @@ type MethodDefinition struct {
 	requestCreator    RequestCreator
 }
 
-func NewMethodDefinition(action string, beforeCallbacks []BeforeDoCallback, afterCallbacks []AfterDoCallback, requestCreator RequestCreator) *MethodDefinition {
-	return &MethodDefinition{
+func NewMethodDefinition(action string, beforeCallbacks []BeforeDoCallback, afterCallbacks []AfterDoCallback, requestCreator RequestCreator, modifiers ...MethodDefModifier) *MethodDefinition {
+	methodDefinition := &MethodDefinition{
 		action:            action,
 		beforeDoCallbacks: beforeCallbacks,
 		afterDoCallbacks:  afterCallbacks,
 		requestCreator:    requestCreator,
 	}
+	for _, modify := range modifiers {
+		modify(methodDefinition)
+	}
+	return methodDefinition
 }
 
 type methodDefCreator func(endpoint string) *MethodDefinition
 type RequestCreatorModifier func(requestCreator RequestCreator) RequestCreator
 
-func (creator methodDefCreator) WithModifier(requestCreatorModifier RequestCreatorModifier) methodDefCreator {
-	return func(urlTemplate string) *MethodDefinition {
-		methodDefinition := creator(urlTemplate)
+type MethodDefModifier func(*MethodDefinition) *MethodDefinition
+
+func BeforeDo(beforeDoCallback ...BeforeDoCallback) MethodDefModifier {
+	return func(methodDefinition *MethodDefinition) *MethodDefinition {
+		methodDefinition.beforeDoCallbacks = append(methodDefinition.beforeDoCallbacks, beforeDoCallback...)
+		return methodDefinition
+	}
+}
+func AfterDo(afterDoCallbacks ...AfterDoCallback) MethodDefModifier {
+	return func(methodDefinition *MethodDefinition) *MethodDefinition {
+		methodDefinition.afterDoCallbacks = append(methodDefinition.afterDoCallbacks, afterDoCallbacks...)
+		return methodDefinition
+	}
+}
+
+func Require(requestCreatorModifier RequestCreatorModifier) MethodDefModifier {
+	return func(methodDefinition *MethodDefinition) *MethodDefinition {
 		methodDefinition.requestCreator = requestCreatorModifier(methodDefinition.requestCreator)
 		return methodDefinition
 	}
 }
 
-func NeedMasterToken(requestCreator RequestCreator) RequestCreator {
+func MasterToken(requestCreator RequestCreator) RequestCreator {
 	requestCreator.needMasterToken = true
 	return requestCreator
 }
 
-func POST(afterCallbacks ...AfterDoCallback) methodDefCreator {
+func POST(modifiers ...MethodDefModifier) methodDefCreator {
 	return func(urlTemplate string) *MethodDefinition {
 		return NewMethodDefinition(
 			http.MethodPost,
 			[]BeforeDoCallback{},
-			append(afterCallbacks),
+			[]AfterDoCallback{},
 			RequestCreator{
 				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
 					return newDefaultRequest(http.MethodPost, urlCreator(urlTemplate), body)
-				}})
+				}},
+			modifiers...)
 	}
 }
-func PATCH(afterCallbacks ...AfterDoCallback) methodDefCreator {
+func PATCH(modifiers ...MethodDefModifier) methodDefCreator {
 	return func(urlTemplate string) *MethodDefinition {
 		return NewMethodDefinition(
 			http.MethodPatch,
 			[]BeforeDoCallback{GetObjectAndMerge},
-			append(afterCallbacks),
+			[]AfterDoCallback{},
 			RequestCreator{
 				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
 					req, err := newDefaultRequest(http.MethodPatch, urlCreator(urlTemplate), body)
@@ -63,32 +82,35 @@ func PATCH(afterCallbacks ...AfterDoCallback) methodDefCreator {
 					}
 					req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
 					return req, err
-				}})
+				}},
+			modifiers...)
 	}
 }
-func GET(afterCallbacks ...AfterDoCallback) methodDefCreator {
+func GET(modifiers ...MethodDefModifier) methodDefCreator {
 	return func(urlTemplate string) *MethodDefinition {
 		return NewMethodDefinition(
 			http.MethodGet,
 			[]BeforeDoCallback{},
-			afterCallbacks,
+			[]AfterDoCallback{},
 			RequestCreator{
 				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
 					return newDefaultRequest(http.MethodGet, urlCreator(urlTemplate), body)
-				}})
+				}},
+			modifiers...)
 	}
 }
 
-func DELETE(afterCallbacks ...AfterDoCallback) methodDefCreator {
+func DELETE(modifiers ...MethodDefModifier) methodDefCreator {
 	return func(urlTemplate string) *MethodDefinition {
 		return NewMethodDefinition(
 			http.MethodDelete,
 			[]BeforeDoCallback{},
-			append(afterCallbacks, IgnoreWhenDoesNotExistOrConflicts),
+			[]AfterDoCallback{IgnoreWhenDoesNotExistOrConflicts},
 			RequestCreator{
 				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
 					body = []byte(deleteOptions)
 					return newDefaultRequest(http.MethodDelete, urlCreator(urlTemplate), body)
-				}})
+				}},
+			modifiers...)
 	}
 }

@@ -9,7 +9,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strings"
 )
+
+const ClusterURL = "http://api.cluster1"
+
+func Normalize(url string) string {
+	if !strings.HasSuffix(url, "/") {
+		return url + "/"
+	}
+	return url
+}
 
 func ExpectRequest(matchers ...gock.MatchFunc) gock.Matcher {
 	return createReqMatcher(matchers)

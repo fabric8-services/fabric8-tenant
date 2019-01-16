@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -27,6 +28,7 @@ type AfterDoCallbackFunc func(client *Client, object environment.Object, objEndp
 
 const (
 	GetObjectAndMergeName             = "GetObjectAndMerge"
+	FailIfExistsName                  = "FailIfAlreadyExists"
 	WhenConflictThenDeleteAndRedoName = "WhenConflictThenDeleteAndRedo"
 	IgnoreConflictsName               = "IgnoreConflicts"
 	GetObjectName                     = "GetObject"
@@ -36,24 +38,58 @@ const (
 // Before callbacks
 var GetObjectAndMerge = BeforeDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error) {
-		result, err := objEndpoints.Apply(client, object, http.MethodGet)
-		fmt.Println("####################################")
-		fmt.Println(string(result.Body))
-		// should check state
-		fmt.Println("####################################")
-		if err != nil {
-			if result != nil && result.response.StatusCode == http.StatusNotFound {
-				return getMethodAndMarshalObject(objEndpoints, http.MethodPost, object)
+		retries := 10
+		var methodToUse = method
+		var bodyToSend []byte
+
+		errorChan := retry.Do(retries, time.Second, func() error {
+			result, err := objEndpoints.Apply(client, object, http.MethodGet)
+			if err != nil {
+				if result != nil && result.response.StatusCode == http.StatusNotFound {
+					methodToUse, bodyToSend, err = getMethodAndMarshalObject(objEndpoints, http.MethodPost, object)
+					if err != nil {
+						return err
+					}
+					return nil
+				}
+				return err
 			}
-			return nil, nil, err
+			var returnedObj environment.Object
+			err = yaml.Unmarshal(result.Body, &returnedObj)
+			if err != nil {
+				return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
+			}
+			if isInTerminatingState(returnedObj) {
+				return fmt.Errorf("the object %s is in terminating state - cannot create PATCH for it - need to wait till it is completely removed", returnedObj)
+			}
+			environment.GetStatus(returnedObj)
+			bodyToSend, err = marshalYAMLToJSON(object)
+			if err != nil {
+				return errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
+			}
+			return nil
+		})
+
+		msg := utils.ListErrorsInMessage(errorChan)
+		if len(msg) > 0 {
+			return nil, nil, fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
+				"to get object and create a patch for the cluster %s. The retrieved errors:%s",
+				method.action, object, retries, client.MasterURL, msg)
 		}
-		modifiedJson, err := marshalYAMLToJSON(object)
-		if err != nil {
-			return nil, nil, err
-		}
-		return method, modifiedJson, nil
+		return methodToUse, bodyToSend, nil
 	},
 	Name: GetObjectAndMergeName,
+}
+
+func isInTerminatingState(obj environment.Object) bool {
+	status := environment.GetStatus(obj)
+	if status != nil && len(status) > 0 {
+		phase, ok := status["phase"]
+		if ok && strings.ToLower(phase.(string)) == "terminating" {
+			return true
+		}
+	}
+	return false
 }
 
 func getMethodAndMarshalObject(objEndpoints *ObjectEndpoints, method string, object environment.Object) (*MethodDefinition, []byte, error) {
@@ -66,6 +102,25 @@ func getMethodAndMarshalObject(objEndpoints *ObjectEndpoints, method string, obj
 		return nil, nil, err
 	}
 	return post, bytes, nil
+}
+
+var FailIfAlreadyExists = BeforeDoCallback{
+	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error) {
+
+		result, err := objEndpoints.Apply(client, object, http.MethodGet)
+		if err != nil {
+			if result != nil && result.response.StatusCode == http.StatusNotFound {
+				bodyToSend, err := yaml.Marshal(object)
+				if err != nil {
+					return nil, nil, errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
+				}
+				return method, bodyToSend, nil
+			}
+		}
+		return nil, nil, fmt.Errorf("the object [%s] already exists", object.ToString())
+
+	},
+	Name: FailIfExistsName,
 }
 
 // After callbacks
@@ -155,7 +210,7 @@ var GetObject = AfterDoCallback{
 var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		code := result.response.StatusCode
-		if code == http.StatusNotFound || code == http.StatusForbidden || code == http.StatusConflict{
+		if code == http.StatusNotFound || code == http.StatusConflict {
 			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
 			//log.Warn(nil, map[string]interface{}{
 			//	"action":  method.action,

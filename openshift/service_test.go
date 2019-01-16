@@ -1,21 +1,18 @@
 package openshift_test
 
 import (
-	"github.com/fabric8-services/fabric8-tenant-get-token/openshift"
-	"github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
-	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
+	"github.com/fabric8-services/fabric8-wit/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
-	"net/http"
-	"os"
 	"testing"
 )
 
@@ -69,7 +66,6 @@ type ServiceTestSuite struct {
 }
 
 func TestService(t *testing.T) {
-	os.Setenv(resource.Database, "1")
 	suite.Run(t, &ServiceTestSuite{DBTestSuite: gormsupport.NewDBTestSuite("../config.yaml")})
 }
 
@@ -86,6 +82,9 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 	gock.New("http://api.cluster1/").
 		Post("/oapi/v1/projectrequests").
 		Reply(200)
+	gock.New("http://api.cluster1/").
+		Get("/oapi/v1/projects/aslak-run").
+		Reply(404)
 	gock.New("http://api.cluster1/").
 		Get("/oapi/v1/projects/aslak-run").
 		Reply(200).
@@ -107,11 +106,11 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 
 	// then
 	require.NoError(s.T(), err)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), namespaces, 1)
-	assert.Equal(s.T(), "aslak-run", namespaces[0].Name)
-	assert.Equal(s.T(), tenant.Ready.String(), namespaces[0].State.String())
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		HasNumberOfNamespaces(1).
+		HasNamespaceOfTypeThat(environment.TypeRun).
+		HasName("aslak-run").
+		HasState(tenant.Ready)
 }
 
 func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
@@ -151,11 +150,11 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 
 	// then
 	require.NoError(s.T(), err)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), namespaces, 1)
-	assert.Equal(s.T(), "aslak-run", namespaces[0].Name)
-	assert.Equal(s.T(), tenant.Ready.String(), namespaces[0].State.String())
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		HasNumberOfNamespaces(1).
+		HasNamespaceOfTypeThat(environment.TypeRun).
+		HasName("aslak-run").
+		HasState(tenant.Ready)
 }
 
 func (s *ServiceTestSuite) TestDeleteAndGet() {
@@ -184,15 +183,13 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
 
 	// when
-	err := service.WithDeleteMethod(fxt.Namespaces, true, false).ApplyAll(environment.DefaultEnvTypes)
+	err := service.WithDeleteMethod(fxt.Namespaces, true, false, true).ApplyAll(environment.DefaultEnvTypes)
 
 	// then
 	require.NoError(s.T(), err)
-	repo := tenant.NewDBService(s.DB)
-	namespaces, err := repo.GetNamespaces(tnnt.ID)
-	require.NoError(s.T(), err)
-	assert.Empty(s.T(), namespaces)
-	assert.False(s.T(), repo.Exists(tnnt.ID))
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		DoesNotExist().
+		HasNoNamespace()
 }
 
 func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
@@ -203,7 +200,7 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	testdoubles.SetTemplateVersions()
 
 	calls := 0
-	testdoubles.MockPostRequestsToOS(&calls, "http://api.cluster1/")
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "developer")
 	userCreator := testdoubles.AddUser("developer").WithToken("12345")
 
 	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces()).Tenants[0]
@@ -224,99 +221,82 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	assert.Len(s.T(), namespaces, 5)
 }
 
-func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflictWithProject() {
+func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflictsWithProject() {
 	// given
-	data, reset := test.LoadTestConfig(s.T())
+	config, reset := test.LoadTestConfig(s.T())
 	defer func() {
 		gock.OffAll()
 		reset()
 	}()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johndoe")), tf.AddDefaultNamespaces().State(tenant.Provisioning))
-	johndoeCalls := 0
-	projectRequestCalls := 0
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johndoe")), tf.AddNamespaces())
 	deleteCalls := 0
-	johndoe2Calls := 2
 
 	gock.New("http://api.cluster1").
-		Post("/api/v1/projectrequests").
-		Reply(409).
+		Get("/oapi/v1/projects/johndoe-che").
+		Reply(200).
 		BodyString("{}")
+	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe2")
+	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe")
 	gock.New("http://api.cluster1").
-		Delete("/apis/project.openshift.io/v1/projects/.*").
+		Delete("/oapi/v1/projects/.*").
 		SetMatcher(test.SpyOnCalls(&deleteCalls)).
 		Times(5).
 		Reply(200).
 		BodyString("{}")
-	gock.New("http://api.cluster1").
-		Path(`.*johndoe2.*`).
-		SetMatcher(test.SpyOnCalls(&johndoe2Calls)).
-		Persist().
-		Reply(200).
-		BodyString("{}")
-	gock.New("http://api.cluster1").
-		Path(`.*johndoe[^2].*`).
-		SetMatcher(test.SpyOnCalls(&johndoeCalls)).
-		Persist().
-		Reply(200).
-		BodyString("{}")
-	gock.New("http://api.cluster1").
-		Post("/oapi/v1/projectrequests").
-		SetMatcher(test.SpyOnCalls(&projectRequestCalls)).
-		Times(10).
-		Reply(200).
-		BodyString("{}")
 
-	user := &client.UserDataAttributes{}
-	config := NewConfigForUser(data, user, "clusterUser", "clusterToken", "http://api.cluster1/")
-	config.HTTPTransport = http.DefaultTransport
-	objsNumber := len(tmplObjects(s.T(), data))
-	repo := tenant.NewDBService(s.DB)
+	repo := tenant.NewDBService(s.DB).NewTenantRepository(fxt.Tenants[0].ID)
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("johndoe").WithToken("12345"),
+		repo)
 
 	// when
-	_, err := RawInitTenant(context.Background(), config, fxt.Tenants[0], "12345", repo, true)
+	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
 
 	// then
 	require.NoError(s.T(), err)
-	// the number of calls should be equal to the number of parsed objects plus one call that removes admin role from user's namespace
-	assert.Equal(s.T(), objsNumber-10, johndoeCalls)
-	assert.Equal(s.T(), 10, projectRequestCalls)
 	assert.Equal(s.T(), 5, deleteCalls)
-	assert.Equal(s.T(), objsNumber-2, johndoe2Calls)
-	updatedTnnt, err := repo.GetTenant(fxt.Tenants[0].ID)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "johndoe2", updatedTnnt.NsBaseName)
+	assertion.AssertTenant(s.T(), repo).
+		HasNsBaseName("johndoe2").
+		HasNumberOfNamespaces(5)
 }
 
-func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenFailsAnd2Exists() {
+func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflictsWithProjectAndWith2Exists() {
 	// given
-	data, reset := test.LoadTestConfig(s.T())
+	config, reset := test.LoadTestConfig(s.T())
 	defer func() {
 		gock.OffAll()
 		reset()
 	}()
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenantsNamed("johndoe", "johndoe2"), tf.AddDefaultNamespaces().State(tenant.Provisioning))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johndoe"), tf.SingleWithName("johndoe2")), tf.AddNamespaces())
+	deleteCalls := 0
 
 	gock.New("http://api.cluster1").
-		Post("/api/v1/namespaces/johndoe-jenkins/persistentvolumeclaims").
-		Reply(403).
+		Get("/oapi/v1/projects/johndoe-che").
+		Reply(200).
 		BodyString("{}")
+	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe3")
+	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe")
 	gock.New("http://api.cluster1").
-		Persist().
+		Delete("/oapi/v1/projects/.*").
+		SetMatcher(test.SpyOnCalls(&deleteCalls)).
+		Times(5).
 		Reply(200).
 		BodyString("{}")
 
-	user := &client.UserDataAttributes{}
-	config := openshift.NewConfigForUser(data, user, "clusterUser", "clusterToken", "http://api.cluster1/")
-	config.HTTPTransport = http.DefaultTransport
-	repo := tenant.NewDBService(s.DB)
+	repo := tenant.NewDBService(s.DB).NewTenantRepository(fxt.Tenants[0].ID)
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("johndoe").WithToken("12345"),
+		repo)
 
 	// when
-	_, err := openshift.RawInitTenant(context.Background(), config, fxt.Tenants[0], "12345", repo, true)
+	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
 
 	// then
 	require.NoError(s.T(), err)
-	// the number of calls should be equal to the number of parsed objects plus one call that removes admin role from user's namespace
-	updatedTnnt, err := repo.GetTenant(fxt.Tenants[0].ID)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "johndoe3", updatedTnnt.NsBaseName)
+	assert.Equal(s.T(), 5, deleteCalls)
+	assertion.AssertTenant(s.T(), repo).
+		HasNsBaseName("johndoe3").
+		HasNumberOfNamespaces(5)
 }

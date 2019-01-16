@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
@@ -34,12 +36,12 @@ func TestUpdaterService(t *testing.T) {
 func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 	// given
 	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.AllTypes, "")
 	defer reset()
 	testdoubles.SetTemplateVersions()
-	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
 	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
@@ -62,14 +64,14 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 			assert.Equal(t, 19, int(*updateExecutor.NumberOfCalls))
 			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-				assert.NoError(t, err)
-				for _, ns := range namespaces {
-					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-					assert.Equal(t, "124abcd", ns.UpdatedBy)
-					assert.Equal(t, tenant.Ready, ns.State)
-					assert.True(t, before.Before(ns.UpdatedAt))
-				}
+				assertion.AssertTenantFromDB(t, s.DB, tnnt.ID).
+					HasNamespacesThat(func(assertion *assertion.NamespaceAssertion) {
+						assertion.
+							HasCurrentCompleteVersion().
+							HasUpdatedBy("124abcd").
+							HasState(tenant.Ready).
+							WasUpdatedAfter(before)
+					})
 			}
 		})
 	}
@@ -78,18 +80,16 @@ func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForAllStatuses() {
 func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses() {
 	// given
 	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.AllTypes, "")
 	defer reset()
 	testdoubles.SetTemplateVersions()
-	cheObjects := testdoubles.SingleTemplatesObjects(s.T(), s.Configuration, environment.TypeChe)
-	jenkinsObjects := testdoubles.SingleTemplatesObjects(s.T(), s.Configuration, environment.TypeJenkins)
 
 	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 		gock.Off()
 		calls := 0
-		testdoubles.MockPatchRequestsToOS(&calls, "http://api.cluster1/")
+		testdoubles.MockPatchRequestsToOS(&calls, test.ClusterURL)
 		s.T().Run(fmt.Sprintf("running automated update process whould pass when status %s is set", status), func(t *testing.T) {
 			configuration.Commit = "xyz"
 			*updateExecutor.NumberOfCalls = 0
@@ -111,20 +111,24 @@ func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses
 			tenantsUpdater.UpdateAllTenants()
 
 			// then
-			assert.Equal(t, 1*(2*(len(cheObjects)+len(jenkinsObjects)-2)), calls)
+			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenPatch(t, s.Configuration, environment.TypeChe, environment.TypeJenkins)
+			assert.Equal(t, expectedNumberOfCalls, calls)
 			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
 				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
-					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-					assert.Equal(t, tenant.Ready, ns.State)
+					nsAssertion := assertion.AssertNamespace(t, ns).
+						HasCurrentCompleteVersion().
+						HasState(tenant.Ready)
 					if ns.Type == environment.TypeChe || ns.Type == environment.TypeJenkins {
-						assert.Equal(t, "124abcd", ns.UpdatedBy)
-						assert.True(t, before.Before(ns.UpdatedAt))
+						nsAssertion.
+							HasUpdatedBy("124abcd").
+							WasUpdatedAfter(before)
 					} else {
-						assert.Equal(t, "xyz", ns.UpdatedBy)
-						assert.True(t, before.After(ns.UpdatedAt))
+						nsAssertion.
+							HasUpdatedBy("xyz").
+							WasUpdatedBefore(before)
 					}
 				}
 			}
@@ -135,7 +139,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses
 func (s *TenantsUpdaterTestSuite) TestHandleTenantUpdateError() {
 	// given
 	defer gock.Off()
-	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
 	s.tx(s.T(), func(repo update.Repository) error {
 		return repo.UpdateStatus(update.Status("updating"))
@@ -147,7 +151,7 @@ func (s *TenantsUpdaterTestSuite) TestHandleTenantUpdateError() {
 	// then
 	var err error
 	var tenantsUpdate *update.TenantsUpdate
-	err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+	err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
 	})
@@ -158,7 +162,7 @@ func (s *TenantsUpdaterTestSuite) TestHandleTenantUpdateError() {
 func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpToDateForAllStatuses() {
 	// given
 	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.AllTypes, "")
 	defer reset()
@@ -186,14 +190,14 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 			assert.Zero(t, *updateExecutor.NumberOfCalls)
 			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-				assert.NoError(t, err)
-				for _, ns := range namespaces {
-					assert.Equal(t, "124abcd", ns.UpdatedBy)
-					assert.Equal(t, tenant.Ready, ns.State)
-					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-					assert.True(t, after.After(ns.UpdatedAt))
-				}
+				assertion.AssertTenantFromDB(t, s.DB, tnnt.ID).
+					HasNamespacesThat(func(assertion *assertion.NamespaceAssertion) {
+						assertion.
+							HasCurrentCompleteVersion().
+							HasUpdatedBy("124abcd").
+							HasState(tenant.Ready).
+							WasUpdatedBefore(after)
+					})
 			}
 		})
 	}
@@ -202,7 +206,12 @@ func (s *TenantsUpdaterTestSuite) TestDoNotUpdateAnythingWhenAllNamespacesAreUpT
 func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	// given
 	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+	gock.New(test.ClusterURL).
+		Get("").
+		Persist().
+		Reply(200).
+		BodyString(`{"status": {"phase":"Active"}}`)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.AllTypes, "")
 	defer reset()
@@ -246,7 +255,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificCluster() {
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
 	fxt1 := tf.FillDB(s.T(), s.DB, tf.AddTenants(2),
-		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL(test.ClusterURL).Outdated())
 	fxt2 := tf.FillDB(s.T(), s.DB, tf.AddTenants(3),
 		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
 	s.tx(s.T(), func(repo update.Repository) error {
@@ -286,11 +295,11 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificCluster() {
 func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 	// given
 	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.OneType(environment.TypeJenkins), "")
 	defer reset()
-	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "124abcd"
@@ -327,7 +336,9 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 
 func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndStatusIsKilled() {
 	//given
+	defer gock.Off()
 	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(50, 1, 0, time.Second)
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
 	// when
 	goroutinesCanContinue.Done()
@@ -350,7 +361,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 
 	// then
 	var tenantsUpdate *update.TenantsUpdate
-	err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+	err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 		var err error
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
@@ -363,7 +374,9 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 
 func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 	//given
+	defer gock.Off()
 	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(5, 10, 3*time.Second, 10*time.Millisecond)
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
 	// when
 	goroutinesCanContinue.Done()
@@ -383,7 +396,9 @@ func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 
 func (s *TenantsUpdaterTestSuite) TestTwoExecutorsDoUpdateBecauseOfLowerWaitTimeout() {
 	//given
+	defer gock.Off()
 	goroutinesCanContinue, goroutinesFinished, updateExecs := s.prepareForParallelTest(5, 2, time.Millisecond, 10*time.Millisecond)
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
 	// when
 	goroutinesCanContinue.Done()
@@ -400,7 +415,7 @@ func (s *TenantsUpdaterTestSuite) prepareForParallelTest(numberOfTnnts, count in
 	var goroutinesFinished sync.WaitGroup
 
 	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	testdoubles.SetTemplateVersions()
 	tf.FillDB(s.T(), s.DB, tf.AddTenants(numberOfTnnts), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
 	s.tx(s.T(), func(repo update.Repository) error {

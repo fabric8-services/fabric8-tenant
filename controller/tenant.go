@@ -89,7 +89,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	openShiftService := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterMapping)
 
 	// perform delete method on the list of existing namespaces
-	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster, !removeFromCluster).ApplyAll(environment.DefaultEnvTypes)
+	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster, !removeFromCluster, true).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
 		namespaces, getErr := c.tenantRepository.GetNamespaces(dbTenant.ID)
 		if getErr != nil {

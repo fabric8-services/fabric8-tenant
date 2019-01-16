@@ -2,8 +2,8 @@ package tenant
 
 import (
 	"fmt"
-
 	"github.com/fabric8-services/fabric8-common/errors"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -21,6 +21,7 @@ type Service interface {
 	// SaveTenant will update on dupliate 'insert'
 	SaveTenant(tenant *Tenant) error
 	SaveNamespace(namespace *Namespace) error
+	CreateNamespace(namespace *Namespace) (*Namespace, error)
 	DeleteTenant(tenantID uuid.UUID) error
 	NewTenantRepository(tenantID uuid.UUID) Repository
 	//DeleteNamespaces(tenantID uuid.UUID) error
@@ -117,6 +118,36 @@ func (s DBService) SaveNamespace(namespace *Namespace) error {
 	return s.db.Save(namespace).Error
 }
 
+func (s DBService) CreateNamespace(namespace *Namespace) (*Namespace, error) {
+	if namespace.ID == uuid.Nil {
+		namespace.ID = uuid.NewV4()
+	}
+	length := len(namespace.Name)
+	lockid := length + int([]rune(namespace.Name)[length-1])
+	created := false
+	err := dbsupport.Transaction(s.db, lock(lockid, func(tx *gorm.DB) error {
+		var duplicate []*Namespace
+		err := tx.Table(namespaceTableName).
+			Where("name = ? AND master_url = ? AND tenant_id = ?", namespace.Name, namespace.MasterURL, namespace.TenantID).
+			Find(&duplicate).Error
+		if err != nil {
+			return err
+		}
+		if len(duplicate) > 0 {
+			return nil
+		}
+		created = true
+		return tx.Create(namespace).Error
+	}))
+	if err != nil {
+		return nil, err
+	}
+	if !created {
+		return nil, nil
+	}
+	return namespace, nil
+}
+
 func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	var t []*Namespace
 	err := s.db.Table(namespaceTableName).Where("tenant_id = ?", tenantID).Find(&t).Error
@@ -176,11 +207,12 @@ func (s DBService) NewTenantRepository(tenantID uuid.UUID) Repository {
 
 type Repository interface {
 	GetTenant() (*Tenant, error)
-	NewNamespace(envType environment.Type, nsName string, state NamespaceState) *Namespace
+	NewNamespace(envType environment.Type, nsName, masterURL string, state NamespaceState) *Namespace
 	GetNamespaces() ([]*Namespace, error)
 	SaveNamespace(namespace *Namespace) error
+	CreateNamespace(namespace *Namespace) (*Namespace, error)
 	DeleteNamespace(namespace *Namespace) error
-	//DeleteNamespaces() error
+	DeleteNamespaces() error
 	DeleteTenant() error
 	Service() Service
 }
@@ -190,12 +222,13 @@ type DBTenantRepository struct {
 	tenantID uuid.UUID
 }
 
-func (n DBTenantRepository) NewNamespace(envType environment.Type, nsName string, state NamespaceState) *Namespace {
+func (n DBTenantRepository) NewNamespace(envType environment.Type, nsName, masterURL string, state NamespaceState) *Namespace {
 	return &Namespace{
-		TenantID: n.tenantID,
-		Name:     nsName,
-		Type:     envType,
-		State:    state,
+		TenantID:  n.tenantID,
+		Name:      nsName,
+		Type:      envType,
+		State:     state,
+		MasterURL: masterURL,
 	}
 }
 
@@ -210,6 +243,11 @@ func (n DBTenantRepository) GetNamespaces() ([]*Namespace, error) {
 func (n DBTenantRepository) SaveNamespace(namespace *Namespace) error {
 	namespace.TenantID = n.tenantID
 	return n.service.SaveNamespace(namespace)
+}
+
+func (n DBTenantRepository) CreateNamespace(namespace *Namespace) (*Namespace, error) {
+	namespace.TenantID = n.tenantID
+	return n.service.CreateNamespace(namespace)
 }
 
 func (n DBTenantRepository) DeleteNamespace(namespace *Namespace) error {
@@ -260,4 +298,16 @@ func constructNsBaseName(repo Service, username string, number int) (string, err
 		}
 	}
 	return nsBaseName, nil
+}
+
+func lock(id int, do func(tx *gorm.DB) error) dbsupport.LockAndDo {
+	return func(tx *gorm.DB) error {
+		if err := tx.Exec("SET LOCAL lock_timeout = '10s'").Error; err != nil {
+			return errs.Wrap(err, "failed to set lock timeout")
+		}
+		if err := tx.Exec("SELECT pg_advisory_xact_lock($1)", id).Error; err != nil {
+			return errs.Wrap(err, "failed to acquire lock")
+		}
+		return do(tx)
+	}
 }

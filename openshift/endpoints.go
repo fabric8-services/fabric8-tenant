@@ -16,72 +16,72 @@ type ObjectEndpoints struct {
 var (
 	AllObjectEndpoints = map[string]*ObjectEndpoints{
 		environment.ValKindNamespace: endpoints(
-			endpoint(`/api/v1/namespaces`, POST(GetObject)),
+			endpoint(`/api/v1/namespaces`, POST(BeforeDo(FailIfAlreadyExists), AfterDo(GetObject))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindProject: endpoints(
-			endpoint(`/oapi/v1/projects`, POST(GetObject)),
+			endpoint(`/oapi/v1/projects`, POST(BeforeDo(FailIfAlreadyExists), AfterDo(GetObject))),
 			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindProjectRequest: endpoints(
-			endpoint(`/oapi/v1/projectrequests`, POST(GetObject)),
+			endpoint(`/oapi/v1/projectrequests`, POST(BeforeDo(FailIfAlreadyExists), AfterDo(GetObject))),
 			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindRole: endpoints(
-			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindRoleBinding: endpoints(
-			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindRoleBindingRestriction: endpoints(
-			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions`, POST(WhenConflictThenDeleteAndRedo).WithModifier(NeedMasterToken)),
+			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions`, POST(Require(MasterToken), AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions/{{ index . "metadata" "name"}}`,
-				PATCH().WithModifier(NeedMasterToken), GET().WithModifier(NeedMasterToken), DELETE().WithModifier(NeedMasterToken))),
+				PATCH(Require(MasterToken)), GET(Require(MasterToken)), DELETE(Require(MasterToken)))),
 
 		environment.ValKindRoute: endpoints(
-			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/routes/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindDeployment: endpoints(
-			endpoint(`/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/apis/extensions/v1beta1/namespaces/{{ index . "metadata" "namespace"}}/deployments/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindDeploymentConfig: endpoints(
-			endpoint(`/apis/apps.openshift.io/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/apis/apps.openshift.io/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/apis/apps.openshift.io/v1/namespaces/{{ index . "metadata" "namespace"}}/deploymentconfigs/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindPersistenceVolumeClaim: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindService: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindSecret: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/secrets/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindServiceAccount: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/serviceaccounts/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindConfigMap: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindResourceQuota: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`, POST(WhenConflictThenDeleteAndRedo, GetObject)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`, POST(AfterDo(WhenConflictThenDeleteAndRedo), AfterDo(GetObject))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindLimitRange: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/limitranges/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindJob: endpoints(
-			endpoint(`/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs`, POST(WhenConflictThenDeleteAndRedo)),
+			endpoint(`/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
 			endpoint(`/apis/batch/v1/namespaces/{{ index . "metadata" "namespace"}}/jobs/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 	}
 	deleteOptions = `apiVersion: v1

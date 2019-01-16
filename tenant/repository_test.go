@@ -1,6 +1,8 @@
 package tenant_test
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
+	"sync"
 	"testing"
 
 	"fmt"
@@ -240,6 +242,42 @@ func updateAllTenants(t *testing.T, toUpdate []*tenant.Tenant, svc tenant.Servic
 			assert.NoError(t, svc.SaveNamespace(ns))
 		}
 	}
+}
+
+func (s *TenantServiceTestSuite) TestCreateNamespaceInParallel() {
+	// given
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johny")), tf.AddNamespaces())
+
+	var wg sync.WaitGroup
+	wg.Add(10)
+	var run sync.WaitGroup
+	run.Add(1)
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			for _, envType := range environment.DefaultEnvTypes {
+				ns := &tenant.Namespace{
+					TenantID:  fxt.Tenants[0].ID,
+					Type:      envType,
+					Name:      tenant.ConstructNamespaceName(envType, "johny"),
+					MasterURL: test.Normalize(test.ClusterURL),
+				}
+
+				// when
+				run.Wait()
+				_, err := tenant.NewDBService(s.DB).CreateNamespace(ns)
+
+				require.NoError(s.T(), err)
+			}
+		}()
+	}
+	run.Done()
+	wg.Wait()
+
+	// then
+	assertion.AssertTenantFromDB(s.T(), s.DB, fxt.Tenants[0].ID).
+		HasNumberOfNamespaces(5)
 }
 
 func assertContentOfTenants(t *testing.T, expectedTenants []*tenant.Tenant, slice []*tenant.Tenant, shouldContain bool) {

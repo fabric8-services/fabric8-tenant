@@ -48,6 +48,14 @@ type Namespace struct {
 	UpdatedBy string
 }
 
+func ConstructNamespaceName(envType environment.Type, nsBaseName string) string {
+	nsName := nsBaseName
+	if envType != environment.TypeUser {
+		nsName = nsName + "-" + envType.String()
+	}
+	return nsName
+}
+
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m Namespace) TableName() string {

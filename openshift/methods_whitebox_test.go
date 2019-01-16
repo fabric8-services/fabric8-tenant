@@ -108,9 +108,12 @@ func TestNeedMasterTokenModifier(t *testing.T) {
 			// then
 			assert.False(t, methodDef.requestCreator.needMasterToken)
 		})
+
+	}
+	for _, method := range []methodDefCreator{POST(Require(MasterToken)), PATCH(Require(MasterToken)), DELETE(Require(MasterToken)), GET(Require(MasterToken))} {
 		t.Run("needMasterToken is true when modifier is called", func(t *testing.T) {
 			// when
-			methodDef := method.WithModifier(NeedMasterToken)(dummyEndpoint)
+			methodDef := method(dummyEndpoint)
 			// then
 			assert.True(t, methodDef.requestCreator.needMasterToken)
 		})

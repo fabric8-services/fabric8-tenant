@@ -3,6 +3,7 @@ package update
 import (
 	"database/sql/driver"
 	"fmt"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"time"
@@ -149,4 +150,19 @@ func (r *GormRepository) Stop() error {
 		return errors.Wrapf(err, "failed to set can_continue to false in %s table", TenantsUpdateTableName)
 	}
 	return nil
+}
+
+const TenantsUpdateAdvisoryLockID = 4242
+
+func lock(do func(repo Repository) error) dbsupport.LockAndDo {
+	return func(tx *gorm.DB) error {
+		if err := tx.Exec("SET LOCAL lock_timeout = '60s'").Error; err != nil {
+			return errors.Wrap(err, "failed to set lock timeout")
+		}
+		if err := tx.Exec("SELECT pg_advisory_xact_lock($1)", TenantsUpdateAdvisoryLockID).Error; err != nil {
+			return errors.Wrap(err, "failed to acquire lock")
+		}
+
+		return do(NewRepository(tx))
+	}
 }

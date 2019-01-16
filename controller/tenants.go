@@ -156,7 +156,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	service := openshift.NewService(context, c.tenantService.NewTenantRepository(tenantID), environment.NewService())
 
 	// perform delete method on the list of existing namespaces
-	err = service.WithDeleteMethod(namespaces, true, false).ApplyAll(environment.DefaultEnvTypes)
+	err = service.WithDeleteMethod(namespaces, true, false, true).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
 		namespaces, getErr := c.tenantService.GetNamespaces(tenantID)
 		if getErr != nil {

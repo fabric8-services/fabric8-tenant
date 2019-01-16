@@ -92,10 +92,10 @@ func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace,
 	}
 }
 
-func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster, keepTenant bool) *WithActionBuilder {
+func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster, keepTenant, allowSelfHealing bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewDelete(b.service.tenantRepository, removeFromCluster, keepTenant, existingNamespaces),
+		action:  NewDelete(b.service.tenantRepository, removeFromCluster, keepTenant, allowSelfHealing, existingNamespaces),
 	}
 }
 
@@ -106,7 +106,7 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 	errorChan := make(chan error, len(nsTypes)*2)
 	for _, nsType := range nsTypes {
 		nsTypeService := NewEnvironmentTypeService(nsType, s.context, s.envService)
-		go processAndApplyNs(&nsTypesWait, nsTypeService, action, s.httpTransport, errorChan)
+		processAndApplyNs(&nsTypesWait, nsTypeService, action, s.httpTransport, errorChan)
 	}
 	nsTypesWait.Wait()
 	close(errorChan)
