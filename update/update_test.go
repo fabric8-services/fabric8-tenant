@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
@@ -140,7 +141,7 @@ func (s *TenantsUpdaterTestSuite) TestHandleTenantUpdateError() {
 	// then
 	var err error
 	var tenantsUpdate *update.TenantsUpdate
-	err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+	err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
 	})
@@ -342,7 +343,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 
 	// then
 	var tenantsUpdate *update.TenantsUpdate
-	err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+	err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 		var err error
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
