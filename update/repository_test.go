@@ -1,6 +1,7 @@
 package update_test
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"testing"
 
 	"fmt"
@@ -29,13 +30,13 @@ func TestUpdateRepository(t *testing.T) {
 func (s *UpdateRepoTestSuite) TestUpdateAndGetStatus() {
 	s.T().Run("set and get status should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateStatus(update.Updating)
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
 			tenantsUpdate, err := repo.GetTenantsUpdate()
 			if err != nil {
@@ -48,7 +49,7 @@ func (s *UpdateRepoTestSuite) TestUpdateAndGetStatus() {
 		// then
 		assert.NoError(t, err)
 		var tenantsUpdate *update.TenantsUpdate
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
@@ -61,13 +62,13 @@ func (s *UpdateRepoTestSuite) TestIncrementAndGetFailedCount() {
 
 	s.T().Run("increment and get failed_count should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).PrepareForUpdating()
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
 			for i := 0; i < 10; i++ {
 				if err := repo.IncrementFailedCount(); err != nil {
@@ -80,7 +81,7 @@ func (s *UpdateRepoTestSuite) TestIncrementAndGetFailedCount() {
 		// then
 		assert.NoError(t, err)
 		var tenantsUpdate *update.TenantsUpdate
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
@@ -93,21 +94,21 @@ func (s *UpdateRepoTestSuite) TestGetAndSetLastTimeUpdated() {
 
 	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateLastTimeUpdated()
 		})
 		require.NoError(t, err)
 		before := time.Now()
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).UpdateLastTimeUpdated()
 		})
 
 		// then
 		assert.NoError(t, err)
 		var tenantsUpdate *update.TenantsUpdate
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
@@ -120,7 +121,7 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 
 	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
 			if err := repo.UpdateStatus(update.Updating); err != nil {
 				return err
@@ -134,14 +135,14 @@ func (s *UpdateRepoTestSuite) TestPrepareForUpdating() {
 		before := time.Now()
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).PrepareForUpdating()
 		})
 
 		// then
 		assert.NoError(t, err)
 		var tenantsUpdate *update.TenantsUpdate
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
@@ -158,14 +159,14 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 	s.T().Run("should say that all versions are different", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			err := testupdate.UpdateVersionsTo(update.NewRepository(tx), "000bbb")
 			require.NoError(t, err)
 			return err
 		})
 		require.NoError(t, err)
 
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			// when
 			tenantsUpdate, err := update.NewRepository(tx).GetTenantsUpdate()
 			if err != nil {
@@ -183,13 +184,13 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 	s.T().Run("should say that all versions but one are different", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return testupdate.UpdateVersionsTo(update.NewRepository(tx), "123abc")
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err := update.NewRepository(tx).GetTenantsUpdate()
 			if err != nil {
 				return err
@@ -211,13 +212,13 @@ func (s *UpdateRepoTestSuite) TestOperationOverVersions() {
 	s.T().Run("should say that all versions are same", func(t *testing.T) {
 		// given
 		testdoubles.SetTemplateVersions()
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return testupdate.UpdateVersionsTo(update.NewRepository(tx), "")
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err := update.NewRepository(tx).GetTenantsUpdate()
 			if err != nil {
 				return err
@@ -238,7 +239,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 
 	s.T().Run("when an error is returned none of the operation in transaction should be committed", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			repo := update.NewRepository(tx)
 			if err := repo.PrepareForUpdating(); err != nil {
 				return err
@@ -255,7 +256,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 		before := time.Now()
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			if err := update.NewRepository(tx).PrepareForUpdating(); err != nil {
 				return err
 			}
@@ -281,7 +282,7 @@ func (s *UpdateRepoTestSuite) TestRollBack() {
 		test.AssertError(t, err, test.HasMessage("any error"))
 
 		var tenantsUpdate *update.TenantsUpdate
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err
 		})
@@ -300,20 +301,20 @@ func (s *UpdateRepoTestSuite) TestStopAndCanContinue() {
 
 	s.T().Run("set and get last_time_updated should pass", func(t *testing.T) {
 		// given
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).PrepareForUpdating()
 		})
 		require.NoError(t, err)
 
 		// when
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			return update.NewRepository(tx).Stop()
 		})
 
 		// then
 		assert.NoError(t, err)
 		var canContinue bool
-		err = update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			canContinue, err = update.NewRepository(tx).CanContinue()
 			return err
 		})

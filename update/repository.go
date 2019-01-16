@@ -3,6 +3,7 @@ package update
 import (
 	"database/sql/driver"
 	"fmt"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"time"
@@ -149,4 +150,12 @@ func (r *GormRepository) Stop() error {
 		return errors.Wrapf(err, "failed to set can_continue to false in %s table", TenantsUpdateTableName)
 	}
 	return nil
+}
+
+const TenantsUpdateAdvisoryLockID = 4242
+
+func lock(do func(repo Repository) error) dbsupport.LockAndDo {
+	return dbsupport.Lock(TenantsUpdateAdvisoryLockID, 60, func(tx *gorm.DB) error {
+		return do(NewRepository(tx))
+	})
 }
