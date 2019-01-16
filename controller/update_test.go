@@ -120,6 +120,13 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 			if int(*updateExecutor.NumberOfCalls) != 12 {
 				return fmt.Errorf("expeced number of calls 60 wasn't fullfiled - actual: %d", int(*updateExecutor.NumberOfCalls))
 			}
+			tenantsUpdate, err := update.NewRepository(s.DB).GetTenantsUpdate()
+			if err != nil {
+				return err
+			}
+			if tenantsUpdate.Status != update.Finished {
+				return fmt.Errorf("the update hasn't finished yet")
+			}
 			return nil
 		})
 		assert.NoError(t, err)
