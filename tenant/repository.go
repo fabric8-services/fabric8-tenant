@@ -124,7 +124,7 @@ func (s DBService) CreateNamespace(namespace *Namespace) (*Namespace, error) {
 	length := len(namespace.Name)
 	lockid := length + int([]rune(namespace.Name)[length-1])
 	created := false
-	err := dbsupport.Transaction(s.db, lock(lockid, func(tx *gorm.DB) error {
+	err := dbsupport.Transaction(s.db, dbsupport.Lock(lockid, 10, func(tx *gorm.DB) error {
 		var duplicate []*Namespace
 		err := tx.Table(namespaceTableName).
 			Where("name = ? AND master_url = ? AND tenant_id = ?", namespace.Name, namespace.MasterURL, namespace.TenantID).
@@ -297,16 +297,4 @@ func constructNsBaseName(repo Service, username string, number int) (string, err
 		}
 	}
 	return nsBaseName, nil
-}
-
-func lock(id int, do func(tx *gorm.DB) error) dbsupport.LockAndDo {
-	return func(tx *gorm.DB) error {
-		if err := tx.Exec("SET LOCAL lock_timeout = '10s'").Error; err != nil {
-			return errs.Wrap(err, "failed to set lock timeout")
-		}
-		if err := tx.Exec("SELECT pg_advisory_xact_lock($1)", id).Error; err != nil {
-			return errs.Wrap(err, "failed to acquire lock")
-		}
-		return do(tx)
-	}
 }
