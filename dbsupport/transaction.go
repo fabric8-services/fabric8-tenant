@@ -53,3 +53,16 @@ func Transaction(db *gorm.DB, lockAndDo LockAndDo) error {
 }
 
 type LockAndDo func(tx *gorm.DB) error
+
+func Lock(lockID int, timeoutInSeconds int, do func(tx *gorm.DB) error) LockAndDo {
+	return func(tx *gorm.DB) error {
+		if err := tx.Exec(fmt.Sprintf("SET LOCAL lock_timeout = '%ds'", timeoutInSeconds)).Error; err != nil {
+			return errors.Wrap(err, "failed to set lock timeout")
+		}
+		if err := tx.Exec("SELECT pg_advisory_xact_lock($1)", lockID).Error; err != nil {
+			return errors.Wrap(err, "failed to acquire lock")
+		}
+
+		return do(tx)
+	}
+}

@@ -155,14 +155,7 @@ func (r *GormRepository) Stop() error {
 const TenantsUpdateAdvisoryLockID = 4242
 
 func lock(do func(repo Repository) error) dbsupport.LockAndDo {
-	return func(tx *gorm.DB) error {
-		if err := tx.Exec("SET LOCAL lock_timeout = '60s'").Error; err != nil {
-			return errors.Wrap(err, "failed to set lock timeout")
-		}
-		if err := tx.Exec("SELECT pg_advisory_xact_lock($1)", TenantsUpdateAdvisoryLockID).Error; err != nil {
-			return errors.Wrap(err, "failed to acquire lock")
-		}
-
+	return dbsupport.Lock(TenantsUpdateAdvisoryLockID, 60, func(tx *gorm.DB) error {
 		return do(NewRepository(tx))
-	}
+	})
 }
