@@ -17,15 +17,15 @@ var (
 	AllObjectEndpoints = map[string]*ObjectEndpoints{
 		environment.ValKindNamespace: endpoints(
 			endpoint(`/api/v1/namespaces`, POST(BeforeDo(FailIfAlreadyExists), AfterDo(GetObject))),
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "name"}}`, PATCH(), GET(Require(MasterToken)), DELETE())),
 
 		environment.ValKindProject: endpoints(
 			endpoint(`/oapi/v1/projects`, POST(BeforeDo(FailIfAlreadyExists), AfterDo(GetObject))),
-			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
+			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(Require(MasterToken)), DELETE())),
 
 		environment.ValKindProjectRequest: endpoints(
 			endpoint(`/oapi/v1/projectrequests`, POST(BeforeDo(FailIfAlreadyExists), AfterDo(GetObject))),
-			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
+			endpoint(`/oapi/v1/projects/{{ index . "metadata" "name"}}`, PATCH(), GET(Require(MasterToken)), DELETE())),
 
 		environment.ValKindRole: endpoints(
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/roles`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
@@ -33,7 +33,7 @@ var (
 
 		environment.ValKindRoleBinding: endpoints(
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
-			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
+			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindings/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE(Require(MasterToken)))),
 
 		environment.ValKindRoleBindingRestriction: endpoints(
 			endpoint(`/oapi/v1/namespaces/{{ index . "metadata" "namespace"}}/rolebindingrestrictions`, POST(Require(MasterToken), AfterDo(WhenConflictThenDeleteAndRedo))),

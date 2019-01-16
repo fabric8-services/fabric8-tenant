@@ -3,6 +3,7 @@ package openshift_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
@@ -13,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-wit/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -83,7 +83,8 @@ func (s *ActionTestSuite) TestCreateAction() {
 			assertion.AssertTenant(t, repo).
 				HasNumberOfNamespaces(idx + 1).
 				HasNamespaceOfTypeThat(envType).
-				HasState(tenant.Provisioning)
+				HasState(tenant.Provisioning).
+				HasMasterURL(test.ClusterURL)
 		})
 
 		s.T().Run("update namespace to ready", func(t *testing.T) {
@@ -143,7 +144,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			deleteCalls := 0
 			postCalls := 0
 			testdoubles.MockPostRequestsToOS(&postCalls, test.ClusterURL, environment.DefaultEnvTypes, "developer2")
@@ -168,7 +169,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			deleteCalls := 0
 			postCalls := 0
 			testdoubles.MockPostRequestsToOS(&postCalls, test.ClusterURL, environment.DefaultEnvTypes, "dev3")
@@ -191,7 +192,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			deleteCalls := 0
 			gock.New(test.ClusterURL).
 				Delete(".*/developertofail-jenkins.*").
@@ -219,7 +220,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			deleteCalls := 0
 			postCalls := 0
 			gock.New(test.ClusterURL).
@@ -423,7 +424,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			calls := 0
 			testdoubles.MockCleanRequestsToOS(&calls, test.ClusterURL)
 			userModifier := testdoubles.AddUser("developer")
@@ -449,7 +450,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			calls := 0
 			testdoubles.MockRemoveRequestsToOS(&calls, test.ClusterURL)
 			userModifier := testdoubles.AddUser("developer")
@@ -472,7 +473,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New(test.ClusterURL).
 				Delete(".*/anotherdev-jenkins/persistentvolumeclaims.*").
 				Reply(500).
@@ -501,7 +502,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New(test.ClusterURL).
 				Delete(".*/anotherdev-jenkins.*").
 				Reply(500).
@@ -688,7 +689,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			calls := 0
 			testdoubles.MockPatchRequestsToOS(&calls, test.ClusterURL)
 			userModifier := testdoubles.AddUser("developer")
@@ -713,7 +714,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
 
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New(test.ClusterURL).
 				Patch(".*/anotherdev-jenkins/role.*").
 				Reply(500).

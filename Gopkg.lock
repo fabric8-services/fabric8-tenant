@@ -132,14 +132,13 @@
 
 [[projects]]
   branch = "fche-patch-1"
-  digest = "1:c24837e26ea8ed60f614c9260a9524b489a06fa874c00ecd9e433e2b031fec5f"
+  digest = "1:a05c8566b175fc717d456f0e8b73e48da1de8a654a0c076ffa8e98cd21288c6a"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = [
     "configuration",
     "errors",
     "goamiddleware",
     "log",
-    "ptr",
     "resource",
     "rest",
   ]
@@ -617,7 +616,6 @@
     "github.com/fabric8-services/fabric8-common/resource",
     "github.com/fabric8-services/fabric8-common/sentry",
     "github.com/fabric8-services/fabric8-wit/goamiddleware",
-    "github.com/fabric8-services/fabric8-wit/ptr",
     "github.com/fabric8-services/fabric8-wit/resource",
     "github.com/fabric8-services/fabric8-wit/rest",
     "github.com/getsentry/raven-go",

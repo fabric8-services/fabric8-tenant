@@ -73,7 +73,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 
 		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New("https://starter.com").
 				Delete("/oapi/v1/namespaces/developer1/rolebindings/admin").
 				Reply(200)
@@ -84,7 +84,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 		})
 		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New("https://starter.com").
 				Delete("/oapi/v1/namespaces/developer1/rolebindings/admin").
 				Reply(505)

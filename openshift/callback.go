@@ -154,16 +154,6 @@ var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 	Name: WhenConflictThenDeleteAndRedoName,
 }
 
-var IgnoreConflicts = AfterDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		if result.response.StatusCode == http.StatusConflict {
-			return nil
-		}
-		return checkHTTPCode(result, result.err)
-	},
-	Name: IgnoreConflictsName,
-}
-
 var WhenConflictThenFail = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		if result.response.StatusCode == http.StatusConflict {

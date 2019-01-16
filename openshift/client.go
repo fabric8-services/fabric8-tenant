@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 
 	tmpl "html/template"
@@ -66,18 +65,6 @@ func (c *Client) Do(requestCreator RequestCreator, object environment.Object, bo
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
-	}
-
-	// for debug only
-	if false {
-		rb, _ := httputil.DumpRequest(req, true)
-		fmt.Println("-----------------")
-		fmt.Println(string(rb))
-		fmt.Println(object)
-		fmt.Println("================")
-		fmt.Println(respBody)
-		fmt.Println("-----------------")
-		fmt.Println(resp.StatusCode)
 	}
 	return NewResult(resp, respBody, err), err
 }

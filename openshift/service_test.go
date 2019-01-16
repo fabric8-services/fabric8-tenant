@@ -1,6 +1,7 @@
 package openshift_test
 
 import (
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
@@ -8,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
-	"github.com/fabric8-services/fabric8-wit/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -71,7 +71,7 @@ func TestService(t *testing.T) {
 
 func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 
@@ -115,7 +115,7 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 
 func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 
@@ -159,7 +159,7 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 
 func (s *ServiceTestSuite) TestDeleteAndGet() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 
@@ -194,7 +194,7 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 
 func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 	testdoubles.SetTemplateVersions()
@@ -302,7 +302,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 
 func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLimitRangesReturnsConflict() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
 	testdoubles.SetTemplateVersions()

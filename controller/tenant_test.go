@@ -38,13 +38,13 @@ func TestTenantController(t *testing.T) {
 
 func (s *TenantControllerTestSuite) TestShowTenant() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	svc, ctrl, _, reset := s.newTestTenantController()
 	defer reset()
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
 		_, tnnt := apptest.ShowTenantOK(t, createAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
@@ -56,21 +56,21 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 	s.T().Run("Failures", func(t *testing.T) {
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			// when/then
 			apptest.ShowTenantUnauthorized(t, context.Background(), svc, ctrl)
 		})
 
 		t.Run("Unauhorized - invalid token", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 
 			// when/then
 			apptest.ShowTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			// when/then
 			apptest.ShowTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 		})
@@ -79,8 +79,7 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 	// given
-	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	svc, ctrl, config, reset := s.newTestTenantController()
 	defer reset()
 	calls := 0
@@ -94,7 +93,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParallelForOneUser() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 
 	calls := 0
 	service, ctrl, config, reset := s.newTestTenantController()
@@ -148,7 +147,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParallelForMultipleUsers() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 
 	calls := 0
 	service, ctrl, config, reset := s.newTestTenantController()
@@ -207,7 +206,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddNamespaces(environment.TypeChe))
 	id := fxt.Tenants[0].ID
 	svc, ctrl, config, reset := s.newTestTenantController()
@@ -226,19 +225,19 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 
 func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 
-	defer gock.Off()
+	defer gock.OffAll()
 	svc, ctrl, _, reset := s.newTestTenantController()
 	defer reset()
 
 	s.T().Run("Unauhorized - no token", func(t *testing.T) {
-		defer gock.Off()
+		defer gock.OffAll()
 		// when/then
 		apptest.SetupTenantUnauthorized(t, context.Background(), svc, ctrl)
 	})
 
 	s.T().Run("Unauhorized - invalid token", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 
 		// when/then
 		apptest.SetupTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
@@ -246,7 +245,7 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 
 	s.T().Run("Internal error because of 500 returned from OS", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		svc, ctrl, _, reset := s.newTestTenantController()
 		defer reset()
 		calls := 0
@@ -260,7 +259,7 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 }
 func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
 
-	defer gock.Off()
+	defer gock.OffAll()
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 	id := fxt.Tenants[0].ID
 	svc, ctrl, _, reset := s.newTestTenantController()
@@ -272,7 +271,7 @@ func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
 
 func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	repo := tenant.NewDBService(s.DB)
 
 	s.T().Run("with existing namespaces", func(t *testing.T) {
@@ -283,7 +282,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 
 		t.Run("only clean namespaces", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			calls := 0
 			testdoubles.MockCleanRequestsToOS(&calls, test.ClusterURL)
 			// when
@@ -297,7 +296,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 
 		t.Run("remove namespaces and tenant", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			calls := 0
 			testdoubles.MockRemoveRequestsToOS(&calls, test.ClusterURL)
 			// when
@@ -313,7 +312,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 
 	s.T().Run("remove namespaces and tenant is ok even when one namespace was already removed", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		calls := 0
 		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 		id := fxt.Tenants[0].ID
@@ -342,21 +341,21 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 	s.T().Run("Failures", func(t *testing.T) {
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			// when/then
 			apptest.CleanTenantUnauthorized(t, context.Background(), svc, ctrl, false)
 		})
 
 		t.Run("Unauhorized - invalid token", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 
 			// when/then
 			apptest.CleanTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl, false)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			// when/then
 			apptest.CleanTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl, false)
 		})
@@ -364,7 +363,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 
 	s.T().Run("clean tenant fails when one namespace removal fails", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		calls := 0
 		fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 		id := fxt.Tenants[0].ID
@@ -373,7 +372,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 
 		t.Run("clean tenant fails when one namespace removal fails", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New(test.ClusterURL).
 				Delete("/api/v1/namespaces/johny1-jenkins/configmaps").
 				Persist().
@@ -390,7 +389,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 
 		t.Run("remove tenant fails when one namespace removal fails", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/johny1-che").
 				Times(2).
@@ -410,7 +409,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 
 func (s *TenantControllerTestSuite) TestUpdateTenant() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddDefaultNamespaces())
 	id := fxt.Tenants[0].ID.String()
 	svc, ctrl, config, reset := s.newTestTenantController()
@@ -418,7 +417,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 
 	s.T().Run("OK", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		calls := 0
 		testdoubles.MockPatchRequestsToOS(&calls, test.ClusterURL)
 		// when
@@ -432,28 +431,28 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 	s.T().Run("Failures", func(t *testing.T) {
 
 		t.Run("Unauhorized - no token", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			// when/then
 			apptest.UpdateTenantUnauthorized(t, context.Background(), svc, ctrl)
 		})
 
 		t.Run("Unauhorized - invalid token", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 
 			// when/then
 			apptest.UpdateTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			// when/then
 			apptest.UpdateTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 		})
 
 		t.Run("fails when an update of one object fails", func(t *testing.T) {
 			// given
-			defer gock.Off()
+			defer gock.OffAll()
 			gock.New(test.ClusterURL).
 				Patch("/api/v1/namespaces/johny1-jenkins/configmaps").
 				Times(2).

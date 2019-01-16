@@ -51,7 +51,7 @@ var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, 
 
 func (s *TenantsControllerTestSuite) TestShowTenants() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
@@ -93,7 +93,7 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
@@ -141,7 +141,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 
 	s.T().Run("all ok", func(t *testing.T) {
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 		gock.New(test.ClusterURL).
 			Delete("/oapi/v1/projects/foo-che").
@@ -169,7 +169,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 	s.T().Run("ok even if namespace missing", func(t *testing.T) {
 		// if the namespace record exist in the DB, but the `delete namespace` call on the cluster endpoint fails with a 404
 		// given
-		defer gock.Off()
+		defer gock.OffAll()
 		testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 		gock.New(test.ClusterURL).
 			Delete("/oapi/v1/projects/bar-che").
@@ -200,7 +200,7 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 	s.T().Run("Failures", func(t *testing.T) {
 		t.Run("Unauhorized failures", func(t *testing.T) {
-			defer gock.Off()
+			defer gock.OffAll()
 			testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/foo").
@@ -236,7 +236,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			// case where the first namespace could not be deleted: the tenant and the namespace that failed should still be in the DB - the rest should be deleted
 			// given
 			repo := tenant.NewDBService(s.DB)
-			defer gock.Off()
+			defer gock.OffAll()
 			testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/baz-che").
@@ -246,6 +246,7 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/baz").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+				Times(2).
 				Reply(500).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Internal Server Error"}`)
 

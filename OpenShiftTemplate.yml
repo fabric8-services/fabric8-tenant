@@ -122,11 +122,11 @@ objects:
               secretKeyRef:
                 name: f8tenant
                 key: auth.token.key
-            - name: SENTRY_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: f8tenant
-                  key: sentry.dsn
+          - name: SENTRY_DSN
+            valueFrom:
+              secretKeyRef:
+                name: f8tenant
+                key: sentry.dsn
           - name: F8_ENVIRONMENT
             valueFrom:
               configMapKeyRef:

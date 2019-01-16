@@ -35,6 +35,27 @@ func TestRetrieveCheMtParams(t *testing.T) {
 	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
 }
 
+func TestRetrieveCheMtParamsShouldNotFailIfMissingSub(t *testing.T) {
+	// given
+	token, err := testsupport.NewToken(
+		map[string]interface{}{},
+		"../test/private_key.pem",
+	)
+	require.NoError(t, err)
+	templates := RetrieveMappedTemplates()["che"]
+	ctx := goajwt.WithJWT(context.Background(), token)
+
+	// when
+	err = getCheParams(ctx, templates[0].DefaultParams)
+
+	// then
+	require.NoError(t, err)
+	assert.NotEmpty(t, templates[0].DefaultParams["JOB_ID"])
+	assert.Equal(t, token.Raw, templates[0].DefaultParams["OSIO_TOKEN"])
+	assert.Empty(t, templates[0].DefaultParams["IDENTITY_ID"])
+	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
+}
+
 func TestRetrieveCheMtParamsWhenTokenIsMissing(t *testing.T) {
 	// given
 	templates := RetrieveMappedTemplates()["che"]

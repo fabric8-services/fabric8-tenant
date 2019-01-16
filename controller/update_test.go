@@ -37,7 +37,7 @@ func TestUpdateController(t *testing.T) {
 
 func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 9*time.Minute)
 	defer reset()
@@ -88,7 +88,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 
 func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL, "http://api.cluster2")
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	svc, ctrl, reset := s.newUpdateController(updateExecutor, 0)
@@ -203,7 +203,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 
 func (s *UpdateControllerTestSuite) TestShowUpdateFailures() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 0)
 	defer reset()
@@ -231,7 +231,7 @@ func (s *UpdateControllerTestSuite) TestShowUpdateFailures() {
 
 func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 0)
 	defer reset()
@@ -281,7 +281,7 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 
 func (s *UpdateControllerTestSuite) TestStopUpdateFailures() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 0)
 	defer reset()
@@ -309,9 +309,9 @@ func (s *UpdateControllerTestSuite) TestStopUpdateFailures() {
 
 func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 	// given
-	defer gock.Off()
+	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
-	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	updateExecutor.TimeToSleep = time.Second
 	svc, ctrl, reset := s.newUpdateController(updateExecutor, 0)

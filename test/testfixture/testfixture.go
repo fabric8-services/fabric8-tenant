@@ -3,13 +3,13 @@ package testfixture
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
-	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"

@@ -4,12 +4,12 @@ import (
 	"time"
 )
 
-// RetryFunc is a function type which wraps actual logic to be retried and returns error if that needs to happen
-type RetryFunc func() error // nolint: golint
+// ToRetry is a function type which wraps actual logic to be retried and returns error if that needs to happen
+type ToRetry func() error // nolint: golint
 
 // Do invokes a function and if invocation fails retries defined amount of time with sleep in between
 // Returns accumulated errors if all attempts failed or empty slice otherwise
-func Do(retries int, sleep time.Duration, toRetry RetryFunc) chan error {
+func Do(retries int, sleep time.Duration, toRetry ToRetry) chan error {
 	iteration := 1
 	errs := make(chan error, retries)
 	defer close(errs)

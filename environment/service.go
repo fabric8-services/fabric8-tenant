@@ -148,9 +148,12 @@ func (s *Service) GetEnvData(ctx context.Context, envType Type) (*EnvData, error
 func getCheParams(ctx context.Context, defaultParams map[string]string) error {
 	if ctx != nil {
 		token := goajwt.ContextJWT(ctx)
-		if token != nil && token.Claims.(jwt.MapClaims)["sub"] != nil {
+		if token != nil {
 			defaultParams["OSIO_TOKEN"] = token.Raw
-			defaultParams["IDENTITY_ID"] = token.Claims.(jwt.MapClaims)["sub"].(string)
+			id := token.Claims.(jwt.MapClaims)["sub"]
+			if id != nil {
+				defaultParams["IDENTITY_ID"] = id.(string)
+			}
 		}
 		defaultParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
 	}

@@ -24,7 +24,6 @@ type Service interface {
 	CreateNamespace(namespace *Namespace) (*Namespace, error)
 	DeleteTenant(tenantID uuid.UUID) error
 	NewTenantRepository(tenantID uuid.UUID) Repository
-	//DeleteNamespaces(tenantID uuid.UUID) error
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
@@ -73,7 +72,7 @@ func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
 
 func (s DBService) NamespaceExists(nsName string) (bool, error) {
 	var ns Namespace
-	err := s.db.Table(ns.TableName()).Where("name = ?", nsName).Find(&ns).Error
+	err := s.db.Table(Namespace{}.TableName()).Where("name = ?", nsName).Find(&ns).Error
 	if err != nil {
 		if gorm.ErrRecordNotFound == err {
 			return false, nil
@@ -85,7 +84,7 @@ func (s DBService) NamespaceExists(nsName string) (bool, error) {
 
 func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
 	// select t.id from tenant t, namespaces n where t.id = n.tenant_id and n.master_url = ? and n.name = ?
-	query := fmt.Sprintf("select t.* from %[1]s t, %[2]s n where t.id = n.tenant_id and n.master_url = ? and n.name = ?", tenantTableName, namespaceTableName)
+	query := fmt.Sprintf("select t.* from %[1]s t, %[2]s n where t.id = n.tenant_id and n.master_url = ? and n.name = ?", Tenant{}.TableName(), Namespace{}.TableName())
 	var result Tenant
 	err := s.db.Raw(query, masterURL, namespace).Scan(&result).Error
 	if err == gorm.ErrRecordNotFound {
@@ -150,7 +149,7 @@ func (s DBService) CreateNamespace(namespace *Namespace) (*Namespace, error) {
 
 func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	var t []*Namespace
-	err := s.db.Table(namespaceTableName).Where("tenant_id = ?", tenantID).Find(&t).Error
+	err := s.db.Table(Namespace{}.TableName()).Where("tenant_id = ?", tenantID).Find(&t).Error
 	if err != nil {
 		return nil, err
 	}

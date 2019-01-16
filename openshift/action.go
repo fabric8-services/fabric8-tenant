@@ -2,6 +2,7 @@ package openshift
 
 import (
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
@@ -77,6 +78,10 @@ func (c *commonNamespaceAction) ManageAndUpdateResults(errorChan chan error, env
 func (c *Create) HealingStrategy() HealingFuncGenerator {
 	return func(openShiftService *ServiceBuilder) Healing {
 		return func(originalError error) error {
+			log.Error(openShiftService.service.context.requestCtx, map[string]interface{}{
+				"err":                   originalError,
+				"self-healing-strategy": "recreate-with-new-nsBaseName",
+			}, "the creation failed, starting self-healing logic")
 			openShiftUsername := openShiftService.service.context.openShiftUsername
 			tnnt, err := c.tenantRepo.GetTenant()
 			errMsgSuffix := fmt.Sprintf("while doing self-healing operations triggered by error: [%s]", originalError)
