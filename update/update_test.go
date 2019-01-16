@@ -232,14 +232,14 @@ func (s *TenantsUpdaterTestSuite) TestWhenExecutorFailsThenStatusFailed() {
 	// then
 	s.assertStatusAndAllVersionAreUpToDate(s.T(), update.Failed)
 	for _, tnnt := range fxt.Tenants {
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-		assert.NoError(s.T(), err)
-		for _, ns := range namespaces {
-			assert.Equal(s.T(), "xyz", ns.UpdatedBy)
-			assert.Equal(s.T(), tenant.Failed.String(), ns.State.String())
-			assert.Equal(s.T(), environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-			assert.True(s.T(), before.Before(ns.UpdatedAt))
-		}
+		assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+			HasNamespacesThat(func(assertion *assertion.NamespaceAssertion) {
+				assertion.
+					HasCurrentCompleteVersion().
+					HasUpdatedBy("xyz").
+					HasState(tenant.Failed).
+					WasUpdatedAfter(before)
+			})
 	}
 }
 
@@ -271,24 +271,24 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificCluster() {
 	// then
 	s.assertStatusAndAllVersionAreUpToDate(s.T(), update.Incomplete)
 	for _, tnnt := range fxt1.Tenants {
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-		assert.NoError(s.T(), err)
-		for _, ns := range namespaces {
-			assert.Equal(s.T(), "124abcd", ns.UpdatedBy)
-			assert.Equal(s.T(), tenant.Ready.String(), ns.State.String())
-			assert.Equal(s.T(), "0000", ns.Version)
-			assert.True(s.T(), before.After(ns.UpdatedAt))
-		}
+		assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+			HasNamespacesThat(func(assertion *assertion.NamespaceAssertion) {
+				assertion.
+					HasVersion("0000").
+					HasUpdatedBy("124abcd").
+					HasState(tenant.Ready).
+					WasUpdatedBefore(before)
+			})
 	}
 	for _, tnnt := range fxt2.Tenants {
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
-		assert.NoError(s.T(), err)
-		for _, ns := range namespaces {
-			assert.Equal(s.T(), "xyz", ns.UpdatedBy)
-			assert.Equal(s.T(), tenant.Ready.String(), ns.State.String())
-			assert.Equal(s.T(), environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-			assert.True(s.T(), before.Before(ns.UpdatedAt))
-		}
+		assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+			HasNamespacesThat(func(assertion *assertion.NamespaceAssertion) {
+				assertion.
+					HasCurrentCompleteVersion().
+					HasUpdatedBy("xyz").
+					HasState(tenant.Ready).
+					WasUpdatedAfter(before)
+			})
 	}
 }
 
@@ -320,15 +320,18 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
 		assert.NoError(s.T(), err)
 		for _, ns := range namespaces {
-			assert.Equal(s.T(), tenant.Ready.String(), ns.State.String())
+			nsAssertion := assertion.AssertNamespace(s.T(), ns).
+				HasState(tenant.Ready)
 			if ns.Type == environment.TypeJenkins {
-				assert.Equal(s.T(), "xyz", ns.UpdatedBy)
-				assert.Equal(s.T(), environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-				assert.True(s.T(), before.Before(ns.UpdatedAt))
+				nsAssertion.
+					HasUpdatedBy("xyz").
+					HasCurrentCompleteVersion().
+					WasUpdatedAfter(before)
 			} else {
-				assert.Equal(s.T(), "124abcd", ns.UpdatedBy)
-				assert.Equal(s.T(), "0000", ns.Version)
-				assert.True(s.T(), before.After(ns.UpdatedAt))
+				nsAssertion.
+					HasUpdatedBy("124abcd").
+					HasVersion("0000").
+					WasUpdatedBefore(before)
 			}
 		}
 	}
