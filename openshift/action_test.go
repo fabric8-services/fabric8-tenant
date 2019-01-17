@@ -399,7 +399,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 	s.T().Run("ManageAndUpdateResults should delete entity when no namespace is present", func(t *testing.T) {
 		// given
-		repo := tenant.NewDBService(s.DB).NewTenantRepository(id)
+		repo := tenant.NewTenantRepository(s.DB, id)
 		namespaces, err := repo.GetNamespaces()
 		require.NoError(t, err)
 		for _, ns := range namespaces {

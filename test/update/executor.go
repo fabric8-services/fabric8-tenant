@@ -40,7 +40,7 @@ func (e *DummyUpdateExecutor) Update(ctx context.Context, dbTenant *tenant.Tenan
 	if e.ClusterService == nil {
 		return fmt.Errorf("cluster service is not set")
 	}
-	tenantUpdater := controller.TenantUpdater{TenantRepository: tenant.NewDBService(e.db),
+	tenantUpdater := controller.TenantUpdater{TenantService: tenant.NewDBService(e.db),
 		Config:         e.config,
 		ClusterService: e.ClusterService,
 	}

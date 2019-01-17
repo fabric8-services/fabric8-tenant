@@ -115,7 +115,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses
 			assert.Equal(t, expectedNumberOfCalls, calls)
 			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+				namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
 					nsAssertion := assertion.AssertNamespace(t, ns).
@@ -317,7 +317,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 	// then
 	testupdate.AssertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Incomplete, update.OneType(environment.TypeJenkins))
 	for _, tnnt := range fxt1.Tenants {
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+		namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 		assert.NoError(s.T(), err)
 		for _, ns := range namespaces {
 			nsAssertion := assertion.AssertNamespace(s.T(), ns).

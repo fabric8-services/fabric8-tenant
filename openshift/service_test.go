@@ -99,7 +99,7 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 		testdoubles.AddUser("aslak").
 			WithData(testdoubles.NewUserDataWithTenantConfig("", "12345", "")).
 			WithToken("abc123"),
-		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
 	err := service.WithPostMethod(true).ApplyAll([]environment.Type{environment.TypeRun})
@@ -143,7 +143,7 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 		testdoubles.AddUser("aslak").
 			WithData(testdoubles.NewUserDataWithTenantConfig("", "12345", "")).
 			WithToken("abc123"),
-		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
 	err := service.WithPostMethod(true).ApplyAll([]environment.Type{environment.TypeRun})
@@ -180,7 +180,7 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		testdoubles.AddUser("aslak").
 			WithData(testdoubles.NewUserDataWithTenantConfig("", "12345", "")).
 			WithToken("abc123"),
-		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
 	err := service.WithDeleteMethod(fxt.Namespaces, true, false, true).ApplyAll(environment.DefaultEnvTypes)
@@ -207,7 +207,7 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	service := testdoubles.NewOSService(
 		config,
 		userCreator,
-		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
 	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
@@ -215,7 +215,7 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	// then
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), namespaces, 5)
 }
@@ -243,7 +243,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflic
 		Reply(200).
 		BodyString("{}")
 
-	repo := tenant.NewDBService(s.DB).NewTenantRepository(fxt.Tenants[0].ID)
+	repo := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
 	service := testdoubles.NewOSService(
 		config,
 		testdoubles.AddUser("johndoe").WithToken("12345"),
@@ -283,7 +283,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 		Reply(200).
 		BodyString("{}")
 
-	repo := tenant.NewDBService(s.DB).NewTenantRepository(fxt.Tenants[0].ID)
+	repo := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
 	service := testdoubles.NewOSService(
 		config,
 		testdoubles.AddUser("johndoe").WithToken("12345"),
@@ -326,7 +326,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLim
 	service := testdoubles.NewOSService(
 		config,
 		userCreator,
-		tenant.NewDBService(s.DB).NewTenantRepository(tnnt.ID))
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
 	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
@@ -335,7 +335,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLim
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
 	assert.Equal(s.T(), 1, deleteCalls)
-	namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), namespaces, 5)
 }

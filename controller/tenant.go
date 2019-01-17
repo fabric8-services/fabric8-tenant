@@ -24,13 +24,13 @@ type TenantController struct {
 	config            *configuration.Data
 	clusterService    cluster.Service
 	authClientService auth.Service
-	tenantRepository  tenant.Service
+	tenantService     tenant.Service
 }
 
 // NewTenantController creates a tenant controller.
 func NewTenantController(
 	service *goa.Service,
-	tenantRepository tenant.Service,
+	tenantService tenant.Service,
 	clusterService cluster.Service,
 	authClientService auth.Service,
 	config *configuration.Data) *TenantController {
@@ -40,7 +40,7 @@ func NewTenantController(
 		config:            config,
 		clusterService:    clusterService,
 		authClientService: authClientService,
-		tenantRepository:  tenantRepository,
+		tenantService:     tenantService,
 	}
 }
 
@@ -53,8 +53,9 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	tenantRepository := c.tenantService.NewTenantRepository(user.ID)
 	// gets list of existing namespaces in DB
-	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -91,7 +92,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// perform delete method on the list of existing namespaces
 	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster, !removeFromCluster, true).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
-		namespaces, getErr := c.tenantRepository.GetNamespaces(dbTenant.ID)
+		namespaces, getErr := tenantRepository.GetNamespaces()
 		if getErr != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":      err,
@@ -136,10 +137,11 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 
 	var dbTenant *tenant.Tenant
 	var namespaces []*tenant.Namespace
+	tenantRepository := c.tenantService.NewTenantRepository(user.ID)
 	// check if tenant already exists
-	if c.tenantRepository.Exists(user.ID) {
+	if tenantRepository.Exists() {
 		// if exists, then check existing namespace (if all of them are created or if any is missing)
-		namespaces, err = c.tenantRepository.GetNamespaces(user.ID)
+		namespaces, err = tenantRepository.GetNamespaces()
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":      err,
@@ -156,7 +158,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 		}
 	} else {
-		nsBaseName, err := tenant.ConstructNsBaseName(c.tenantRepository, environment.RetrieveUserName(user.OpenShiftUsername))
+		nsBaseName, err := tenant.ConstructNsBaseName(c.tenantService, environment.RetrieveUserName(user.OpenShiftUsername))
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -171,7 +173,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			OSUsername: user.OpenShiftUsername,
 			NsBaseName: nsBaseName,
 		}
-		err = c.tenantRepository.CreateTenant(dbTenant)
+		err = tenantRepository.CreateTenant(dbTenant)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -233,8 +235,9 @@ func (c *TenantController) Show(ctx *app.ShowTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenants", user.ID.String()))
 	}
 
+	tenantRepository := c.tenantService.NewTenantRepository(user.ID)
 	// gets tenant's namespaces
-	namespaces, err := c.tenantRepository.GetNamespaces(user.ID)
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -265,7 +268,7 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 	}
 
-	TenantUpdater{Config: c.config, ClusterService: c.clusterService, TenantRepository: c.tenantRepository}.
+	TenantUpdater{Config: c.config, ClusterService: c.clusterService, TenantService: c.tenantService}.
 		Update(ctx, dbTenant, user, environment.DefaultEnvTypes, true)
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
@@ -273,14 +276,15 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 }
 
 type TenantUpdater struct {
-	ClusterService   cluster.Service
-	TenantRepository tenant.Service
-	Config           *configuration.Data
+	ClusterService cluster.Service
+	TenantService  tenant.Service
+	Config         *configuration.Data
 }
 
 func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type, allowSelfHealing bool) error {
+	tenantRepository := u.TenantService.NewTenantRepository(dbTenant.ID)
 	// get tenant's namespaces
-	namespaces, err := u.TenantRepository.GetNamespaces(dbTenant.ID)
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -296,7 +300,7 @@ func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user
 	}
 
 	// create openshift service
-	nsRepo := u.TenantRepository.NewTenantRepository(dbTenant.ID)
+	nsRepo := u.TenantService.NewTenantRepository(dbTenant.ID)
 
 	var envService *environment.Service
 	var userTokenResolver openshift.UserTokenResolver
@@ -334,7 +338,7 @@ func listNames(namespaces []*tenant.Namespace) []string {
 }
 
 func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, osUsername string) (*tenant.Tenant, error) {
-	dbTenant, err := c.tenantRepository.GetTenant(id)
+	dbTenant, err := c.tenantService.NewTenantRepository(id).GetTenant()
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +349,7 @@ func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, 
 }
 
 func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User, nsBaseName string, clusterNsMapping cluster.ForType) *openshift.ServiceBuilder {
-	nsRepo := c.tenantRepository.NewTenantRepository(user.ID)
+	nsRepo := c.tenantService.NewTenantRepository(user.ID)
 
 	envService := environment.NewServiceForUserData(user.UserData)
 

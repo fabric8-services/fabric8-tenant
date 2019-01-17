@@ -12,17 +12,9 @@ import (
 )
 
 type Service interface {
-	Exists(tenantID uuid.UUID) bool
-	GetTenant(tenantID uuid.UUID) (*Tenant, error)
-	LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error)
-	GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error)
-	// CreateTenant will return err on duplicate insert
 	CreateTenant(tenant *Tenant) error
-	// SaveTenant will update on dupliate 'insert'
 	SaveTenant(tenant *Tenant) error
-	SaveNamespace(namespace *Namespace) error
-	CreateNamespace(namespace *Namespace) (*Namespace, error)
-	DeleteTenant(tenantID uuid.UUID) error
+	LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error)
 	NewTenantRepository(tenantID uuid.UUID) Repository
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
@@ -37,16 +29,21 @@ type DBService struct {
 	db *gorm.DB
 }
 
-func (s DBService) Exists(tenantID uuid.UUID) bool {
-	var t Tenant
-	err := s.db.Table(t.TableName()).Where("id = ?", tenantID).Find(&t).Error
-	if err != nil {
-		return false
+func (s *DBService) SaveTenant(tenant *Tenant) error {
+	if tenant.Profile == "" {
+		tenant.Profile = "free"
 	}
-	return true
+	return s.db.Save(tenant).Error
 }
 
-func (s DBService) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
+func (s *DBService) CreateTenant(tenant *Tenant) error {
+	if tenant.Profile == "" {
+		tenant.Profile = "free"
+	}
+	return s.db.Create(tenant).Error
+}
+
+func (s *DBService) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
 	var t Tenant
 	err := s.db.Table(t.TableName()).Where("ns_base_name = ?", nsBaseName).Find(&t).Error
 	if err != nil {
@@ -58,19 +55,7 @@ func (s DBService) ExistsWithNsBaseName(nsBaseName string) (bool, error) {
 	return true, nil
 }
 
-func (s DBService) GetTenant(tenantID uuid.UUID) (*Tenant, error) {
-	var t Tenant
-	err := s.db.Table(t.TableName()).Where("id = ?", tenantID).Find(&t).Error
-	if err == gorm.ErrRecordNotFound {
-		// no match
-		return nil, errors.NewNotFoundError("tenant", tenantID.String())
-	} else if err != nil {
-		return nil, errs.Wrapf(err, "unable to lookup tenant by id")
-	}
-	return &t, nil
-}
-
-func (s DBService) NamespaceExists(nsName string) (bool, error) {
+func (s *DBService) NamespaceExists(nsName string) (bool, error) {
 	var ns Namespace
 	err := s.db.Table(Namespace{}.TableName()).Where("name = ?", nsName).Find(&ns).Error
 	if err != nil {
@@ -82,7 +67,7 @@ func (s DBService) NamespaceExists(nsName string) (bool, error) {
 	return true, nil
 }
 
-func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
+func (s *DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string) (*Tenant, error) {
 	// select t.id from tenant t, namespaces n where t.id = n.tenant_id and n.master_url = ? and n.name = ?
 	query := fmt.Sprintf("select t.* from %[1]s t, %[2]s n where t.id = n.tenant_id and n.master_url = ? and n.name = ?", Tenant{}.TableName(), Namespace{}.TableName())
 	var result Tenant
@@ -96,67 +81,7 @@ func (s DBService) LookupTenantByClusterAndNamespace(masterURL, namespace string
 	return &result, nil
 }
 
-func (s DBService) SaveTenant(tenant *Tenant) error {
-	if tenant.Profile == "" {
-		tenant.Profile = "free"
-	}
-	return s.db.Save(tenant).Error
-}
-
-func (s DBService) CreateTenant(tenant *Tenant) error {
-	if tenant.Profile == "" {
-		tenant.Profile = "free"
-	}
-	return s.db.Create(tenant).Error
-}
-
-func (s DBService) SaveNamespace(namespace *Namespace) error {
-	if namespace.ID == uuid.Nil {
-		namespace.ID = uuid.NewV4()
-	}
-	return s.db.Save(namespace).Error
-}
-
-func (s DBService) CreateNamespace(namespace *Namespace) (*Namespace, error) {
-	if namespace.ID == uuid.Nil {
-		namespace.ID = uuid.NewV4()
-	}
-	length := len(namespace.Name)
-	lockid := length + int([]rune(namespace.Name)[length-1])
-	created := false
-	err := dbsupport.Transaction(s.db, dbsupport.Lock(lockid, 10, func(tx *gorm.DB) error {
-		var duplicate []*Namespace
-		err := tx.Table(namespaceTableName).
-			Where("name = ? AND master_url = ? AND tenant_id = ?", namespace.Name, namespace.MasterURL, namespace.TenantID).
-			Find(&duplicate).Error
-		if err != nil {
-			return err
-		}
-		if len(duplicate) > 0 {
-			return nil
-		}
-		created = true
-		return tx.Create(namespace).Error
-	}))
-	if err != nil {
-		return nil, err
-	}
-	if !created {
-		return nil, nil
-	}
-	return namespace, nil
-}
-
-func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
-	var t []*Namespace
-	err := s.db.Table(Namespace{}.TableName()).Where("tenant_id = ?", tenantID).Find(&t).Error
-	if err != nil {
-		return nil, err
-	}
-	return t, nil
-}
-
-func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
+func (s *DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
 	var tenants []*Tenant
 	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
 	nsSubQuery = nsSubQuery.Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
@@ -179,25 +104,17 @@ func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]strin
 	return tenants, err
 }
 
-func (s DBService) DeleteNamespaces(tenantID uuid.UUID) error {
-	if tenantID == uuid.Nil {
-		return nil
-	}
-	return s.db.Unscoped().Delete(&Namespace{}, "tenant_id = ?", tenantID).Error
+func (s *DBService) NewTenantRepository(tenantID uuid.UUID) Repository {
+	return &DBTenantRepository{DBService: s, tenantID: tenantID}
 }
 
-func (s DBService) DeleteTenant(tenantID uuid.UUID) error {
-	if tenantID == uuid.Nil {
-		return nil
-	}
-	return s.db.Unscoped().Delete(&Tenant{ID: tenantID}).Error
-}
-
-func (s DBService) NewTenantRepository(tenantID uuid.UUID) Repository {
-	return DBTenantRepository{service: s, tenantID: tenantID}
+func NewTenantRepository(db *gorm.DB, tenantID uuid.UUID) Repository {
+	return &DBTenantRepository{DBService: &DBService{db: db}, tenantID: tenantID}
 }
 
 type Repository interface {
+	Service
+	Exists() bool
 	GetTenant() (*Tenant, error)
 	NewNamespace(envType environment.Type, nsName, masterURL string, state NamespaceState) *Namespace
 	GetNamespaces() ([]*Namespace, error)
@@ -206,17 +123,16 @@ type Repository interface {
 	DeleteNamespace(namespace *Namespace) error
 	DeleteNamespaces() error
 	DeleteTenant() error
-	Service() Service
 }
 
 type DBTenantRepository struct {
-	service  DBService
+	*DBService
 	tenantID uuid.UUID
 }
 
-func (n DBTenantRepository) NewNamespace(envType environment.Type, nsName, masterURL string, state NamespaceState) *Namespace {
+func (r *DBTenantRepository) NewNamespace(envType environment.Type, nsName, masterURL string, state NamespaceState) *Namespace {
 	return &Namespace{
-		TenantID:  n.tenantID,
+		TenantID:  r.tenantID,
 		Name:      nsName,
 		Type:      envType,
 		State:     state,
@@ -224,38 +140,95 @@ func (n DBTenantRepository) NewNamespace(envType environment.Type, nsName, maste
 	}
 }
 
-func (n DBTenantRepository) GetTenant() (*Tenant, error) {
-	return n.service.GetTenant(n.tenantID)
+func (r *DBTenantRepository) Exists() bool {
+	var t Tenant
+	err := r.db.Table(t.TableName()).Where("id = ?", r.tenantID).Find(&t).Error
+	if err != nil {
+		return false
+	}
+	return true
 }
 
-func (n DBTenantRepository) GetNamespaces() ([]*Namespace, error) {
-	return n.service.GetNamespaces(n.tenantID)
+func (r *DBTenantRepository) GetTenant() (*Tenant, error) {
+	var t Tenant
+	err := r.db.Table(t.TableName()).Where("id = ?", r.tenantID).Find(&t).Error
+	if err == gorm.ErrRecordNotFound {
+		// no match
+		return nil, errors.NewNotFoundError("tenant", r.tenantID.String())
+	} else if err != nil {
+		return nil, errs.Wrapf(err, "unable to lookup tenant by id")
+	}
+	return &t, nil
 }
 
-func (n DBTenantRepository) SaveNamespace(namespace *Namespace) error {
-	namespace.TenantID = n.tenantID
-	return n.service.SaveNamespace(namespace)
+func (r *DBTenantRepository) GetNamespaces() ([]*Namespace, error) {
+	var t []*Namespace
+	err := r.db.Table(Namespace{}.TableName()).Where("tenant_id = ?", r.tenantID).Find(&t).Error
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
 }
 
-func (n DBTenantRepository) CreateNamespace(namespace *Namespace) (*Namespace, error) {
-	namespace.TenantID = n.tenantID
-	return n.service.CreateNamespace(namespace)
+func (r *DBTenantRepository) SaveNamespace(namespace *Namespace) error {
+	if namespace.TenantID == uuid.Nil {
+		namespace.TenantID = r.tenantID
+	}
+	if namespace.ID == uuid.Nil {
+		namespace.ID = uuid.NewV4()
+	}
+	return r.db.Save(namespace).Error
 }
 
-func (n DBTenantRepository) DeleteNamespace(namespace *Namespace) error {
-	return n.service.db.Unscoped().Delete(namespace).Error
+func (r *DBTenantRepository) CreateNamespace(namespace *Namespace) (*Namespace, error) {
+	if namespace.TenantID == uuid.Nil {
+		namespace.TenantID = r.tenantID
+	}
+	if namespace.ID == uuid.Nil {
+		namespace.ID = uuid.NewV4()
+	}
+	length := len(namespace.Name)
+	lockid := length + int([]rune(namespace.Name)[length-1])
+	created := false
+	err := dbsupport.Transaction(r.db, dbsupport.Lock(lockid, 10, func(tx *gorm.DB) error {
+		var duplicate []*Namespace
+		err := tx.Table(namespaceTableName).
+			Where("name = ? AND master_url = ? AND tenant_id = ?", namespace.Name, namespace.MasterURL, namespace.TenantID).
+			Find(&duplicate).Error
+		if err != nil {
+			return err
+		}
+		if len(duplicate) > 0 {
+			return nil
+		}
+		created = true
+		return tx.Create(namespace).Error
+	}))
+	if err != nil {
+		return nil, err
+	}
+	if !created {
+		return nil, nil
+	}
+	return namespace, nil
 }
 
-func (n DBTenantRepository) DeleteNamespaces() error {
-	return n.service.DeleteNamespaces(n.tenantID)
+func (r *DBTenantRepository) DeleteNamespace(namespace *Namespace) error {
+	return r.db.Unscoped().Delete(namespace).Error
 }
 
-func (n DBTenantRepository) DeleteTenant() error {
-	return n.service.DeleteTenant(n.tenantID)
+func (r *DBTenantRepository) DeleteNamespaces() error {
+	if r.tenantID == uuid.Nil {
+		return nil
+	}
+	return r.db.Unscoped().Delete(&Namespace{}, "tenant_id = ?", r.tenantID).Error
 }
 
-func (n DBTenantRepository) Service() Service {
-	return n.service
+func (r *DBTenantRepository) DeleteTenant() error {
+	if r.tenantID == uuid.Nil {
+		return nil
+	}
+	return r.db.Unscoped().Delete(&Tenant{ID: r.tenantID}).Error
 }
 
 func ConstructNsBaseName(repo Service, username string) (string, error) {

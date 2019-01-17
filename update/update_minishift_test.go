@@ -45,18 +45,19 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	svc := goa.New("Tenants-service")
 	var tenantIDs []uuid.UUID
 	clusterService := s.GetClusterService()
-	repo := tenant.NewDBService(s.DB)
+	dbService := tenant.NewDBService(s.DB)
 
 	for i := 0; i < numberOfTenants; i++ {
 		id := uuid.NewV4()
 		tenantIDs = append(tenantIDs, id)
-		ctrl := controller.NewTenantController(svc, repo, clusterService, s.GetAuthService(id), s.GetConfig())
+		ctrl := controller.NewTenantController(svc, dbService, clusterService, s.GetAuthService(id), s.GetConfig())
 		goatest.SetupTenantAccepted(s.T(), createUserContext(s.T(), id.String()), svc, ctrl)
 	}
 
 	for _, tenantID := range tenantIDs {
+		repo := dbService.NewTenantRepository(tenantID)
 		err := test.WaitWithTimeout(time.Duration(numberOfTenants) * 8 * time.Second).Until(func() error {
-			namespaces, err := repo.GetNamespaces(tenantID)
+			namespaces, err := repo.GetNamespaces()
 			if err != nil {
 				return err
 			}
@@ -66,7 +67,7 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 			return nil
 		})
 		require.NoError(s.T(), err)
-		tnnt, err := repo.GetTenant(tenantID)
+		tnnt, err := repo.GetTenant()
 		require.NoError(s.T(), err)
 		s.VerifyObjectsPresence(s.T(), tnnt.NsBaseName, "1abcd", true)
 	}
@@ -86,7 +87,7 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 	var goroutineCanContinue sync.WaitGroup
 	goroutineCanContinue.Add(1)
 	var goroutineFinished sync.WaitGroup
-	updateExec := controller.TenantUpdater{ClusterService: clusterService, TenantRepository: repo, Config: s.Config}
+	updateExec := controller.TenantUpdater{ClusterService: clusterService, TenantService: dbService, Config: s.Config}
 	for i := 0; i < 10; i++ {
 		goroutineFinished.Add(1)
 		go func(updateExecutor update.Executor) {
@@ -109,10 +110,10 @@ func (s *AutomatedUpdateMinishiftTestSuite) verifyAreUpdated(tenantIDs []uuid.UU
 		wg.Add(1)
 		go func(t *testing.T, tenantID uuid.UUID) {
 			defer wg.Done()
-			repo := tenant.NewDBService(s.DB)
-			tnnt, err := repo.GetTenant(tenantID)
+			repo := tenant.NewTenantRepository(s.DB, tenantID)
+			tnnt, err := repo.GetTenant()
 			assert.NoError(t, err)
-			namespaces, err := repo.GetNamespaces(tenantID)
+			namespaces, err := repo.GetNamespaces()
 			assert.NoError(t, err)
 			assert.Len(t, namespaces, 5)
 			for _, ns := range namespaces {

@@ -296,7 +296,7 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 }
 
 func updateTenant(updateExecutor Executor, tnnt *tenant.Tenant, typesWithVersion map[environment.Type]string, db *gorm.DB) {
-	namespaces, err := tenant.NewDBService(db).GetNamespaces(tnnt.ID)
+	namespaces, err := tenant.NewTenantRepository(db, tnnt.ID).GetNamespaces()
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{
 			"err":    err,

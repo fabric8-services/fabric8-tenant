@@ -118,7 +118,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 		// then
 		err := test.WaitWithTimeout(10 * time.Second).Until(func() error {
 			if int(*updateExecutor.NumberOfCalls) != 12 {
-				return fmt.Errorf("expeced number of calls 60 wasn't fullfiled - actual: %d", int(*updateExecutor.NumberOfCalls))
+				return fmt.Errorf("expeced number of calls 12 wasn't fullfiled - actual: %d", int(*updateExecutor.NumberOfCalls))
 			}
 			tenantsUpdate, err := update.NewRepository(s.DB).GetTenantsUpdate()
 			if err != nil {
@@ -134,7 +134,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 		testupdate.AssertStatusAndAllVersionAreUpToDate(t, s.DB, update.Finished, update.AllTypes)
 		for _, tnnts := range [][]*tenant.Tenant{fxt1.Tenants, fxt2.Tenants} {
 			for _, tnnt := range tnnts {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+				namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
 					assertion.AssertNamespace(t, ns).
@@ -178,7 +178,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 		testupdate.AssertStatusAndAllVersionAreUpToDate(t, s.DB, update.Incomplete, update.AllTypes)
 		for _, tnnts := range [][]*tenant.Tenant{fxt1.Tenants, fxt2.Tenants} {
 			for _, tnnt := range tnnts {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+				namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
 					assert.Equal(t, tenant.Ready.String(), ns.State.String())

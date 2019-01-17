@@ -54,7 +54,8 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 
 	// get tenant from DB
 	tenantID := ctx.TenantID
-	tenant, err := c.tenantService.GetTenant(tenantID)
+	tenantRepository := c.tenantService.NewTenantRepository(tenantID)
+	tenant, err := tenantRepository.GetTenant()
 	if err != nil {
 		serviceAccountName, _ := commonauth.ExtractServiceAccountName(ctx)
 		log.Error(ctx, map[string]interface{}{
@@ -66,7 +67,7 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 	}
 
 	// gets tenant's namespaces
-	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -96,8 +97,9 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	tenantRepository := c.tenantService.NewTenantRepository(tenant.ID)
 	// gets tenant's namespaces
-	namespaces, err := c.tenantService.GetNamespaces(tenant.ID)
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -126,7 +128,8 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 
 	// find tenant in DB
 	tenantID := ctx.TenantID
-	tenant, err := c.tenantService.GetTenant(tenantID)
+	tenantRepository := c.tenantService.NewTenantRepository(tenantID)
+	tenant, err := tenantRepository.GetTenant()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -140,7 +143,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	}
 
 	// gets tenant's namespaces
-	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -163,7 +166,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	// perform delete method on the list of existing namespaces
 	err = service.WithDeleteMethod(namespaces, true, false, true).ApplyAll(environment.DefaultEnvTypes)
 	if err != nil {
-		namespaces, getErr := c.tenantService.GetNamespaces(tenantID)
+		namespaces, getErr := tenantRepository.GetNamespaces()
 		if getErr != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":      err,
@@ -178,7 +181,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	}
 
 	// the tenant should have been deleted - check it
-	if c.tenantService.Exists(tenantID) {
+	if tenantRepository.Exists() {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
 			"tenantID": tenantID,
