@@ -443,10 +443,10 @@ func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
 		// given
 		svc := tenant.NewDBService(s.DB)
 		// when
-		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "firstjohny")
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, "johny", nsBaseName)
+		assert.Equal(t, "firstjohny", nsBaseName)
 	})
 
 	s.T().Run("is second tenant with the same name", func(t *testing.T) {
