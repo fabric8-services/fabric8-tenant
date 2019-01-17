@@ -156,13 +156,6 @@ func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 	return t, nil
 }
 
-func (s DBService) DeleteNamespace(tenantID uuid.UUID, envType environment.Type) error {
-	if tenantID == uuid.Nil {
-		return nil
-	}
-	return s.db.Unscoped().Delete(&Namespace{}, "tenant_id = ? and type = ?", tenantID, envType).Error
-}
-
 func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
 	var tenants []*Tenant
 	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
