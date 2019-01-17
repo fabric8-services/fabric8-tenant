@@ -345,7 +345,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 
 	// when
 	goroutinesCanContinue.Done()
-	test.WaitWithTimeout(5 * time.Second).Until(func() error {
+	err := test.WaitWithTimeout(5 * time.Second).Until(func() error {
 		var tenantsUpdate *update.TenantsUpdate
 		s.tx(s.T(), func(repo update.Repository) error {
 			var err error
@@ -357,6 +357,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 		}
 		return nil
 	})
+	require.NoError(s.T(), err)
 	s.tx(s.T(), func(repo update.Repository) error {
 		return repo.Stop()
 	})
@@ -364,7 +365,7 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 
 	// then
 	var tenantsUpdate *update.TenantsUpdate
-	err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
+	err = dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 		var err error
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
