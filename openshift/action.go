@@ -75,7 +75,7 @@ func (c *commonNamespaceAction) ManageAndUpdateResults(errorChan chan error, env
 	return nil
 }
 
-func (c *Create) HealingStrategy() HealingFuncGenerator {
+func (c *CreateAction) HealingStrategy() HealingFuncGenerator {
 	return func(openShiftService *ServiceBuilder) Healing {
 		return func(originalError error) error {
 			log.Error(openShiftService.service.context.requestCtx, map[string]interface{}{
@@ -89,7 +89,6 @@ func (c *Create) HealingStrategy() HealingFuncGenerator {
 				return errors.Wrapf(err, "unable to get tenant %s", errMsgSuffix)
 			}
 			namespaces, err := c.tenantRepo.GetNamespaces()
-			fmt.Println(namespaces[0].ID)
 			if err != nil {
 				return errors.Wrapf(err, "unable to get namespaces of tenant %s %s", tnnt.ID, errMsgSuffix)
 			}
@@ -116,8 +115,8 @@ func (c *Create) HealingStrategy() HealingFuncGenerator {
 	}
 }
 
-func NewCreate(tenantRepo tenant.Repository, allowSelfHealing bool) *Create {
-	return &Create{
+func NewCreateAction(tenantRepo tenant.Repository, allowSelfHealing bool) *CreateAction {
+	return &CreateAction{
 		commonNamespaceAction: &commonNamespaceAction{
 			method:           http.MethodPost,
 			tenantRepo:       tenantRepo,
@@ -125,17 +124,17 @@ func NewCreate(tenantRepo tenant.Repository, allowSelfHealing bool) *Create {
 	}
 }
 
-type Create struct {
+type CreateAction struct {
 	*commonNamespaceAction
 }
 
-func (c *Create) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
+func (c *CreateAction) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
 	namespace := c.tenantRepo.NewNamespace(
 		nsTypeService.GetType(), nsTypeService.GetNamespaceName(), nsTypeService.GetCluster().APIURL, tenant.Provisioning)
 	return c.tenantRepo.CreateNamespace(namespace)
 }
 
-func (c *Create) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
+func (c *CreateAction) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	state := tenant.Ready
 	if failed {
 		state = tenant.Failed
@@ -152,12 +151,12 @@ func (c *Create) UpdateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	}
 }
 
-func (c *Create) ForceMasterTokenGlobally() bool {
+func (c *CreateAction) ForceMasterTokenGlobally() bool {
 	return false
 }
 
-func NewDelete(tenantRepo tenant.Repository, removeFromCluster, keepTenant, allowSelfHealing bool, existingNamespaces []*tenant.Namespace) *Delete {
-	return &Delete{
+func NewDeleteAction(tenantRepo tenant.Repository, removeFromCluster, keepTenant, allowSelfHealing bool, existingNamespaces []*tenant.Namespace) *DeleteAction {
+	return &DeleteAction{
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			commonNamespaceAction: &commonNamespaceAction{
 				method:           http.MethodDelete,
@@ -171,17 +170,17 @@ func NewDelete(tenantRepo tenant.Repository, removeFromCluster, keepTenant, allo
 	}
 }
 
-type Delete struct {
+type DeleteAction struct {
 	*withExistingNamespacesAction
 	removeFromCluster bool
 	keepTenant        bool
 }
 
-func (d *Delete) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
+func (d *DeleteAction) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
 	return d.getNamespaceFor(nsTypeService.GetType()), nil
 }
 
-func (d *Delete) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
+func (d *DeleteAction) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	var err error
 	if failed {
 		namespace.State = tenant.Failed
@@ -200,7 +199,7 @@ func (d *Delete) UpdateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	}
 }
 
-func (d *Delete) Filter() FilterFunc {
+func (d *DeleteAction) Filter() FilterFunc {
 	if d.removeFromCluster {
 		return isOfKind(environment.ValKindProjectRequest)
 	}
@@ -208,7 +207,7 @@ func (d *Delete) Filter() FilterFunc {
 		environment.ValKindDeploymentConfig, environment.ValKindRoute)
 }
 
-func (d *Delete) Sort(toSort environment.ByKind) {
+func (d *DeleteAction) Sort(toSort environment.ByKind) {
 	sort.Sort(sort.Reverse(toSort))
 }
 
@@ -226,7 +225,7 @@ func (a withExistingNamespacesAction) getNamespaceFor(nsType environment.Type) *
 	return nil
 }
 
-func (d *Delete) ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error {
+func (d *DeleteAction) ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error {
 	err := d.commonNamespaceAction.ManageAndUpdateResults(errorChan, envTypes, healing)
 	if err != nil {
 		return err
@@ -254,14 +253,14 @@ func (d *Delete) ManageAndUpdateResults(errorChan chan error, envTypes []environ
 	return nil
 }
 
-func (d *Delete) HealingStrategy() HealingFuncGenerator {
+func (d *DeleteAction) HealingStrategy() HealingFuncGenerator {
 	return d.redoStrategy(func(openShiftService *ServiceBuilder, existingNamespaces []*tenant.Namespace) *WithActionBuilder {
 		return openShiftService.WithDeleteMethod(existingNamespaces, d.removeFromCluster, false, false)
 	})
 }
 
-func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, allowSelfHealing bool) *Update {
-	return &Update{
+func NewUpdateAction(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, allowSelfHealing bool) *UpdateAction {
+	return &UpdateAction{
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			commonNamespaceAction: &commonNamespaceAction{
 				method:           http.MethodPatch,
@@ -273,16 +272,16 @@ func NewUpdate(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namesp
 	}
 }
 
-type Update struct {
+type UpdateAction struct {
 	*withExistingNamespacesAction
 	allowSelfHealing bool
 }
 
-func (u *Update) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
+func (u *UpdateAction) GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error) {
 	return u.getNamespaceFor(nsTypeService.GetType()), nil
 }
 
-func (u *Update) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
+func (u *UpdateAction) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	state := tenant.Ready
 	if failed {
 		state = tenant.Failed
@@ -299,11 +298,11 @@ func (u *Update) UpdateNamespace(env *environment.EnvData, cluster *cluster.Clus
 	}
 }
 
-func (u *Update) Filter() FilterFunc {
+func (u *UpdateAction) Filter() FilterFunc {
 	return isNotOfKind(environment.ValKindProjectRequest)
 }
 
-func (u *Update) HealingStrategy() HealingFuncGenerator {
+func (u *UpdateAction) HealingStrategy() HealingFuncGenerator {
 	return u.redoStrategy(func(openShiftService *ServiceBuilder, existingNamespaces []*tenant.Namespace) *WithActionBuilder {
 		return openShiftService.WithPatchMethod(existingNamespaces, false)
 	})

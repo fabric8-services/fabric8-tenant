@@ -44,7 +44,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 	defer reset()
 
 	// when
-	create := openshift.NewCreate(repo, true)
+	create := openshift.NewCreateAction(repo, true)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -152,7 +152,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreate(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+			err := openshift.NewCreateAction(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
 			assert.EqualValues(t, testdoubles.ExpectedNumberOfCallsWhenPost(t, config), postCalls)
@@ -177,7 +177,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("dev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreate(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+			err := openshift.NewCreateAction(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
 			assert.EqualValues(t, testdoubles.ExpectedNumberOfCallsWhenPost(t, config), postCalls)
@@ -203,7 +203,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("developertofail")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreate(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+			err := openshift.NewCreateAction(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
 				test.HasMessageContaining("DELETE method applied to namespace types [che jenkins run stage user] failed"),
@@ -236,7 +236,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreate(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+			err := openshift.NewCreateAction(repo, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
 				test.HasMessageContaining("POST method applied to namespace types [che jenkins run stage user] failed"),
@@ -252,7 +252,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// when
-			err := openshift.NewCreate(repo, false).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+			err := openshift.NewCreateAction(repo, false).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
 		})
@@ -262,7 +262,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			errorChan := make(chan error, 10)
 			close(errorChan)
 			// when
-			err := openshift.NewCreate(repo, true).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+			err := openshift.NewCreateAction(repo, true).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			assert.NoError(t, err)
 		})
@@ -279,8 +279,8 @@ func (s *ActionTestSuite) TestDeleteAction() {
 	defer reset()
 
 	// when
-	delete := openshift.NewDelete(repo, false, true, true, fxt.Namespaces)
-	deleteFromCluster := openshift.NewDelete(repo, true, false, true, fxt.Namespaces)
+	delete := openshift.NewDeleteAction(repo, false, true, true, fxt.Namespaces)
+	deleteFromCluster := openshift.NewDeleteAction(repo, true, false, true, fxt.Namespaces)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -430,7 +430,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDelete(repo, false, true, true, fxt.Namespaces).
+			err := openshift.NewDeleteAction(repo, false, true, true, fxt.Namespaces).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -456,7 +456,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDelete(repo, true, false, true, fxt.Namespaces).
+			err := openshift.NewDeleteAction(repo, true, false, true, fxt.Namespaces).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -482,7 +482,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDelete(repo, false, true, true, fxt.Namespaces).
+			err := openshift.NewDeleteAction(repo, false, true, true, fxt.Namespaces).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -511,7 +511,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDelete(repo, true, false, true, fxt.Namespaces).
+			err := openshift.NewDeleteAction(repo, true, false, true, fxt.Namespaces).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -527,7 +527,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// when
-			err := openshift.NewDelete(repo, true, false, false, fxt.Namespaces).
+			err := openshift.NewDeleteAction(repo, true, false, false, fxt.Namespaces).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
@@ -539,7 +539,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// and also when
-			err := openshift.NewDelete(repo, false, true, false, fxt.Namespaces).
+			err := openshift.NewDeleteAction(repo, false, true, false, fxt.Namespaces).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
@@ -573,7 +573,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 	defer reset()
 
 	// when
-	update := openshift.NewUpdate(repo, namespaces, true)
+	update := openshift.NewUpdateAction(repo, namespaces, true)
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -695,7 +695,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewUpdate(repo, namespaces, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+			err := openshift.NewUpdateAction(repo, namespaces, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
 			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenPatch(t, s.Configuration, environment.TypeChe, environment.TypeJenkins)
@@ -723,7 +723,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewUpdate(repo, namespaces, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
+			err := openshift.NewUpdateAction(repo, namespaces, true).HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
 				test.HasMessageContaining("PATCH method applied to namespace types [che jenkins run stage user] failed"),
@@ -740,7 +740,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// when
-			err := openshift.NewUpdate(repo, namespaces, false).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+			err := openshift.NewUpdateAction(repo, namespaces, false).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
 		})
@@ -750,7 +750,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			errorChan := make(chan error, 10)
 			close(errorChan)
 			// when
-			err := openshift.NewUpdate(repo, namespaces, true).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
+			err := openshift.NewUpdateAction(repo, namespaces, true).ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			assert.NoError(t, err)
 		})

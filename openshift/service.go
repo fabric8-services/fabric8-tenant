@@ -81,21 +81,21 @@ func (s *WithActionBuilder) ApplyAll(nsTypes []environment.Type) error {
 func (b *ServiceBuilder) WithPostMethod(allowSelfHealing bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewCreate(b.service.tenantRepository, allowSelfHealing),
+		action:  NewCreateAction(b.service.tenantRepository, allowSelfHealing),
 	}
 }
 
 func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace, allowSelfHealing bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewUpdate(b.service.tenantRepository, existingNamespaces, allowSelfHealing),
+		action:  NewUpdateAction(b.service.tenantRepository, existingNamespaces, allowSelfHealing),
 	}
 }
 
 func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster, keepTenant, allowSelfHealing bool) *WithActionBuilder {
 	return &WithActionBuilder{
 		service: b.service,
-		action:  NewDelete(b.service.tenantRepository, removeFromCluster, keepTenant, allowSelfHealing, existingNamespaces),
+		action:  NewDeleteAction(b.service.tenantRepository, removeFromCluster, keepTenant, allowSelfHealing, existingNamespaces),
 	}
 }
 
