@@ -47,7 +47,7 @@ func namespaces(ns1, ns2 time.Time) []*tenant.Namespace {
 	}
 }
 
-func Test_convertTenant(t *testing.T) {
+func TestConvertTenant(t *testing.T) {
 	ctx := context.Background()
 
 	tenantCreated := time.Now()
