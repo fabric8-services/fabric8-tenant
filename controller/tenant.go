@@ -75,7 +75,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 
 	// checks if the namespaces should be only cleaned or totally removed - restrict deprovision from cluster to internal users only
 	removeFromCluster := false
-	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == "internal" {
+	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == auth.InternalFeatureLevel {
 		removeFromCluster = ctx.Remove
 	}
 

@@ -2,6 +2,7 @@ package environment
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -80,7 +81,7 @@ var contextInfo = map[string]interface{}{
 }
 
 func TestTenantOverride(t *testing.T) {
-	internalFeatureLevel := "internal"
+	internalFeatureLevel := auth.InternalFeatureLevel
 	otherFeatureLevel := "production"
 
 	t.Run("override disabled", func(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/environment/generated"
 	"github.com/fabric8-services/fabric8-tenant/utils"
@@ -90,7 +91,7 @@ func NewService() *Service {
 func NewServiceForUserData(user *authclient.UserDataAttributes) *Service {
 	service := NewService()
 	if user != nil {
-		if user.FeatureLevel != nil && *user.FeatureLevel != "internal" {
+		if user.FeatureLevel != nil && *user.FeatureLevel != auth.InternalFeatureLevel {
 			return service
 		}
 		userContext := user.ContextInformation

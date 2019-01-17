@@ -58,7 +58,7 @@ func NewUserDataWithTenantConfig(templatesRepo, templatesRepoBlob, templatesRepo
 				"templatesRepoBlob": templatesRepoBlob,
 				"templatesRepoDir":  templatesRepoDir,
 			}},
-		FeatureLevel: ptr.String("internal"),
+		FeatureLevel: ptr.String(auth.InternalFeatureLevel),
 	}
 }
 

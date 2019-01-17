@@ -62,7 +62,7 @@ func (s *AuthService) GetUser(ctx context.Context) (*auth.User, error) {
 			Cluster:      ptr.String(s.ClusterURL),
 			Username:     ptr.String(s.OpenShiftUsername),
 			Email:        ptr.String(s.OpenShiftUsername + "@redhat.com"),
-			FeatureLevel: ptr.String("internal"),
+			FeatureLevel: ptr.String(auth.InternalFeatureLevel),
 		},
 	}, nil
 }

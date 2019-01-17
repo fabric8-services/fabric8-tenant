@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	apptest "github.com/fabric8-services/fabric8-tenant/app/test"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
@@ -491,7 +492,7 @@ func createAndMockUser(t *testing.T, sub string, internal bool) context.Context 
 	require.NoError(t, err)
 	featureLevel := ""
 	if internal {
-		featureLevel = "internal"
+		featureLevel = auth.InternalFeatureLevel
 	}
 
 	createUserMock(sub, featureLevel)
