@@ -36,7 +36,7 @@ func NewTenantController(
 	config *configuration.Data) *TenantController {
 
 	return &TenantController{
-		Controller:        service.NewController("TenantsController"),
+		Controller:        service.NewController("TenantController"),
 		config:            config,
 		clusterService:    clusterService,
 		authClientService: authClientService,
