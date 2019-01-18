@@ -75,9 +75,9 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	}
 
 	// checks if the namespaces should be only cleaned or totally removed - restrict deprovision from cluster to internal users only
-	removeFromCluster := false
-	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == auth.InternalFeatureLevel {
-		removeFromCluster = ctx.Remove
+	deleteOptions := openshift.DeleteOpts().EnableSelfHealing()
+	if user.UserData.FeatureLevel != nil && *user.UserData.FeatureLevel == auth.InternalFeatureLevel && ctx.Remove {
+		deleteOptions.RemoveFromCluster()
 	}
 
 	// create cluster mapping from existing namespaces
@@ -90,7 +90,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	openShiftService := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterMapping)
 
 	// perform delete method on the list of existing namespaces
-	err = openShiftService.WithDeleteMethod(namespaces, removeFromCluster, !removeFromCluster, true).ApplyAll(environment.DefaultEnvTypes)
+	err = openShiftService.Delete(environment.DefaultEnvTypes, namespaces, deleteOptions)
 	if err != nil {
 		namespaces, getErr := tenantRepository.GetNamespaces()
 		if getErr != nil {
@@ -202,7 +202,7 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	service := c.newOpenShiftService(ctx, user, dbTenant.NsBaseName, clusterNsMapping)
 
 	// perform post method on the list of missing environment types
-	err = service.WithPostMethod(true).ApplyAll(missing)
+	err = service.Create(missing, openshift.CreateOpts().EnableSelfHealing())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":             err,
@@ -317,7 +317,7 @@ func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user
 	openShiftService := openshift.NewService(serviceContext, nsRepo, envService)
 
 	// perform patch method on the list of exiting namespaces
-	err = openShiftService.WithPatchMethod(namespaces, true).ApplyAll(envTypes)
+	err = openShiftService.Update(envTypes, namespaces, openshift.UpdateOpts().EnableSelfHealing())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":                err,

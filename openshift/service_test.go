@@ -3,6 +3,7 @@ package openshift_test
 import (
 	"github.com/fabric8-services/fabric8-common/convert/ptr"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/assertion"
@@ -102,7 +103,7 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.WithPostMethod(true).ApplyAll([]environment.Type{environment.TypeRun})
+	err := service.Create([]environment.Type{environment.TypeRun}, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
@@ -146,7 +147,7 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.WithPostMethod(true).ApplyAll([]environment.Type{environment.TypeRun})
+	err := service.Create([]environment.Type{environment.TypeRun}, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
@@ -183,7 +184,7 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.WithDeleteMethod(fxt.Namespaces, true, false, true).ApplyAll(environment.DefaultEnvTypes)
+	err := service.Delete(environment.DefaultEnvTypes, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster())
 
 	// then
 	require.NoError(s.T(), err)
@@ -210,7 +211,7 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
+	err := service.Create(environment.DefaultEnvTypes, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
@@ -250,7 +251,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflic
 		repo)
 
 	// when
-	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
+	err := service.Create(environment.DefaultEnvTypes, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
@@ -290,7 +291,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 		repo)
 
 	// when
-	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
+	err := service.Create(environment.DefaultEnvTypes, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
@@ -329,7 +330,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLim
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.WithPostMethod(true).ApplyAll(environment.DefaultEnvTypes)
+	err := service.Create(environment.DefaultEnvTypes, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)

@@ -69,34 +69,16 @@ func NewServiceContext(callerCtx context.Context, config *configuration.Data, cl
 	}
 }
 
-type WithActionBuilder struct {
-	service *Service
-	action  NamespaceAction
+func (b *ServiceBuilder) Create(nsTypes []environment.Type, actionOpts *ActionOptions) error {
+	return b.service.processAndApplyAll(nsTypes, NewCreateAction(b.service.tenantRepository, actionOpts))
 }
 
-func (s *WithActionBuilder) ApplyAll(nsTypes []environment.Type) error {
-	return s.service.processAndApplyAll(nsTypes, s.action)
+func (b *ServiceBuilder) Update(nsTypes []environment.Type, existingNamespaces []*tenant.Namespace, actionOpts *ActionOptions) error {
+	return b.service.processAndApplyAll(nsTypes, NewUpdateAction(b.service.tenantRepository, existingNamespaces, actionOpts))
 }
 
-func (b *ServiceBuilder) WithPostMethod(allowSelfHealing bool) *WithActionBuilder {
-	return &WithActionBuilder{
-		service: b.service,
-		action:  NewCreateAction(b.service.tenantRepository, allowSelfHealing),
-	}
-}
-
-func (b *ServiceBuilder) WithPatchMethod(existingNamespaces []*tenant.Namespace, allowSelfHealing bool) *WithActionBuilder {
-	return &WithActionBuilder{
-		service: b.service,
-		action:  NewUpdateAction(b.service.tenantRepository, existingNamespaces, allowSelfHealing),
-	}
-}
-
-func (b *ServiceBuilder) WithDeleteMethod(existingNamespaces []*tenant.Namespace, removeFromCluster, keepTenant, allowSelfHealing bool) *WithActionBuilder {
-	return &WithActionBuilder{
-		service: b.service,
-		action:  NewDeleteAction(b.service.tenantRepository, removeFromCluster, keepTenant, allowSelfHealing, existingNamespaces),
-	}
+func (b *ServiceBuilder) Delete(nsTypes []environment.Type, existingNamespaces []*tenant.Namespace, deleteOpts *DeleteActionOption) error {
+	return b.service.processAndApplyAll(nsTypes, NewDeleteAction(b.service.tenantRepository, existingNamespaces, deleteOpts))
 }
 
 func (s *Service) processAndApplyAll(nsTypes []environment.Type, action NamespaceAction) error {
