@@ -7,6 +7,7 @@ import (
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
@@ -327,7 +328,7 @@ func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 
 	var tenantsUpdate *update.TenantsUpdate
 	err = test.WaitWithTimeout(10 * time.Second).Until(func() error {
-		err := update.Transaction(s.DB, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(s.DB, func(tx *gorm.DB) error {
 			var err error
 			tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 			return err

@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
@@ -131,7 +132,7 @@ func (c *UpdateController) Stop(ctx *app.StopUpdateContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
-	err := update.Transaction(c.db, func(tx *gorm.DB) error {
+	err := dbsupport.Transaction(c.db, func(tx *gorm.DB) error {
 		return update.NewRepository(tx).Stop()
 	})
 	if err != nil {

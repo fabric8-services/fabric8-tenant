@@ -1,6 +1,7 @@
 package testupdate
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func Tx(t *testing.T, DB *gorm.DB, do func(repo update.Repository) error) {
 func AssertStatusAndAllVersionAreUpToDate(t *testing.T, db *gorm.DB, st update.Status, filterEnvType update.FilterEnvType) {
 	var err error
 	var tenantsUpdate *update.TenantsUpdate
-	err = update.Transaction(db, func(tx *gorm.DB) error {
+	err = dbsupport.Transaction(db, func(tx *gorm.DB) error {
 		tenantsUpdate, err = update.NewRepository(tx).GetTenantsUpdate()
 		return err
 	})

@@ -4,6 +4,7 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
@@ -89,7 +90,7 @@ func (u *TenantsUpdater) UpdateAllTenants() {
 		return nil
 	}
 
-	err := Transaction(u.db, lock(func(repo Repository) error {
+	err := dbsupport.Transaction(u.db, lock(func(repo Repository) error {
 
 		tenantUpdate, err := repo.GetTenantsUpdate()
 		if err != nil {
@@ -142,7 +143,7 @@ func HandleTenantUpdateError(db *gorm.DB, err error) {
 		"commit": configuration.Commit,
 		"err":    err,
 	}, err, "automatic tenant update failed")
-	err = Transaction(db, lock(func(repo Repository) error {
+	err = dbsupport.Transaction(db, lock(func(repo Repository) error {
 		return repo.UpdateStatus(Failed)
 	}))
 	if err != nil {
@@ -158,7 +159,7 @@ func (u *TenantsUpdater) waitAndRecheck() error {
 
 	followUp := func() error { return nil }
 
-	err := Transaction(u.db, lock(func(repo Repository) error {
+	err := dbsupport.Transaction(u.db, lock(func(repo Repository) error {
 
 		tenantUpdate, err := repo.GetTenantsUpdate()
 		if err != nil {
@@ -223,7 +224,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 				break
 			}
 
-			err = Transaction(u.db, lock(func(repo Repository) error {
+			err = dbsupport.Transaction(u.db, lock(func(repo Repository) error {
 				return repo.UpdateLastTimeUpdated()
 			}))
 			if err != nil {
@@ -231,7 +232,7 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 			}
 		}
 
-		err := Transaction(u.db, lock(func(repo Repository) error {
+		err := dbsupport.Transaction(u.db, lock(func(repo Repository) error {
 			return u.setStatusAndVersionsAfterUpdate(repo)
 		}))
 		return err
@@ -273,7 +274,7 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 	var err error
 
 	for _, tnnt := range tenants {
-		err := Transaction(u.db, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(u.db, func(tx *gorm.DB) error {
 			var err error
 			canContinue, err = NewRepository(tx).CanContinue()
 			return err
@@ -333,7 +334,7 @@ func (u *TenantsUpdater) updateTenant(tnnt *tenant.Tenant, tenantRepo tenant.Ser
 		osConfig := openshift.NewConfig(u.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
 		err = openshift.UpdateTenant(u.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envType)
 		if err != nil {
-			err = Transaction(u.db, lock(func(repo Repository) error {
+			err = dbsupport.Transaction(u.db, lock(func(repo Repository) error {
 				return repo.IncrementFailedCount()
 			}))
 			if err != nil {
