@@ -22,10 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"sync"
 	"testing"
 )
 
@@ -46,12 +42,12 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 	s.T().Run("OK", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
-		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(10), tf.AddDefaultNamespaces())
 		// when
 		_, tnnt := apptest.ShowTenantOK(t, createAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
 		// then
 		assert.Equal(t, fxt.Tenants[0].ID, *tnnt.Data.ID)
-		assert.Equal(t, 1, len(tnnt.Data.Attributes.Namespaces))
+		assert.Len(t, tnnt.Data.Attributes.Namespaces, 5)
 	})
 
 	s.T().Run("Failures", func(t *testing.T) {
@@ -69,13 +65,25 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 			// when/then
 			apptest.ShowTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
 		})
-
-		t.Run("Not found - non existing user", func(t *testing.T) {
-			defer gock.OffAll()
-			// when/then
-			apptest.ShowTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
-		})
 	})
+}
+
+func (s *TenantControllerTestSuite) TestShowTenantOKWhenNoTenantExists() {
+	// given
+	defer gock.OffAll()
+	svc, ctrl, config, reset := s.newTestTenantController()
+	defer reset()
+	calls := 0
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny")
+	// when
+	_, tnnt := apptest.ShowTenantOK(s.T(), createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
+	// then
+	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
+	assertion.AssertTenantFromDB(s.T(), s.DB, *tnnt.Data.ID).
+		Exists().
+		HasNsBaseName("johny").
+		HasNumberOfNamespaces(5)
+	assert.Equal(s.T(), 5, len(tnnt.Data.Attributes.Namespaces))
 }
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
@@ -89,123 +97,44 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 	apptest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	// then
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
-
 }
 
-func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParallelForOneUser() {
-	// given
-	defer gock.OffAll()
-
-	calls := 0
-	service, ctrl, config, reset := s.newTestTenantController()
-	defer reset()
-
-	var wg sync.WaitGroup
-	wg.Add(100)
-	var run sync.WaitGroup
-	run.Add(1)
-
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johny")), tf.AddNamespaces())
-	id := fxt.Tenants[0].ID
-
-	deleteCalls := 0
-	gock.New("http://api.cluster1").
-		Delete("/oapi/v1/projects/.*").
-		SetMatcher(test.SpyOnCalls(&deleteCalls)).
-		Persist().
-		Reply(200)
-	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny.*")
-
-	for i := 0; i < 100; i++ {
-		go func() {
-			defer wg.Done()
-			ctx := createAndMockUserAndToken(s.T(), id.String(), false)
-
-			// Setup request context
-			req, err := http.NewRequest("POST", "/api/tenant", nil)
-			require.NoError(s.T(), err)
-			goaCtx := goa.NewContext(goa.WithAction(ctx, "TenantTest"), httptest.NewRecorder(), req, url.Values{})
-			setupCtx, err := app.NewSetupTenantContext(goaCtx, req, service)
-			require.NoError(s.T(), err)
-
-			run.Wait()
-
-			// when
-			ctrl.Setup(setupCtx)
-		}()
-	}
-	run.Done()
-	wg.Wait()
-
-	// then
-	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
-	assert.Equal(s.T(), 0, deleteCalls)
-	assertion.AssertTenantFromDB(s.T(), s.DB, id).
-		HasNsBaseName("johny").
-		HasNumberOfNamespaces(5)
-
-}
-
-func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParallelForMultipleUsers() {
-	// given
-	defer gock.OffAll()
-
-	calls := 0
-	service, ctrl, config, reset := s.newTestTenantController()
-	defer reset()
-
-	var wg sync.WaitGroup
-	wg.Add(100)
-	var run sync.WaitGroup
-	run.Add(1)
-
-	deleteCalls := 0
-	gock.New("http://api.cluster1").
-		Delete("/oapi/v1/projects/.*").
-		SetMatcher(test.SpyOnCalls(&deleteCalls)).
-		Persist().
-		Reply(200)
-
-	var tenantIDs []uuid.UUID
-
-	for i := 0; i < 10; i++ {
-		userName := fmt.Sprintf("%djohny", i)
-		id := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName(userName)), tf.AddNamespaces()).Tenants[0].ID
-		tenantIDs = append(tenantIDs, id)
-		testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, userName+".*")
-		for i := 0; i < 10; i++ {
-			go func() {
-				defer wg.Done()
-				ctx := createAndMockUserAndToken(s.T(), id.String(), false)
-
-				// Setup request context
-				req, err := http.NewRequest("POST", "/api/tenant", nil)
-				require.NoError(s.T(), err)
-				goaCtx := goa.NewContext(goa.WithAction(ctx, "TenantTest"), httptest.NewRecorder(), req, url.Values{})
-				setupCtx, err := app.NewSetupTenantContext(goaCtx, req, service)
-				require.NoError(s.T(), err)
-
-				run.Wait()
-
-				// when
-				ctrl.Setup(setupCtx)
-			}()
-		}
-	}
-	run.Done()
-	wg.Wait()
-
-	// then
-	assert.Equal(s.T(), 10*testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
-	assert.Equal(s.T(), 0, deleteCalls)
-	for index, id := range tenantIDs {
-		assertion.AssertTenantFromDB(s.T(), s.DB, id).
-			HasNsBaseName(fmt.Sprintf("%djohny", index)).
-			HasNumberOfNamespaces(5)
-	}
+func (s *TenantControllerTestSuite) TestShowTenantWhenSomeNamespacesAreMissing() {
+	var tnnt *app.TenantSingle
+	s.verifyTenantCreationWhenAlreadyExists(
+		// when
+		func(ctx context.Context, service *goa.Service, ctrl app.TenantController) {
+			_, singleTnnt := apptest.ShowTenantOK(s.T(), ctx, service, ctrl)
+			tnnt = singleTnnt
+		},
+		// then
+		func() {
+			assertion.AssertTenantFromDB(s.T(), s.DB, *tnnt.Data.ID).
+				Exists().
+				HasNumberOfNamespaces(5)
+			namespaceAttributes := tnnt.Data.Attributes.Namespaces
+			assert.Equal(s.T(), 5, len(namespaceAttributes))
+			for _, ns := range namespaceAttributes {
+				assert.Equal(s.T(), test.Normalize(test.ClusterURL), *ns.ClusterURL)
+				assert.Equal(s.T(), tenant.Ready.String(), *ns.State)
+				assert.Equal(s.T(), tenant.ConstructNamespaceName(environment.Type(*ns.Type), "johny1"), *ns.Name)
+			}
+		})
 }
 
 func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
+	s.verifyTenantCreationWhenAlreadyExists(
+		// when
+		func(ctx context.Context, service *goa.Service, ctrl app.TenantController) {
+			apptest.SetupTenantAccepted(s.T(), ctx, service, ctrl)
+		},
+		// then just verify the calls
+		func() {})
+}
+
+func (s *TenantControllerTestSuite) verifyTenantCreationWhenAlreadyExists(
+	when func(ctx context.Context, service *goa.Service, ctrl app.TenantController),
+	then func()) {
 	// given
 	defer gock.OffAll()
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithNames("johny", "johny1")), tf.AddNamespaces(environment.TypeChe))
@@ -216,12 +145,13 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny1")
 
 	// when
-	apptest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
+	when(createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
 	// then
 	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
 	cheObjects := testdoubles.SingleTemplatesObjectsWithDefaults(s.T(), config, environment.TypeChe)
 	numberOfGetChecksForChe := testdoubles.NumberOfGetChecks(cheObjects)
 	assert.Equal(s.T(), totalNumber-(len(cheObjects)+numberOfGetChecksForChe+1), calls)
+	then()
 }
 
 func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
@@ -518,7 +448,7 @@ func createUserMock(tenantId string, featureLevel string) {
 func createTokenMock(tenantId string) {
 	gock.New("http://authservice").
 		Get("/api/token").
-		MatchParam("for", test.ClusterURL).
+		MatchParam("for", test.Normalize(test.ClusterURL)).
 		MatchParam("force_pull", "false").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub(tenantId))).
 		Reply(200).
