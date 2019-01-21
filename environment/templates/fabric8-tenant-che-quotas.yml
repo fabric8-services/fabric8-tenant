@@ -18,7 +18,7 @@ items:
         memory: 3Gi
       min:
         cpu: 29m
-        memory: 150Mi
+        memory: 30Mi
       type: Pod
     - default:
         cpu: "1"
@@ -31,7 +31,7 @@ items:
         memory: 3Gi
       min:
         cpu: 29m
-        memory: 150Mi
+        memory: 30Mi
       type: Container
     - max:
         storage: 1Gi
