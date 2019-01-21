@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -104,11 +105,33 @@ func (c *UpdateController) Show(ctx *app.ShowUpdateContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	updateData := convert(tenantsUpdate)
+	var envTypes = environment.DefaultEnvTypes
+	if value(ctx.EnvType) != "" {
+		envTypes = []environment.Type{environment.Type(value(ctx.EnvType))}
+		if !isOneOfDefaults(envTypes[0]) {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("env-type", ctx.EnvType))
+		}
+	}
+
+	mappedTemplates := environment.RetrieveMappedTemplates()
+	typesWithVersion := map[environment.Type]string{}
+	for _, envType := range envTypes {
+		typesWithVersion[envType] = mappedTemplates[envType].ConstructCompleteVersion()
+	}
+
+	numberOfOutdated, err := tenant.NewDBService(c.db).GetNumberOfOutdatedTenants(typesWithVersion, configuration.Commit, value(ctx.ClusterURL))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "retrieval of number of outdated tenants failed")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
+	updateData := convert(tenantsUpdate, numberOfOutdated)
 	return ctx.OK(&app.UpdateDataSingle{Data: updateData})
 }
 
-func convert(tenantsUpdate *update.TenantsUpdate) *app.UpdateData {
+func convert(tenantsUpdate *update.TenantsUpdate, numberOfOutdated int) *app.UpdateData {
 	var fileVersions []*app.FileWithVersion
 	for _, verManager := range update.RetrieveVersionManagers() {
 		fileVersions = append(fileVersions,
@@ -122,6 +145,7 @@ func convert(tenantsUpdate *update.TenantsUpdate) *app.UpdateData {
 		LastTimeUpdated: ptr.Time(tenantsUpdate.LastTimeUpdated),
 		FailedCount:     ptr.Int(tenantsUpdate.FailedCount),
 		FileVersions:    fileVersions,
+		ToUpdate:        &numberOfOutdated,
 	}
 }
 

@@ -19,6 +19,7 @@ type Service interface {
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
+	GetNumberOfOutdatedTenants(typeWithVersion map[environment.Type]string, commit string, masterURL string) (int, error)
 }
 
 func NewDBService(db *gorm.DB) Service {
@@ -83,6 +84,19 @@ func (s *DBService) LookupTenantByClusterAndNamespace(masterURL, namespace strin
 
 func (s *DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
 	var tenants []*Tenant
+	err := s.newGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Limit(count).Scan(&tenants).Error
+
+	return tenants, err
+}
+
+func (s *DBService) GetNumberOfOutdatedTenants(typeWithVersion map[environment.Type]string, commit string, masterURL string) (int, error) {
+	var count int
+	err := s.newGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Count(&count).Error
+
+	return count, err
+}
+
+func (s *DBService) newGetOutdatedTenantsQuery(typeWithVersion map[environment.Type]string, commit string, masterURL string) *gorm.DB {
 	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
 	nsSubQuery = nsSubQuery.Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
 	if masterURL != "" {
@@ -96,12 +110,8 @@ func (s *DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]stri
 		params = append(params, envType, version)
 	}
 	nsSubQuery = nsSubQuery.Where(strings.Join(conditions, " OR "), params...).Group("tenant_id")
-
-	err := s.db.Table(Tenant{}.TableName()).
-		Joins("INNER JOIN ? n ON tenants.id = n.tenant_id", nsSubQuery.SubQuery()).Limit(count).
-		Scan(&tenants).Error
-
-	return tenants, err
+	return s.db.Table(Tenant{}.TableName()).
+		Joins("INNER JOIN ? n ON tenants.id = n.tenant_id", nsSubQuery.SubQuery())
 }
 
 func (s *DBService) NewTenantRepository(tenantID uuid.UUID) Repository {
