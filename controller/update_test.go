@@ -273,7 +273,7 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 
 			// when
 			_, updateData := goatest.ShowUpdateOK(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl,
-				ptr.String("http://api.cluster1/"), ptr.String("user"))
+				ptr.String(test.Normalize(test.ClusterURL)), ptr.String("user"))
 
 			// then
 			assert.Equal(t, status, *updateData.Data.Status)
