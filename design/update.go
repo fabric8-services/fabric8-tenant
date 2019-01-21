@@ -17,6 +17,7 @@ var updateData = a.Type("UpdateData", func() {
 	})
 	a.Attribute("file-versions", a.ArrayOf(fileWithVersion), "Lis of files and their versions used for the last finished run", func() {
 	})
+	a.Attribute("to-update", d.Integer, "The number of outdated tenants.")
 	a.Attribute("links", genericLinks)
 })
 
@@ -66,9 +67,16 @@ var _ = a.Resource("update", func() {
 		a.Routing(
 			a.GET(""),
 		)
+		a.Params(func() {
+			a.Param("cluster_url", d.String, "the URL of the OSO cluster the number of outdated tenants should be limited to")
+			a.Param("env_type", d.String, "environment type the number of outdated tenants should be limited to", func() {
+				a.Enum("user", "che", "jenkins", "stage", "run")
+			})
+		})
 
 		a.Description("Get information about last/ongoing update.")
 		a.Response(d.OK, updateInfo)
+		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
