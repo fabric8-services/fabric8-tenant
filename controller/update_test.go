@@ -188,22 +188,33 @@ func (s *UpdateControllerTestSuite) TestShowUpdateFailures() {
 
 	s.T().Run("Unauhorized - no token", func(t *testing.T) {
 		// when/then
-		goatest.ShowUpdateUnauthorized(t, context.Background(), svc, ctrl)
+		goatest.ShowUpdateUnauthorized(t, context.Background(), svc, ctrl, nil, nil)
 	})
 
 	s.T().Run("Unauhorized - no SA token", func(t *testing.T) {
 		// when/then
-		goatest.ShowUpdateUnauthorized(t, createInvalidSAContext(), svc, ctrl)
+		goatest.ShowUpdateUnauthorized(t, createInvalidSAContext(), svc, ctrl, nil, nil)
 	})
 
 	s.T().Run("Unauhorized - wrong SA token", func(t *testing.T) {
 		// when/then
-		goatest.ShowUpdateUnauthorized(t, createValidSAContext("other service account"), svc, ctrl)
+		goatest.ShowUpdateUnauthorized(t, createValidSAContext("other service account"), svc, ctrl, nil, nil)
 	})
 
 	s.T().Run("Not found", func(t *testing.T) {
 		// when/then
-		goatest.ShowUpdateUnauthorized(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl)
+		goatest.ShowUpdateUnauthorized(t, createValidSAContext("fabric8-jenkins-idler"), svc, ctrl, nil, nil)
+	})
+
+	s.T().Run("Bad parameter", func(t *testing.T) {
+		// expect
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic because of wrong parameter")
+			}
+		}()
+		// when
+		goatest.ShowUpdateBadRequest(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, nil, ptr.String("wrong"))
 	})
 }
 
@@ -215,6 +226,11 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 	defer reset()
 	testdoubles.SetTemplateVersions()
 	versionManagers := update.RetrieveVersionManagers()
+	configuration.Commit = "123abc"
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddDefaultNamespaces())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddNamespaces(environment.TypeJenkins, environment.TypeUser).Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(4), tf.AddDefaultNamespaces().MasterURL("http://api.cluster2/").Outdated())
 
 	for _, status := range []string{"finished", "updating", "failed", "killed", "incomplete"} {
 		s.T().Run("with status "+status, func(t *testing.T) {
@@ -234,13 +250,15 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 			after := time.Now()
 
 			// when
-			_, updateData := goatest.ShowUpdateOK(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl)
+			_, updateData := goatest.ShowUpdateOK(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl,
+				ptr.String("http://api.cluster1/"), ptr.String("user"))
 
 			// then
 			assert.Equal(t, status, *updateData.Data.Status)
 			assert.Equal(t, 10, *updateData.Data.FailedCount)
 			assert.True(t, after.After(*updateData.Data.LastTimeUpdated))
 			assert.Len(t, updateData.Data.FileVersions, len(versionManagers))
+			assert.Equal(t, 12, *updateData.Data.ToUpdate)
 
 			for _, fileVersion := range updateData.Data.FileVersions {
 				found := false

@@ -322,6 +322,93 @@ func (s *TenantServiceTestSuite) TestGetSubsetOfTenantsThatMatchesRequiredCluste
 	})
 }
 
+func (s *TenantServiceTestSuite) TestGetNumberOfAllOutdatedTenants() {
+	// given
+	configuration.Commit = "123abc"
+	testdoubles.SetTemplateVersions()
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	count, err := svc.GetNumberOfOutdatedTenants(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "xyz", "")
+
+	// then
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), 3, count)
+}
+
+func (s *TenantServiceTestSuite) TestGetNumberOfPreviouslyFailedTenants() {
+	// given
+	testdoubles.SetTemplateVersions()
+	configuration.Commit = "123abc"
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddDefaultNamespaces().State(tenant.Failed).Outdated())
+	configuration.Commit = "234bcd"
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Failed).Outdated())
+
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	count, err := svc.GetNumberOfOutdatedTenants(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "234bcd", "")
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 5, count)
+}
+
+func (s *TenantServiceTestSuite) TestGetNumberOfTenantsThatAreOutdated() {
+	// given
+	testdoubles.SetTemplateVersions()
+	configuration.Commit = "123abc"
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddDefaultNamespaces().State(tenant.Ready).Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Ready))
+
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	count, err := svc.GetNumberOfOutdatedTenants(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "234bcd", "")
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 5, count)
+}
+
+func (s *TenantServiceTestSuite) TestGetNumberOfOutdatedTenantsLimitedToCluster() {
+	// given
+	testdoubles.SetTemplateVersions()
+	configuration.Commit = "123abc"
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(5),
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3),
+		tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
+
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	count, err := svc.GetNumberOfOutdatedTenants(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "234bcd", "http://api.cluster1")
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 5, count)
+}
+
+func (s *TenantServiceTestSuite) TestGetNumberOfOutdatedTenantsLimitedToEnvType() {
+	// given
+	testdoubles.SetTemplateVersions()
+	configuration.Commit = "123abc"
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddNamespaces(environment.TypeJenkins, environment.TypeUser).Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(4), tf.AddDefaultNamespaces().Outdated())
+
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	count, err := svc.GetNumberOfOutdatedTenants(testdoubles.GetMappedVersions(environment.TypeUser), "234bcd", "")
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 10, count)
+}
+
 func (s *TenantServiceTestSuite) TestDeleteNamespaces() {
 	s.T().Run("all info", func(t *testing.T) {
 		// given
