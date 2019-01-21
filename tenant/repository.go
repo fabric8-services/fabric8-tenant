@@ -128,19 +128,19 @@ func (s DBService) GetNamespaces(tenantID uuid.UUID) ([]*Namespace, error) {
 
 func (s DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error) {
 	var tenants []*Tenant
-	err := s.createGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Limit(count).Scan(&tenants).Error
+	err := s.newGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Limit(count).Scan(&tenants).Error
 
 	return tenants, err
 }
 
 func (s *DBService) GetNumberOfOutdatedTenants(typeWithVersion map[environment.Type]string, commit string, masterURL string) (int, error) {
 	var count int
-	err := s.createGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Count(&count).Error
+	err := s.newGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Count(&count).Error
 
 	return count, err
 }
 
-func (s *DBService) createGetOutdatedTenantsQuery(typeWithVersion map[environment.Type]string, commit string, masterURL string) *gorm.DB {
+func (s *DBService) newGetOutdatedTenantsQuery(typeWithVersion map[environment.Type]string, commit string, masterURL string) *gorm.DB {
 	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
 	nsSubQuery = nsSubQuery.Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
 	if masterURL != "" {
