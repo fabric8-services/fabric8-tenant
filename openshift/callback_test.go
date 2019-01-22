@@ -164,7 +164,7 @@ func TestGetMissingObjectAndMerge(t *testing.T) {
 	assert.NoError(t, err)
 	postMethodDef, err := endpoints.GetMethodDefinition("POST", object)
 	assert.NoError(t, err)
-	assert.Equal(t, postMethodDef, methodDef)
+	assert.Equal(t, fmt.Sprintf("%+v", *postMethodDef), fmt.Sprintf("%+v", *methodDef))
 	var actualObject environment.Object
 	assert.NoError(t, yaml.Unmarshal(body, &actualObject))
 	assert.Equal(t, object, actualObject)

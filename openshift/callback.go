@@ -166,7 +166,7 @@ func removeAfterDoCallback(method MethodDefinition, callbackName string) *Method
 			break
 		}
 	}
-	return withoutCallback
+	return &withoutCallback
 }
 
 var WhenConflictThenFail = AfterDoCallback{
