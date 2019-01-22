@@ -45,6 +45,16 @@ func createReqMatcher(matchers []gock.MatchFunc) gock.Matcher {
 	return matcher
 }
 
+func HasBearerWithSub(sub string) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
+		authHeader, ok := req.Header["Authorization"]
+		if ok && len(authHeader) == 1 && strings.HasPrefix(authHeader[0], "Bearer ") {
+			return authHeader[0][7:] == sub, nil
+		}
+		return false, nil
+	}
+}
+
 func HasJWTWithSub(sub string) gock.MatchFunc {
 	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
 		// look-up the JWT's "sub" claim and compare with the request

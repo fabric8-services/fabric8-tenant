@@ -57,7 +57,7 @@ var pvcToSet = `
       - john@ibm-redhat.com
 `
 
-var projectRequest = `- apiVersion: v1
+var projectRequestJenkins = `- apiVersion: v1
   kind: ProjectRequest
   metadata:
     annotations:
@@ -70,6 +70,21 @@ var projectRequest = `- apiVersion: v1
       version: 123
       version-quotas: john
     name: john-jenkins
+`
+
+var projectRequestUser = `- apiVersion: v1
+  kind: ProjectRequest
+  metadata:
+    annotations:
+      openshift.io/description: john Environment
+      openshift.io/display-name: john
+      openshift.io/requester: john
+    labels:
+      app: fabric8-tenant
+      provider: fabric8
+      version: 123
+      version-quotas: john
+    name: john
 `
 
 var tokenProducer = func(forceMasterToken bool) string {
@@ -482,13 +497,14 @@ func TestGetObject(t *testing.T) {
 
 func TestFailIfAlreadyExists(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindProjectRequest, projectRequest)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindProjectRequest, projectRequestJenkins)
 
 	t.Run("when returns 200, then it returns error", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
 			Get("/oapi/v1/projects/john-jenkins").
+			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
 			Reply(200).
 			BodyString(``)
 
@@ -506,6 +522,7 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
 			Get("/oapi/v1/projects/john-jenkins").
+			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
 			Reply(404).
 			BodyString(``)
 
@@ -523,6 +540,7 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
 			Get("/oapi/v1/projects/john-jenkins").
+			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
 			Reply(403).
 			BodyString(``)
 
@@ -533,6 +551,47 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, methodDefinition, actualMethodDef)
 		assert.Contains(t, string(body), "name: john-jenkins")
+	})
+}
+
+func TestFailIfAlreadyExistsForUserNamespaceShouldUseMasterToken(t *testing.T) {
+	// given
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindProjectRequest, projectRequestUser)
+
+	t.Run("when returns 200, then it returns error", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New("https://starter.com").
+			Get("/oapi/v1/projects/john").
+			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
+			Reply(200).
+			BodyString(``)
+
+		// when
+		methodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+
+		// then
+		test.AssertError(t, err, test.HasMessageContaining("already exists"))
+		assert.Nil(t, methodDef)
+		assert.Nil(t, body)
+	})
+
+	t.Run("when returns 404, then it should return original method and body", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New("https://starter.com").
+			Get("/oapi/v1/projects/john").
+			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
+			Reply(404).
+			BodyString(``)
+
+		// when
+		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, methodDefinition, actualMethodDef)
+		assert.Contains(t, string(body), "name: john")
 	})
 }
 
