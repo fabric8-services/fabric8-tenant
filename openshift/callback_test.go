@@ -517,6 +517,23 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		assert.Equal(t, methodDefinition, actualMethodDef)
 		assert.Contains(t, string(body), "name: john-jenkins")
 	})
+
+	t.Run("when returns 403, then it should return original method and body", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New("https://starter.com").
+			Get("/oapi/v1/projects/john-jenkins").
+			Reply(403).
+			BodyString(``)
+
+		// when
+		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, methodDefinition, actualMethodDef)
+		assert.Contains(t, string(body), "name: john-jenkins")
+	})
 }
 
 func getClientObjectEndpointAndMethod(t *testing.T, method, kind, response string) (*openshift.Client, environment.Object, *openshift.ObjectEndpoints, *openshift.MethodDefinition) {

@@ -109,7 +109,7 @@ var FailIfAlreadyExists = BeforeDoCallback{
 
 		result, err := objEndpoints.Apply(client, object, http.MethodGet)
 		if err != nil {
-			if result != nil && result.response.StatusCode == http.StatusNotFound {
+			if result != nil && (result.response.StatusCode == http.StatusNotFound || result.response.StatusCode == http.StatusForbidden) {
 				bodyToSend, err := yaml.Marshal(object)
 				if err != nil {
 					return nil, nil, errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)

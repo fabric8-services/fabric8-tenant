@@ -114,6 +114,50 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 		HasState(tenant.Ready)
 }
 
+func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjectsWhen403IsReturnedForTheFirstGetCall() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	gock.New("https://raw.githubusercontent.com").
+		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
+		Reply(200).
+		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionObject)
+	gock.New("http://api.cluster1/").
+		Post("/oapi/v1/projectrequests").
+		Reply(200)
+	gock.New("http://api.cluster1/").
+		Get("/oapi/v1/projects/aslak-run").
+		Reply(403)
+	gock.New("http://api.cluster1/").
+		Get("/oapi/v1/projects/aslak-run").
+		Reply(200).
+		BodyString(`{"status": {"phase":"Active"}}`)
+	gock.New("http://api.cluster1/").
+		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
+		Reply(200)
+
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces()).Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("aslak").
+			WithData(testdoubles.NewUserDataWithTenantConfig("", "12345", "")).
+			WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Create([]environment.Type{environment.TypeRun}, openshift.CreateOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		HasNumberOfNamespaces(1).
+		HasNamespaceOfTypeThat(environment.TypeRun).
+		HasName("aslak-run").
+		HasState(tenant.Ready)
+}
+
 func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	// given
 	defer gock.OffAll()
