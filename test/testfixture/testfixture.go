@@ -2,13 +2,14 @@ package testfixture
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/resource"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
-	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -202,8 +203,9 @@ func FillDB(t *testing.T, db *gorm.DB, tenantModifiers []TenantModifier, mandato
 		createNamespaces = Namespaces(numberOfNamespaces, func(fxt *TestFixture, idx int) error {
 			fxt.Namespaces[idx].TenantID = fxt.Tenants[int(idx/numberOfEnvTypes)].ID
 			fxt.Namespaces[idx].Type = environment.Type(allEnvTypes[idx%numberOfEnvTypes])
-			fxt.Namespaces[idx].MasterURL = "http://api.cluster1/"
+			fxt.Namespaces[idx].MasterURL = test.Normalize(test.ClusterURL)
 			fxt.Namespaces[idx].UpdatedAt = time.Now()
+			fxt.Namespaces[idx].State = tenant.Ready
 			fxt.Namespaces[idx].UpdatedBy = configuration.Commit
 			fxt.Namespaces[idx].Name = fxt.Tenants[int(idx/numberOfEnvTypes)].NsBaseName
 			if fxt.Namespaces[idx].Type != environment.TypeUser {
@@ -231,18 +233,31 @@ func AddTenants(numberOfTenants int) []TenantModifier {
 	return tenantModifiers
 }
 
-func AddTenantsNamed(names ...string) []TenantModifier {
+func AddSpecificTenants(modifiers ...TenantModifier) []TenantModifier {
 	var tenantModifiers []TenantModifier
-	for _, name := range names {
-		modifier := func(nameToSet string) func(tnnt *tenant.Tenant) {
+	for _, modifier := range modifiers {
+		newModifier := func(modify TenantModifier) func(tnnt *tenant.Tenant) {
 			return func(tnnt *tenant.Tenant) {
-				tnnt.OSUsername = nameToSet
-				tnnt.NsBaseName = nameToSet
+				modify(tnnt)
 			}
 		}
-		tenantModifiers = append(tenantModifiers, modifier(name))
+		tenantModifiers = append(tenantModifiers, newModifier(modifier))
 	}
 	return tenantModifiers
+}
+
+func SingleWithName(name string) TenantModifier {
+	return func(tnnt *tenant.Tenant) {
+		tnnt.OSUsername = name
+		tnnt.NsBaseName = name
+	}
+}
+
+func SingleWithNames(name, baseName string) TenantModifier {
+	return func(tnnt *tenant.Tenant) {
+		tnnt.OSUsername = name
+		tnnt.NsBaseName = baseName
+	}
 }
 
 type NamespacesModifier func(*tenant.Namespace)

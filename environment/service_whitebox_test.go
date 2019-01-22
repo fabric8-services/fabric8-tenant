@@ -2,6 +2,8 @@ package environment
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
@@ -34,7 +36,7 @@ func TestRetrieveCheMtParams(t *testing.T) {
 	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
 }
 
-func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
+func TestRetrieveCheMtParamsShouldNotFailIfMissingSub(t *testing.T) {
 	// given
 	token, err := testsupport.NewToken(
 		map[string]interface{}{},
@@ -48,7 +50,11 @@ func TestRetrieveCheMtParamsShouldFailIfMissingSub(t *testing.T) {
 	err = getCheParams(ctx, templates[0].DefaultParams)
 
 	// then
-	testsupport.AssertError(t, err, testsupport.HasMessage("missing sub in JWT token"))
+	require.NoError(t, err)
+	assert.NotEmpty(t, templates[0].DefaultParams["JOB_ID"])
+	assert.Equal(t, token.Raw, templates[0].DefaultParams["OSIO_TOKEN"])
+	assert.Empty(t, templates[0].DefaultParams["IDENTITY_ID"])
+	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
 }
 
 func TestRetrieveCheMtParamsWhenTokenIsMissing(t *testing.T) {
@@ -64,4 +70,83 @@ func TestRetrieveCheMtParamsWhenTokenIsMissing(t *testing.T) {
 	assert.Empty(t, templates[0].DefaultParams["OSIO_TOKEN"])
 	assert.Empty(t, templates[0].DefaultParams["IDENTITY_ID"])
 	assert.Empty(t, templates[0].DefaultParams["REQUEST_ID"])
+}
+
+var contextInfo = map[string]interface{}{
+	"tenantConfig": map[string]interface{}{
+		"templatesRepo":     "http://my.own.repo",
+		"templatesRepoBlob": "12345",
+		"templatesRepoDir":  "my/own/dir",
+	},
+}
+
+func TestTenantOverride(t *testing.T) {
+	internalFeatureLevel := auth.InternalFeatureLevel
+	otherFeatureLevel := "production"
+
+	t.Run("override disabled", func(t *testing.T) {
+
+		t.Run("external user with config", func(t *testing.T) {
+			// given
+			user := &authclient.UserDataAttributes{
+				ContextInformation: contextInfo,
+				FeatureLevel:       &otherFeatureLevel,
+			}
+
+			// when
+			service := NewServiceForUserData(user)
+
+			// then
+			assertValuesToBeEmpty(t, service)
+		})
+
+		t.Run("external user without config", func(t *testing.T) {
+			// given
+			user := &authclient.UserDataAttributes{}
+
+			// when
+			service := NewServiceForUserData(user)
+
+			// then
+			assertValuesToBeEmpty(t, service)
+		})
+	})
+
+	t.Run("override enabled", func(t *testing.T) {
+
+		t.Run("internal user with config", func(t *testing.T) {
+			// given
+			user := &authclient.UserDataAttributes{
+				ContextInformation: contextInfo,
+				FeatureLevel:       &internalFeatureLevel,
+			}
+
+			// when
+			service := NewServiceForUserData(user)
+
+			// then
+			assert.Equal(t, service.templatesRepo, "http://my.own.repo")
+			assert.Equal(t, service.templatesRepoBlob, "12345")
+			assert.Equal(t, service.templatesRepoDir, "my/own/dir")
+		})
+
+		t.Run("internal user without config", func(t *testing.T) {
+			// given
+			user := &authclient.UserDataAttributes{
+				FeatureLevel: &internalFeatureLevel,
+			}
+
+			// when
+			service := NewServiceForUserData(user)
+
+			// then
+			assertValuesToBeEmpty(t, service)
+		})
+	})
+}
+
+func assertValuesToBeEmpty(t *testing.T, service *Service) {
+	assert.Empty(t, service.templatesRepo)
+	assert.Empty(t, service.templatesRepoBlob)
+	assert.Empty(t, service.templatesRepoDir)
 }

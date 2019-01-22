@@ -3,17 +3,20 @@ package controller
 import (
 	"reflect"
 
+	"fmt"
 	commonauth "github.com/fabric8-services/fabric8-common/auth"
 	"github.com/fabric8-services/fabric8-common/errors"
-	errs "github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/goadesign/goa"
+	errs "github.com/pkg/errors"
 )
 
 var SERVICE_ACCOUNTS = []string{"fabric8-jenkins-idler", "rh-che"}
@@ -24,19 +27,22 @@ type TenantsController struct {
 	tenantService     tenant.Service
 	clusterService    cluster.Service
 	authClientService auth.Service
+	config            *configuration.Data
 }
 
 // NewTenantsController creates a tenants controller.
-func NewTenantsController(service *goa.Service,
+func NewTenantsController(
+	service *goa.Service,
 	tenantService tenant.Service,
 	clusterService cluster.Service,
 	authClientService auth.Service,
-) *TenantsController {
+	config *configuration.Data) *TenantsController {
 	return &TenantsController{
 		Controller:        service.NewController("TenantsController"),
 		tenantService:     tenantService,
 		clusterService:    clusterService,
 		authClientService: authClientService,
+		config:            config,
 	}
 }
 
@@ -46,8 +52,10 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
 
+	// get tenant from DB
 	tenantID := ctx.TenantID
-	tenant, err := c.tenantService.GetTenant(tenantID)
+	tenantRepository := c.tenantService.NewTenantRepository(tenantID)
+	tenant, err := tenantRepository.GetTenant()
 	if err != nil {
 		serviceAccountName, _ := commonauth.ExtractServiceAccountName(ctx)
 		log.Error(ctx, map[string]interface{}{
@@ -58,10 +66,16 @@ func (c *TenantsController) Show(ctx *app.ShowTenantsContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	// gets tenant's namespaces
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenantID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
 	result := &app.TenantSingle{Data: convertTenant(ctx, tenant, namespaces, c.clusterService.GetCluster)}
 	return ctx.OK(result)
 }
@@ -71,13 +85,26 @@ func (c *TenantsController) Search(ctx *app.SearchTenantsContext) error {
 	if !commonauth.IsSpecificServiceAccount(ctx, SERVICE_ACCOUNTS...) {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
+
+	// find tenant in DB
 	tenant, err := c.tenantService.LookupTenantByClusterAndNamespace(ctx.MasterURL, ctx.Namespace)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":        err,
+			"clusterURL": ctx.MasterURL,
+			"namespace":  ctx.Namespace,
+		}, "lookup for a tenant entity failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	namespaces, err := c.tenantService.GetNamespaces(tenant.ID)
+	tenantRepository := c.tenantService.NewTenantRepository(tenant.ID)
+	// gets tenant's namespaces
+	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenant.ID,
+		}, "retrieval of existing namespaces from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -98,36 +125,79 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	if !commonauth.IsSpecificServiceAccount(ctx, "fabric8-auth") {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Wrong token"))
 	}
+
+	// find tenant in DB
 	tenantID := ctx.TenantID
-	namespaces, err := c.tenantService.GetNamespaces(tenantID)
+	tenantRepository := c.tenantService.NewTenantRepository(tenantID)
+	tenant, err := tenantRepository.GetTenant()
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenant,
+		}, "retrieval of tenant entity from DB failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	if len(namespaces) > 0 {
-		// fetch the cluster info
-		clustr, err := c.clusterService.GetCluster(ctx, namespaces[0].MasterURL)
-		if err != nil {
+	nsBaseName := tenant.NsBaseName
+	if nsBaseName == "" {
+		nsBaseName = environment.RetrieveUserName(tenant.OSUsername)
+	}
+
+	// gets tenant's namespaces
+	namespaces, err := tenantRepository.GetNamespaces()
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenantID,
+		}, "retrieval of existing namespaces from DB failed")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	// map target cluster for every environment type
+	clusterMapping, err := GetClusterMapping(ctx, c.clusterService, namespaces)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
+	// create openshift service
+	// we don't need token as DELETE uses cluster token
+	context := openshift.NewServiceContext(ctx, c.config, clusterMapping, tenant.OSUsername, nsBaseName, openshift.TokenResolver())
+	service := openshift.NewService(context, c.tenantService.NewTenantRepository(tenantID), environment.NewService())
+
+	// perform delete method on the list of existing namespaces
+	err = service.Delete(environment.DefaultEnvTypes, namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster())
+	if err != nil {
+		namespaces, getErr := tenantRepository.GetNamespaces()
+		if getErr != nil {
 			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"cluster_url": namespaces[0].MasterURL,
-				"tenant_id":   tenantID,
-			}, "unable to fetch cluster for user")
-			return jsonapi.JSONErrorResponse(ctx, errs.NewInternalError(ctx, err))
+				"err":      err,
+				"tenantID": tenantID,
+			}, "retrieval of existing namespaces from DB after the removal attempt failed")
+			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, err.Error()))
 		}
-		openshiftConfig := openshift.Config{
-			MasterURL: clustr.APIURL,
-			Token:     clustr.Token,
-		}
-		err = openshift.DeleteNamespaces(ctx, tenantID, openshiftConfig, c.tenantService)
-		if err != nil {
-			return err
-		}
-	}
-	// finally, delete the tenant record (all NS were already deleted, but that's fine)
-	err = c.tenantService.DeleteTenant(tenantID)
-	if err != nil {
+		params := namespacesToParams(namespaces)
+		params["err"] = err
+		log.Error(ctx, params, "deletion of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	// the tenant should have been deleted - check it
+	if tenantRepository.Exists() {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": tenantID,
+		}, "deletion of the tenant failed - it still exists")
+		return jsonapi.JSONErrorResponse(ctx, fmt.Errorf("unable to delete tenant %s", tenantID))
+	}
+
 	log.Info(ctx, map[string]interface{}{"tenant_id": tenantID}, "tenant deleted")
 	return ctx.NoContent()
+}
+
+func namespacesToParams(namespaces []*tenant.Namespace) map[string]interface{} {
+	params := make(map[string]interface{})
+	for idx, ns := range namespaces {
+		key := fmt.Sprintf("namespace#%d", idx)
+		params[key] = fmt.Sprintf("%+v", *ns)
+	}
+	return params
 }

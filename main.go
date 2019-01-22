@@ -129,7 +129,7 @@ func main() {
 	tenantCtrl := controller.NewTenantController(service, tenantService, clusterService, authService, config)
 	app.MountTenantController(service, tenantCtrl)
 
-	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService)
+	tenantsCtrl := controller.NewTenantsController(service, tenantService, clusterService, authService, config)
 	app.MountTenantsController(service, tenantsCtrl)
 
 	// Mount "update" controller

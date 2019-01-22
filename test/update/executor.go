@@ -4,42 +4,45 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-common/convert/ptr"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
-	"github.com/fabric8-services/fabric8-tenant/test/doubles"
+	"github.com/jinzhu/gorm"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type DummyUpdateExecutor struct {
-	NumberOfCalls             *uint64
-	TimeToSleep               time.Duration
-	ShouldFail                bool
-	waitGroup                 *sync.WaitGroup
-	ShouldCallOriginalUpdater bool
+	db             *gorm.DB
+	config         *configuration.Data
+	NumberOfCalls  *uint64
+	TimeToSleep    time.Duration
+	waitGroup      *sync.WaitGroup
+	ClusterService cluster.Service
 }
 
-func NewDummyUpdateExecutor() *DummyUpdateExecutor {
-	return &DummyUpdateExecutor{NumberOfCalls: ptr.Uint64(0)}
+func NewDummyUpdateExecutor(db *gorm.DB, config *configuration.Data) *DummyUpdateExecutor {
+	return &DummyUpdateExecutor{db: db, config: config, NumberOfCalls: ptr.Uint64(0)}
 }
 
-func (e *DummyUpdateExecutor) Update(ctx context.Context, tenantService tenant.Service, openshiftConfig openshift.Config, t *tenant.Tenant,
-	envTypes []environment.Type, usertoken string, allowSelfHealing bool) (map[environment.Type]string, error) {
-
+func (e *DummyUpdateExecutor) Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type, allowSelfHealing bool) error {
 	atomic.AddUint64(e.NumberOfCalls, 1)
 
 	time.Sleep(e.TimeToSleep)
 	if e.waitGroup != nil {
 		e.waitGroup.Wait()
 	}
-	if e.ShouldCallOriginalUpdater {
-		return controller.TenantUpdater{}.Update(ctx, tenantService, openshiftConfig, t, envTypes, usertoken, allowSelfHealing)
+
+	if e.ClusterService == nil {
+		return fmt.Errorf("cluster service is not set")
 	}
-	if e.ShouldFail {
-		return testdoubles.GetMappedVersions(envTypes...), fmt.Errorf("failing")
+	tenantUpdater := controller.TenantUpdater{TenantService: tenant.NewDBService(e.db),
+		Config:         e.config,
+		ClusterService: e.ClusterService,
 	}
-	return testdoubles.GetMappedVersions(envTypes...), nil
+	return tenantUpdater.Update(ctx, dbTenant, user, envTypes, allowSelfHealing)
 }

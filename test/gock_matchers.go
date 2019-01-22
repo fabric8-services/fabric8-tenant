@@ -5,8 +5,21 @@ import (
 	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	"github.com/fabric8-services/fabric8-common/log"
 	"gopkg.in/h2non/gock.v1"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strings"
 )
+
+const ClusterURL = "http://api.cluster1"
+
+func Normalize(url string) string {
+	if !strings.HasSuffix(url, "/") {
+		return url + "/"
+	}
+	return url
+}
 
 func ExpectRequest(matchers ...gock.MatchFunc) gock.Matcher {
 	return createReqMatcher(matchers)
@@ -52,6 +65,28 @@ func HasJWTWithSub(sub string) gock.MatchFunc {
 		}, "comparing `sub` headers")
 
 		return claims["sub"] == sub, nil
+	}
+}
+
+func HasBodyContainingObject(object map[interface{}]interface{}) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"body": string(body)}, err.Error())
+			return false, err
+		}
+		expBody, err := yaml.Marshal(object)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"object": object}, err.Error())
+			return false, err
+		}
+		return string(body) == string(expBody), nil
+	}
+}
+
+func HasUrlMatching(regExp string) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
+		return regexp.MustCompile(regExp).MatchString(req.URL.String()), nil
 	}
 }
 

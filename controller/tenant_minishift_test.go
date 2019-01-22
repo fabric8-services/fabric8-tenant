@@ -40,12 +40,12 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 	goatest.SetupTenantAccepted(s.T(), createUserContext(s.T(), id.String()), svc, ctrl)
 
 	// then
-	repo := tenant.NewDBService(s.DB)
-	tnnt, err := repo.GetTenant(id)
+	repo := tenant.NewTenantRepository(s.DB, id)
+	tnnt, err := repo.GetTenant()
 	assert.NoError(s.T(), err)
 
 	err = test.WaitWithTimeout(30 * time.Second).Until(func() error {
-		namespaces, err := repo.GetNamespaces(id)
+		namespaces, err := repo.GetNamespaces()
 		if err != nil {
 			return err
 		}
@@ -55,8 +55,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		return nil
 	})
 	assert.NoError(s.T(), err)
-	mappedObjects, masterOpts := s.GetMappedTemplateObjects(tnnt.NsBaseName)
-	minishift.VerifyObjectsPresence(s.T(), mappedObjects, masterOpts, "1abcd", false)
+	s.VerifyObjectsPresence(s.T(), tnnt.NsBaseName, "1abcd", false)
 
 	s.T().Run("update namespaces", func(t *testing.T) {
 		// given
@@ -66,10 +65,10 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		goatest.UpdateTenantAccepted(t, createUserContext(t, id.String()), svc, ctrl)
 
 		// then
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+		namespaces, err := repo.GetNamespaces()
 		assert.NoError(t, err)
 		assert.Len(t, namespaces, 5)
-		minishift.VerifyObjectsPresence(t, mappedObjects, masterOpts, "2abcd", false)
+		s.VerifyObjectsPresence(t, tnnt.NsBaseName, "2abcd", false)
 	})
 
 	s.T().Run("update namespaces should fail", func(t *testing.T) {
@@ -100,7 +99,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		goatest.CleanTenantNoContent(t, createUserContext(t, id.String()), svc, ctrl, false)
 
 		// then
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+		namespaces, err := repo.GetNamespaces()
 		assert.NoError(t, err)
 		assert.Len(t, namespaces, 5)
 	})
@@ -110,7 +109,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		// when delete is called
 		goatest.CleanTenantNoContent(t, createUserContext(t, id.String()), svc, ctrl, true)
 		// then
-		namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(id)
+		namespaces, err := repo.GetNamespaces()
 		assert.NoError(t, err)
 		assert.Len(t, namespaces, 0)
 	})

@@ -1,6 +1,8 @@
 package tenant_test
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
+	"sync"
 	"testing"
 
 	"fmt"
@@ -227,7 +229,8 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 func updateAllTenants(t *testing.T, toUpdate []*tenant.Tenant, svc tenant.Service, failed bool) {
 	mappedVersions := testdoubles.GetMappedVersions(environment.DefaultEnvTypes...)
 	for _, tnnt := range toUpdate {
-		namespaces, err := svc.GetNamespaces(tnnt.ID)
+		repo := svc.NewTenantRepository(tnnt.ID)
+		namespaces, err := repo.GetNamespaces()
 		assert.NoError(t, err)
 		for _, ns := range namespaces {
 			if failed {
@@ -237,9 +240,45 @@ func updateAllTenants(t *testing.T, toUpdate []*tenant.Tenant, svc tenant.Servic
 				ns.State = tenant.Ready
 			}
 			ns.UpdatedBy = "xyz"
-			assert.NoError(t, svc.SaveNamespace(ns))
+			assert.NoError(t, repo.SaveNamespace(ns))
 		}
 	}
+}
+
+func (s *TenantServiceTestSuite) TestCreateNamespaceInParallel() {
+	// given
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johny")), tf.AddNamespaces())
+
+	var wg sync.WaitGroup
+	wg.Add(10)
+	var run sync.WaitGroup
+	run.Add(1)
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			for _, envType := range environment.DefaultEnvTypes {
+				ns := &tenant.Namespace{
+					TenantID:  fxt.Tenants[0].ID,
+					Type:      envType,
+					Name:      tenant.ConstructNamespaceName(envType, "johny"),
+					MasterURL: test.Normalize(test.ClusterURL),
+				}
+
+				// when
+				run.Wait()
+				_, err := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID).CreateNamespace(ns)
+
+				require.NoError(s.T(), err)
+			}
+		}()
+	}
+	run.Done()
+	wg.Wait()
+
+	// then
+	assertion.AssertTenantFromDB(s.T(), s.DB, fxt.Tenants[0].ID).
+		HasNumberOfNamespaces(5)
 }
 
 func assertContentOfTenants(t *testing.T, expectedTenants []*tenant.Tenant, slice []*tenant.Tenant, shouldContain bool) {
@@ -420,27 +459,25 @@ func (s *TenantServiceTestSuite) TestDeleteNamespaces() {
 			}
 			return nil
 		}))
-		svc := tenant.NewDBService(s.DB)
-		tenant1 := fxt.Tenants[0]
-		tenant2 := fxt.Tenants[1]
+		repo1 := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
+		repo2 := tenant.NewTenantRepository(s.DB, fxt.Tenants[1].ID)
 		// when
-		svc.DeleteNamespaces(tenant1.ID)
-		// then
-		// should be deleted
-		ns1, err := svc.GetNamespaces(tenant1.ID)
+		namespaces, err := repo1.GetNamespaces()
 		require.NoError(t, err)
-		require.Len(t, ns1, 0)
+		for _, ns := range namespaces {
+			err := repo1.DeleteNamespace(ns)
+			require.NoError(s.T(), err)
+		}
+		// then
+		// should be deleted only namespaces
+		assertion.AssertTenant(t, repo1).
+			Exists().
+			HasNoNamespace()
 
 		// should not be deleted
-		ten1, err := svc.GetTenant(tenant1.ID)
-		require.NoError(t, err)
-		require.NotNil(t, ten1)
-		ten2, err := svc.GetTenant(tenant2.ID)
-		require.NotNil(t, ten2)
-		require.NoError(t, err)
-		ns2, err := svc.GetNamespaces(tenant2.ID)
-		require.NoError(t, err)
-		require.Len(t, ns2, 5)
+		assertion.AssertTenant(t, repo2).
+			Exists().
+			HasNumberOfNamespaces(5)
 	})
 }
 
@@ -455,27 +492,21 @@ func (s *TenantServiceTestSuite) TestDeleteTenant() {
 			}
 			return nil
 		}))
-		svc := tenant.NewDBService(s.DB)
-		tenant1 := fxt.Tenants[0]
-		tenant2 := fxt.Tenants[1]
+		repo1 := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
+		repo2 := tenant.NewTenantRepository(s.DB, fxt.Tenants[1].ID)
 		// when
-		svc.DeleteTenant(tenant1.ID)
+		err := repo1.DeleteTenant()
+		require.NoError(s.T(), err)
 		// then
-		// should be deleted
-		ten1, err := svc.GetTenant(tenant1.ID)
-		test.AssertError(t, err)
-		require.Nil(t, ten1)
+		// should be deleted only tenant
+		assertion.AssertTenant(t, repo1).
+			DoesNotExist().
+			HasNumberOfNamespaces(5)
 
 		// should not be deleted
-		ns1, err := svc.GetNamespaces(tenant1.ID)
-		require.NoError(t, err)
-		require.Len(t, ns1, 5)
-		ten2, err := svc.GetTenant(tenant2.ID)
-		require.NotNil(t, ten2)
-		require.NoError(t, err)
-		ns2, err := svc.GetNamespaces(tenant2.ID)
-		require.NoError(t, err)
-		require.Len(t, ns2, 5)
+		assertion.AssertTenant(t, repo2).
+			Exists().
+			HasNumberOfNamespaces(5)
 	})
 }
 
@@ -485,10 +516,10 @@ func (s *TenantServiceTestSuite) TestNsBaseNameConstruction() {
 		// given
 		svc := tenant.NewDBService(s.DB)
 		// when
-		nsBaseName, err := tenant.ConstructNsBaseName(svc, "johny")
+		nsBaseName, err := tenant.ConstructNsBaseName(svc, "firstjohny")
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, "johny", nsBaseName)
+		assert.Equal(t, "firstjohny", nsBaseName)
 	})
 
 	s.T().Run("is second tenant with the same name", func(t *testing.T) {

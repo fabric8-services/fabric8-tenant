@@ -1,0 +1,1 @@
+create index idx_namespace_name on namespaces using btree (name, name);

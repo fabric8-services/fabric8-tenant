@@ -3,21 +3,111 @@ package openshift_test
 import (
 	"context"
 	"fmt"
-	"testing"
-
-	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
 	"strings"
+	"testing"
 )
+
+func TestEnvironmentTypeService(t *testing.T) {
+	// given
+	config, reset := test.LoadTestConfig(t)
+	defer reset()
+
+	clusterMapping := map[environment.Type]cluster.Cluster{}
+	for _, envType := range environment.DefaultEnvTypes {
+		url := fmt.Sprintf("http://starter-for-type-%s.com", envType.String())
+		clusterMapping[envType] = cluster.Cluster{
+			APIURL: url,
+			Token:  "clusterToken",
+		}
+	}
+	client := openshift.NewClient(nil, "https://starter.com", tokenProducer)
+
+	ctx := openshift.NewServiceContext(
+		context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "developer1", func(cluster cluster.Cluster) string {
+			return "userToken"
+		})
+	envService := environment.NewService()
+
+	t.Run("test service behavior common for all types", func(t *testing.T) {
+		for _, envType := range environment.DefaultEnvTypes {
+			// when
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// then
+			assert.Equal(t, envType, service.GetType())
+			assert.Equal(t, fmt.Sprintf("http://starter-for-type-%s.com", envType.String()), service.GetCluster().APIURL)
+			assert.Equal(t, context.Background(), service.GetRequestsContext())
+			envData, objects, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
+				return true
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, envType, envData.EnvType)
+			assert.NotEmpty(t, envData.Templates)
+			assert.NotEmpty(t, objects)
+
+			if envType != environment.TypeUser {
+				assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(false))
+				assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(true))
+				assert.NoError(t, service.AfterCallback(client, "POST"))
+				assert.Equal(t, "developer1-"+envType.String(), service.GetNamespaceName())
+			}
+		}
+	})
+	t.Run("test service behavior specific for user type", func(t *testing.T) {
+		// when
+		service := openshift.NewEnvironmentTypeService(environment.TypeUser, ctx, envService)
+
+		// then
+		assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(true))
+		assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(false))
+		assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(true))
+		assert.Equal(t, "userToken", service.GetTokenProducer(false)(false))
+		assert.Equal(t, "developer1", service.GetNamespaceName())
+
+		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
+			// given
+			defer gock.OffAll()
+			gock.New("https://starter.com").
+				Delete("/oapi/v1/namespaces/developer1/rolebindings/admin").
+				Reply(200)
+			// when
+			err := service.AfterCallback(client, "POST")
+			// then
+			assert.NoError(t, err)
+		})
+		t.Run("when action is post then sends request to remove admin rolebinding", func(t *testing.T) {
+			// given
+			defer gock.OffAll()
+			gock.New("https://starter.com").
+				Delete("/oapi/v1/namespaces/developer1/rolebindings/admin").
+				Reply(505)
+			// when
+			err := service.AfterCallback(client, "POST")
+			// then
+			test.AssertError(t, err,
+				test.HasMessageContaining("unable to remove admin rolebinding in developer1 namespace"),
+				test.HasMessageContaining("server responded with status: 505 for the DELETE request"))
+		})
+		t.Run("when action is other than post then it does nothing", func(t *testing.T) {
+			// when
+			err := service.AfterCallback(client, "PATCH")
+			// then
+			assert.NoError(t, err)
+		})
+	})
+}
 
 func TestPresenceOfTemplateObjects(t *testing.T) {
 	data, reset := test.LoadTestConfig(t)
 	defer reset()
-	templateObjects := tmplObjects(t, data)
+	templateObjects := testdoubles.AllDefaultObjects(t, data)
 
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
 		assert.NoError(t,
@@ -91,7 +181,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 		defer resetEnv()
 		data, reset := test.LoadTestConfig(t)
 		defer reset()
-		templateObjects := tmplObjects(t, data)
+		templateObjects := testdoubles.AllDefaultObjects(t, data)
 
 		assert.Error(t,
 			contain(templateObjects,
@@ -107,24 +197,6 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 		assert.NoError(t,
 			contain(templateObjects, "", withoutNotReplacedVariable()))
 	})
-}
-
-func tmplObjects(t *testing.T, data *configuration.Data) environment.Objects {
-	testdoubles.SetTemplateVersions()
-	config := openshift.Config{OriginalConfig: data, MasterUser: "master"}
-	templs, versionMapping, err := openshift.LoadProcessedTemplates(
-		context.Background(), config, "developer", "developer", environment.DefaultEnvTypes)
-	assert.NoError(t, err)
-
-	t.Run("verify version mapping", func(t *testing.T) {
-		assert.Len(t, versionMapping, len(environment.DefaultEnvTypes))
-		assert.Equal(t, "345cde", versionMapping["user"])
-		assert.Equal(t, "234bcd_zyx098", versionMapping["che"])
-		assert.Equal(t, "567efg_yxw987", versionMapping["jenkins"])
-		assert.Equal(t, "456def", versionMapping["run"])
-		assert.Equal(t, "456def", versionMapping["stage"])
-	})
-	return templs
 }
 
 func contain(templates environment.Objects, kind string, checks ...func(environment.Object) error) error {

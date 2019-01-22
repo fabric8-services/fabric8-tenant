@@ -53,7 +53,7 @@ func makeNamespaces(fxt *TestFixture) error {
 				return errs.New("you must specify a tenant ID for each namespace")
 			}
 		}
-		err := tenantService.SaveNamespace(fxt.Namespaces[i])
+		err := tenantService.NewTenantRepository(fxt.Namespaces[i].TenantID).SaveNamespace(fxt.Namespaces[i])
 		if err != nil {
 			return errs.Wrapf(err, "failed to create namespace: %+v", fxt.Namespaces[i])
 		}

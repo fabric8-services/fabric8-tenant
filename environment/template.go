@@ -8,6 +8,7 @@ import (
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/keycloak"
+	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"gopkg.in/yaml.v2"
 )
 
@@ -41,6 +42,7 @@ const (
 	ValKindServiceAccount         = "ServiceAccount"
 	ValKindRoleBindingRestriction = "RoleBindingRestriction"
 	ValKindRoleBinding            = "RoleBinding"
+	ValKindRole                   = "Role"
 	ValKindRoute                  = "Route"
 	ValKindJob                    = "Job"
 	ValKindList                   = "List"
@@ -78,8 +80,17 @@ var sortOrder = map[string]int{
 	"Job":                    14,
 }
 
-type Objects []map[interface{}]interface{}
+type Objects []Object
 type Object map[interface{}]interface{}
+
+func (o Object) ToString() string {
+	out, err := yaml.Marshal(o)
+	if err != nil {
+		sentry.LogError(nil, map[string]interface{}{"object": o}, err, "marshalling of the object failed")
+		return fmt.Sprintf("%s", o)
+	}
+	return string(out)
+}
 
 type Template struct {
 	Filename      string

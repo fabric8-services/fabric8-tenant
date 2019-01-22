@@ -2,12 +2,14 @@ package controller_test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
 	"testing"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/auth"
+	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
@@ -49,8 +51,8 @@ var resolveCluster = func(ctx context.Context, target string) (cluster.Cluster, 
 
 func (s *TenantsControllerTestSuite) TestShowTenants() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("https://api.cluster1")
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
 
@@ -91,8 +93,8 @@ func (s *TenantsControllerTestSuite) TestShowTenants() {
 func (s *TenantsControllerTestSuite) TestSearchTenants() {
 
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("https://api.cluster1")
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	svc, ctrl, reset := s.newTestTenantsController()
 	defer reset()
 
@@ -127,17 +129,85 @@ func (s *TenantsControllerTestSuite) TestSearchTenants() {
 	})
 }
 
+func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
+	repo := tenant.NewDBService(s.DB)
+
+	s.T().Run("delete method", func(t *testing.T) {
+		cl := client.New(nil)
+		req, err := cl.NewDeleteTenantsRequest(context.Background(), "")
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), "DELETE", req.Method)
+	})
+
+	s.T().Run("all ok", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+		gock.New(test.ClusterURL).
+			Delete("/oapi/v1/projects/foo-che").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(200).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+		gock.New(test.ClusterURL).
+			Delete("/oapi/v1/projects/foo").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(200).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+
+		fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("foo")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
+
+		svc, ctrl, reset := s.newTestTenantsController()
+		defer reset()
+		// when
+		goatest.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
+		// then
+		assertion.AssertTenantFromService(t, repo, fxt.Tenants[0].ID).
+			DoesNotExist().
+			HasNoNamespace()
+	})
+
+	s.T().Run("ok even if namespace missing", func(t *testing.T) {
+		// if the namespace record exist in the DB, but the `delete namespace` call on the cluster endpoint fails with a 404
+		// given
+		defer gock.OffAll()
+		testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+		gock.New(test.ClusterURL).
+			Delete("/oapi/v1/projects/bar-che").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(404).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Not Found"}`)
+		gock.New(test.ClusterURL).
+			Delete("/oapi/v1/projects/bar").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(200).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+
+		fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("bar")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
+		id := fxt.Tenants[0].ID
+
+		svc, ctrl, reset := s.newTestTenantsController()
+		defer reset()
+		// when
+		goatest.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, id)
+		// then
+		assertion.AssertTenantFromService(t, repo, id).
+			DoesNotExist().
+			HasNoNamespace()
+	})
+
+}
+
 func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 	s.T().Run("Failures", func(t *testing.T) {
 		t.Run("Unauhorized failures", func(t *testing.T) {
-			defer gock.Off()
-			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
-			gock.New("https://api.cluster1").
+			defer gock.OffAll()
+			testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/foo").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
-			gock.New("https://api.cluster1").
+			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/foo-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
@@ -163,47 +233,37 @@ func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
 		})
 
 		t.Run("namespace deletion failed", func(t *testing.T) {
-			// case where the first namespace could not be deleted: the tenant and the namespaces should still be in the DB
+			// case where the first namespace could not be deleted: the tenant and the namespace that failed should still be in the DB - the rest should be deleted
 			// given
 			repo := tenant.NewDBService(s.DB)
-			defer gock.Off()
-			testdoubles.MockCommunicationWithAuth("https://api.cluster1")
-			gock.New("https://api.cluster1").
+			defer gock.OffAll()
+			testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/baz-che").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(200).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
-			gock.New("https://api.cluster1").
+			gock.New(test.ClusterURL).
 				Delete("/oapi/v1/projects/baz").
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+				Times(2).
 				Reply(500).
 				BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Internal Server Error"}`)
 
 			svc, ctrl, reset := s.newTestTenantsController()
 			defer reset()
-			fxt := tf.FillDB(t, s.DB, tf.AddTenantsNamed("baz"), tf.AddNamespaces(environment.TypeUser, environment.TypeChe).State(tenant.Ready))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("baz")),
+				tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 
 			// when
 			goatest.DeleteTenantsInternalServerError(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
 			// then
-			_, err := repo.GetTenant(fxt.Tenants[0].ID)
-			require.NoError(t, err)
-			namespaces, err := repo.GetNamespaces(fxt.Tenants[0].ID)
-			require.NoError(t, err)
-			assertContainsNames(t, namespaces, "baz", "baz-che")
+			assertion.AssertTenantFromService(t, repo, fxt.Tenants[0].ID).
+				Exists().
+				HasNumberOfNamespaces(1).
+				HasNamespaceOfTypeThat(environment.TypeUser).HasName("baz")
 		})
 	})
-}
-
-func assertContainsNames(t *testing.T, slice []*tenant.Namespace, names ...string) {
-	assert.Len(t, slice, len(names))
-	var sliceNames []string
-	for _, ns := range slice {
-		sliceNames = append(sliceNames, ns.Name)
-	}
-	for _, name := range names {
-		assert.Contains(t, sliceNames, name)
-	}
 }
 
 func createValidSAContext(sub string) context.Context {
@@ -244,8 +304,8 @@ func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 	return clusterService, authService, config, reset
 }
 func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
-	clusterService, authService, _, reset := prepareConfigClusterAndAuthService(s.T())
+	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
-	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService)
+	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
 	return svc, ctrl, reset
 }
