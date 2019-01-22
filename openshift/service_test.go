@@ -476,3 +476,43 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLim
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), namespaces, 5)
 }
+
+func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsResourceQuotasReturnsConflict() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+	testdoubles.SetTemplateVersions()
+
+	deleteCalls := 0
+	gock.New(test.ClusterURL).
+		Post("/api/v1/namespaces/johndoe-che/resourcequotas").
+		Reply(409).
+		BodyString("{}")
+	gock.New(test.ClusterURL).
+		Delete("/api/v1/namespaces/johndoe-che/resourcequotas/.+").
+		SetMatcher(test.SpyOnCalls(&deleteCalls)).
+		Times(1).
+		Reply(200).
+		BodyString("{}")
+	calls := 0
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johndoe")
+	userCreator := testdoubles.AddUser("johndoe").WithToken("12345")
+
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johndoe")), tf.AddNamespaces()).Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		userCreator,
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Create(environment.DefaultEnvTypes, openshift.CreateOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)+1, calls)
+	assert.Equal(s.T(), 1, deleteCalls)
+	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), namespaces, 5)
+}

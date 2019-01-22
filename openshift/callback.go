@@ -141,14 +141,13 @@ var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 			if err != nil {
 				return errors.Wrap(err, "delete request failed while removing an object because of a conflict")
 			}
-			redoMethod := *method
-			for idx, callback := range redoMethod.afterDoCallbacks {
-				if callback.Name == WhenConflictThenDeleteAndRedoName {
-					redoMethod.afterDoCallbacks = append(redoMethod.afterDoCallbacks[:idx], redoMethod.afterDoCallbacks[idx+1:]...)
-					break
-				}
-			}
-			err = checkHTTPCode(objEndpoints.apply(client, object, &redoMethod))
+			redoMethod := removeAfterDoCallback(*method, WhenConflictThenDeleteAndRedoName)
+
+			redoResult, err := objEndpoints.apply(client, object, redoMethod)
+			result.err = redoResult.err
+			result.Body = redoResult.Body
+			result.response = redoResult.response
+			err = checkHTTPCode(result, err)
 			if err != nil {
 				return errors.Wrapf(err, "redoing an action %s failed after the object was successfully removed because of a previous conflict", method.action)
 			}
@@ -157,6 +156,17 @@ var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 		return checkHTTPCode(result, result.err)
 	},
 	Name: WhenConflictThenDeleteAndRedoName,
+}
+
+func removeAfterDoCallback(method MethodDefinition, callbackName string) *MethodDefinition {
+	withoutCallback := NewMethodDefinition(method.action, method.beforeDoCallbacks, []AfterDoCallback{}, method.requestCreator)
+	for _, callback := range method.afterDoCallbacks {
+		if callback.Name != callbackName {
+			withoutCallback.afterDoCallbacks = append(withoutCallback.afterDoCallbacks, callback)
+			break
+		}
+	}
+	return withoutCallback
 }
 
 var WhenConflictThenFail = AfterDoCallback{

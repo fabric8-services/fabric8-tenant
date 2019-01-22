@@ -73,7 +73,7 @@ var (
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindResourceQuota: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`, POST(AfterDo(WhenConflictThenDeleteAndRedo), AfterDo(GetObject))),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`, POST(AfterDo(WhenConflictThenDeleteAndRedo, GetObject))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindLimitRange: endpoints(
