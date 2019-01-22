@@ -45,7 +45,26 @@ var projectRequestObject = `
       group: io.fabric8.online.packages
     name: ${USER_NAME}-run
 `
-var roleBindingRestrictionObject = `
+var roleBindingObject = `
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant-user
+      provider: fabric8
+      version: 1.0.58
+    name: dsaas-admin
+    namespace: ${USER_NAME}
+  roleRef:
+    name: admin
+  subjects:
+  - kind: User
+    name: ${PROJECT_ADMIN_USER}
+  userNames:
+  - ${PROJECT_ADMIN_USER}
+`
+
+var roleBindingRestrictionRun = `
 - apiVersion: v1
   kind: RoleBindingRestriction
   metadata:
@@ -56,6 +75,23 @@ var roleBindingRestrictionObject = `
       group: io.fabric8.tenant.packages
     name: dsaas-user-access
     namespace: ${USER_NAME}-run
+  spec:
+    userrestriction:
+      users:
+      - ${PROJECT_USER}
+`
+
+var roleBindingRestrictionUser = `
+- apiVersion: v1
+  kind: RoleBindingRestriction
+  metadata:
+    labels:
+      app: fabric8-tenant
+      provider: fabric8
+      version: 2.0.85
+      group: io.fabric8.tenant.packages
+    name: dsaas-user-access
+    namespace: ${USER_NAME}
   spec:
     userrestriction:
       users:
@@ -79,7 +115,7 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 	gock.New("https://raw.githubusercontent.com").
 		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
 		Reply(200).
-		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionObject)
+		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionRun)
 	gock.New("http://api.cluster1/").
 		Post("/oapi/v1/projectrequests").
 		Reply(200)
@@ -123,7 +159,7 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjectsWhen403IsReturn
 	gock.New("https://raw.githubusercontent.com").
 		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
 		Reply(200).
-		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionObject)
+		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionRun)
 	gock.New("http://api.cluster1/").
 		Post("/oapi/v1/projectrequests").
 		Reply(200)
@@ -158,6 +194,62 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjectsWhen403IsReturn
 		HasState(tenant.Ready)
 }
 
+func (s *ServiceTestSuite) TestUsesCorrectTokensForUserNamespace() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	gock.New("https://raw.githubusercontent.com").
+		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-user.yml").
+		Reply(200).
+		BodyString(templateHeader + projectRequestUser + roleBindingRestrictionUser)
+	gock.New("http://api.cluster1/").
+		Get("/oapi/v1/projects/john").
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+		Reply(404)
+	gock.New("http://api.cluster1/").
+		Post("/oapi/v1/projectrequests").
+		SetMatcher(test.ExpectRequest(test.HasBearerWithSub("abc123"))).
+		Reply(200)
+	gock.New("http://api.cluster1/").
+		Get("/oapi/v1/projects/john").
+		SetMatcher(test.ExpectRequest(test.HasBearerWithSub("abc123"))).
+		Reply(200).
+		BodyString(`{"status": {"phase":"Active"}}`)
+	gock.New("http://api.cluster1/").
+		Post("/oapi/v1/namespaces/john/rolebinding").
+		SetMatcher(test.ExpectRequest(test.HasBearerWithSub("abc123"))).
+		Reply(200)
+	gock.New("http://api.cluster1/").
+		Post("/oapi/v1/namespaces/john/rolebindingrestrictions").
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+		Reply(200)
+	gock.New("http://api.cluster1/").
+		Delete("/oapi/v1/namespaces/john/rolebindings/admin").
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+		Reply(200)
+
+	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddNamespaces()).Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("john").
+			WithData(testdoubles.NewUserDataWithTenantConfig("", "12345", "")).
+			WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Create([]environment.Type{environment.TypeUser}, openshift.CreateOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		HasNumberOfNamespaces(1).
+		HasNamespaceOfTypeThat(environment.TypeUser).
+		HasName("john").
+		HasState(tenant.Ready)
+}
+
 func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	// given
 	defer gock.OffAll()
@@ -167,7 +259,7 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	gock.New("https://raw.githubusercontent.com").
 		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
 		Reply(200).
-		BodyString(templateHeader + roleBindingRestrictionObject)
+		BodyString(templateHeader + roleBindingRestrictionRun)
 	gock.New("http://api.cluster1/").
 		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
 		Reply(409)
@@ -180,7 +272,7 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	gock.New("http://api.cluster1/").
 		Get("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions/dsaas-user-access").
 		Reply(200).
-		BodyString(roleBindingRestrictionObject)
+		BodyString(roleBindingRestrictionRun)
 
 	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces()).Tenants[0]
 	service := testdoubles.NewOSService(

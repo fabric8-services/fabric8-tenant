@@ -107,7 +107,12 @@ func getMethodAndMarshalObject(objEndpoints *ObjectEndpoints, method string, obj
 var FailIfAlreadyExists = BeforeDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error) {
 
-		result, err := objEndpoints.Apply(client, object, http.MethodGet)
+		masterClient := *client
+		masterClient.TokenProducer = func(forceMasterToken bool) string {
+			return client.TokenProducer(true)
+		}
+
+		result, err := objEndpoints.Apply(&masterClient, object, http.MethodGet)
 		if err != nil {
 			if result != nil && (result.response.StatusCode == http.StatusNotFound || result.response.StatusCode == http.StatusForbidden) {
 				bodyToSend, err := yaml.Marshal(object)
