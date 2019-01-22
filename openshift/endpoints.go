@@ -10,7 +10,7 @@ import (
 // ObjectEndpoints is list of MethodDefinitions for a particular object endpoint (eg. `/oapi/v1/projectrequests`).
 // In other words, is saying which methods (Post/Delete/Get/Patch) are allowed to be performed for the endpoint
 type ObjectEndpoints struct {
-	Methods map[string]*MethodDefinition
+	Methods map[string]MethodDefinition
 }
 
 var (
@@ -73,7 +73,7 @@ var (
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/configmaps/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindResourceQuota: endpoints(
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`, POST(AfterDo(WhenConflictThenDeleteAndRedo), AfterDo(GetObject))),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas`, POST(AfterDo(WhenConflictThenDeleteAndRedo, GetObject))),
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/resourcequotas/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
 
 		environment.ValKindLimitRange: endpoints(
@@ -95,8 +95,8 @@ metadata:
   name: admin`
 )
 
-func endpoint(endpoint string, methodsDefCreators ...methodDefCreator) func(methods map[string]*MethodDefinition) {
-	return func(methods map[string]*MethodDefinition) {
+func endpoint(endpoint string, methodsDefCreators ...methodDefCreator) func(methods map[string]MethodDefinition) {
+	return func(methods map[string]MethodDefinition) {
 		for _, methodDefCreator := range methodsDefCreators {
 			methodDef := methodDefCreator(endpoint)
 			methods[methodDef.action] = methodDef
@@ -104,8 +104,8 @@ func endpoint(endpoint string, methodsDefCreators ...methodDefCreator) func(meth
 	}
 }
 
-func endpoints(endpoints ...func(methods map[string]*MethodDefinition)) *ObjectEndpoints {
-	methods := make(map[string]*MethodDefinition)
+func endpoints(endpoints ...func(methods map[string]MethodDefinition)) *ObjectEndpoints {
+	methods := make(map[string]MethodDefinition)
 	for _, endpoint := range endpoints {
 		endpoint(methods)
 	}
@@ -182,7 +182,7 @@ func (e *ObjectEndpoints) GetMethodDefinition(method string, object environment.
 	if !found {
 		return nil, fmt.Errorf("method definition %s for %s not supported", method, environment.GetKind(object))
 	}
-	return methodDef, nil
+	return &methodDef, nil
 }
 
 func logParams(object environment.Object, method *MethodDefinition, result *Result) map[string]interface{} {
