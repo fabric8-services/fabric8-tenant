@@ -239,6 +239,13 @@ func MockCleanRequestsToOS(calls *int, cluster string) {
 		Persist().
 		Reply(200).
 		BodyString("{}")
+	gock.New(cluster).
+		Get("").
+		SetMatcher(test.ExpectRequest(
+			test.HasUrlMatching(`.*\/(persistentvolumeclaims)\/.*`),
+			test.SpyOnCallsMatchFunc(calls))).
+		Persist().
+		Reply(404)
 }
 
 func MockRemoveRequestsToOS(calls *int, cluster string) {
@@ -260,7 +267,7 @@ func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int
 
 func ExpectedNumberOfCallsWhenClean(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
 	objectsInTemplates := RetrieveObjects(t, config, DefaultClusterMapping, DefaultUserInfo, envTypes...)
-	return NumberOfObjectsToClean(objectsInTemplates)
+	return NumberOfObjectsToClean(objectsInTemplates) + CountObjectsThat(objectsInTemplates, isOfKind(environment.ValKindPersistenceVolumeClaim))
 }
 
 func ExpectedNumberOfCallsWhenPatch(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {

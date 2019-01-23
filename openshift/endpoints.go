@@ -54,7 +54,8 @@ var (
 
 		environment.ValKindPersistenceVolumeClaim: endpoints(
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
-			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`, PATCH(), GET(), DELETE())),
+			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/persistentvolumeclaims/{{ index . "metadata" "name"}}`,
+				PATCH(), GET(), DELETE(AfterDo(WaitUntilIsGone)))),
 
 		environment.ValKindService: endpoints(
 			endpoint(`/api/v1/namespaces/{{ index . "metadata" "namespace"}}/services`, POST(AfterDo(WhenConflictThenDeleteAndRedo))),
