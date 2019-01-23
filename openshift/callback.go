@@ -138,8 +138,8 @@ var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 			//	"method": method.action,
 			//	"object": object,
 			//}, "there was a conflict, trying to delete the object and re-do the operation")
-			fmt.Println(fmt.Sprintf("WARNING: there was a conflict when doing %s on object %s, trying to delete the object and re-do the operation",
-				method.action, object.ToString()))
+			fmt.Println(fmt.Sprintf("WARNING: there was a conflict when doing %s on object %s/%s, trying to delete the object and re-do the operation",
+				method.action, environment.GetKind(object), environment.GetName(object)))
 			err := checkHTTPCode(objEndpoints.Apply(client, object, http.MethodDelete))
 			if err != nil {
 				return errors.Wrap(err, "delete request failed while removing an object because of a conflict")
@@ -226,8 +226,12 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 			//	"object":  object.ToString(),
 			//	"message": result.Body,
 			//}, "failed to %s the object. Ignoring this error because it probably does not exist or is being removed", method.action)
-			fmt.Println(fmt.Sprintf("WARNING: failed to %s the object %s - reveived response %s. "+
-				"Ignoring this error because it probably does not exist or is being removed", method.action, object.ToString(), result.response.Status))
+			fmt.Println(fmt.Sprintf("WARNING: failed to %s the object %s/%s - reveived response %s. "+
+				"Ignoring this error because it probably does not exist or is being removed",
+				method.action, environment.GetKind(object), environment.GetName(object), result.response.Status))
+			result.err = nil
+			result.Body = []byte{}
+			result.response = nil
 			return nil
 		}
 		return checkHTTPCode(result, result.err)
@@ -270,9 +274,9 @@ var TryToWaitUntilIsGone = AfterDoCallback{
 			//	"cluster":       client.MasterURL,
 			//	"error-message": msg,
 			//}, "unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster", method.action)
-			fmt.Println(fmt.Sprintf("WARNING: unable to finish the action %s for an object %s as there were %d of unsuccessful retries "+
+			fmt.Println(fmt.Sprintf("WARNING: unable to finish the action %s for an object %s/%s as there were %d of unsuccessful retries "+
 				"to completely remove the objects from the cluster %s. The retrieved errors:%s",
-				method.action, object, retries, client.MasterURL, msg))
+				method.action, environment.GetKind(object), environment.GetName(object), retries, client.MasterURL, msg))
 		}
 		return nil
 	},
