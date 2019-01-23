@@ -252,10 +252,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
 			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
-			Reply(404)
-		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
-			Reply(404)
+			Reply(500)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
 		// when
@@ -264,7 +261,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("delete request failed while removing an object because of a conflict"),
-			test.HasMessageContaining("server responded with status: 404 for the DELETE request"))
+			test.HasMessageContaining("server responded with status: 500 for the DELETE request"))
 	})
 
 	t.Run("when there is a second conflict while redoing the action, then it return an error and stops redoing", func(t *testing.T) {
@@ -305,6 +302,7 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 
 		// then
 		assert.NoError(t, err)
+		assert.Empty(t, result.Body)
 	})
 
 	t.Run("when there is 409, then it ignores it even if there is an error", func(t *testing.T) {

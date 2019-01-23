@@ -329,6 +329,64 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		HasNoNamespace()
 }
 
+func (s *ServiceTestSuite) TestCleanAndGet() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	testdoubles.MockCleanRequestsToOS(ptr.Int(0), test.ClusterURL)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
+	tnnt := fxt.Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("john").WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Delete(environment.DefaultEnvTypes, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		Exists()
+}
+
+func (s *ServiceTestSuite) TestCleanAndGetWhenReturns404() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	gock.New(test.ClusterURL).
+		Delete("").
+		SetMatcher(test.ExpectRequest(
+			test.HasUrlMatching(`.*\/(persistentvolumeclaims|configmaps|services|deploymentconfigs|routes)\/.*`))).
+		Persist().
+		Reply(404).
+		BodyString("{}")
+	gock.New(test.ClusterURL).
+		Get("").
+		SetMatcher(test.ExpectRequest(
+			test.HasUrlMatching(`.*\/(persistentvolumeclaims)\/.*`))).
+		Persist().
+		Reply(404)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
+	tnnt := fxt.Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("john").WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Delete(environment.DefaultEnvTypes, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		Exists()
+}
+
 func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	// given
 	defer gock.OffAll()
