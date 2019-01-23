@@ -232,6 +232,9 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
 			Reply(200)
 		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Reply(404)
+		gock.New("https://starter.com").
 			Post("/api/v1/namespaces/john-jenkins/persistentvolumeclaims").
 			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(object))).
 			Reply(200)
@@ -250,6 +253,9 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		gock.New("https://starter.com").
 			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
 			Reply(404)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Reply(404)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
 		// when
@@ -267,6 +273,9 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		gock.New("https://starter.com").
 			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
 			Reply(200)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Reply(404)
 		gock.New("https://starter.com").
 			Post("/api/v1/namespaces/john-jenkins/persistentvolumeclaims").
 			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(object))).
@@ -592,6 +601,112 @@ func TestFailIfAlreadyExistsForUserNamespaceShouldUseMasterToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, methodDefinition, actualMethodDef)
 		assert.Contains(t, string(body), "name: john")
+	})
+}
+
+func TestWaitUntilIsGone(t *testing.T) {
+	// given
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
+
+	t.Run("wait until is in terminating state", func(t *testing.T) {
+		defer gock.OffAll()
+		terminatingCalls := 0
+		boundCalls := 0
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			SetMatcher(test.SpyOnCalls(&boundCalls)).
+			Times(2).
+			Reply(200).
+			BodyString(boundPVC)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			SetMatcher(test.SpyOnCalls(&terminatingCalls)).
+			Reply(200).
+			BodyString(terminatingPVC)
+
+		// when
+		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, openshift.WaitUntilIsGoneName, openshift.WaitUntilIsGone.Name)
+		assert.Equal(t, 1, terminatingCalls)
+		assert.Equal(t, 2, boundCalls)
+	})
+
+	t.Run("wait until is it returns 404", func(t *testing.T) {
+		defer gock.OffAll()
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Times(2).
+			Reply(200).
+			BodyString(boundPVC)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Reply(404)
+
+		// when
+		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, openshift.WaitUntilIsGoneName, openshift.WaitUntilIsGone.Name)
+	})
+
+	t.Run("wait until is it returns 403", func(t *testing.T) {
+		defer gock.OffAll()
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Reply(200).
+			BodyString(boundPVC)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Reply(403)
+
+		// when
+		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		assert.NoError(t, err)
+	})
+
+	t.Run("if gets result with 500, then returns an error", func(t *testing.T) {
+		// given
+		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home")
+		require.NoError(t, err)
+		failingResult := openshift.NewResult(&http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Request: &http.Request{
+				Method: http.MethodPost,
+				URL:    url,
+			},
+		}, []byte{}, nil)
+
+		// when
+		err = openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, failingResult)
+
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("server responded with status: 500 for the POST request"))
+	})
+
+	t.Run("fails if all attempts get bound PVC", func(t *testing.T) {
+		defer gock.OffAll()
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Persist().
+			Reply(200).
+			BodyString(boundPVC)
+
+		// when
+		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("unable to finish the action DELETE on a object"),
+			test.HasMessageContaining("hasn't been removed nor set to terminating state - waiting till it is completely removed to finish the DELETE action"),
+			test.HasMessageContaining("PersistentVolumeClaim"))
 	})
 }
 

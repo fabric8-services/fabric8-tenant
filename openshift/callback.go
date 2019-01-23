@@ -33,6 +33,7 @@ const (
 	IgnoreConflictsName               = "IgnoreConflicts"
 	GetObjectName                     = "GetObject"
 	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExistOrConflicts"
+	WaitUntilIsGoneName               = "WaitUntilIsGone"
 )
 
 // Before callbacks
@@ -44,14 +45,14 @@ var GetObjectAndMerge = BeforeDoCallback{
 
 		errorChan := retry.Do(retries, time.Second, func() error {
 			result, err := objEndpoints.Apply(client, object, http.MethodGet)
-			if err != nil {
-				if result != nil && result.response.StatusCode == http.StatusNotFound {
-					methodToUse, bodyToSend, err = getMethodAndMarshalObject(objEndpoints, http.MethodPost, object)
-					if err != nil {
-						return err
-					}
-					return nil
+			if result != nil && isNotPresent(result.response.StatusCode) {
+				methodToUse, bodyToSend, err = getMethodAndMarshalObject(objEndpoints, http.MethodPost, object)
+				if err != nil {
+					return err
 				}
+				return nil
+			}
+			if err != nil {
 				return err
 			}
 			var returnedObj environment.Object
@@ -114,7 +115,7 @@ var FailIfAlreadyExists = BeforeDoCallback{
 
 		result, err := objEndpoints.Apply(&masterClient, object, http.MethodGet)
 		if err != nil {
-			if result != nil && (result.response.StatusCode == http.StatusNotFound || result.response.StatusCode == http.StatusForbidden) {
+			if result != nil && isNotPresent(result.response.StatusCode) {
 				bodyToSend, err := yaml.Marshal(object)
 				if err != nil {
 					return nil, nil, errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
@@ -228,6 +229,47 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 		return checkHTTPCode(result, result.err)
 	},
 	Name: IgnoreWhenDoesNotExistName,
+}
+
+var WaitUntilIsGone = AfterDoCallback{
+	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
+		err := checkHTTPCode(result, result.err)
+		if err != nil {
+			return err
+		}
+		retries := 20
+		errorChan := retry.Do(retries, time.Millisecond*500, func() error {
+			result, err := objEndpoints.Apply(client, object, http.MethodGet)
+			if result != nil && isNotPresent(result.response.StatusCode) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			var returnedObj environment.Object
+			err = yaml.Unmarshal(result.Body, &returnedObj)
+			if err != nil {
+				return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
+			}
+			if isInTerminatingState(returnedObj) {
+				return nil
+			}
+			return fmt.Errorf("the object %s hasn't been removed nor set to terminating state "+
+				"- waiting till it is completely removed to finish the %s action", returnedObj, method.action)
+		})
+		msg := utils.ListErrorsInMessage(errorChan)
+		if len(msg) > 0 {
+			return fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
+				"to completely remove the objects from the cluster %s. The retrieved errors:%s",
+				method.action, object, retries, client.MasterURL, msg)
+		}
+		return nil
+	},
+	Name: WaitUntilIsGoneName,
+}
+
+func isNotPresent(statusCode int) bool {
+	return statusCode == http.StatusNotFound || statusCode == http.StatusForbidden
 }
 
 func checkHTTPCode(result *Result, e error) error {
