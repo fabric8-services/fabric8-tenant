@@ -33,7 +33,7 @@ const (
 	IgnoreConflictsName               = "IgnoreConflicts"
 	GetObjectName                     = "GetObject"
 	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExistOrConflicts"
-	WaitUntilIsGoneName               = "WaitUntilIsGone"
+	TryToWaitUntilIsGoneName          = "TryToWaitUntilIsGone"
 )
 
 // Before callbacks
@@ -138,6 +138,8 @@ var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 			//	"method": method.action,
 			//	"object": object,
 			//}, "there was a conflict, trying to delete the object and re-do the operation")
+			fmt.Println(fmt.Sprintf("WARNING: there was a conflict when doing %s on object %s, trying to delete the object and re-do the operation",
+				method.action, object.ToString()))
 			err := checkHTTPCode(objEndpoints.Apply(client, object, http.MethodDelete))
 			if err != nil {
 				return errors.Wrap(err, "delete request failed while removing an object because of a conflict")
@@ -224,6 +226,8 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 			//	"object":  object.ToString(),
 			//	"message": result.Body,
 			//}, "failed to %s the object. Ignoring this error because it probably does not exist or is being removed", method.action)
+			fmt.Println(fmt.Sprintf("WARNING: failed to %s the object %s - reveived response %s. "+
+				"Ignoring this error because it probably does not exist or is being removed", method.action, object.ToString(), result.response.Status))
 			return nil
 		}
 		return checkHTTPCode(result, result.err)
@@ -231,13 +235,13 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 	Name: IgnoreWhenDoesNotExistName,
 }
 
-var WaitUntilIsGone = AfterDoCallback{
+var TryToWaitUntilIsGone = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		err := checkHTTPCode(result, result.err)
 		if err != nil {
 			return err
 		}
-		retries := 20
+		retries := 30
 		errorChan := retry.Do(retries, time.Millisecond*500, func() error {
 			result, err := objEndpoints.Apply(client, object, http.MethodGet)
 			if result != nil && isNotPresent(result.response.StatusCode) {
@@ -259,13 +263,20 @@ var WaitUntilIsGone = AfterDoCallback{
 		})
 		msg := utils.ListErrorsInMessage(errorChan)
 		if len(msg) > 0 {
-			return fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
+			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
+			//log.Warn(nil, map[string]interface{}{
+			//	"action":        method.action,
+			//	"object":        object.ToString(),
+			//	"cluster":       client.MasterURL,
+			//	"error-message": msg,
+			//}, "unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster", method.action)
+			fmt.Println(fmt.Sprintf("WARNING: unable to finish the action %s for an object %s as there were %d of unsuccessful retries "+
 				"to completely remove the objects from the cluster %s. The retrieved errors:%s",
-				method.action, object, retries, client.MasterURL, msg)
+				method.action, object, retries, client.MasterURL, msg))
 		}
 		return nil
 	},
-	Name: WaitUntilIsGoneName,
+	Name: TryToWaitUntilIsGoneName,
 }
 
 func isNotPresent(statusCode int) bool {
