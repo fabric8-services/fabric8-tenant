@@ -626,11 +626,11 @@ func TestWaitUntilIsGone(t *testing.T) {
 			BodyString(terminatingPVC)
 
 		// when
-		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, openshift.WaitUntilIsGoneName, openshift.WaitUntilIsGone.Name)
+		assert.Equal(t, openshift.TryToWaitUntilIsGoneName, openshift.TryToWaitUntilIsGone.Name)
 		assert.Equal(t, 1, terminatingCalls)
 		assert.Equal(t, 2, boundCalls)
 	})
@@ -647,11 +647,11 @@ func TestWaitUntilIsGone(t *testing.T) {
 			Reply(404)
 
 		// when
-		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, openshift.WaitUntilIsGoneName, openshift.WaitUntilIsGone.Name)
+		assert.Equal(t, openshift.TryToWaitUntilIsGoneName, openshift.TryToWaitUntilIsGone.Name)
 	})
 
 	t.Run("wait until is it returns 403", func(t *testing.T) {
@@ -665,7 +665,7 @@ func TestWaitUntilIsGone(t *testing.T) {
 			Reply(403)
 
 		// when
-		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+		err := openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
 
 		// then
 		assert.NoError(t, err)
@@ -684,29 +684,11 @@ func TestWaitUntilIsGone(t *testing.T) {
 		}, []byte{}, nil)
 
 		// when
-		err = openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, failingResult)
+		err = openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, failingResult)
 
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("server responded with status: 500 for the POST request"))
-	})
-
-	t.Run("fails if all attempts get bound PVC", func(t *testing.T) {
-		defer gock.OffAll()
-		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
-			Persist().
-			Reply(200).
-			BodyString(boundPVC)
-
-		// when
-		err := openshift.WaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
-
-		// then
-		test.AssertError(t, err,
-			test.HasMessageContaining("unable to finish the action DELETE on a object"),
-			test.HasMessageContaining("hasn't been removed nor set to terminating state - waiting till it is completely removed to finish the DELETE action"),
-			test.HasMessageContaining("PersistentVolumeClaim"))
 	})
 }
 
