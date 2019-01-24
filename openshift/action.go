@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/utils"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"net/http"
 	"sort"
 )
@@ -19,7 +20,7 @@ type NamespaceAction interface {
 	MethodName() string
 	GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error)
 	UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool)
-	Sort(toSort environment.ByKind)
+	GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error)
 	Filter() FilterFunc
 	ForceMasterTokenGlobally() bool
 	HealingStrategy() HealingFuncGenerator
@@ -90,8 +91,11 @@ func (c *commonNamespaceAction) MethodName() string {
 	return c.method
 }
 
-func (c *commonNamespaceAction) Sort(toSort environment.ByKind) {
-	sort.Sort(toSort)
+func (c *commonNamespaceAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
+	operationSets := OperationSet{}
+	sort.Sort(environment.ByKind(toSort))
+	operationSets[c.method] = toSort
+	return operationSets, nil
 }
 
 func (c *commonNamespaceAction) Filter() FilterFunc {
@@ -252,12 +256,70 @@ func (d *DeleteAction) Filter() FilterFunc {
 	if d.deleteOptions.removeFromCluster {
 		return isOfKind(environment.ValKindProjectRequest)
 	}
-	return isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap, environment.ValKindService,
-		environment.ValKindDeploymentConfig, environment.ValKindRoute)
+	return isOfKind(AllKindsToClean...)
 }
 
-func (d *DeleteAction) Sort(toSort environment.ByKind) {
-	sort.Sort(sort.Reverse(toSort))
+var AllToDeleteAll = []string{environment.ValKindPod, environment.ValKindReplicationController, environment.ValKindDaemonSet,
+	environment.ValKindDeployment, environment.ValKindReplicaSet, environment.ValKindStatefulSet, environment.ValKindJob,
+	environment.ValKindHorizontalPodAutoScaler, environment.ValKindCronJob, environment.ValKindDeploymentConfig,
+	environment.ValKindBuildConfig, environment.ValKindBuild, environment.ValKindImageStream, environment.ValKindRoute,
+	environment.ValKindPersistentVolumeClaim, environment.ValKindConfigMap}
+
+var AllToGetAndDelete = []string{environment.ValKindService}
+
+var AllKindsToClean = append(AllToDeleteAll, AllToGetAndDelete...)
+
+func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
+	operationSets := OperationSet{}
+	if !d.deleteOptions.removeFromCluster {
+		var deleteAllSet environment.Objects
+		for _, kind := range AllToDeleteAll {
+			obj := newObject(kind, namespaceName, "")
+			deleteAllSet = append(deleteAllSet, obj)
+		}
+		sort.Sort(sort.Reverse(environment.ByKind(deleteAllSet)))
+		operationSets[MethodDeleteAll] = deleteAllSet
+
+		for _, kind := range AllToGetAndDelete {
+			kindToGet := newObject(kind, namespaceName, "")
+			result, err := Apply(client, http.MethodGet, kindToGet)
+			if err != nil {
+				return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kindToGet, namespaceName)
+			}
+			var returnedObj environment.Object
+			err = yaml.Unmarshal(result.Body, &returnedObj)
+			if err != nil {
+				return nil, errors.Wrapf(err,
+					"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kindToGet, namespaceName)
+			}
+
+			if items, itemsFound := returnedObj["items"]; itemsFound {
+				if objects, isSlice := items.([]interface{}); isSlice && len(objects) > 0 {
+					for _, obj := range objects {
+						if object, isObj := obj.(environment.Object); isObj {
+							if name := environment.GetName(object); name != "" {
+								toSort = append(toSort, newObject(kind, namespaceName, name))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	sort.Sort(sort.Reverse(environment.ByKind(toSort)))
+	operationSets[d.method] = toSort
+
+	return operationSets, nil
+}
+
+func newObject(kind, namespaceName string, name string) environment.Object {
+	return environment.Object{
+		"kind": kind,
+		"metadata": environment.Object{
+			"namespace": namespaceName,
+			"name":      name,
+		},
+	}
 }
 
 type withExistingNamespacesAction struct {

@@ -124,7 +124,7 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 	t.Run("verify jenkins deployment config", func(t *testing.T) {
 		assert.NoError(t,
 			contain(templateObjects,
-				environment.ValKindPersistenceVolumeClaim,
+				environment.ValKindPersistentVolumeClaim,
 				withNamespace("developer-che")))
 	})
 

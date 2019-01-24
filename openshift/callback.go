@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/utils"
 	ghodssYaml "github.com/ghodss/yaml"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"strings"
@@ -134,12 +135,12 @@ var WhenConflictThenDeleteAndRedo = AfterDoCallback{
 	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
 		if result.response != nil && result.response.StatusCode == http.StatusConflict {
 			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
-			//log.Warn(nil, map[string]interface{}{
-			//	"method": method.action,
-			//	"object": object,
-			//}, "there was a conflict, trying to delete the object and re-do the operation")
-			fmt.Println(fmt.Sprintf("WARNING: there was a conflict when doing %s on object %s/%s, trying to delete the object and re-do the operation",
-				method.action, environment.GetKind(object), environment.GetName(object)))
+			logrus.WithFields(map[string]interface{}{
+				"method":      method.action,
+				"object-kind": environment.GetKind(object),
+				"object-name": environment.GetName(object),
+				"namespace":   environment.GetNamespace(object),
+			}).Warnf("there was a conflict, trying to delete the object and re-do the operation")
 			err := checkHTTPCode(objEndpoints.Apply(client, object, http.MethodDelete))
 			if err != nil {
 				return errors.Wrap(err, "delete request failed while removing an object because of a conflict")
@@ -220,15 +221,14 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 		code := result.response.StatusCode
 		if code == http.StatusNotFound || code == http.StatusConflict {
 			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
-			//log.Warn(nil, map[string]interface{}{
-			//	"action":  method.action,
-			//	"status":  result.response.Status,
-			//	"object":  object.ToString(),
-			//	"message": result.Body,
-			//}, "failed to %s the object. Ignoring this error because it probably does not exist or is being removed", method.action)
-			fmt.Println(fmt.Sprintf("WARNING: failed to %s the object %s/%s - reveived response %s. "+
-				"Ignoring this error because it probably does not exist or is being removed",
-				method.action, environment.GetKind(object), environment.GetName(object), result.response.Status))
+			logrus.WithFields(map[string]interface{}{
+				"action":      method.action,
+				"status":      result.response.Status,
+				"object-kind": environment.GetKind(object),
+				"object-name": environment.GetName(object),
+				"namespace":   environment.GetNamespace(object),
+				"message":     result.Body,
+			}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist or is being removed", method.action)
 			result.err = nil
 			result.Body = []byte{}
 			result.response = nil
@@ -245,7 +245,7 @@ var TryToWaitUntilIsGone = AfterDoCallback{
 		if err != nil {
 			return err
 		}
-		retries := 30
+		retries := 60
 		errorChan := retry.Do(retries, time.Millisecond*500, func() error {
 			result, err := objEndpoints.Apply(client, object, http.MethodGet)
 			if result != nil && isNotPresent(result.response.StatusCode) {
@@ -268,15 +268,15 @@ var TryToWaitUntilIsGone = AfterDoCallback{
 		msg := utils.ListErrorsInMessage(errorChan)
 		if len(msg) > 0 {
 			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
-			//log.Warn(nil, map[string]interface{}{
-			//	"action":        method.action,
-			//	"object":        object.ToString(),
-			//	"cluster":       client.MasterURL,
-			//	"error-message": msg,
-			//}, "unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster", method.action)
-			fmt.Println(fmt.Sprintf("WARNING: unable to finish the action %s for an object %s/%s as there were %d of unsuccessful retries "+
-				"to completely remove the objects from the cluster %s. The retrieved errors:%s",
-				method.action, environment.GetKind(object), environment.GetName(object), retries, client.MasterURL, msg))
+			logrus.WithFields(map[string]interface{}{
+				"action":        method.action,
+				"object-kind":   environment.GetKind(object),
+				"object-name":   environment.GetName(object),
+				"namespace":     environment.GetNamespace(object),
+				"cluster":       client.MasterURL,
+				"error-message": msg,
+			}).Warnf("unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster",
+				method.action, retries)
 		}
 		return nil
 	},

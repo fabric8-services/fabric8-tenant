@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -230,31 +231,35 @@ func MockPatchRequestsToOS(calls *int, cluster string) {
 }
 
 func MockCleanRequestsToOS(calls *int, cluster string) {
+	listOfKinds := ""
+	for _, kind := range openshift.AllKindsToClean {
+		listOfKinds += fmt.Sprintf("%ss|", strings.ToLower(kind))
+	}
 	cluster = test.Normalize(cluster)
 	gock.New(cluster).
-		Delete("").
-		SetMatcher(test.ExpectRequest(
-			test.HasUrlMatching(`.*\/(persistentvolumeclaims|configmaps|services|deploymentconfigs|routes)\/.*`),
-			test.SpyOnCallsMatchFunc(calls))).
+		Delete(fmt.Sprintf(`.*\/(%s)(\/|$).*`, listOfKinds[:len(listOfKinds)-1])).
+		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).
 		BodyString("{}")
 	gock.New(cluster).
-		Get("").
-		SetMatcher(test.ExpectRequest(
-			test.HasUrlMatching(`.*\/(persistentvolumeclaims)\/.*`),
-			test.SpyOnCallsMatchFunc(calls))).
+		Get(`.*\/(persistentvolumeclaims)\/.*`).
+		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(404)
+	gock.New(cluster).
+		Get(`\/api\/v1\/namespaces\/[^\/].+\/services`).
+		SetMatcher(test.SpyOnCalls(calls)).
+		Persist().
+		Reply(200).
+		BodyString(`{"items": []}`)
 }
 
 func MockRemoveRequestsToOS(calls *int, cluster string) {
 	cluster = test.Normalize(cluster)
 	gock.New(cluster).
-		Delete("").
-		SetMatcher(test.ExpectRequest(
-			test.HasUrlMatching(`.*\/(namespaces|projects)\/.*`),
-			test.SpyOnCallsMatchFunc(calls))).
+		Delete(`.*\/(namespaces|projects)\/.*`).
+		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).
 		BodyString("{}")
@@ -267,7 +272,9 @@ func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int
 
 func ExpectedNumberOfCallsWhenClean(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
 	objectsInTemplates := RetrieveObjects(t, config, DefaultClusterMapping, DefaultUserInfo, envTypes...)
-	return NumberOfObjectsToClean(objectsInTemplates) + CountObjectsThat(objectsInTemplates, isOfKind(environment.ValKindPersistenceVolumeClaim))
+	pvcNumber := CountObjectsThat(objectsInTemplates, isOfKind(environment.ValKindPersistentVolumeClaim))
+	cleanAllOps := (len(openshift.AllKindsToClean)) * len(envTypes)
+	return NumberOfObjectsToClean(objectsInTemplates) + pvcNumber + cleanAllOps
 }
 
 func ExpectedNumberOfCallsWhenPatch(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
@@ -285,8 +292,7 @@ func NumberOfGetChecks(objects environment.Objects) int {
 }
 
 func NumberOfObjectsToClean(objects environment.Objects) int {
-	return CountObjectsThat(objects, isOfKind(environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap, environment.ValKindService,
-		environment.ValKindDeploymentConfig, environment.ValKindRoute))
+	return CountObjectsThat(objects, isOfKind(openshift.AllKindsToClean...))
 }
 
 func NumberOfObjectsToRemove(objects environment.Objects) int {
