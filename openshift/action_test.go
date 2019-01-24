@@ -61,11 +61,15 @@ func (s *ActionTestSuite) TestCreateAction() {
 		// given
 		toSort := getObjectsOfAllKinds()
 		// when
-		create.Sort(environment.ByKind(toSort))
+		sets, err := create.GetOperationSets(toSort, openshift.Client{}, "namespacename")
 		// then
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(toSort[1]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[2]))
+		assert.NoError(t, err)
+		assert.Len(t, sets, 1)
+		sorted, ok := sets["POST"]
+		require.True(t, ok)
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[0]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[1]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[2]))
 	})
 
 	s.T().Run("it should not require master token globally", func(t *testing.T) {
@@ -283,6 +287,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 	repo := repoService.NewTenantRepository(id)
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
+	client := openshift.NewClient(nil, test.ClusterURL, tokenProducer)
 
 	// when
 	delete := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
@@ -301,7 +306,8 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			} else {
 				assert.False(t, deleteFromCluster.Filter()(obj), obj.ToString())
 				if environment.GetKind(obj) == "PersistentVolumeClaim" || environment.GetKind(obj) == "ConfigMap" ||
-					environment.GetKind(obj) == "Service" || environment.GetKind(obj) == "DeploymentConfig" || environment.GetKind(obj) == "Route" {
+					environment.GetKind(obj) == "Service" || environment.GetKind(obj) == "DeploymentConfig" || environment.GetKind(obj) == "Route" ||
+					environment.GetKind(obj) == "Job" || environment.GetKind(obj) == "Deployment" {
 					assert.True(t, delete.Filter()(obj), obj.ToString())
 				} else {
 					assert.False(t, delete.Filter()(obj), obj.ToString())
@@ -310,16 +316,79 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		}
 	})
 
-	s.T().Run("sort method should do reverse", func(t *testing.T) {
+	s.T().Run("GetOperationSets method should do reverse sorted and delete all objects for clean", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/api/v1/namespaces/johny-jenkins/services").
+			Reply(200).
+			BodyString(`{"items": []}`)
+		toSort := getObjectsOfAllKinds()
+		// when
+		sets, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, sets, 2)
+		length := len(toSort)
+		sorted, ok := sets["DELETE"]
+		require.True(t, ok)
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[length-1]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[length-2]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[length-3]))
+
+		deleteAllSet, ok := sets["DELETEALL"]
+		require.True(t, ok)
+		assert.Len(t, deleteAllSet, len(openshift.AllToDeleteAll))
+		for _, toDeleteAll := range deleteAllSet {
+			actualKind := environment.GetKind(toDeleteAll)
+			assert.Contains(t, toDeleteAll, "metadata")
+			assert.Contains(t, toDeleteAll["metadata"], "namespace")
+			assert.Equal(t, "johny-jenkins", environment.GetNamespace(toDeleteAll))
+			assert.Contains(t, openshift.AllToDeleteAll, actualKind)
+		}
+	})
+
+	s.T().Run("GetOperationSets method should do reverse sorted and retrieve and parse services", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/api/v1/namespaces/johny-jenkins/services").
+			Reply(200).
+			BodyString(`{"items": [
+        {"metadata": {"name": "bayesian-link"}},
+        {"metadata": {"name": "jenkins"}},
+        {"metadata": {"name": "jenkins-jnlp"}}]}`)
+		toSort := environment.Objects{}
+		// when
+		sets, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, sets, 2)
+		sorted, ok := sets["DELETE"]
+		require.True(t, ok)
+		assert.Len(t, sorted, 3)
+		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[0]))
+		assert.Equal(t, "bayesian-link", environment.GetName(sorted[0]))
+		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[1]))
+		assert.Equal(t, "jenkins", environment.GetName(sorted[1]))
+		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[2]))
+		assert.Equal(t, "jenkins-jnlp", environment.GetName(sorted[2]))
+	})
+
+	s.T().Run("GetOperationSets method should do reverse sorted and and not delete all objects for remove", func(t *testing.T) {
 		// given
 		toSort := getObjectsOfAllKinds()
 		// when
-		delete.Sort(environment.ByKind(toSort))
+		sets, err := deleteFromCluster.GetOperationSets(toSort, *client, "johny-jenkins")
 		// then
+		assert.NoError(t, err)
+		assert.Len(t, sets, 1)
 		length := len(toSort)
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(toSort[length-1]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(toSort[length-2]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[length-3]))
+		sorted, ok := sets["DELETE"]
+		require.True(t, ok)
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[length-1]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[length-2]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[length-3]))
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
@@ -601,11 +670,15 @@ func (s *ActionTestSuite) TestUpdateAction() {
 		// given
 		toSort := getObjectsOfAllKinds()
 		// when
-		update.Sort(environment.ByKind(toSort))
+		sets, err := update.GetOperationSets(toSort, openshift.Client{}, "namespace")
 		// then
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(toSort[0]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(toSort[1]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(toSort[2]))
+		assert.NoError(t, err)
+		assert.Len(t, sets, 1)
+		sorted, ok := sets["PATCH"]
+		require.True(t, ok)
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[0]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[1]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[2]))
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
@@ -780,7 +853,7 @@ func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *confi
 	return service, data
 }
 
-var allKinds = []string{environment.ValKindPersistenceVolumeClaim, environment.ValKindConfigMap,
+var allKinds = []string{environment.ValKindPersistentVolumeClaim, environment.ValKindConfigMap,
 	environment.ValKindLimitRange, environment.ValKindProject, environment.ValKindProjectRequest, environment.ValKindService,
 	environment.ValKindSecret, environment.ValKindServiceAccount, environment.ValKindRoleBindingRestriction,
 	environment.ValKindRoleBinding, environment.ValKindRole, environment.ValKindRoute, environment.ValKindJob,

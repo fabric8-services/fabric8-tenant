@@ -97,7 +97,7 @@ var tokenProducer = func(forceMasterToken bool) string {
 func TestGetExistingObjectAndMerge(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	gock.New("https://starter.com").
 		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
@@ -119,7 +119,7 @@ func TestGetExistingObjectAndMerge(t *testing.T) {
 func TestGetExistingObjectAndWaitTillIsNotTerminating(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	terminatingCalls := 0
 	gock.New("https://starter.com").
@@ -151,7 +151,7 @@ func TestGetExistingObjectAndWaitTillIsNotTerminating(t *testing.T) {
 func TestGetMissingObjectAndMerge(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	gock.New("https://starter.com").
 		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
@@ -172,7 +172,7 @@ func TestGetMissingObjectAndMerge(t *testing.T) {
 
 func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("original response is 200 and error is nil, so no error is returned", func(t *testing.T) {
 		// given
@@ -223,7 +223,7 @@ func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 
 func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("both delete and redo post is successful", func(t *testing.T) {
 		// given
@@ -291,7 +291,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 
 func TestIgnoreWhenDoesNotExist(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("when there is 404, then it ignores it even if there is an error", func(t *testing.T) {
 		// given
@@ -368,7 +368,7 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 
 func TestGetObject(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("when returns 200, then it reads the object an checks status. everything is good, then return nil", func(t *testing.T) {
 		// given
@@ -604,7 +604,7 @@ func TestFailIfAlreadyExistsForUserNamespaceShouldUseMasterToken(t *testing.T) {
 
 func TestWaitUntilIsGone(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistenceVolumeClaim, pvcToSet)
+	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistentVolumeClaim, pvcToSet)
 	result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 	t.Run("wait until is in terminating state", func(t *testing.T) {

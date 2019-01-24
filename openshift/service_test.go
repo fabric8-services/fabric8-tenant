@@ -329,7 +329,7 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		HasNoNamespace()
 }
 
-func (s *ServiceTestSuite) TestCleanAndGet() {
+func (s *ServiceTestSuite) TestClean() {
 	// given
 	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
@@ -352,7 +352,76 @@ func (s *ServiceTestSuite) TestCleanAndGet() {
 		Exists()
 }
 
-func (s *ServiceTestSuite) TestCleanAndGetWhenReturns404() {
+func (s *ServiceTestSuite) TestCleanWhenGetReturnsSomeServices() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	firstCoolSvcCall := 0
+	secondCoolSvcCall := 0
+
+	gock.New(test.ClusterURL).
+		Get("/api/v1/namespaces/john-jenkins/services").
+		Reply(200).
+		BodyString(`{"items": [
+        {"metadata": {"name": "my-first-cool-service"}},
+        {"metadata": {"name": "my-second-cool-service"}}]}`)
+	gock.New(test.ClusterURL).
+		Delete("/api/v1/namespaces/john-jenkins/services/my-first-cool-service").
+		SetMatcher(test.SpyOnCalls(&firstCoolSvcCall)).
+		Reply(200).
+		BodyString("{}")
+	gock.New(test.ClusterURL).
+		Delete("/api/v1/namespaces/john-jenkins/services/my-second-cool-service").
+		SetMatcher(test.SpyOnCalls(&secondCoolSvcCall)).
+		Reply(200).
+		BodyString("{}")
+
+	testdoubles.MockCleanRequestsToOS(ptr.Int(0), test.ClusterURL)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
+	tnnt := fxt.Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("john").WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Delete(environment.DefaultEnvTypes, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 1, firstCoolSvcCall)
+	assert.Equal(s.T(), 1, secondCoolSvcCall)
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		Exists()
+}
+
+func (s *ServiceTestSuite) TestCleanWhenGetForServicesReturns500() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	gock.New(test.ClusterURL).
+		Get("/api/v1/namespaces/john-jenkins/services").
+		Persist().
+		Reply(500)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("john").WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID))
+
+	// when
+	err := service.Delete(environment.DefaultEnvTypes, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
+
+	// then
+	test.AssertError(s.T(), err, test.HasMessageContaining("the method DELETE failed for the cluster"),
+		test.HasMessageContaining("while getting list of objects to apply"))
+}
+
+func (s *ServiceTestSuite) TestCleanReturns404() {
 	// given
 	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
@@ -360,17 +429,18 @@ func (s *ServiceTestSuite) TestCleanAndGetWhenReturns404() {
 
 	gock.New(test.ClusterURL).
 		Delete("").
-		SetMatcher(test.ExpectRequest(
-			test.HasUrlMatching(`.*\/(persistentvolumeclaims|configmaps|services|deploymentconfigs|routes)\/.*`))).
 		Persist().
 		Reply(404).
 		BodyString("{}")
 	gock.New(test.ClusterURL).
-		Get("").
-		SetMatcher(test.ExpectRequest(
-			test.HasUrlMatching(`.*\/(persistentvolumeclaims)\/.*`))).
+		Get(`.*\/(persistentvolumeclaims)\/.*`).
 		Persist().
 		Reply(404)
+	gock.New(test.ClusterURL).
+		Get(`\/api\/v1\/namespaces\/[^\/].+\/services`).
+		Persist().
+		Reply(200).
+		BodyString(`{"items": []}`)
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
 	tnnt := fxt.Tenants[0]
 	service := testdoubles.NewOSService(

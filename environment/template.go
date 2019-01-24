@@ -13,42 +13,48 @@ import (
 )
 
 const (
-	FieldKind            = "kind"
-	FieldAPIVersion      = "apiVersion"
-	FieldObjects         = "objects"
-	FieldSpec            = "spec"
-	FieldTemplate        = "templateDef"
-	FieldItems           = "items"
-	FieldMetadata        = "metadata"
-	FieldLabels          = "labels"
-	FieldReplicas        = "replicas"
-	FieldVersion         = "version"
-	FieldVersionQuotas   = "version-quotas"
-	FieldNamespace       = "namespace"
-	FieldName            = "name"
-	FieldStatus          = "status"
-	FieldResourceVersion = "resourceVersion"
-	FieldParameters      = "parameters"
+	FieldKind          = "kind"
+	FieldObjects       = "objects"
+	FieldSpec          = "spec"
+	FieldItems         = "items"
+	FieldMetadata      = "metadata"
+	FieldLabels        = "labels"
+	FieldVersion       = "version"
+	FieldVersionQuotas = "version-quotas"
+	FieldNamespace     = "namespace"
+	FieldName          = "name"
+	FieldStatus        = "status"
+	FieldParameters    = "parameters"
 
-	ValKindTemplate               = "Template"
-	ValKindNamespace              = "Namespace"
-	ValKindConfigMap              = "ConfigMap"
-	ValKindLimitRange             = "LimitRange"
-	ValKindProject                = "Project"
-	ValKindProjectRequest         = "ProjectRequest"
-	ValKindPersistenceVolumeClaim = "PersistentVolumeClaim"
-	ValKindService                = "Service"
-	ValKindSecret                 = "Secret"
-	ValKindServiceAccount         = "ServiceAccount"
-	ValKindRoleBindingRestriction = "RoleBindingRestriction"
-	ValKindRoleBinding            = "RoleBinding"
-	ValKindRole                   = "Role"
-	ValKindRoute                  = "Route"
-	ValKindJob                    = "Job"
-	ValKindList                   = "List"
-	ValKindDeployment             = "Deployment"
-	ValKindDeploymentConfig       = "DeploymentConfig"
-	ValKindResourceQuota          = "ResourceQuota"
+	ValKindTemplate                = "Template"
+	ValKindNamespace               = "Namespace"
+	ValKindConfigMap               = "ConfigMap"
+	ValKindLimitRange              = "LimitRange"
+	ValKindProject                 = "Project"
+	ValKindProjectRequest          = "ProjectRequest"
+	ValKindPersistentVolumeClaim   = "PersistentVolumeClaim"
+	ValKindService                 = "Service"
+	ValKindSecret                  = "Secret"
+	ValKindServiceAccount          = "ServiceAccount"
+	ValKindRoleBindingRestriction  = "RoleBindingRestriction"
+	ValKindRoleBinding             = "RoleBinding"
+	ValKindRole                    = "Role"
+	ValKindRoute                   = "Route"
+	ValKindJob                     = "Job"
+	ValKindList                    = "List"
+	ValKindDeployment              = "Deployment"
+	ValKindDeploymentConfig        = "DeploymentConfig"
+	ValKindResourceQuota           = "ResourceQuota"
+	ValKindPod                     = "Pod"
+	ValKindReplicationController   = "ReplicationController"
+	ValKindDaemonSet               = "DaemonSet"
+	ValKindReplicaSet              = "ReplicaSet"
+	ValKindStatefulSet             = "StatefulSet"
+	ValKindHorizontalPodAutoScaler = "HorizontalPodAutoScaler"
+	ValKindCronJob                 = "CronJob"
+	ValKindBuildConfig             = "BuildConfig"
+	ValKindBuild                   = "Build"
+	ValKindImageStream             = "ImageStream"
 
 	varUserName              = "USER_NAME"
 	varProjectUser           = "PROJECT_USER"
@@ -63,21 +69,32 @@ const (
 )
 
 var sortOrder = map[string]int{
-	"Namespace":              1,
-	"ProjectRequest":         1,
-	"Role":                   2,
-	"RoleBindingRestriction": 3,
-	"LimitRange":             4,
-	"ResourceQuota":          5,
-	"Secret":                 6,
-	"ServiceAccount":         7,
-	"Service":                8,
-	"RoleBinding":            9,
-	"PersistentVolumeClaim":  10,
-	"ConfigMap":              11,
-	"DeploymentConfig":       12,
-	"Route":                  13,
-	"Job":                    14,
+	ValKindNamespace:               1,
+	ValKindProjectRequest:          1,
+	ValKindRole:                    2,
+	ValKindRoleBindingRestriction:  3,
+	ValKindLimitRange:              4,
+	ValKindResourceQuota:           5,
+	ValKindSecret:                  6,
+	ValKindServiceAccount:          7,
+	ValKindService:                 8,
+	ValKindRoleBinding:             9,
+	ValKindPersistentVolumeClaim:   10,
+	ValKindConfigMap:               11,
+	ValKindDeploymentConfig:        12,
+	ValKindRoute:                   13,
+	ValKindJob:                     14,
+	ValKindPod:                     15,
+	ValKindReplicationController:   15,
+	ValKindDaemonSet:               15,
+	ValKindDeployment:              15,
+	ValKindReplicaSet:              15,
+	ValKindStatefulSet:             15,
+	ValKindHorizontalPodAutoScaler: 15,
+	ValKindCronJob:                 15,
+	ValKindBuildConfig:             15,
+	ValKindBuild:                   15,
+	ValKindImageStream:             15,
 }
 
 type Objects []Object

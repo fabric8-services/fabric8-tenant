@@ -8,7 +8,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strings"
 )
 
@@ -91,12 +90,6 @@ func HasBodyContainingObject(object map[interface{}]interface{}) gock.MatchFunc 
 			return false, err
 		}
 		return string(body) == string(expBody), nil
-	}
-}
-
-func HasUrlMatching(regExp string) gock.MatchFunc {
-	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
-		return regexp.MustCompile(regExp).MatchString(req.URL.String()), nil
 	}
 }
 

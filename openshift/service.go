@@ -99,6 +99,7 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 }
 
 type ObjectChecker func(object environment.Object) bool
+type OperationSet map[string]environment.Objects
 
 func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentTypeService, action NamespaceAction, transport http.RoundTripper, errorChan chan error) {
 	defer nsTypeWait.Done()
@@ -125,19 +126,27 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 		}, err, "getting environment data and objects failed")
 		return
 	}
-	action.Sort(environment.ByKind(objects))
 
 	cluster := nsTypeService.GetCluster()
 	client := NewClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.ForceMasterTokenGlobally()))
 
 	failed := false
-	for _, object := range objects {
-		_, err := Apply(*client, action.MethodName(), object)
-		if err != nil {
-			errorChan <- errors.Wrapf(err, "for the namespace [%s] the method %s failed for the cluster %s with following error",
-				nsTypeService.GetNamespaceName(), action.MethodName(), cluster.APIURL)
-			failed = true
-			break
+	operationSets, err := action.GetOperationSets(objects, *client, nsTypeService.GetNamespaceName())
+	if err != nil {
+		errorChan <- errors.Wrapf(err, "for the namespace [%s] the method %s failed for the cluster %s with following error while getting list of objects to apply",
+			nsTypeService.GetNamespaceName(), action.MethodName(), cluster.APIURL)
+		failed = true
+	} else {
+		for opAction, objectsToProcess := range operationSets {
+			for _, object := range objectsToProcess {
+				_, err := Apply(*client, opAction, object)
+				if err != nil {
+					errorChan <- errors.Wrapf(err, "for the namespace [%s] the method %s failed for the cluster %s with following error",
+						nsTypeService.GetNamespaceName(), opAction, cluster.APIURL)
+					failed = true
+					break
+				}
+			}
 		}
 	}
 
