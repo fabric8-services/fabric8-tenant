@@ -119,7 +119,7 @@ func (c *commonNamespaceAction) HealingStrategy() HealingFuncGenerator {
 }
 
 func (c *commonNamespaceAction) ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error {
-	msg := utils.ListErrorsInMessage(errorChan)
+	msg := utils.ListErrorsInMessage(errorChan, 100)
 	if len(msg) > 0 {
 		err := fmt.Errorf("%s method applied to namespace types %s failed with one or more errors:%s", c.method, envTypes, msg)
 		if !c.actionOptions.allowSelfHealing {

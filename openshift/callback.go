@@ -70,7 +70,7 @@ var GetObjectAndMerge = BeforeDoCallback{
 				return nil
 			})
 
-			msg := utils.ListErrorsInMessage(errorChan)
+			msg := utils.ListErrorsInMessage(errorChan, 100)
 			if len(msg) > 0 {
 				return nil, nil, fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
 					"to get object and create a patch for the cluster %s. The retrieved errors:%s",
@@ -190,7 +190,7 @@ var GetObject = AfterDoCallback{
 				}
 				return nil
 			})
-			msg := utils.ListErrorsInMessage(errorChan)
+			msg := utils.ListErrorsInMessage(errorChan, 100)
 			if len(msg) > 0 {
 				return result, fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
 					"to get the created objects from the cluster %s. The retrieved errors:%s",
@@ -254,16 +254,16 @@ var TryToWaitUntilIsGone = AfterDoCallback{
 				return fmt.Errorf("the object %s hasn't been removed nor set to terminating state "+
 					"- waiting till it is completely removed to finish the %s action", returnedObj, context.Method.action)
 			})
-			msg := utils.ListErrorsInMessage(errorChan)
+			msg := utils.ListErrorsInMessage(errorChan, 5)
 			if len(msg) > 0 {
 				// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
 				logrus.WithFields(map[string]interface{}{
-					"action":        context.Method.action,
-					"object-kind":   environment.GetKind(context.Object),
-					"object-name":   environment.GetName(context.Object),
-					"namespace":     environment.GetNamespace(context.Object),
-					"cluster":       context.Client.MasterURL,
-					"error-message": msg,
+					"action":         context.Method.action,
+					"object-kind":    environment.GetKind(context.Object),
+					"object-name":    environment.GetName(context.Object),
+					"namespace":      environment.GetNamespace(context.Object),
+					"cluster":        context.Client.MasterURL,
+					"first-5-errors": msg,
 				}).Warnf("unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster",
 					context.Method.action, retries)
 			}
