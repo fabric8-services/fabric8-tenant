@@ -178,18 +178,9 @@ func (e *ObjectEndpoints) apply(client *Client, object environment.Object, metho
 	)
 
 	// handle before callbacks if any defined (that could change the request Body)
-	if len(method.beforeDoCallbacks) != 0 {
-		for _, beforeCallback := range method.beforeDoCallbacks {
-			method, reqBody, err = beforeCallback.Call(client, object, e, method)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		reqBody, err = yaml.Marshal(object)
-		if err != nil {
-			return nil, err
-		}
+	method, reqBody, err = method.beforeDoCallbacks.call(NewCallbackContext(client, object, e, method))
+	if err != nil {
+		return nil, err
 	}
 
 	// do the request
@@ -206,18 +197,8 @@ func (e *ObjectEndpoints) apply(client *Client, object environment.Object, metho
 	log.Info(nil, logParams, "resource requested")
 
 	// handle after callbacks and let them handle errors in their way
-	if len(method.afterDoCallbacks) == 0 {
-		// if none, then just check the error code and return any possible error
-		return result, checkHTTPCode(result, err)
-	} else {
-		for _, afterCallback := range method.afterDoCallbacks {
-			err := afterCallback.Call(client, object, e, method, result)
-			if err != nil {
-				return result, err
-			}
-		}
-		return result, nil
-	}
+	err = method.afterDoCallbacks.call(NewCallbackContext(client, object, e, method), result)
+	return result, err
 }
 
 func (e *ObjectEndpoints) GetMethodDefinition(method string, object environment.Object) (*MethodDefinition, error) {
@@ -230,10 +211,10 @@ func (e *ObjectEndpoints) GetMethodDefinition(method string, object environment.
 
 func logParams(object environment.Object, method *MethodDefinition, result *Result) map[string]interface{} {
 	var status, reqURL string
-	if result != nil && result.response != nil {
-		status = result.response.Status
-		if result.response.Request != nil {
-			reqURL = result.response.Request.URL.String()
+	if result != nil && result.Response != nil {
+		status = result.Response.Status
+		if result.Response.Request != nil {
+			reqURL = result.Response.Request.URL.String()
 		}
 	}
 	return map[string]interface{}{

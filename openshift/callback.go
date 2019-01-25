@@ -15,23 +15,19 @@ import (
 )
 
 type BeforeDoCallback struct {
-	Call BeforeDoCallbackFunc
-	Name string
+	Create BeforeDoCallbackFuncCreator
+	Name   string
 }
 
 type AfterDoCallback struct {
-	Call AfterDoCallbackFunc
-	Name string
+	Create AfterDoCallbackFuncCreator
+	Name   string
 }
-
-type BeforeDoCallbackFunc func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error)
-type AfterDoCallbackFunc func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error
 
 const (
 	GetObjectAndMergeName             = "GetObjectAndMerge"
 	FailIfExistsName                  = "FailIfAlreadyExists"
 	WhenConflictThenDeleteAndRedoName = "WhenConflictThenDeleteAndRedo"
-	IgnoreConflictsName               = "IgnoreConflicts"
 	GetObjectName                     = "GetObject"
 	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExistOrConflicts"
 	TryToWaitUntilIsGoneName          = "TryToWaitUntilIsGone"
@@ -39,46 +35,49 @@ const (
 
 // Before callbacks
 var GetObjectAndMerge = BeforeDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error) {
-		retries := 10
-		var methodToUse = method
-		var bodyToSend []byte
-
-		errorChan := retry.Do(retries, time.Second, func() error {
-			result, err := objEndpoints.Apply(client, object, http.MethodGet)
-			if result != nil && isNotPresent(result.response.StatusCode) {
-				methodToUse, bodyToSend, err = getMethodAndMarshalObject(objEndpoints, http.MethodPost, object)
+	Create: func(previousCallback BeforeDoCallbackFunc) BeforeDoCallbackFunc {
+		return func(context CallbackContext) (*MethodDefinition, []byte, error) {
+			method, body, err := previousCallback(context)
+			if err != nil {
+				return method, body, err
+			}
+			retries := 10
+			errorChan := retry.Do(retries, time.Second, func() error {
+				result, err := context.ObjEndpoints.Apply(context.Client, context.Object, http.MethodGet)
+				if result != nil && isNotPresent(result.Response.StatusCode) {
+					method, err = context.ObjEndpoints.GetMethodDefinition(http.MethodPost, context.Object)
+					if err != nil {
+						return err
+					}
+					return nil
+				}
 				if err != nil {
 					return err
 				}
+				var returnedObj environment.Object
+				err = yaml.Unmarshal(result.Body, &returnedObj)
+				if err != nil {
+					return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
+				}
+				if isInTerminatingState(returnedObj) {
+					return fmt.Errorf("the object %s is in terminating state - cannot create PATCH for it - need to wait till it is completely removed", returnedObj)
+				}
+				environment.GetStatus(returnedObj)
+				body, err = marshalYAMLToJSON(context.Object)
+				if err != nil {
+					return errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
+				}
 				return nil
-			}
-			if err != nil {
-				return err
-			}
-			var returnedObj environment.Object
-			err = yaml.Unmarshal(result.Body, &returnedObj)
-			if err != nil {
-				return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
-			}
-			if isInTerminatingState(returnedObj) {
-				return fmt.Errorf("the object %s is in terminating state - cannot create PATCH for it - need to wait till it is completely removed", returnedObj)
-			}
-			environment.GetStatus(returnedObj)
-			bodyToSend, err = marshalYAMLToJSON(object)
-			if err != nil {
-				return errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
-			}
-			return nil
-		})
+			})
 
-		msg := utils.ListErrorsInMessage(errorChan)
-		if len(msg) > 0 {
-			return nil, nil, fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
-				"to get object and create a patch for the cluster %s. The retrieved errors:%s",
-				method.action, object, retries, client.MasterURL, msg)
+			msg := utils.ListErrorsInMessage(errorChan)
+			if len(msg) > 0 {
+				return nil, nil, fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
+					"to get object and create a patch for the cluster %s. The retrieved errors:%s",
+					method.action, context.Object, retries, context.Client.MasterURL, msg)
+			}
+			return method, body, nil
 		}
-		return methodToUse, bodyToSend, nil
 	},
 	Name: GetObjectAndMergeName,
 }
@@ -94,70 +93,64 @@ func isInTerminatingState(obj environment.Object) bool {
 	return false
 }
 
-func getMethodAndMarshalObject(objEndpoints *ObjectEndpoints, method string, object environment.Object) (*MethodDefinition, []byte, error) {
-	post, err := objEndpoints.GetMethodDefinition(method, object)
-	if err != nil {
-		return nil, nil, err
-	}
-	bytes, err := yaml.Marshal(object)
-	if err != nil {
-		return nil, nil, err
-	}
-	return post, bytes, nil
-}
-
 var FailIfAlreadyExists = BeforeDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) (*MethodDefinition, []byte, error) {
-
-		masterClient := *client
-		masterClient.TokenProducer = func(forceMasterToken bool) string {
-			return client.TokenProducer(true)
-		}
-
-		result, err := objEndpoints.Apply(&masterClient, object, http.MethodGet)
-		if err != nil {
-			if result != nil && isNotPresent(result.response.StatusCode) {
-				bodyToSend, err := yaml.Marshal(object)
-				if err != nil {
-					return nil, nil, errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
-				}
-				return method, bodyToSend, nil
+	Create: func(previousCallback BeforeDoCallbackFunc) BeforeDoCallbackFunc {
+		return func(context CallbackContext) (*MethodDefinition, []byte, error) {
+			method, body, err := previousCallback(context)
+			if err != nil {
+				return method, body, err
 			}
-		}
-		return nil, nil, fmt.Errorf("the object [%s] already exists", object.ToString())
+			masterClient := *context.Client
+			masterClient.TokenProducer = func(forceMasterToken bool) string {
+				return context.Client.TokenProducer(true)
+			}
 
+			result, err := context.ObjEndpoints.Apply(&masterClient, context.Object, http.MethodGet)
+			if err != nil {
+				if result != nil && isNotPresent(result.Response.StatusCode) {
+					bodyToSend, err := yaml.Marshal(context.Object)
+					if err != nil {
+						return nil, nil, errors.Wrapf(err, "unable marshal object to be send to OS as part of %s request", method.action)
+					}
+					return method, bodyToSend, nil
+				}
+			}
+			return nil, nil, fmt.Errorf("the object [%s] already exists", context.Object.ToString())
+
+		}
 	},
 	Name: FailIfExistsName,
 }
 
 // After callbacks
 var WhenConflictThenDeleteAndRedo = AfterDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		if result.response != nil && result.response.StatusCode == http.StatusConflict {
-			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
-			logrus.WithFields(map[string]interface{}{
-				"method":      method.action,
-				"object-kind": environment.GetKind(object),
-				"object-name": environment.GetName(object),
-				"namespace":   environment.GetNamespace(object),
-			}).Warnf("there was a conflict, trying to delete the object and re-do the operation")
-			err := checkHTTPCode(objEndpoints.Apply(client, object, http.MethodDelete))
-			if err != nil {
-				return errors.Wrap(err, "delete request failed while removing an object because of a conflict")
-			}
-			redoMethod := removeAfterDoCallback(*method, WhenConflictThenDeleteAndRedoName)
+	Create: func(previousCallback AfterDoCallbackFunc) AfterDoCallbackFunc {
+		return func(context CallbackContext) (*Result, error) {
+			result, err := previousCallback(context)
+			if result.Response != nil && result.Response.StatusCode == http.StatusConflict {
+				// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
+				logrus.WithFields(map[string]interface{}{
+					"method":      context.Method.action,
+					"object-kind": environment.GetKind(context.Object),
+					"object-name": environment.GetName(context.Object),
+					"namespace":   environment.GetNamespace(context.Object),
+				}).Warnf("there was a conflict, trying to delete the object and re-do the operation")
+				err := CheckHTTPCode(context.ObjEndpoints.Apply(context.Client, context.Object, http.MethodDelete))
+				if err != nil {
+					return result, errors.Wrap(err, "delete request failed while removing an object because of a conflict")
+				}
+				redoMethod := removeAfterDoCallback(*context.Method, WhenConflictThenDeleteAndRedoName)
 
-			redoResult, err := objEndpoints.apply(client, object, redoMethod)
-			result.err = redoResult.err
-			result.Body = redoResult.Body
-			result.response = redoResult.response
-			err = checkHTTPCode(result, err)
-			if err != nil {
-				return errors.Wrapf(err, "redoing an action %s failed after the object was successfully removed because of a previous conflict", method.action)
+				redoResult, err := context.ObjEndpoints.apply(context.Client, context.Object, redoMethod)
+				err = CheckHTTPCode(redoResult, err)
+				if err != nil {
+					return redoResult, errors.Wrapf(err, "redoing an action %s failed after the object was successfully removed because of a previous conflict",
+						context.Method.action)
+				}
+				return redoResult, nil
 			}
-			return nil
+			return result, err
 		}
-		return checkHTTPCode(result, result.err)
 	},
 	Name: WhenConflictThenDeleteAndRedoName,
 }
@@ -173,112 +166,109 @@ func removeAfterDoCallback(method MethodDefinition, callbackName string) *Method
 	return &withoutCallback
 }
 
-var WhenConflictThenFail = AfterDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		if result.response.StatusCode == http.StatusConflict {
-			return nil
-		}
-		return checkHTTPCode(result, result.err)
-	},
-	Name: IgnoreConflictsName,
-}
-
 var GetObject = AfterDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		err := checkHTTPCode(result, result.err)
-		if err != nil {
-			return err
-		}
-		retries := 50
-		errorChan := retry.Do(retries, time.Millisecond*100, func() error {
-			getResponse, err := objEndpoints.Apply(client, object, http.MethodGet)
-			err = checkHTTPCode(getResponse, err)
+	Create: func(previousCallback AfterDoCallbackFunc) AfterDoCallbackFunc {
+		return func(context CallbackContext) (*Result, error) {
+			result, err := previousCallback(context)
+			err = CheckHTTPCode(result, err)
 			if err != nil {
-				return err
+				return result, err
 			}
-			getObject, err := getResponse.bodyToObject()
-			if err != nil {
-				return err
+			retries := 50
+			errorChan := retry.Do(retries, time.Millisecond*100, func() error {
+				getResponse, err := context.ObjEndpoints.Apply(context.Client, context.Object, http.MethodGet)
+				err = CheckHTTPCode(getResponse, err)
+				if err != nil {
+					return err
+				}
+				getObject, err := getResponse.bodyToObject()
+				if err != nil {
+					return err
+				}
+				if !environment.HasValidStatus(getObject) {
+					return fmt.Errorf("not ready yet")
+				}
+				return nil
+			})
+			msg := utils.ListErrorsInMessage(errorChan)
+			if len(msg) > 0 {
+				return result, fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
+					"to get the created objects from the cluster %s. The retrieved errors:%s",
+					context.Method.action, context.Object, retries, context.Client.MasterURL, msg)
 			}
-			if !environment.HasValidStatus(getObject) {
-				return fmt.Errorf("not ready yet")
-			}
-			return nil
-		})
-		msg := utils.ListErrorsInMessage(errorChan)
-		if len(msg) > 0 {
-			return fmt.Errorf("unable to finish the action %s on a object %s as there were %d of unsuccessful retries "+
-				"to get the created objects from the cluster %s. The retrieved errors:%s",
-				method.action, object, retries, client.MasterURL, msg)
+			return result, nil
 		}
-		return nil
 	},
 	Name: GetObjectName,
 }
 
 var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		code := result.response.StatusCode
-		if code == http.StatusNotFound || code == http.StatusConflict {
-			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
-			logrus.WithFields(map[string]interface{}{
-				"action":      method.action,
-				"status":      result.response.Status,
-				"object-kind": environment.GetKind(object),
-				"object-name": environment.GetName(object),
-				"namespace":   environment.GetNamespace(object),
-				"message":     result.Body,
-			}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist or is being removed", method.action)
-			result.err = nil
-			result.Body = []byte{}
-			result.response = nil
-			return nil
+	Create: func(previousCallback AfterDoCallbackFunc) AfterDoCallbackFunc {
+		return func(context CallbackContext) (*Result, error) {
+			result, err := previousCallback(context)
+			code := result.Response.StatusCode
+			if code == http.StatusNotFound || code == http.StatusConflict {
+				// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
+				logrus.WithFields(map[string]interface{}{
+					"action":      context.Method.action,
+					"status":      result.Response.Status,
+					"object-kind": environment.GetKind(context.Object),
+					"object-name": environment.GetName(context.Object),
+					"namespace":   environment.GetNamespace(context.Object),
+					"message":     result.Body,
+				}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist or is being removed",
+					context.Method.action)
+				return &Result{}, nil
+			}
+			return result, err
 		}
-		return checkHTTPCode(result, result.err)
 	},
 	Name: IgnoreWhenDoesNotExistName,
 }
 
 var TryToWaitUntilIsGone = AfterDoCallback{
-	Call: func(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition, result *Result) error {
-		err := checkHTTPCode(result, result.err)
-		if err != nil {
-			return err
-		}
-		retries := 60
-		errorChan := retry.Do(retries, time.Millisecond*500, func() error {
-			result, err := objEndpoints.Apply(client, object, http.MethodGet)
-			if result != nil && isNotPresent(result.response.StatusCode) {
-				return nil
-			}
+	Create: func(previousCallback AfterDoCallbackFunc) AfterDoCallbackFunc {
+		return func(context CallbackContext) (*Result, error) {
+			result, err := previousCallback(context)
+			err = CheckHTTPCode(result, err)
 			if err != nil {
-				return err
+				return result, err
 			}
-			var returnedObj environment.Object
-			err = yaml.Unmarshal(result.Body, &returnedObj)
-			if err != nil {
-				return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
+			retries := 60
+			errorChan := retry.Do(retries, time.Millisecond*500, func() error {
+				result, err := context.ObjEndpoints.Apply(context.Client, context.Object, http.MethodGet)
+				if result != nil && isNotPresent(result.Response.StatusCode) {
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				var returnedObj environment.Object
+				err = yaml.Unmarshal(result.Body, &returnedObj)
+				if err != nil {
+					return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
+				}
+				if isInTerminatingState(returnedObj) {
+					return nil
+				}
+				return fmt.Errorf("the object %s hasn't been removed nor set to terminating state "+
+					"- waiting till it is completely removed to finish the %s action", returnedObj, context.Method.action)
+			})
+			msg := utils.ListErrorsInMessage(errorChan)
+			if len(msg) > 0 {
+				// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
+				logrus.WithFields(map[string]interface{}{
+					"action":        context.Method.action,
+					"object-kind":   environment.GetKind(context.Object),
+					"object-name":   environment.GetName(context.Object),
+					"namespace":     environment.GetNamespace(context.Object),
+					"cluster":       context.Client.MasterURL,
+					"error-message": msg,
+				}).Warnf("unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster",
+					context.Method.action, retries)
 			}
-			if isInTerminatingState(returnedObj) {
-				return nil
-			}
-			return fmt.Errorf("the object %s hasn't been removed nor set to terminating state "+
-				"- waiting till it is completely removed to finish the %s action", returnedObj, method.action)
-		})
-		msg := utils.ListErrorsInMessage(errorChan)
-		if len(msg) > 0 {
-			// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
-			logrus.WithFields(map[string]interface{}{
-				"action":        method.action,
-				"object-kind":   environment.GetKind(object),
-				"object-name":   environment.GetName(object),
-				"namespace":     environment.GetNamespace(object),
-				"cluster":       client.MasterURL,
-				"error-message": msg,
-			}).Warnf("unable to finish the action %s for an object as there were %d of unsuccessful retries to completely remove the objects from the cluster",
-				method.action, retries)
+			return result, nil
 		}
-		return nil
 	},
 	Name: TryToWaitUntilIsGoneName,
 }
@@ -287,10 +277,10 @@ func isNotPresent(statusCode int) bool {
 	return statusCode == http.StatusNotFound || statusCode == http.StatusForbidden
 }
 
-func checkHTTPCode(result *Result, e error) error {
-	if e == nil && result.response != nil && (result.response.StatusCode < 200 || result.response.StatusCode >= 300) {
+func CheckHTTPCode(result *Result, e error) error {
+	if e == nil && result.Response != nil && (result.Response.StatusCode < 200 || result.Response.StatusCode >= 300) {
 		return fmt.Errorf("server responded with status: %d for the %s request %s with the Body [%s]",
-			result.response.StatusCode, result.response.Request.Method, result.response.Request.URL, string(result.Body))
+			result.Response.StatusCode, result.Response.Request.Method, result.Response.Request.URL, string(result.Body))
 	}
 	return e
 }
