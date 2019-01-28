@@ -97,7 +97,7 @@ var tokenProducer = func(forceMasterToken bool) string {
 func TestGetExistingObjectAndMerge(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	gock.New("https://starter.com").
 		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
@@ -105,21 +105,21 @@ func TestGetExistingObjectAndMerge(t *testing.T) {
 		BodyString(boundPVC)
 
 	// when
-	methodDef, body, err := openshift.GetObjectAndMerge.Call(client, object, endpoints, methodDefinition)
+	methodDef, body, err := openshift.GetObjectAndMerge.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 	// then
 	assert.NoError(t, err)
-	assert.Equal(t, methodDefinition, methodDef)
+	assert.Equal(t, callbackContext.Method, methodDef)
 	var actualObject environment.Object
 	assert.NoError(t, yaml.Unmarshal(body, &actualObject))
-	assert.Equal(t, object, actualObject)
+	assert.Equal(t, callbackContext.Object, actualObject)
 	assert.Equal(t, openshift.GetObjectAndMergeName, openshift.GetObjectAndMerge.Name)
 }
 
 func TestGetExistingObjectAndWaitTillIsNotTerminating(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	terminatingCalls := 0
 	gock.New("https://starter.com").
@@ -135,14 +135,14 @@ func TestGetExistingObjectAndWaitTillIsNotTerminating(t *testing.T) {
 		BodyString(boundPVC)
 
 	// when
-	methodDef, body, err := openshift.GetObjectAndMerge.Call(client, object, endpoints, methodDefinition)
+	methodDef, body, err := openshift.GetObjectAndMerge.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 	// then
 	assert.NoError(t, err)
-	assert.Equal(t, methodDefinition, methodDef)
+	assert.Equal(t, callbackContext.Method, methodDef)
 	var actualObject environment.Object
 	assert.NoError(t, yaml.Unmarshal(body, &actualObject))
-	assert.Equal(t, object, actualObject)
+	assert.Equal(t, callbackContext.Object, actualObject)
 	assert.Equal(t, openshift.GetObjectAndMergeName, openshift.GetObjectAndMerge.Name)
 	assert.Equal(t, 1, terminatingCalls)
 	assert.Equal(t, 1, boundCalls)
@@ -151,28 +151,28 @@ func TestGetExistingObjectAndWaitTillIsNotTerminating(t *testing.T) {
 func TestGetMissingObjectAndMerge(t *testing.T) {
 	// given
 	defer gock.OffAll()
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	gock.New("https://starter.com").
 		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
 		Reply(404)
 
 	// when
-	methodDef, body, err := openshift.GetObjectAndMerge.Call(client, object, endpoints, methodDefinition)
+	methodDef, body, err := openshift.GetObjectAndMerge.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 	// then
 	assert.NoError(t, err)
-	postMethodDef, err := endpoints.GetMethodDefinition("POST", object)
+	postMethodDef, err := callbackContext.ObjEndpoints.GetMethodDefinition("POST", callbackContext.Object)
 	assert.NoError(t, err)
 	assert.Equal(t, fmt.Sprintf("%+v", *postMethodDef), fmt.Sprintf("%+v", *methodDef))
 	var actualObject environment.Object
 	assert.NoError(t, yaml.Unmarshal(body, &actualObject))
-	assert.Equal(t, object, actualObject)
+	assert.Equal(t, callbackContext.Object, actualObject)
 }
 
 func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("original response is 200 and error is nil, so no error is returned", func(t *testing.T) {
 		// given
@@ -180,10 +180,11 @@ func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.WhenConflictThenDeleteAndRedo.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("original response is 404 and error is nil, so an error is returned", func(t *testing.T) {
@@ -200,20 +201,24 @@ func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 		}, []byte{}, nil)
 
 		// when
-		err = openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.WhenConflictThenDeleteAndRedo.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
-		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the POST request"))
+		assert.NoError(t, err)
+		test.AssertError(t, openshift.CheckHTTPCode(callbackResult, err),
+			test.HasMessageContaining("server responded with status: 404 for the POST request"))
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("original response nil and error is not nil, so the same error is returned", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		expErr := fmt.Errorf("unexpected format")
-		result := openshift.NewResult(nil, []byte{}, expErr)
+		result := openshift.NewResult(nil, []byte{}, nil)
 
 		// when
-		err := openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.WhenConflictThenDeleteAndRedo.Create(newAfterCallbackFunc(result, expErr))(callbackContext)
+		assert.Equal(t, result, callbackResult)
 
 		// then
 		assert.Equal(t, expErr, err)
@@ -223,7 +228,7 @@ func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 
 func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("both delete and redo post is successful", func(t *testing.T) {
 		// given
@@ -236,15 +241,16 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 			Reply(404)
 		gock.New("https://starter.com").
 			Post("/api/v1/namespaces/john-jenkins/persistentvolumeclaims").
-			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(object))).
+			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(callbackContext.Object))).
 			Reply(200)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
 		// when
-		err := openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.WhenConflictThenDeleteAndRedo.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, 200, callbackResult.Response.StatusCode)
 	})
 
 	t.Run("when delete fails, then it returns an error", func(t *testing.T) {
@@ -256,12 +262,13 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
 		// when
-		err := openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.WhenConflictThenDeleteAndRedo.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("delete request failed while removing an object because of a conflict"),
 			test.HasMessageContaining("server responded with status: 500 for the DELETE request"))
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("when there is a second conflict while redoing the action, then it return an error and stops redoing", func(t *testing.T) {
@@ -275,34 +282,36 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 			Reply(404)
 		gock.New("https://starter.com").
 			Post("/api/v1/namespaces/john-jenkins/persistentvolumeclaims").
-			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(object))).
+			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(callbackContext.Object))).
 			Reply(409)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
 		// when
-		err := openshift.WhenConflictThenDeleteAndRedo.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.WhenConflictThenDeleteAndRedo.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("redoing an action POST failed after the object was successfully removed because of a previous conflict"),
 			test.HasMessageContaining("server responded with status: 409 for the POST request"))
+		assert.Equal(t, 409, callbackResult.Response.StatusCode)
+		assert.NotEqual(t, result, callbackResult)
 	})
 }
 
 func TestIgnoreWhenDoesNotExist(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "DELETE", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	t.Run("when there is 404, then it ignores it even if there is an error", func(t *testing.T) {
 		// given
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusNotFound}, []byte{}, fmt.Errorf("not found"))
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.IgnoreWhenDoesNotExistOrConflicts.Create(newAfterCallbackFunc(result, fmt.Errorf("not found")))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
-		assert.Empty(t, result.Body)
+		assert.Empty(t, callbackResult)
 	})
 
 	t.Run("when there is 409, then it ignores it even if there is an error", func(t *testing.T) {
@@ -310,26 +319,28 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, fmt.Errorf("conflict"))
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.IgnoreWhenDoesNotExistOrConflicts.Create(newAfterCallbackFunc(result, fmt.Errorf("conflict")))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Empty(t, callbackResult)
 	})
 
 	t.Run("when code is 200 but an error is not nil, then it returns the error", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").Times(0)
-		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, fmt.Errorf("wrong request"))
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.IgnoreWhenDoesNotExistOrConflicts.Create(newAfterCallbackFunc(result, fmt.Errorf("wrong request")))(callbackContext)
 
 		// then
 		test.AssertError(t, err, test.HasMessage("wrong request"))
+		assert.Equal(t, result, callbackResult)
 	})
 
-	t.Run("when there status code is 500, then it returns the an appropriate error", func(t *testing.T) {
+	t.Run("when there status code is 500, then it returns the same result", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").Times(0)
@@ -344,33 +355,38 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		}, []byte{}, nil)
 
 		// when
-		err = openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.IgnoreWhenDoesNotExistOrConflicts.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
-		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 500 for the DELETE request"))
+		assert.NoError(t, err)
+		test.AssertError(t, openshift.CheckHTTPCode(callbackResult, err),
+			test.HasMessageContaining("server responded with status: 500 for the DELETE request"))
+		assert.Equal(t, result, callbackResult)
 	})
 
-	t.Run("when the status code is 200 and no error then it returns nil", func(t *testing.T) {
+	t.Run("when the status code is 200 and no error then it returns no error", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").Times(0)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.IgnoreWhenDoesNotExistOrConflicts.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.IgnoreWhenDoesNotExistOrConflicts.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	assert.Equal(t, openshift.IgnoreWhenDoesNotExistName, openshift.IgnoreWhenDoesNotExistOrConflicts.Name)
 }
 
+//
 func TestGetObject(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "POST", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
-	t.Run("when returns 200, then it reads the object an checks status. everything is good, then return nil", func(t *testing.T) {
+	t.Run("when returns 200, then it reads the object an checks status. everything is good, then return no error", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
@@ -380,10 +396,11 @@ func TestGetObject(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("when returns 200, then it reads the object an checks status. when is missing then retries until is present", func(t *testing.T) {
@@ -403,11 +420,12 @@ func TestGetObject(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, 3, counter)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("when returns 200, but with invalid Body. then retries until everything is fine", func(t *testing.T) {
@@ -424,10 +442,11 @@ func TestGetObject(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("when returns 404, then retries until everything is fine", func(t *testing.T) {
@@ -443,10 +462,11 @@ func TestGetObject(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("when always returns 404 then after 50 attempts it returns error", func(t *testing.T) {
@@ -459,14 +479,15 @@ func TestGetObject(t *testing.T) {
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("unable to finish the action POST on a object"),
 			test.HasMessageContaining("as there were 50 of unsuccessful retries to get the created objects from the cluster https://starter.com"))
+		assert.Equal(t, result, callbackResult)
 	})
 
-	t.Run("when there status code is 404, then it returns the an appropriate error", func(t *testing.T) {
+	t.Run("when the status code is 404, then it returns the appropriate error", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").Times(0)
@@ -481,22 +502,24 @@ func TestGetObject(t *testing.T) {
 		}, []byte{}, nil)
 
 		// when
-		err = openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("server responded with status: 404 for the POST request"))
+		assert.Equal(t, result, callbackResult)
 	})
 
-	t.Run("when there is an error in the result, then returns it", func(t *testing.T) {
+	t.Run("when there is an error in the result, then it's returned", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
-		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, fmt.Errorf("error"))
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 		// when
-		err := openshift.GetObject.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.GetObject.Create(newAfterCallbackFunc(result, fmt.Errorf("error")))(callbackContext)
 
 		// then
 		test.AssertError(t, err, test.HasMessage("error"))
+		assert.Equal(t, result, callbackResult)
 	})
 
 	assert.Equal(t, openshift.GetObjectName, openshift.GetObject.Name)
@@ -504,7 +527,7 @@ func TestGetObject(t *testing.T) {
 
 func TestFailIfAlreadyExists(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindProjectRequest, projectRequestJenkins)
+	callbackContext := newCallbackContext(t, "POST", environment.ValKindProjectRequest, projectRequestJenkins)
 
 	t.Run("when returns 200, then it returns error", func(t *testing.T) {
 		// given
@@ -516,7 +539,7 @@ func TestFailIfAlreadyExists(t *testing.T) {
 			BodyString(``)
 
 		// when
-		methodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+		methodDef, body, err := openshift.FailIfAlreadyExists.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("already exists"))
@@ -534,11 +557,11 @@ func TestFailIfAlreadyExists(t *testing.T) {
 			BodyString(``)
 
 		// when
-		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, methodDefinition, actualMethodDef)
+		assert.Equal(t, callbackContext.Method, actualMethodDef)
 		assert.Contains(t, string(body), "name: john-jenkins")
 	})
 
@@ -552,18 +575,18 @@ func TestFailIfAlreadyExists(t *testing.T) {
 			BodyString(``)
 
 		// when
-		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, methodDefinition, actualMethodDef)
+		assert.Equal(t, callbackContext.Method, actualMethodDef)
 		assert.Contains(t, string(body), "name: john-jenkins")
 	})
 }
 
 func TestFailIfAlreadyExistsForUserNamespaceShouldUseMasterToken(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "POST", environment.ValKindProjectRequest, projectRequestUser)
+	callbackContext := newCallbackContext(t, "POST", environment.ValKindProjectRequest, projectRequestUser)
 
 	t.Run("when returns 200, then it returns error", func(t *testing.T) {
 		// given
@@ -575,7 +598,7 @@ func TestFailIfAlreadyExistsForUserNamespaceShouldUseMasterToken(t *testing.T) {
 			BodyString(``)
 
 		// when
-		methodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+		methodDef, body, err := openshift.FailIfAlreadyExists.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 		// then
 		test.AssertError(t, err, test.HasMessageContaining("already exists"))
@@ -593,18 +616,18 @@ func TestFailIfAlreadyExistsForUserNamespaceShouldUseMasterToken(t *testing.T) {
 			BodyString(``)
 
 		// when
-		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Call(client, object, endpoints, methodDefinition)
+		actualMethodDef, body, err := openshift.FailIfAlreadyExists.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, methodDefinition, actualMethodDef)
+		assert.Equal(t, callbackContext.Method, actualMethodDef)
 		assert.Contains(t, string(body), "name: john")
 	})
 }
 
 func TestWaitUntilIsGone(t *testing.T) {
 	// given
-	client, object, endpoints, methodDefinition := getClientObjectEndpointAndMethod(t, "DELETE", environment.ValKindPersistentVolumeClaim, pvcToSet)
+	callbackContext := newCallbackContext(t, "DELETE", environment.ValKindPersistentVolumeClaim, pvcToSet)
 	result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
 
 	t.Run("wait until is in terminating state", func(t *testing.T) {
@@ -624,16 +647,17 @@ func TestWaitUntilIsGone(t *testing.T) {
 			BodyString(terminatingPVC)
 
 		// when
-		err := openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.TryToWaitUntilIsGone.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, openshift.TryToWaitUntilIsGoneName, openshift.TryToWaitUntilIsGone.Name)
 		assert.Equal(t, 1, terminatingCalls)
 		assert.Equal(t, 2, boundCalls)
+		assert.Equal(t, result, callbackResult)
 	})
 
-	t.Run("wait until is it returns 404", func(t *testing.T) {
+	t.Run("wait until it returns 404", func(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
 			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
@@ -645,14 +669,15 @@ func TestWaitUntilIsGone(t *testing.T) {
 			Reply(404)
 
 		// when
-		err := openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.TryToWaitUntilIsGone.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, openshift.TryToWaitUntilIsGoneName, openshift.TryToWaitUntilIsGone.Name)
+		assert.Equal(t, result, callbackResult)
 	})
 
-	t.Run("wait until is it returns 403", func(t *testing.T) {
+	t.Run("wait until it returns 403", func(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
 			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
@@ -663,10 +688,11 @@ func TestWaitUntilIsGone(t *testing.T) {
 			Reply(403)
 
 		// when
-		err := openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, result)
+		callbackResult, err := openshift.TryToWaitUntilIsGone.Create(newAfterCallbackFunc(result, nil))(callbackContext)
 
 		// then
 		assert.NoError(t, err)
+		assert.Equal(t, result, callbackResult)
 	})
 
 	t.Run("if gets result with 500, then returns an error", func(t *testing.T) {
@@ -682,20 +708,33 @@ func TestWaitUntilIsGone(t *testing.T) {
 		}, []byte{}, nil)
 
 		// when
-		err = openshift.TryToWaitUntilIsGone.Call(client, object, endpoints, methodDefinition, failingResult)
+		callbackResult, err := openshift.TryToWaitUntilIsGone.Create(newAfterCallbackFunc(failingResult, nil))(callbackContext)
 
 		// then
 		test.AssertError(t, err,
 			test.HasMessageContaining("server responded with status: 500 for the POST request"))
+		assert.Equal(t, failingResult, callbackResult)
 	})
 }
 
-func getClientObjectEndpointAndMethod(t *testing.T, method, kind, response string) (*openshift.Client, environment.Object, *openshift.ObjectEndpoints, *openshift.MethodDefinition) {
+func newCallbackContext(t *testing.T, method, kind, response string) openshift.CallbackContext {
 	client := openshift.NewClient(nil, "https://starter.com", tokenProducer)
 	var object environment.Objects
 	require.NoError(t, yaml.Unmarshal([]byte(response), &object))
 	bindingEndpoints := openshift.AllObjectEndpoints[kind]
 	methodDefinition, err := bindingEndpoints.GetMethodDefinition(method, object[0])
 	assert.NoError(t, err)
-	return client, object[0], bindingEndpoints, methodDefinition
+	return openshift.NewCallbackContext(client, object[0], bindingEndpoints, methodDefinition)
+}
+
+func newAfterCallbackFunc(result *openshift.Result, err error) openshift.AfterDoCallbackFunc {
+	return func(context openshift.CallbackContext) (*openshift.Result, error) {
+		return result, err
+	}
+}
+
+func newBeforeCallbackFunc(callbackContext openshift.CallbackContext) openshift.BeforeDoCallbackFunc {
+	return func(context openshift.CallbackContext) (*openshift.MethodDefinition, []byte, error) {
+		return openshift.DefaultBeforeDoCallBack(callbackContext)
+	}
 }

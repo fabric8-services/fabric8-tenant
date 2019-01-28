@@ -1,22 +1,24 @@
 package openshift
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/environment"
+	"gopkg.in/yaml.v2"
 	"net/http"
 )
 
 // MethodDefinition represents defined actions (beforeDoCallbacks, afterDoCallbacks,requestCreator) to be executed when the method is performed for an endpoint.
 type MethodDefinition struct {
 	action            string
-	beforeDoCallbacks []BeforeDoCallback
-	afterDoCallbacks  []AfterDoCallback
+	beforeDoCallbacks BeforeDoCallbacksChain
+	afterDoCallbacks  AfterDoCallbacksChain
 	requestCreator    RequestCreator
 }
 
 func NewMethodDefinition(action string, beforeCallbacks []BeforeDoCallback, afterCallbacks []AfterDoCallback, requestCreator RequestCreator, modifiers ...MethodDefModifier) MethodDefinition {
 	methodDefinition := MethodDefinition{
 		action:            action,
-		beforeDoCallbacks: beforeCallbacks,
-		afterDoCallbacks:  afterCallbacks,
+		beforeDoCallbacks: BeforeDoCallbacksChain(beforeCallbacks),
+		afterDoCallbacks:  AfterDoCallbacksChain(afterCallbacks),
 		requestCreator:    requestCreator,
 	}
 	for _, modify := range modifiers {
@@ -27,10 +29,45 @@ func NewMethodDefinition(action string, beforeCallbacks []BeforeDoCallback, afte
 
 type methodDefCreator func(endpoint string) MethodDefinition
 type RequestCreatorModifier func(requestCreator RequestCreator) RequestCreator
-
 type MethodDefModifier func(*MethodDefinition) *MethodDefinition
 
 const MethodDeleteAll = "DELETEALL"
+
+type BeforeDoCallbackFuncCreator func(previousCallback BeforeDoCallbackFunc) BeforeDoCallbackFunc
+type BeforeDoCallbackFunc func(context CallbackContext) (*MethodDefinition, []byte, error)
+
+type AfterDoCallbackFuncCreator func(previousCallback AfterDoCallbackFunc) AfterDoCallbackFunc
+type AfterDoCallbackFunc func(context CallbackContext) (*Result, error)
+type CallbackContext struct {
+	Client       *Client
+	Object       environment.Object
+	ObjEndpoints *ObjectEndpoints
+	Method       *MethodDefinition
+}
+
+func NewCallbackContext(client *Client, object environment.Object, objEndpoints *ObjectEndpoints, method *MethodDefinition) CallbackContext {
+	return CallbackContext{
+		Client:       client,
+		Object:       object,
+		ObjEndpoints: objEndpoints,
+		Method:       method,
+	}
+}
+
+type BeforeDoCallbacksChain []BeforeDoCallback
+
+var DefaultBeforeDoCallBack = func(context CallbackContext) (*MethodDefinition, []byte, error) {
+	reqBody, err := yaml.Marshal(context.Object)
+	return context.Method, reqBody, err
+}
+
+func (c BeforeDoCallbacksChain) call(context CallbackContext) (*MethodDefinition, []byte, error) {
+	callbackFunc := DefaultBeforeDoCallBack
+	for _, callback := range c {
+		callbackFunc = callback.Create(callbackFunc)
+	}
+	return callbackFunc(context)
+}
 
 func BeforeDo(beforeDoCallback ...BeforeDoCallback) MethodDefModifier {
 	return func(methodDefinition *MethodDefinition) *MethodDefinition {
@@ -38,6 +75,19 @@ func BeforeDo(beforeDoCallback ...BeforeDoCallback) MethodDefModifier {
 		return methodDefinition
 	}
 }
+
+type AfterDoCallbacksChain []AfterDoCallback
+
+func (c AfterDoCallbacksChain) call(context CallbackContext, result *Result) error {
+	callbackFunc := func(context CallbackContext) (*Result, error) {
+		return result, result.err
+	}
+	for _, callback := range c {
+		callbackFunc = callback.Create(callbackFunc)
+	}
+	return CheckHTTPCode(callbackFunc(context))
+}
+
 func AfterDo(afterDoCallbacks ...AfterDoCallback) MethodDefModifier {
 	return func(methodDefinition *MethodDefinition) *MethodDefinition {
 		methodDefinition.afterDoCallbacks = append(methodDefinition.afterDoCallbacks, afterDoCallbacks...)
