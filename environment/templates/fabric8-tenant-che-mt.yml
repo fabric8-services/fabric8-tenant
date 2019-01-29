@@ -95,23 +95,6 @@ objects:
       provider: fabric8
       version: ${COMMIT}
       version-quotas: ${COMMIT_QUOTAS}
-    name: user-edit
-    namespace: ${USER_NAME}-che
-  roleRef:
-    name: edit
-  subjects:
-  - kind: User
-    name: ${PROJECT_USER}
-  userNames:
-  - ${PROJECT_USER}
-- apiVersion: v1
-  kind: RoleBinding
-  metadata:
-    labels:
-      app: fabric8-tenant-che-mt
-      provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
     name: user-exec
     namespace: ${USER_NAME}-che
   roleRef:

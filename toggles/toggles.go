@@ -47,6 +47,8 @@ func toString(value interface{}) string {
 	return fmt.Sprint(value)
 }
 
+type IsToggleEnabled func(ctx context.Context, feature string, fallback bool) bool
+
 // IsEnabled wraps unleash for a simpler API
 func IsEnabled(ctx context.Context, feature string, fallback bool) bool {
 	if !ready {

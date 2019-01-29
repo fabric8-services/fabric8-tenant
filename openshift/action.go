@@ -20,8 +20,7 @@ type NamespaceAction interface {
 	MethodName() string
 	GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error)
 	UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool)
-	GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error)
-	Filter() FilterFunc
+	GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error)
 	ForceMasterTokenGlobally() bool
 	HealingStrategy() HealingFuncGenerator
 	ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error
@@ -91,11 +90,30 @@ func (c *commonNamespaceAction) MethodName() string {
 	return c.method
 }
 
-func (c *commonNamespaceAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
-	operationSets := OperationSet{}
-	sort.Sort(environment.ByKind(toSort))
-	operationSets[c.method] = toSort
-	return operationSets, nil
+func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeService, client Client, filterFunc FilterFunc) (*environment.EnvData, []OperationSet, error) {
+	env, objects, err := envService.GetEnvDataAndObjects(filterFunc)
+	if err != nil {
+		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
+	}
+
+	defaultOpSet := NewOperationSet(c.method, objects)
+	operationSets := []OperationSet{defaultOpSet}
+
+	object, shouldBeAdded := envService.AdditionalObject()
+	if len(object) > 0 {
+		action := c.method
+		if !shouldBeAdded {
+			action = http.MethodDelete
+		}
+		if action == c.method {
+			defaultOpSet.Objects = append(defaultOpSet.Objects, object)
+		} else {
+			operationSets = append(operationSets, NewOperationSet(action, []environment.Object{object}))
+		}
+	}
+
+	sort.Sort(environment.ByKind(defaultOpSet.Objects))
+	return env, operationSets, nil
 }
 
 func (c *commonNamespaceAction) Filter() FilterFunc {
@@ -210,6 +228,10 @@ func (c *CreateAction) ForceMasterTokenGlobally() bool {
 	return false
 }
 
+func (c *CreateAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
+	return c.getOperationSets(envService, client, c.Filter())
+}
+
 func NewDeleteAction(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, deleteOpts *DeleteActionOption) *DeleteAction {
 	return &DeleteAction{
 		withExistingNamespacesAction: &withExistingNamespacesAction{
@@ -269,28 +291,34 @@ var AllToGetAndDelete = []string{environment.ValKindService}
 
 var AllKindsToClean = append(AllToDeleteAll, AllToGetAndDelete...)
 
-func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
-	operationSets := OperationSet{}
+func (d *DeleteAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
+	env, objectsToDelete, err := envService.GetEnvDataAndObjects(d.Filter())
+	if err != nil {
+		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
+	}
+	var operationSets []OperationSet
+
 	if !d.deleteOptions.removeFromCluster {
 		var deleteAllSet environment.Objects
 		for _, kind := range AllToDeleteAll {
-			obj := newObject(kind, namespaceName, "")
+			obj := NewObject(kind, envService.GetNamespaceName(), "")
 			deleteAllSet = append(deleteAllSet, obj)
 		}
 		sort.Sort(sort.Reverse(environment.ByKind(deleteAllSet)))
-		operationSets[MethodDeleteAll] = deleteAllSet
+		operationSets = append(operationSets, NewOperationSet(MethodDeleteAll, deleteAllSet))
 
 		for _, kind := range AllToGetAndDelete {
-			kindToGet := newObject(kind, namespaceName, "")
+			kindToGet := NewObject(kind, envService.GetNamespaceName(), "")
 			result, err := Apply(client, http.MethodGet, kindToGet)
 			if err != nil {
-				return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kindToGet, namespaceName)
+				return env, nil, errors.Wrapf(err,
+					"unable to get list of current objects of kind %s in namespace %s", kindToGet, envService.GetNamespaceName())
 			}
 			var returnedObj environment.Object
 			err = yaml.Unmarshal(result.Body, &returnedObj)
 			if err != nil {
-				return nil, errors.Wrapf(err,
-					"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kindToGet, namespaceName)
+				return env, nil, errors.Wrapf(err, "unable unmarshal object responded from OS "+
+					"while getting list of current objects of kind %s in namespace %s", kindToGet, envService.GetNamespaceName())
 			}
 
 			if items, itemsFound := returnedObj["items"]; itemsFound {
@@ -298,7 +326,7 @@ func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Clien
 					for _, obj := range objects {
 						if object, isObj := obj.(environment.Object); isObj {
 							if name := environment.GetName(object); name != "" {
-								toSort = append(toSort, newObject(kind, namespaceName, name))
+								objectsToDelete = append(objectsToDelete, NewObject(kind, envService.GetNamespaceName(), name))
 							}
 						}
 					}
@@ -306,13 +334,15 @@ func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Clien
 			}
 		}
 	}
-	sort.Sort(sort.Reverse(environment.ByKind(toSort)))
-	operationSets[d.method] = toSort
 
-	return operationSets, nil
+	sort.Sort(sort.Reverse(environment.ByKind(objectsToDelete)))
+	deleteOpSet := NewOperationSet(d.method, objectsToDelete)
+	operationSets = append(operationSets, deleteOpSet)
+
+	return env, operationSets, nil
 }
 
-func newObject(kind, namespaceName string, name string) environment.Object {
+func NewObject(kind, namespaceName string, name string) environment.Object {
 	return environment.Object{
 		"kind": kind,
 		"metadata": environment.Object{
@@ -409,6 +439,10 @@ func (u *UpdateAction) UpdateNamespace(env *environment.EnvData, cluster *cluste
 
 func (u *UpdateAction) Filter() FilterFunc {
 	return isNotOfKind(environment.ValKindProjectRequest)
+}
+
+func (u *UpdateAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
+	return u.getOperationSets(envService, client, u.Filter())
 }
 
 func (u *UpdateAction) HealingStrategy() HealingFuncGenerator {

@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/pkg/errors"
 	"net/http"
@@ -99,31 +98,24 @@ func (s *Service) processAndApplyAll(nsTypes []environment.Type, action Namespac
 }
 
 type ObjectChecker func(object environment.Object) bool
-type OperationSet map[string]environment.Objects
+type OperationSet struct {
+	Method  string
+	Objects environment.Objects
+}
+
+func NewOperationSet(method string, objects environment.Objects) OperationSet {
+	return OperationSet{Method: method, Objects: objects}
+}
 
 func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentTypeService, action NamespaceAction, transport http.RoundTripper, errorChan chan error) {
 	defer nsTypeWait.Done()
 
 	namespace, err := action.GetNamespaceEntity(nsTypeService)
 	if err != nil {
-		sentry.LogError(nil, map[string]interface{}{
-			"envType":       nsTypeService.GetType(),
-			"namespaceName": nsTypeService.GetNamespaceName(),
-			"action":        action.MethodName(),
-		}, err, "getting the namespace failed")
+		errorChan <- errors.Wrap(err, "getting the namespace failed")
 		return
 	}
 	if namespace == nil {
-		return
-	}
-
-	env, objects, err := nsTypeService.GetEnvDataAndObjects(action.Filter())
-	if err != nil {
-		sentry.LogError(nil, map[string]interface{}{
-			"envType":       nsTypeService.GetType(),
-			"namespaceName": nsTypeService.GetNamespaceName(),
-			"action":        action.MethodName(),
-		}, err, "getting environment data and objects failed")
 		return
 	}
 
@@ -131,18 +123,18 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	client := NewClient(transport, cluster.APIURL, nsTypeService.GetTokenProducer(action.ForceMasterTokenGlobally()))
 
 	failed := false
-	operationSets, err := action.GetOperationSets(objects, *client, nsTypeService.GetNamespaceName())
+	env, operationSets, err := action.GetOperationSets(nsTypeService, *client)
 	if err != nil {
 		errorChan <- errors.Wrapf(err, "for the namespace [%s] the method %s failed for the cluster %s with following error while getting list of objects to apply",
 			nsTypeService.GetNamespaceName(), action.MethodName(), cluster.APIURL)
 		failed = true
 	} else {
-		for opAction, objectsToProcess := range operationSets {
-			for _, object := range objectsToProcess {
-				_, err := Apply(*client, opAction, object)
+		for _, operationSet := range operationSets {
+			for _, object := range operationSet.Objects {
+				_, err := Apply(*client, operationSet.Method, object)
 				if err != nil {
 					errorChan <- errors.Wrapf(err, "for the namespace [%s] the method %s failed for the cluster %s with following error",
-						nsTypeService.GetNamespaceName(), opAction, cluster.APIURL)
+						nsTypeService.GetNamespaceName(), operationSet.Method, cluster.APIURL)
 					failed = true
 					break
 				}

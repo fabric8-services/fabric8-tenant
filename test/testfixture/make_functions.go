@@ -15,9 +15,11 @@ func makeTenants(fxt *TestFixture) error {
 	tenantService := tenant.NewDBService(fxt.db)
 	for i := range fxt.Tenants {
 		fxt.Tenants[i] = &tenant.Tenant{
-			ID:      uuid.NewV4(),
-			Email:   createRandomEmailAddress(),
-			Profile: "free",
+			ID:         uuid.NewV4(),
+			Email:      createRandomEmailAddress(),
+			Profile:    "free",
+			NsBaseName: "developer",
+			OSUsername: "developer",
 		}
 		if err := fxt.runCustomizeEntityFuncs(i, kindTenants); err != nil {
 			return errs.WithStack(err)
