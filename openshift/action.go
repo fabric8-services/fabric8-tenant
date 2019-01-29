@@ -96,8 +96,7 @@ func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeServi
 		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
 	}
 
-	defaultOpSet := NewOperationSet(c.method, objects)
-	operationSets := []OperationSet{defaultOpSet}
+	operationSets := []OperationSet{NewOperationSet(c.method, objects)}
 
 	object, shouldBeAdded := envService.AdditionalObject()
 	if len(object) > 0 {
@@ -106,13 +105,13 @@ func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeServi
 			action = http.MethodDelete
 		}
 		if action == c.method {
-			defaultOpSet.Objects = append(defaultOpSet.Objects, object)
+			operationSets[0].Objects = append(operationSets[0].Objects, object)
 		} else {
 			operationSets = append(operationSets, NewOperationSet(action, []environment.Object{object}))
 		}
 	}
 
-	sort.Sort(environment.ByKind(defaultOpSet.Objects))
+	sort.Sort(environment.ByKind(operationSets[0].Objects))
 	return env, operationSets, nil
 }
 
