@@ -1,6 +1,7 @@
 package openshift
 
 import (
+	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -84,19 +85,21 @@ type commonNamespaceAction struct {
 	method        string
 	actionOptions *ActionOptions
 	tenantRepo    tenant.Repository
+	filterFunc    FilterFunc
+	requestCtx    context.Context
 }
 
 func (c *commonNamespaceAction) MethodName() string {
 	return c.method
 }
 
-func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeService, client Client, filterFunc FilterFunc) (*environment.EnvData, []OperationSet, error) {
-	env, objects, err := envService.GetEnvDataAndObjects(filterFunc)
+func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeService, client Client) (*EnvAndObjectsManager, []OperationSet, error) {
+	objectManager, err := envService.GetEnvDataAndObjects()
 	if err != nil {
-		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
+		return objectManager, nil, errors.Wrap(err, "getting environment data and objects failed")
 	}
 
-	operationSets := []OperationSet{NewOperationSet(c.method, objects)}
+	operationSets := []OperationSet{NewOperationSet(c.method, objectManager.GetObjects(c.filterFunc))}
 	object, shouldBeAdded := envService.AdditionalObject()
 	if len(object) > 0 {
 		action := c.method
@@ -111,13 +114,7 @@ func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeServi
 	}
 
 	sort.Sort(environment.ByKind(operationSets[0].Objects))
-	return env, operationSets, nil
-}
-
-func (c *commonNamespaceAction) Filter() FilterFunc {
-	return func(objects environment.Object) bool {
-		return true
-	}
+	return objectManager, operationSets, nil
 }
 
 func (c *commonNamespaceAction) ForceMasterTokenGlobally() bool {
@@ -186,12 +183,17 @@ func (c *CreateAction) HealingStrategy() HealingFuncGenerator {
 	}
 }
 
-func NewCreateAction(tenantRepo tenant.Repository, actionOpts *ActionOptions) *CreateAction {
+func NewCreateAction(tenantRepo tenant.Repository, requestCtx context.Context, actionOpts *ActionOptions) *CreateAction {
 	return &CreateAction{
 		commonNamespaceAction: &commonNamespaceAction{
 			method:        http.MethodPost,
 			tenantRepo:    tenantRepo,
-			actionOptions: actionOpts},
+			actionOptions: actionOpts,
+			requestCtx:    requestCtx,
+			filterFunc: func(objects environment.Object) bool {
+				return true
+			},
+		},
 	}
 }
 
@@ -207,13 +209,14 @@ func (c *CreateAction) GetNamespaceEntity(nsTypeService EnvironmentTypeService) 
 
 func (c *CreateAction) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
 	state := tenant.Ready
+	namespace.Version = env.Version()
 	if failed {
 		state = tenant.Failed
 	}
 	namespace.UpdateData(env, cluster, state)
 	err := c.tenantRepo.SaveNamespace(namespace)
 	if err != nil {
-		sentry.LogError(nil, map[string]interface{}{
+		sentry.LogError(c.requestCtx, map[string]interface{}{
 			"env_type": env.EnvType,
 			"cluster":  cluster.APIURL,
 			"tenant":   namespace.TenantID,
@@ -227,16 +230,27 @@ func (c *CreateAction) ForceMasterTokenGlobally() bool {
 }
 
 func (c *CreateAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
-	return c.getOperationSets(envService, client, c.Filter())
+	envAndObjectsManager, sets, err := c.getOperationSets(envService, client)
+	if err != nil {
+		return nil, sets, err
+	}
+	return envAndObjectsManager.EnvData, sets, nil
 }
 
-func NewDeleteAction(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, deleteOpts *DeleteActionOption) *DeleteAction {
+func NewDeleteAction(tenantRepo tenant.Repository, requestCtx context.Context, existingNamespaces []*tenant.Namespace, deleteOpts *DeleteActionOption) *DeleteAction {
+	filterFunc := isOfKind(AllToGetAndDelete...)
+	if deleteOpts.removeFromCluster {
+		filterFunc = isOfKind(environment.ValKindProjectRequest)
+	}
+
 	return &DeleteAction{
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			commonNamespaceAction: &commonNamespaceAction{
 				method:        http.MethodDelete,
 				tenantRepo:    tenantRepo,
 				actionOptions: deleteOpts.ActionOptions,
+				requestCtx:    requestCtx,
+				filterFunc:    filterFunc,
 			},
 			existingNamespaces: existingNamespaces,
 		},
@@ -262,7 +276,7 @@ func (d *DeleteAction) UpdateNamespace(env *environment.EnvData, cluster *cluste
 		err = d.tenantRepo.DeleteNamespace(namespace)
 	}
 	if err != nil {
-		sentry.LogError(nil, map[string]interface{}{
+		sentry.LogError(d.requestCtx, map[string]interface{}{
 			"env_type":            env.EnvType,
 			"cluster":             cluster.APIURL,
 			"tenant":              namespace.TenantID,
@@ -272,13 +286,6 @@ func (d *DeleteAction) UpdateNamespace(env *environment.EnvData, cluster *cluste
 	}
 }
 
-func (d *DeleteAction) Filter() FilterFunc {
-	if d.deleteOptions.removeFromCluster {
-		return isOfKind(environment.ValKindProjectRequest)
-	}
-	return isOfKind(AllToGetAndDelete...)
-}
-
 var AllToGetAndDelete = []string{environment.ValKindService, environment.ValKindPod, environment.ValKindReplicationController, environment.ValKindDaemonSet,
 	environment.ValKindDeployment, environment.ValKindReplicaSet, environment.ValKindStatefulSet, environment.ValKindJob,
 	environment.ValKindHorizontalPodAutoScaler, environment.ValKindCronJob, environment.ValKindDeploymentConfig,
@@ -286,16 +293,17 @@ var AllToGetAndDelete = []string{environment.ValKindService, environment.ValKind
 	environment.ValKindPersistentVolumeClaim, environment.ValKindConfigMap}
 
 func (d *DeleteAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
-	env, toDelete, err := envService.GetEnvDataAndObjects(d.Filter())
+	objectManager, err := envService.GetEnvDataAndObjects()
 	if err != nil {
-		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
+		return objectManager.EnvData, nil, errors.Wrap(err, "getting environment data and objects failed")
 	}
+	toDelete := objectManager.GetObjects(d.filterFunc)
 	var operationSets []OperationSet
 	if !d.deleteOptions.removeFromCluster {
 		var err error
 		toDelete, err = getCleanObjects(client, envService.GetNamespaceName())
 		if err != nil {
-			return env, nil, err
+			return objectManager.EnvData, nil, err
 		}
 		operationSets = append(operationSets, NewOperationSet(http.MethodDelete, toDelete))
 		operationSets = append(operationSets, NewOperationSet(EnsureDeletion, toDelete))
@@ -304,7 +312,7 @@ func (d *DeleteAction) GetOperationSets(envService EnvironmentTypeService, clien
 	}
 
 	sort.Sort(sort.Reverse(environment.ByKind(toDelete)))
-	return env, operationSets, nil
+	return objectManager.EnvData, operationSets, nil
 }
 
 func getCleanObjects(client Client, namespaceName string) (environment.Objects, error) {
@@ -406,13 +414,16 @@ func (d *DeleteAction) HealingStrategy() HealingFuncGenerator {
 	})
 }
 
-func NewUpdateAction(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, actionOpts *ActionOptions) *UpdateAction {
+func NewUpdateAction(tenantRepo tenant.Repository, requestCtx context.Context, existingNamespaces []*tenant.Namespace, actionOpts *ActionOptions) *UpdateAction {
 	return &UpdateAction{
 		withExistingNamespacesAction: &withExistingNamespacesAction{
 			commonNamespaceAction: &commonNamespaceAction{
 				method:        http.MethodPatch,
 				tenantRepo:    tenantRepo,
-				actionOptions: actionOpts},
+				actionOptions: actionOpts,
+				requestCtx:    requestCtx,
+				filterFunc:    isNotOfKind(environment.ValKindProjectRequest),
+			},
 			existingNamespaces: existingNamespaces,
 		},
 	}
@@ -427,14 +438,15 @@ func (u *UpdateAction) GetNamespaceEntity(nsTypeService EnvironmentTypeService) 
 }
 
 func (u *UpdateAction) UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool) {
-	state := tenant.Ready
-	if failed {
-		state = tenant.Failed
+	state := tenant.Failed
+	if !failed {
+		state = tenant.Ready
+		namespace.Version = env.Version()
 	}
 	namespace.UpdateData(env, cluster, state)
 	err := u.tenantRepo.SaveNamespace(namespace)
 	if err != nil {
-		sentry.LogError(nil, map[string]interface{}{
+		sentry.LogError(u.requestCtx, map[string]interface{}{
 			"env_type": env.EnvType,
 			"cluster":  cluster.APIURL,
 			"tenant":   namespace.TenantID,
@@ -443,12 +455,35 @@ func (u *UpdateAction) UpdateNamespace(env *environment.EnvData, cluster *cluste
 	}
 }
 
-func (u *UpdateAction) Filter() FilterFunc {
-	return isNotOfKind(environment.ValKindProjectRequest)
-}
-
 func (u *UpdateAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
-	return u.getOperationSets(envService, client, u.Filter())
+	envAndObjectsManager, sets, err := u.getOperationSets(envService, client)
+	if err != nil {
+		return envAndObjectsManager.EnvData, sets, err
+	}
+	previousVersion := u.getNamespaceFor(envService.GetType()).Version
+	objectsToDelete, err := envAndObjectsManager.GetMissingObjectsComparingWith(previousVersion)
+	if err != nil {
+		sentry.LogError(u.requestCtx, map[string]interface{}{
+			"env_type":         envService.GetType(),
+			"cluster":          client.MasterURL,
+			"namespace-name":   envService.GetNamespaceName(),
+			"previous-version": previousVersion,
+		}, err, "unable to retrieve objects that should be removed from the namespace")
+		return envAndObjectsManager.EnvData, sets, nil
+	}
+	if len(objectsToDelete) > 0 {
+		for index, set := range sets {
+			if set.Method == http.MethodDelete {
+				sets[index].Objects = append(sets[index].Objects, objectsToDelete...)
+				sort.Sort(sort.Reverse(environment.ByKind(sets[index].Objects)))
+				return envAndObjectsManager.EnvData, sets, nil
+			}
+		}
+		deleteSet := NewOperationSet(http.MethodDelete, objectsToDelete)
+		sort.Sort(sort.Reverse(environment.ByKind(deleteSet.Objects)))
+		sets = append(sets, deleteSet)
+	}
+	return envAndObjectsManager.EnvData, sets, nil
 }
 
 func (u *UpdateAction) HealingStrategy() HealingFuncGenerator {

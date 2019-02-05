@@ -153,10 +153,11 @@ func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType en
 		})
 
 	nsTypeService := openshift.NewEnvironmentTypeService(envType, ctx, envService)
-	_, objects, err := nsTypeService.GetEnvDataAndObjects(func(objects environment.Object) bool {
+	envAndObjsMngr, err := nsTypeService.GetEnvDataAndObjects()
+	require.NoError(t, err)
+	objects := envAndObjsMngr.GetObjects(func(objects environment.Object) bool {
 		return true
 	})
-	require.NoError(t, err)
 	return objects
 }
 
