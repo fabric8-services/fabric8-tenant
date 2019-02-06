@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
 )
 
@@ -34,6 +35,13 @@ func (s *ClusterService) GetClusters(ctx context.Context) []cluster.Cluster {
 
 }
 
+func (s *ClusterService) GetUserClusterForType(ctx context.Context, user *auth.User) (cluster.ForType, error) {
+	return func(envType environment.Type) cluster.Cluster {
+		cl, _ := s.GetCluster(ctx, "")
+		return cl
+	}, nil
+}
+
 func (s *ClusterService) Stop() {
 }
 
@@ -54,7 +62,7 @@ func (s *AuthService) GetUser(ctx context.Context) (*auth.User, error) {
 			Cluster:      ptr.String(s.ClusterURL),
 			Username:     ptr.String(s.OpenShiftUsername),
 			Email:        ptr.String(s.OpenShiftUsername + "@redhat.com"),
-			FeatureLevel: ptr.String("internal"),
+			FeatureLevel: ptr.String(auth.InternalFeatureLevel),
 		},
 	}, nil
 }

@@ -1,12 +1,13 @@
 package update
 
 import (
+	"context"
 	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/jinzhu/gorm"
@@ -15,11 +16,15 @@ import (
 
 type followUpFunc func() error
 
+type Executor interface {
+	Update(ctx context.Context, dbTenant *tenant.Tenant, user *auth.User, envTypes []environment.Type, allowSelfHealing bool) error
+}
+
 func NewTenantsUpdater(
 	db *gorm.DB,
 	config *configuration.Data,
 	clusterService cluster.Service,
-	updateExecutor openshift.UpdateExecutor,
+	updateExecutor Executor,
 	filterEnvType FilterEnvType,
 	limitToCluster string) *TenantsUpdater {
 
@@ -37,7 +42,7 @@ type TenantsUpdater struct {
 	db             *gorm.DB
 	config         *configuration.Data
 	clusterService cluster.Service
-	updateExecutor openshift.UpdateExecutor
+	updateExecutor Executor
 	filterEnvType  FilterEnvType
 	limitToCluster string
 }
@@ -284,81 +289,53 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 			break
 		}
 
-		u.updateTenant(tnnt, tenantRepo, typesWithVersion)
+		updateTenant(u.updateExecutor, tnnt, typesWithVersion, u.db)
 		time.Sleep(u.config.GetAutomatedUpdateTimeGap())
 	}
 	return canContinue, err
 }
 
-func (u *TenantsUpdater) updateTenant(tnnt *tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) {
-
-	namespaces, err := tenantRepo.GetNamespaces(tnnt.ID)
+func updateTenant(updateExecutor Executor, tnnt *tenant.Tenant, typesWithVersion map[environment.Type]string, db *gorm.DB) {
+	namespaces, err := tenant.NewTenantRepository(db, tnnt.ID).GetNamespaces()
 	if err != nil {
 		sentry.LogError(nil, map[string]interface{}{
 			"err":    err,
 			"tenant": tnnt.ID,
-		}, err, "unable to get tenant namespaces when doing automated update")
+		}, err, "unable to get current tenant namespaces during cluster-wide update")
 		return
 	}
 
+	var envTypesToUpdate []environment.Type
+	var nsNamesToUpdate []string
 	for envType, version := range typesWithVersion {
-		var namespace *tenant.Namespace
 		for _, ns := range namespaces {
 			if ns.Type == envType && (ns.Version != version || ns.State == tenant.Failed) {
-				namespace = ns
+				envTypesToUpdate = append(envTypesToUpdate, envType)
+				nsNamesToUpdate = append(nsNamesToUpdate, ns.Name)
 				break
 			}
 		}
-		if namespace == nil {
-			continue
-		}
-
-		userCluster, err := u.clusterService.GetCluster(nil, namespace.MasterURL)
-		if err != nil {
-			sentry.LogError(nil, map[string]interface{}{
-				"err":         err,
-				"cluster_url": namespace.MasterURL,
-				"tenant":      tnnt.ID,
-				"env_type":    envType,
-			}, err, "unable to fetch cluster when doing automated update")
-			return
-		}
-
-		log.Info(nil, map[string]interface{}{
-			"os_user":            tnnt.OSUsername,
-			"tenant_id":          tnnt.ID,
-			"env_type_to_update": envType,
-			"namespace_name":     namespace.Name,
-		}, "starting update of tenant for outdated namespace")
-
-		osConfig := openshift.NewConfig(u.config, emptyTemplateRepoInfoSetter, userCluster.User, userCluster.Token, userCluster.APIURL)
-		err = openshift.UpdateTenant(u.updateExecutor, nil, tenantRepo, osConfig, tnnt, "", false, envType)
-		if err != nil {
-			err = dbsupport.Transaction(u.db, lock(func(repo Repository) error {
-				return repo.IncrementFailedCount()
-			}))
-			if err != nil {
-				sentry.LogError(nil, map[string]interface{}{}, err, "unable to increment failed_count")
-			}
-			sentry.LogError(nil, map[string]interface{}{
-				"os_user":            tnnt.OSUsername,
-				"tenant_id":          tnnt.ID,
-				"env_type_to_update": envType,
-				"namespace_name":     namespace.Name,
-			}, err, "unable to automatically update tenant")
-		}
-
-		log.Info(nil, map[string]interface{}{
-			"os_user":            tnnt.OSUsername,
-			"tenant_id":          tnnt.ID,
-			"env_type_to_update": envType,
-			"namespace_name":     namespace.Name,
-		}, "update of tenant for outdated namespace finished")
 	}
-}
 
-var emptyTemplateRepoInfoSetter openshift.TemplateRepoInfoSetter = func(config openshift.Config) openshift.Config {
-	return config
+	logParams := map[string]interface{}{
+		"os_user":            tnnt.OSUsername,
+		"tenant_id":          tnnt.ID,
+		"ns_names_to_update": nsNamesToUpdate,
+	}
+	log.Info(nil, logParams, "starting update of tenant for outdated namespaces")
+	err = updateExecutor.Update(nil, tnnt, nil, envTypesToUpdate, false)
+
+	if err != nil {
+		errIncr := dbsupport.Transaction(db, lock(func(repo Repository) error {
+			return repo.IncrementFailedCount()
+		}))
+		if errIncr != nil {
+			sentry.LogError(nil, map[string]interface{}{}, errIncr, "unable to increment failed_count")
+		}
+		sentry.LogError(nil, logParams, err, "unable to automatically update tenant")
+	} else {
+		log.Info(nil, logParams, "update of tenant for outdated namespace finished")
+	}
 }
 
 func checkVersions(tu *TenantsUpdate) ([]environment.Type, error) {

@@ -2,10 +2,11 @@ package environment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/environment/generated"
 	"github.com/fabric8-services/fabric8-tenant/utils"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -83,12 +84,34 @@ type Service struct {
 	templatesRepoDir  string
 }
 
-func NewService(templatesRepo, templatesRepoBlob, templatesRepoDir string) *Service {
-	return &Service{
-		templatesRepo:     templatesRepo,
-		templatesRepoBlob: templatesRepoBlob,
-		templatesRepoDir:  templatesRepoDir,
+func NewService() *Service {
+	return &Service{}
+}
+
+func NewServiceForUserData(user *authclient.UserDataAttributes) *Service {
+	service := NewService()
+	if user != nil {
+		if user.FeatureLevel != nil && *user.FeatureLevel != auth.InternalFeatureLevel {
+			return service
+		}
+		userContext := user.ContextInformation
+		if tc, found := userContext["tenantConfig"]; found {
+			if tenantConfig, ok := tc.(map[string]interface{}); ok {
+				find := func(key string) string {
+					if rawValue, found := tenantConfig[key]; found {
+						if value, ok := rawValue.(string); ok {
+							return value
+						}
+					}
+					return ""
+				}
+				service.templatesRepo = find("templatesRepo")
+				service.templatesRepoBlob = find("templatesRepoBlob")
+				service.templatesRepoDir = find("templatesRepoDir")
+			}
+		}
 	}
+	return service
 }
 
 type EnvData struct {
@@ -96,17 +119,20 @@ type EnvData struct {
 	Templates Templates
 }
 
+func (e *EnvData) Version() string {
+	return e.Templates.ConstructCompleteVersion()
+}
+
 func (s *Service) GetEnvData(ctx context.Context, envType Type) (*EnvData, error) {
-	var templates []*Template
+	var templates Templates
 	var mappedTemplates = RetrieveMappedTemplates()
+	templates = mappedTemplates[envType]
+
 	if envType == TypeChe {
-		templates = mappedTemplates[envType]
 		err := getCheParams(ctx, templates[0].DefaultParams)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		templates = mappedTemplates[envType]
 	}
 
 	err := s.retrieveTemplates(templates)
@@ -126,10 +152,9 @@ func getCheParams(ctx context.Context, defaultParams map[string]string) error {
 		if token != nil {
 			defaultParams["OSIO_TOKEN"] = token.Raw
 			id := token.Claims.(jwt.MapClaims)["sub"]
-			if id == nil {
-				return errors.New("missing sub in JWT token")
+			if id != nil {
+				defaultParams["IDENTITY_ID"] = id.(string)
 			}
-			defaultParams["IDENTITY_ID"] = id.(string)
 		}
 		defaultParams["REQUEST_ID"] = log.ExtractRequestID(ctx)
 	}

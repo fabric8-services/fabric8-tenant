@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/dbsupport"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
-	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/update"
 	"github.com/goadesign/goa"
@@ -25,11 +24,11 @@ type UpdateController struct {
 	db             *gorm.DB
 	config         *configuration.Data
 	clusterService cluster.Service
-	updateExecutor openshift.UpdateExecutor
+	updateExecutor update.Executor
 }
 
 // NewUpdateController creates a update controller.
-func NewUpdateController(service *goa.Service, db *gorm.DB, config *configuration.Data, clusterService cluster.Service, updateExecutor openshift.UpdateExecutor) *UpdateController {
+func NewUpdateController(service *goa.Service, db *gorm.DB, config *configuration.Data, clusterService cluster.Service, updateExecutor update.Executor) *UpdateController {
 	return &UpdateController{
 		Controller:     service.NewController("UpdateController"),
 		db:             db,

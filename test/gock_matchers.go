@@ -5,8 +5,20 @@ import (
 	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	"github.com/fabric8-services/fabric8-common/log"
 	"gopkg.in/h2non/gock.v1"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net/http"
+	"strings"
 )
+
+const ClusterURL = "http://api.cluster1"
+
+func Normalize(url string) string {
+	if !strings.HasSuffix(url, "/") {
+		return url + "/"
+	}
+	return url
+}
 
 func ExpectRequest(matchers ...gock.MatchFunc) gock.Matcher {
 	return createReqMatcher(matchers)
@@ -32,6 +44,16 @@ func createReqMatcher(matchers []gock.MatchFunc) gock.Matcher {
 	return matcher
 }
 
+func HasBearerWithSub(sub string) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
+		authHeader, ok := req.Header["Authorization"]
+		if ok && len(authHeader) == 1 && strings.HasPrefix(authHeader[0], "Bearer ") {
+			return authHeader[0][7:] == sub, nil
+		}
+		return false, nil
+	}
+}
+
 func HasJWTWithSub(sub string) gock.MatchFunc {
 	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
 		// look-up the JWT's "sub" claim and compare with the request
@@ -52,6 +74,22 @@ func HasJWTWithSub(sub string) gock.MatchFunc {
 		}, "comparing `sub` headers")
 
 		return claims["sub"] == sub, nil
+	}
+}
+
+func HasBodyContainingObject(object map[interface{}]interface{}) gock.MatchFunc {
+	return func(req *http.Request, gockReq *gock.Request) (bool, error) {
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"body": string(body)}, err.Error())
+			return false, err
+		}
+		expBody, err := yaml.Marshal(object)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"object": object}, err.Error())
+			return false, err
+		}
+		return string(body) == string(expBody), nil
 	}
 }
 

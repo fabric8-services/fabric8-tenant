@@ -7,8 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-common/convert/ptr"
+	"github.com/fabric8-services/fabric8-tenant/auth"
+	authclient "github.com/fabric8-services/fabric8-tenant/auth/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
+	"github.com/fabric8-services/fabric8-tenant/environment"
 	testsupport "github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/recorder"
@@ -144,5 +148,27 @@ func TestGetClusters(t *testing.T) {
 				assert.Equal(t, 2, result)
 			}
 		})
+	})
+
+	t.Run("get cluster for user mapped by type", func(t *testing.T) {
+		// given
+		clusterService := cluster.NewClusterService(time.Hour, authService)
+		err := clusterService.Start()
+		require.NoError(t, err)
+		defer clusterService.Stop()
+		user := &auth.User{UserData: &authclient.UserDataAttributes{
+			Cluster: ptr.String("http://api.cluster1/"),
+		}}
+		// when
+		clusterForType, err := clusterService.GetUserClusterForType(context.Background(), user)
+		// then
+		assert.NoError(t, err)
+		for _, envType := range environment.DefaultEnvTypes {
+			assert.Equal(t, "http://api.cluster1/", clusterForType(envType).APIURL)
+			assert.Equal(t, "foo", clusterForType(envType).AppDNS)
+			assert.Equal(t, "http://console.cluster1/console/", clusterForType(envType).ConsoleURL)
+			assert.Equal(t, "http://metrics.cluster1/", clusterForType(envType).MetricsURL)
+			assert.Equal(t, "http://logging.cluster1/", clusterForType(envType).LoggingURL)
+		}
 	})
 }

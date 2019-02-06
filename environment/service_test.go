@@ -53,7 +53,7 @@ items:
 
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
-	service := environment.NewService("", "", "")
+	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("", "", ""))
 	testdoubles.SetTemplateVersions()
 	vars := map[string]string{
 		"USER_NAME": "dev",
@@ -107,7 +107,7 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 	// given
 	testdoubles.SetTemplateVersions()
-	service := environment.NewService("", "", "")
+	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("", "", ""))
 	vars := map[string]string{
 		"USER_NAME": "dev",
 	}
@@ -140,7 +140,7 @@ func TestAllTemplatesHaveNecessaryData(t *testing.T) {
 func XTestDownloadFromExistingLocation(t *testing.T) {
 	// given
 	testdoubles.SetTemplateVersions()
-	service := environment.NewService("", "29541ca", "")
+	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("", "29541ca", ""))
 	vars := map[string]string{
 		"USER_NAME": "dev",
 	}
@@ -170,7 +170,7 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 		Reply(200).
 		BodyString(defaultLocationTempl)
 	testdoubles.SetTemplateVersions()
-	service := environment.NewService("", "987654321", "")
+	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("", "987654321", ""))
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "run")
@@ -199,7 +199,7 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 		Reply(200).
 		BodyString(customLocationQuotas)
 	testdoubles.SetTemplateVersions()
-	service := environment.NewService("http://github.com/my-services/my-tenant", "987cba", "any/path")
+	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("http://github.com/my-services/my-tenant", "987cba", "any/path"))
 
 	// when
 	envData, err := service.GetEnvData(context.Background(), "jenkins")

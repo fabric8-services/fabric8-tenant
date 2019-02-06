@@ -109,6 +109,7 @@ func getMigrations() migrations {
 	m = append(m, steps{executeSQLFile("006-add-ns-base-name-column-to-tenant.sql")})
 	m = append(m, steps{executeSQLFile("007-create-tenants-update-table.sql")})
 	m = append(m, steps{executeSQLFile("008-add-can-continue-column-to-tenants-update.sql")})
+	m = append(m, steps{executeSQLFile("009-index-namespace-name.sql")})
 
 	// Version N
 	//

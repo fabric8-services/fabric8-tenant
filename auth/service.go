@@ -22,6 +22,8 @@ import (
 	"net/http"
 )
 
+const InternalFeatureLevel = "internal"
+
 type Service interface {
 	GetUser(ctx context.Context) (*User, error)
 	GetAuthURL() string

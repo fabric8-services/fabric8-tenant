@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
@@ -36,9 +37,9 @@ func TestUpdateController(t *testing.T) {
 
 func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
-	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(), 9*time.Minute)
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 9*time.Minute)
 	defer reset()
 
 	s.T().Run("Unauhorized - no token", func(t *testing.T) {
@@ -87,16 +88,20 @@ func (s *UpdateControllerTestSuite) TestStartUpdateFailures() {
 
 func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1", "http://api.cluster2")
-	updateExecutor := testupdate.NewDummyUpdateExecutor()
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL, "http://api.cluster2")
+	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	svc, ctrl, reset := s.newUpdateController(updateExecutor, 0)
 	defer reset()
 	testdoubles.SetTemplateVersions()
 
 	s.T().Run("without parameter", func(t *testing.T) {
-		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
-		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
+		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
+		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster2/")
+		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL(test.ClusterURL).Outdated())
+		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
 		configuration.Commit = "124abcd"
 		before := time.Now()
 
@@ -112,32 +117,45 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 
 		// then
 		err := test.WaitWithTimeout(10 * time.Second).Until(func() error {
-			if int(*updateExecutor.NumberOfCalls) != 60 {
-				return fmt.Errorf("expeced number of calls 60 wasn't fullfiled - actual: %d", int(*updateExecutor.NumberOfCalls))
+			if int(*updateExecutor.NumberOfCalls) != 12 {
+				return fmt.Errorf("expeced number of calls 12 wasn't fullfiled - actual: %d", int(*updateExecutor.NumberOfCalls))
+			}
+			tenantsUpdate, err := update.NewRepository(s.DB).GetTenantsUpdate()
+			if err != nil {
+				return err
+			}
+			if tenantsUpdate.Status != update.Finished {
+				return fmt.Errorf("the update hasn't finished yet")
 			}
 			return nil
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, 60, int(*updateExecutor.NumberOfCalls))
+		assert.Equal(t, 12, int(*updateExecutor.NumberOfCalls))
 		testupdate.AssertStatusAndAllVersionAreUpToDate(t, s.DB, update.Finished, update.AllTypes)
 		for _, tnnts := range [][]*tenant.Tenant{fxt1.Tenants, fxt2.Tenants} {
 			for _, tnnt := range tnnts {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+				namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
-					assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-					assert.Equal(t, "124abcd", ns.UpdatedBy)
-					assert.Equal(t, tenant.Ready, ns.State)
-					assert.True(t, before.Before(ns.UpdatedAt))
+					assertion.AssertNamespace(t, ns).
+						HasState(tenant.Ready).
+						HasVersion(environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion()).
+						HasUpdatedBy("124abcd").
+						WasUpdatedAfter(before)
 				}
 			}
 		}
 	})
 
 	s.T().Run("with parameters", func(t *testing.T) {
+		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
 		updateExecutor.NumberOfCalls = ptr.Uint64(0)
-		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1").Outdated())
-		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2").Outdated())
+		fxt1 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster1/").Outdated())
+		fxt2 := tf.FillDB(t, s.DB, tf.AddTenants(6),
+			tf.AddDefaultNamespaces().State(tenant.Ready).MasterURL("http://api.cluster2/").Outdated())
+
+		testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster1/")
 		configuration.Commit = "xyz"
 		before := time.Now()
 
@@ -146,7 +164,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 		})
 
 		// when
-		goatest.StartUpdateAccepted(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, ptr.String("http://api.cluster1"), ptr.String("jenkins"))
+		goatest.StartUpdateAccepted(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, ptr.String("http://api.cluster1/"), ptr.String("jenkins"))
 
 		// then
 		err := test.WaitWithTimeout(10 * time.Second).Until(func() error {
@@ -160,18 +178,22 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 		testupdate.AssertStatusAndAllVersionAreUpToDate(t, s.DB, update.Incomplete, update.AllTypes)
 		for _, tnnts := range [][]*tenant.Tenant{fxt1.Tenants, fxt2.Tenants} {
 			for _, tnnt := range tnnts {
-				namespaces, err := tenant.NewDBService(s.DB).GetNamespaces(tnnt.ID)
+				namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
-					assert.Equal(t, tenant.Ready, ns.State)
-					if ns.MasterURL == "http://api.cluster1" && ns.Type == environment.TypeJenkins {
-						assert.Equal(t, environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion(), ns.Version)
-						assert.Equal(t, "xyz", ns.UpdatedBy)
-						assert.True(t, before.Before(ns.UpdatedAt))
+					assert.Equal(t, tenant.Ready.String(), ns.State.String())
+					if ns.MasterURL == "http://api.cluster1/" && ns.Type == environment.TypeJenkins {
+						assertion.AssertNamespace(t, ns).
+							HasState(tenant.Ready).
+							HasVersion(environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion()).
+							HasUpdatedBy("xyz").
+							WasUpdatedAfter(before)
 					} else {
-						assert.Equal(t, "0000", ns.Version)
-						assert.Equal(t, "124abcd", ns.UpdatedBy)
-						assert.True(t, before.After(ns.UpdatedAt))
+						assertion.AssertNamespace(t, ns).
+							HasState(tenant.Ready).
+							HasVersion("0000").
+							HasUpdatedBy("124abcd").
+							WasUpdatedBefore(before)
 					}
 				}
 			}
@@ -181,9 +203,9 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 
 func (s *UpdateControllerTestSuite) TestShowUpdateFailures() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
-	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(), 0)
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 0)
 	defer reset()
 
 	s.T().Run("Unauhorized - no token", func(t *testing.T) {
@@ -220,9 +242,9 @@ func (s *UpdateControllerTestSuite) TestShowUpdateFailures() {
 
 func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
-	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(), 0)
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 0)
 	defer reset()
 	testdoubles.SetTemplateVersions()
 	versionManagers := update.RetrieveVersionManagers()
@@ -251,7 +273,7 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 
 			// when
 			_, updateData := goatest.ShowUpdateOK(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl,
-				ptr.String("http://api.cluster1/"), ptr.String("user"))
+				ptr.String(test.Normalize(test.ClusterURL)), ptr.String("user"))
 
 			// then
 			assert.Equal(t, status, *updateData.Data.Status)
@@ -277,9 +299,9 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 
 func (s *UpdateControllerTestSuite) TestStopUpdateFailures() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
-	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(), 0)
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+	svc, ctrl, reset := s.newUpdateController(testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration), 0)
 	defer reset()
 
 	s.T().Run("Unauhorized - no token", func(t *testing.T) {
@@ -305,9 +327,10 @@ func (s *UpdateControllerTestSuite) TestStopUpdateFailures() {
 
 func (s *UpdateControllerTestSuite) TestStopUpdateOk() {
 	// given
-	defer gock.Off()
-	testdoubles.MockCommunicationWithAuth("http://api.cluster1")
-	updateExecutor := testupdate.NewDummyUpdateExecutor()
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
+	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
 	updateExecutor.TimeToSleep = time.Second
 	svc, ctrl, reset := s.newUpdateController(updateExecutor, 0)
 	defer reset()
@@ -369,9 +392,11 @@ func (s *UpdateControllerTestSuite) newUpdateController(executor *testupdate.Dum
 	resetEnvs := test.SetEnvironments(
 		test.Env("F8_AUTH_TOKEN_KEY", "foo"),
 		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()),
+		test.Env("F8_API_SERVER_USE_TLS", "false"),
 		test.Env("F8_AUTOMATED_UPDATE_TIME_GAP", "0"))
 	clusterService, _, config, reset := prepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
+	executor.ClusterService = clusterService
 	return svc, controller.NewUpdateController(svc, s.DB, config, clusterService, executor), func() {
 		resetEnvs()
 		reset()

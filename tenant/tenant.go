@@ -1,12 +1,18 @@
 package tenant
 
 import (
-	"strings"
 	"time"
 
 	"database/sql/driver"
+	"github.com/fabric8-services/fabric8-tenant/cluster"
+	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/satori/go.uuid"
+)
+
+const (
+	tenantTableName    = "tenants"
+	namespaceTableName = "namespaces"
 )
 
 // Tenant is the owning OpenShift account
@@ -24,7 +30,7 @@ type Tenant struct {
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m Tenant) TableName() string {
-	return "tenants"
+	return tenantTableName
 }
 
 // Namespace represent a single namespace owned by an Tenant
@@ -42,33 +48,29 @@ type Namespace struct {
 	UpdatedBy string
 }
 
+func ConstructNamespaceName(envType environment.Type, nsBaseName string) string {
+	nsName := nsBaseName
+	if envType != environment.TypeUser {
+		nsName = nsName + "-" + envType.String()
+	}
+	return nsName
+}
+
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m Namespace) TableName() string {
-	return "namespaces"
+	return namespaceTableName
 }
 
-// GetNamespaceType attempts to extract the namespace type based on namespace name
-func GetNamespaceType(name, nsBaseName string) environment.Type {
-	if name == nsBaseName {
-		return environment.TypeUser
+func (n *Namespace) UpdateData(env *environment.EnvData, cluster *cluster.Cluster, state NamespaceState) {
+	if n.Name == "" {
+		n.Name = string(env.EnvType)
 	}
-	if strings.HasSuffix(name, "-jenkins") {
-		return environment.TypeJenkins
-	}
-	if strings.HasSuffix(name, "-che") {
-		return environment.TypeChe
-	}
-	if strings.HasSuffix(name, "-test") {
-		return environment.TypeTest
-	}
-	if strings.HasSuffix(name, "-stage") {
-		return environment.TypeStage
-	}
-	if strings.HasSuffix(name, "-run") {
-		return environment.TypeRun
-	}
-	return environment.TypeCustom
+	n.State = state
+	n.Version = env.Version()
+	n.MasterURL = cluster.APIURL
+	n.Type = env.EnvType
+	n.UpdatedBy = configuration.Commit
 }
 
 type NamespaceState string
