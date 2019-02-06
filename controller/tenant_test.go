@@ -42,7 +42,7 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 	s.T().Run("OK", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
-		fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(10), tf.AddDefaultNamespaces())
+		fxt := tf.FillDB(t, s.DB, tf.AddTenants(10), tf.AddDefaultNamespaces())
 		// when
 		_, tnnt := apptest.ShowTenantOK(t, createAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
 		// then
