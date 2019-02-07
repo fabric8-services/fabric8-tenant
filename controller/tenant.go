@@ -109,7 +109,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	return ctx.NoContent()
 }
 
-func GetClusterMapping(ctx context.Context, clusterService cluster.Service, namespaces []*tenant.Namespace) (cluster.ForType, error) {
+func GetClusterMapping(ctx context.Context, clusterService cluster.Service, namespaces []*tenant.Namespace) (cluster.ForEnvType, error) {
 	clusterMapping := map[environment.Type]cluster.Cluster{}
 	for _, namespace := range namespaces {
 		// fetch the cluster info
@@ -123,7 +123,7 @@ func GetClusterMapping(ctx context.Context, clusterService cluster.Service, name
 		}
 		clusterMapping[namespace.Type] = clustr
 	}
-	return cluster.ForTypeMapping(clusterMapping), nil
+	return cluster.ForEnvTypeMapping(clusterMapping), nil
 }
 
 // Setup runs the setup action.
@@ -340,7 +340,7 @@ func (c *TenantController) getOrInitTenant(ctx context.Context, user *auth.User)
 }
 
 func (c *TenantController) createNamespaces(ctx context.Context, envTypes []environment.Type, user *auth.User, dbTenant *tenant.Tenant) error {
-	clusterNsMapping, err := c.clusterService.GetUserClusterForType(ctx, user)
+	clusterNsMapping, err := c.clusterService.GetUserClusterForEnvType(ctx, user)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -377,7 +377,7 @@ func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, 
 	return dbTenant, nil
 }
 
-func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User, nsBaseName string, clusterNsMapping cluster.ForType) *openshift.ServiceBuilder {
+func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.User, nsBaseName string, clusterNsMapping cluster.ForEnvType) *openshift.ServiceBuilder {
 	nsRepo := c.tenantService.NewTenantRepository(user.ID)
 
 	envService := environment.NewServiceForUserData(user.UserData)

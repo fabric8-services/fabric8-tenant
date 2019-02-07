@@ -102,7 +102,7 @@ var defaultClusterToken, _ = test.NewToken(
 )
 var DefaultClusterMapping = SingleClusterMapping("http://api.cluster1/", "clusterUser", defaultClusterToken.Raw)
 
-func SingleClusterMapping(url, user, token string) cluster.ForType {
+func SingleClusterMapping(url, user, token string) cluster.ForEnvType {
 	return func(envType environment.Type) cluster.Cluster {
 		return cluster.Cluster{
 			APIURL: url,
@@ -144,7 +144,7 @@ var DefaultUserInfo = UserInfo{
 	NsBaseName:  "developer",
 }
 
-func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type, clusterMapping cluster.ForType, userInfo UserInfo) environment.Objects {
+func SingleTemplatesObjects(t *testing.T, config *configuration.Data, envType environment.Type, clusterMapping cluster.ForEnvType, userInfo UserInfo) environment.Objects {
 	envService := environment.NewService()
 
 	ctx := openshift.NewServiceContext(
@@ -164,7 +164,7 @@ func SingleTemplatesObjectsWithDefaults(t *testing.T, config *configuration.Data
 	return SingleTemplatesObjects(t, config, envType, DefaultClusterMapping, DefaultUserInfo)
 }
 
-func RetrieveObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForType, userInfo UserInfo, envTypes ...environment.Type) environment.Objects {
+func RetrieveObjects(t *testing.T, config *configuration.Data, clusterMapping cluster.ForEnvType, userInfo UserInfo, envTypes ...environment.Type) environment.Objects {
 	var objs environment.Objects
 	for _, envType := range envTypes {
 		objects := SingleTemplatesObjects(t, config, envType, clusterMapping, userInfo)

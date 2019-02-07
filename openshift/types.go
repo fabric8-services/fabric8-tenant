@@ -65,7 +65,7 @@ func (t *CommonEnvTypeService) GetEnvDataAndObjects(filter FilterFunc) (*environ
 
 func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter FilterFunc) (environment.Objects, error) {
 	var objs environment.Objects
-	cluster := t.context.clusterForType(t.name)
+	cluster := t.context.clusterForEnvType(t.name)
 	vars := environment.CollectVars(t.context.openShiftUsername, t.context.nsBaseName, cluster.User, t.context.config)
 
 	for _, template := range env.Templates {
@@ -87,7 +87,7 @@ func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter Filte
 }
 
 func (t *CommonEnvTypeService) GetCluster() cluster.Cluster {
-	return t.context.clusterForType(t.name)
+	return t.context.clusterForEnvType(t.name)
 }
 
 func (t *CommonEnvTypeService) AfterCallback(client *Client, action string) error {

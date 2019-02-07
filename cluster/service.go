@@ -31,14 +31,14 @@ type Cluster struct {
 // GetCluster returns a cluster for the given target if it is one of the clusters assigned to the user stored in the given context, error otherwise
 type GetCluster func(ctx context.Context, target string) (Cluster, error)
 
-// ForType returns a cluster assigned for the given environment type
-type ForType func(envType environment.Type) Cluster
+// ForEnvType returns a cluster assigned for the given environment type
+type ForEnvType func(envType environment.Type) Cluster
 
 // Service the interface for the cluster service
 type Service interface {
 	GetCluster(ctx context.Context, target string) (Cluster, error)
 	GetClusters(ctx context.Context) []Cluster
-	GetUserClusterForType(ctx context.Context, user *auth.User) (ForType, error)
+	GetUserClusterForEnvType(ctx context.Context, user *auth.User) (ForEnvType, error)
 	Start() error
 	Stop()
 }
@@ -93,9 +93,9 @@ func (s *clusterService) Start() error {
 	return nil
 }
 
-// GetUserClusterForType retrieves all clusters assigned to the user represented by the given context and maps it by environment types,
+// GetUserClusterForEnvType retrieves all clusters assigned to the user represented by the given context and maps it by environment types,
 // the function returned by this method represents this cluster-environment-type mapping
-func (s *clusterService) GetUserClusterForType(ctx context.Context, user *auth.User) (ForType, error) {
+func (s *clusterService) GetUserClusterForEnvType(ctx context.Context, user *auth.User) (ForEnvType, error) {
 	cluster, err := s.GetCluster(ctx, *user.UserData.Cluster)
 	if err != nil {
 		return nil, err
@@ -106,8 +106,8 @@ func (s *clusterService) GetUserClusterForType(ctx context.Context, user *auth.U
 	}, nil
 }
 
-// ForTypeMapping takes the given map and wraps it by the ForType function that returns values from the map based on the keys
-func ForTypeMapping(mapping map[environment.Type]Cluster) ForType {
+// ForEnvTypeMapping takes the given map and wraps it by the ForEnvType function that returns values from the map based on the keys
+func ForEnvTypeMapping(mapping map[environment.Type]Cluster) ForEnvType {
 	return func(envType environment.Type) Cluster {
 		return mapping[envType]
 	}

@@ -160,7 +160,7 @@ func TestGetClusters(t *testing.T) {
 			Cluster: ptr.String("http://api.cluster1/"),
 		}}
 		// when
-		clusterForType, err := clusterService.GetUserClusterForType(context.Background(), user)
+		clusterForType, err := clusterService.GetUserClusterForEnvType(context.Background(), user)
 		// then
 		assert.NoError(t, err)
 		for _, envType := range environment.DefaultEnvTypes {

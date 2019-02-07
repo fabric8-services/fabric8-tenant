@@ -30,7 +30,7 @@ func TestEnvironmentTypeService(t *testing.T) {
 	client := openshift.NewClient(nil, "https://starter.com", tokenProducer)
 
 	ctx := openshift.NewServiceContext(
-		context.Background(), config, cluster.ForTypeMapping(clusterMapping), "developer", "developer1", func(cluster cluster.Cluster) string {
+		context.Background(), config, cluster.ForEnvTypeMapping(clusterMapping), "developer", "developer1", func(cluster cluster.Cluster) string {
 			return "userToken"
 		})
 	envService := environment.NewService()

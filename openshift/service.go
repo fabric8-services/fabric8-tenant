@@ -51,17 +51,17 @@ func NewBuilderWithTransport(context *ServiceContext, namespaceRepository tenant
 
 type ServiceContext struct {
 	requestCtx        context.Context
-	clusterForType    cluster.ForType
+	clusterForEnvType cluster.ForEnvType
 	openShiftUsername string
 	userTokenResolver UserTokenResolver
 	config            *configuration.Data
 	nsBaseName        string
 }
 
-func NewServiceContext(callerCtx context.Context, config *configuration.Data, clusterMapping cluster.ForType, openShiftUsername, nsBaseName string, userTokenResolver UserTokenResolver) *ServiceContext {
+func NewServiceContext(callerCtx context.Context, config *configuration.Data, clusterMapping cluster.ForEnvType, openShiftUsername, nsBaseName string, userTokenResolver UserTokenResolver) *ServiceContext {
 	return &ServiceContext{
 		requestCtx:        callerCtx,
-		clusterForType:    clusterMapping,
+		clusterForEnvType: clusterMapping,
 		openShiftUsername: openShiftUsername,
 		userTokenResolver: userTokenResolver,
 		config:            config,

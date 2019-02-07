@@ -35,7 +35,7 @@ func (s *ClusterService) GetClusters(ctx context.Context) []cluster.Cluster {
 
 }
 
-func (s *ClusterService) GetUserClusterForType(ctx context.Context, user *auth.User) (cluster.ForType, error) {
+func (s *ClusterService) GetUserClusterForEnvType(ctx context.Context, user *auth.User) (cluster.ForEnvType, error) {
 	return func(envType environment.Type) cluster.Cluster {
 		cl, _ := s.GetCluster(ctx, "")
 		return cl
