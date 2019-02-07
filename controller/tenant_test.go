@@ -406,16 +406,24 @@ func (s *TenantControllerTestSuite) newTestTenantController() (*goa.Service, *co
 }
 
 func createAndMockUserAndToken(t *testing.T, sub string, internal bool) context.Context {
-	createTokenMock(sub)
-	return createAndMockUser(t, sub, internal)
+	return createAndMockUserAndTokenWithName(t, sub, "johny", internal)
+}
+
+func createAndMockUserAndTokenWithName(t *testing.T, sub, userName string, internal bool) context.Context {
+	createTokenMock(sub, userName)
+	return createAndMockUserWithName(t, sub, userName, internal)
 }
 
 func createAndMockUser(t *testing.T, sub string, internal bool) context.Context {
+	return createAndMockUserWithName(t, sub, "johny", internal)
+}
+
+func createAndMockUserWithName(t *testing.T, sub, userName string, internal bool) context.Context {
 	userToken, err := test.NewToken(
 		map[string]interface{}{
 			"sub":                sub,
-			"preferred_username": "johny",
-			"email":              "johny@redhat.com",
+			"preferred_username": userName,
+			"email":              userName + "@redhat.com",
 		},
 		"../test/private_key.pem",
 	)
@@ -425,11 +433,11 @@ func createAndMockUser(t *testing.T, sub string, internal bool) context.Context 
 		featureLevel = auth.InternalFeatureLevel
 	}
 
-	createUserMock(sub, featureLevel)
+	createUserMock(sub, userName, featureLevel)
 	return goajwt.WithJWT(context.Background(), userToken)
 }
 
-func createUserMock(tenantId string, featureLevel string) {
+func createUserMock(tenantId, userName string, featureLevel string) {
 	gock.New("http://authservice").
 		Get("/api/users/" + tenantId).
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
@@ -439,22 +447,22 @@ func createUserMock(tenantId string, featureLevel string) {
            		"attributes": {
                   "identityID": "%s",
            		  "cluster": "%s",
-           		  "email": "johny@redhat.com",
+           		  "email": "%s@redhat.com",
                   "featureLevel": "%s"
            		}
            	  }
-           	}`, tenantId, test.Normalize(test.ClusterURL), featureLevel))
+           	}`, tenantId, test.Normalize(test.ClusterURL), userName, featureLevel))
 }
-func createTokenMock(tenantId string) {
+func createTokenMock(tenantId, userName string) {
 	gock.New("http://authservice").
 		Get("/api/token").
 		MatchParam("for", test.Normalize(test.ClusterURL)).
 		MatchParam("force_pull", "false").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub(tenantId))).
 		Reply(200).
-		BodyString(`{ 
+		BodyString(fmt.Sprintf(`{ 
       "token_type": "bearer",
-      "username": "johny@redhat.com",
+      "username": "%s@redhat.com",
       "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
-    }`)
+    }`, userName))
 }

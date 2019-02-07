@@ -77,7 +77,7 @@ func (s *TenantControllerParallelTestSuite) verifyTenantCreationWhenNoTenantExis
 	var run sync.WaitGroup
 	run.Add(1)
 
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johny")), tf.AddNamespaces())
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("paralleljohny")), tf.AddNamespaces())
 	id := fxt.Tenants[0].ID
 
 	deleteCalls := 0
@@ -86,17 +86,17 @@ func (s *TenantControllerParallelTestSuite) verifyTenantCreationWhenNoTenantExis
 		SetMatcher(test.SpyOnCalls(&deleteCalls)).
 		Persist().
 		Reply(200)
-	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny.*")
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "paralleljohny.*")
 
 	for i := 0; i < 100; i++ {
-		go func() {
+		go func(service goa.Service, ctrl app.TenantController) {
 			defer wg.Done()
-			ctx := createAndMockUserAndToken(s.T(), id.String(), false)
+			ctx := createAndMockUserAndTokenWithName(s.T(), id.String(), "paralleljohny", false)
 
 			run.Wait()
 			// when
-			when(ctx, service, ctrl)
-		}()
+			when(ctx, &service, ctrl)
+		}(*service, &*ctrl)
 	}
 	run.Done()
 	wg.Wait()
@@ -105,7 +105,7 @@ func (s *TenantControllerParallelTestSuite) verifyTenantCreationWhenNoTenantExis
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
 	assert.Equal(s.T(), 0, deleteCalls)
 	assertion.AssertTenantFromDB(s.T(), s.DB, id).
-		HasNsBaseName("johny").
+		HasNsBaseName("paralleljohny").
 		HasNumberOfNamespaces(5)
 
 }
@@ -147,19 +147,19 @@ func (s *TenantControllerParallelTestSuite) verifyTenantCreationWhenNoTenantExis
 	var tenantIDs []uuid.UUID
 
 	for i := 0; i < 10; i++ {
-		userName := fmt.Sprintf("%djohny", i)
+		userName := fmt.Sprintf("%dparalleljohny", i)
 		id := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName(userName)), tf.AddNamespaces()).Tenants[0].ID
 		tenantIDs = append(tenantIDs, id)
 		testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, userName+".*")
 		for i := 0; i < 10; i++ {
-			go func() {
+			go func(service goa.Service, ctrl app.TenantController) {
 				defer wg.Done()
-				ctx := createAndMockUserAndToken(s.T(), id.String(), false)
+				ctx := createAndMockUserAndTokenWithName(s.T(), id.String(), "paralleljohny", false)
 
 				run.Wait()
 				// when
-				when(ctx, service, ctrl)
-			}()
+				when(ctx, &service, ctrl)
+			}(*service, &*ctrl)
 		}
 	}
 	run.Done()
@@ -170,7 +170,7 @@ func (s *TenantControllerParallelTestSuite) verifyTenantCreationWhenNoTenantExis
 	assert.Equal(s.T(), 0, deleteCalls)
 	for index, id := range tenantIDs {
 		assertion.AssertTenantFromDB(s.T(), s.DB, id).
-			HasNsBaseName(fmt.Sprintf("%djohny", index)).
+			HasNsBaseName(fmt.Sprintf("%paralleljohny", index)).
 			HasNumberOfNamespaces(5)
 	}
 }
