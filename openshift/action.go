@@ -256,41 +256,40 @@ func (d *DeleteAction) Filter() FilterFunc {
 	if d.deleteOptions.removeFromCluster {
 		return isOfKind(environment.ValKindProjectRequest)
 	}
-	return isOfKind(AllKindsToClean...)
+	return isOfKind(AllToGetAndDelete...)
 }
 
-var AllToDeleteAll = []string{environment.ValKindPod, environment.ValKindReplicationController, environment.ValKindDaemonSet,
+var AllToGetAndDelete = []string{environment.ValKindService, environment.ValKindPod, environment.ValKindReplicationController, environment.ValKindDaemonSet,
 	environment.ValKindDeployment, environment.ValKindReplicaSet, environment.ValKindStatefulSet, environment.ValKindJob,
 	environment.ValKindHorizontalPodAutoScaler, environment.ValKindCronJob, environment.ValKindDeploymentConfig,
 	environment.ValKindBuildConfig, environment.ValKindBuild, environment.ValKindImageStream, environment.ValKindRoute,
 	environment.ValKindPersistentVolumeClaim, environment.ValKindConfigMap}
 
-var AllToGetAndDelete = []string{environment.ValKindService}
-
-var AllKindsToClean = append(AllToDeleteAll, AllToGetAndDelete...)
-
 func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
 	operationSets := OperationSet{}
 	if !d.deleteOptions.removeFromCluster {
-		var deleteAllSet environment.Objects
-		for _, kind := range AllToDeleteAll {
-			obj := newObject(kind, namespaceName, "")
-			deleteAllSet = append(deleteAllSet, obj)
-		}
-		sort.Sort(sort.Reverse(environment.ByKind(deleteAllSet)))
-		operationSets[MethodDeleteAll] = deleteAllSet
-
 		for _, kind := range AllToGetAndDelete {
 			kindToGet := newObject(kind, namespaceName, "")
 			result, err := Apply(client, http.MethodGet, kindToGet)
 			if err != nil {
-				return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kindToGet, namespaceName)
+				if result != nil && result.Response != nil {
+					code := result.Response.StatusCode
+					if code == http.StatusNotFound || code == http.StatusForbidden {
+						log.Error(nil, map[string]interface{}{
+							"kind":          kind,
+							"namespaceName": namespaceName,
+							"err":           err,
+						}, "unable to get list of current objects. it is possible that there is no such object kind available")
+						continue
+					}
+				}
+				return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kind, namespaceName)
 			}
 			var returnedObj environment.Object
 			err = yaml.Unmarshal(result.Body, &returnedObj)
 			if err != nil {
 				return nil, errors.Wrapf(err,
-					"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kindToGet, namespaceName)
+					"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kind, namespaceName)
 			}
 
 			if items, itemsFound := returnedObj["items"]; itemsFound {

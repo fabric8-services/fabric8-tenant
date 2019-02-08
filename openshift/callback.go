@@ -215,7 +215,7 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 					"object-kind": environment.GetKind(context.Object),
 					"object-name": environment.GetName(context.Object),
 					"namespace":   environment.GetNamespace(context.Object),
-					"message":     result.Body,
+					"message":     string(result.Body),
 				}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist or is being removed",
 					context.Method.action)
 				return &Result{}, nil

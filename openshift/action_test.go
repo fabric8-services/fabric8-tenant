@@ -320,7 +320,8 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/api/v1/namespaces/johny-jenkins/services").
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete)).
 			Reply(200).
 			BodyString(`{"items": []}`)
 		toSort := getObjectsOfAllKinds()
@@ -328,24 +329,47 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		sets, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
 		// then
 		assert.NoError(t, err)
-		assert.Len(t, sets, 2)
+		assert.Len(t, sets, 1)
 		length := len(toSort)
 		sorted, ok := sets["DELETE"]
 		require.True(t, ok)
 		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[length-1]))
 		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[length-2]))
 		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[length-3]))
+	})
 
-		deleteAllSet, ok := sets["DELETEALL"]
-		require.True(t, ok)
-		assert.Len(t, deleteAllSet, len(openshift.AllToDeleteAll))
-		for _, toDeleteAll := range deleteAllSet {
-			actualKind := environment.GetKind(toDeleteAll)
-			assert.Contains(t, toDeleteAll, "metadata")
-			assert.Contains(t, toDeleteAll["metadata"], "namespace")
-			assert.Equal(t, "johny-jenkins", environment.GetNamespace(toDeleteAll))
-			assert.Contains(t, openshift.AllToDeleteAll, actualKind)
-		}
+	s.T().Run("GetOperationSets method should not fail when get returns 404 or 403", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete) / 2).
+			Reply(404)
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete)/2 + 1).
+			Reply(403)
+		toSort := getObjectsOfAllKinds()
+		// when
+		sets, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, sets, 1)
+	})
+
+	s.T().Run("GetOperationSets method should fail when get returns 505", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Reply(505)
+		toSort := getObjectsOfAllKinds()
+		// when
+		_, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("unable to get list of current objects of kind"),
+			test.HasMessageContaining("server responded with status: 505 for the GET request"))
 	})
 
 	s.T().Run("GetOperationSets method should do reverse sorted and retrieve and parse services", func(t *testing.T) {
@@ -358,12 +382,17 @@ func (s *ActionTestSuite) TestDeleteAction() {
         {"metadata": {"name": "bayesian-link"}},
         {"metadata": {"name": "jenkins"}},
         {"metadata": {"name": "jenkins-jnlp"}}]}`)
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete)).
+			Reply(200).
+			BodyString(`{"items": []}`)
 		toSort := environment.Objects{}
 		// when
 		sets, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
 		// then
 		assert.NoError(t, err)
-		assert.Len(t, sets, 2)
+		assert.Len(t, sets, 1)
 		sorted, ok := sets["DELETE"]
 		require.True(t, ok)
 		assert.Len(t, sorted, 3)

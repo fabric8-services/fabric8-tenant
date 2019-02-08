@@ -89,21 +89,6 @@ func TestEachMethodSeparately(t *testing.T) {
 		assert.Equal(t, http.MethodDelete, request.Method)
 	})
 
-	t.Run("DELETEALL method", func(t *testing.T) {
-		// when
-		methodDefinition := DELETEALL()(dummyEndpoint)
-
-		// then
-		assert.Empty(t, methodDefinition.beforeDoCallbacks)
-		assert.Len(t, methodDefinition.afterDoCallbacks, 1)
-		assert.Equal(t, methodDefinition.afterDoCallbacks[0].Name, IgnoreWhenDoesNotExistOrConflicts.Name)
-		assert.Equal(t, MethodDeleteAll, methodDefinition.action)
-		request, err := methodDefinition.requestCreator.createRequestFor("http://starter", object[0], []byte(objectToBeParsed))
-		assert.NoError(t, err)
-		assert.Equal(t, "http://starter/targeting-object-name", request.URL.String())
-		assert.Equal(t, http.MethodDelete, request.Method)
-	})
-
 	t.Run("GET method", func(t *testing.T) {
 		// when
 		methodDefinition := GET()(dummyEndpoint)
