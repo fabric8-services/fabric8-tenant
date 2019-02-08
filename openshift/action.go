@@ -268,47 +268,57 @@ var AllToGetAndDelete = []string{environment.ValKindService, environment.ValKind
 func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
 	operationSets := OperationSet{}
 	if !d.deleteOptions.removeFromCluster {
-		for _, kind := range AllToGetAndDelete {
-			kindToGet := newObject(kind, namespaceName, "")
-			result, err := Apply(client, http.MethodGet, kindToGet)
-			if err != nil {
-				if result != nil && result.Response != nil {
-					code := result.Response.StatusCode
-					if code == http.StatusNotFound || code == http.StatusForbidden {
-						log.Error(nil, map[string]interface{}{
-							"kind":          kind,
-							"namespaceName": namespaceName,
-							"err":           err,
-						}, "unable to get list of current objects. it is possible that there is no such object kind available")
-						continue
-					}
-				}
-				return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kind, namespaceName)
-			}
-			var returnedObj environment.Object
-			err = yaml.Unmarshal(result.Body, &returnedObj)
-			if err != nil {
-				return nil, errors.Wrapf(err,
-					"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kind, namespaceName)
-			}
-
-			if items, itemsFound := returnedObj["items"]; itemsFound {
-				if objects, isSlice := items.([]interface{}); isSlice && len(objects) > 0 {
-					for _, obj := range objects {
-						if object, isObj := obj.(environment.Object); isObj {
-							if name := environment.GetName(object); name != "" {
-								toSort = append(toSort, newObject(kind, namespaceName, name))
-							}
-						}
-					}
-				}
-			}
+		var err error
+		toSort, err = getCleanObjects(client, namespaceName)
+		if err != nil {
+			return nil, err
 		}
 	}
 	sort.Sort(sort.Reverse(environment.ByKind(toSort)))
 	operationSets[d.method] = toSort
 
 	return operationSets, nil
+}
+
+func getCleanObjects(client Client, namespaceName string) (environment.Objects, error) {
+	toClean := make(environment.Objects, 0)
+	for _, kind := range AllToGetAndDelete {
+		kindToGet := newObject(kind, namespaceName, "")
+		result, err := Apply(client, http.MethodGet, kindToGet)
+		if err != nil {
+			if result != nil && result.Response != nil {
+				code := result.Response.StatusCode
+				if code == http.StatusNotFound || code == http.StatusForbidden {
+					log.Error(nil, map[string]interface{}{
+						"kind":          kind,
+						"namespaceName": namespaceName,
+						"err":           err,
+					}, "unable to get list of current objects. it is possible that there is no such object kind available")
+					continue
+				}
+			}
+			return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kind, namespaceName)
+		}
+		var returnedObj environment.Object
+		err = yaml.Unmarshal(result.Body, &returnedObj)
+		if err != nil {
+			return nil, errors.Wrapf(err,
+				"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kind, namespaceName)
+		}
+
+		if items, itemsFound := returnedObj["items"]; itemsFound {
+			if objects, isSlice := items.([]interface{}); isSlice && len(objects) > 0 {
+				for _, obj := range objects {
+					if object, isObj := obj.(environment.Object); isObj {
+						if name := environment.GetName(object); name != "" {
+							toClean = append(toClean, newObject(kind, namespaceName, name))
+						}
+					}
+				}
+			}
+		}
+	}
+	return toClean, nil
 }
 
 func newObject(kind, namespaceName string, name string) environment.Object {

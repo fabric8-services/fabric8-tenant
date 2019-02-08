@@ -323,7 +323,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
 			Times(len(openshift.AllToGetAndDelete)).
 			Reply(200).
-			BodyString(`{"items": []}`)
+			BodyString(`{"items": [{"metadata": {"name": "some-item"}}]}`)
 		toSort := getObjectsOfAllKinds()
 		// when
 		sets, err := delete.GetOperationSets(toSort, *client, "johny-jenkins")
@@ -333,9 +333,9 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		length := len(toSort)
 		sorted, ok := sets["DELETE"]
 		require.True(t, ok)
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[length-1]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[length-2]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[length-3]))
+		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[length-1]))
+		assert.Equal(t, environment.ValKindPersistentVolumeClaim, environment.GetKind(sorted[length-2]))
+		assert.Equal(t, environment.ValKindConfigMap, environment.GetKind(sorted[length-3]))
 	})
 
 	s.T().Run("GetOperationSets method should not fail when get returns 404 or 403", func(t *testing.T) {
@@ -538,7 +538,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
-			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenClean(t, config, environment.TypeJenkins, environment.TypeChe)
+			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenClean(environment.TypeJenkins, environment.TypeChe)
 			assert.EqualValues(t, expectedNumberOfCalls, calls)
 			assert.NoError(t, err)
 			assertion.AssertTenant(t, repo).

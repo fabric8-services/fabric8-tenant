@@ -289,7 +289,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			// when
 			apptest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl, false)
 			// then
-			assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenClean(t, config, environment.DefaultEnvTypes...), calls)
+			assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenClean(environment.DefaultEnvTypes...), calls)
 			assertion.AssertTenantFromService(t, repo, id).
 				Exists().
 				HasNumberOfNamespaces(5)

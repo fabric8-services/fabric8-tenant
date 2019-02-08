@@ -248,7 +248,7 @@ func MockCleanRequestsToOS(calls *int, cluster string) {
 		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).
-		BodyString(`{"items": []}`)
+		BodyString(`{"items": [{"metadata": {"name": "first-item"}}, {"metadata": {"name": "second-item"}}]}`)
 	gock.New(cluster).
 		Get(`.*\/(persistentvolumeclaims)\/.*`).
 		SetMatcher(test.SpyOnCalls(calls)).
@@ -271,11 +271,9 @@ func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int
 	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1 + 5
 }
 
-func ExpectedNumberOfCallsWhenClean(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
-	objectsInTemplates := RetrieveObjects(t, config, DefaultClusterMapping, DefaultUserInfo, envTypes...)
-	pvcNumber := CountObjectsThat(objectsInTemplates, isOfKind(environment.ValKindPersistentVolumeClaim))
-	cleanAllOps := (len(openshift.AllToGetAndDelete)) * len(envTypes)
-	return NumberOfObjectsToClean(objectsInTemplates) + pvcNumber + cleanAllOps
+func ExpectedNumberOfCallsWhenClean(envTypes ...environment.Type) int {
+	cleanAllOps := (len(openshift.AllToGetAndDelete)) * len(envTypes) * 3
+	return cleanAllOps + len(envTypes)*2
 }
 
 func ExpectedNumberOfCallsWhenPatch(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
