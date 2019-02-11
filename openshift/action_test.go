@@ -354,32 +354,54 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/api/v1/namespaces/johny-jenkins/services").
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete)).
 			Reply(200).
-			BodyString(`{"items": []}`)
+			BodyString(`{"items": [{"metadata": {"name": "some-item"}}]}`)
+		toSort := getObjectsOfAllKinds()
 		// when
 		_, sets, err := delete.GetOperationSets(NewAllTypesService(nil, false), *client)
 		// then
 		assert.NoError(t, err)
-		require.Len(t, sets, 2)
-		length := len(allKinds)
-		assert.Equal(t, "DELETE", sets[1].Method)
-		deleteSorted := sets[1].Objects
-		require.Len(t, deleteSorted, length)
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(deleteSorted[length-1]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(deleteSorted[length-2]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(deleteSorted[length-3]))
+		assert.Len(t, sets, 1)
+		length := len(toSort)
+		deleteSet := sets[0]
+		assert.Equal(t, "DELETE", deleteSet.Method)
+		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[length-1]))
+		assert.Equal(t, environment.ValKindPersistentVolumeClaim, environment.GetKind(deleteSet.Objects[length-2]))
+		assert.Equal(t, environment.ValKindConfigMap, environment.GetKind(deleteSet.Objects[length-3]))
+	})
 
-		assert.Equal(t, "DELETEALL", sets[0].Method)
-		deleteAllSet := sets[0].Objects
-		require.Len(t, deleteAllSet, len(openshift.AllToDeleteAll))
-		for _, toDeleteAll := range deleteAllSet {
-			actualKind := environment.GetKind(toDeleteAll)
-			assert.Contains(t, toDeleteAll, "metadata")
-			assert.Contains(t, toDeleteAll["metadata"], "namespace")
-			assert.Equal(t, "johny-jenkins", environment.GetNamespace(toDeleteAll))
-			assert.Contains(t, openshift.AllToDeleteAll, actualKind)
-		}
+	s.T().Run("GetOperationSets method should not fail when get returns 404 or 403", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete) / 2).
+			Reply(404)
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete)/2 + 1).
+			Reply(403)
+		// when
+		_, sets, err := delete.GetOperationSets(NewAllTypesService(nil, false), *client)
+		// then
+		assert.NoError(t, err)
+		assert.Len(t, sets, 1)
+	})
+
+	s.T().Run("GetOperationSets method should fail when get returns 505", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Reply(505)
+		// when
+		_, _, err := delete.GetOperationSets(NewAllTypesService(nil, false), *client)
+		// then
+		test.AssertError(t, err,
+			test.HasMessageContaining("unable to get list of current objects of kind"),
+			test.HasMessageContaining("server responded with status: 505 for the GET request"))
 	})
 
 	s.T().Run("GetOperationSets method should do reverse sorted and retrieve and parse services", func(t *testing.T) {
@@ -392,22 +414,27 @@ func (s *ActionTestSuite) TestDeleteAction() {
         {"metadata": {"name": "bayesian-link"}},
         {"metadata": {"name": "jenkins"}},
         {"metadata": {"name": "jenkins-jnlp"}}]}`)
+		gock.New(test.ClusterURL).
+			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Times(len(openshift.AllToGetAndDelete)).
+			Reply(200).
+			BodyString(`{"items": []}`)
 		allTypesService := NewAllTypesService(nil, false)
 		allTypesService.allObjects = []environment.Object{}
 		// when
 		_, sets, err := delete.GetOperationSets(allTypesService, *client)
 		// then
 		assert.NoError(t, err)
-		assert.Len(t, sets, 2)
-		assert.Equal(t, "DELETE", sets[1].Method)
-		sorted := sets[1].Objects
-		require.Len(t, sorted, 3)
-		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[0]))
-		assert.Equal(t, "bayesian-link", environment.GetName(sorted[0]))
-		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[1]))
-		assert.Equal(t, "jenkins", environment.GetName(sorted[1]))
-		assert.Equal(t, environment.ValKindService, environment.GetKind(sorted[2]))
-		assert.Equal(t, "jenkins-jnlp", environment.GetName(sorted[2]))
+		assert.Len(t, sets, 1)
+		deleteSet := sets[0]
+		assert.Equal(t, "DELETE", deleteSet.Method)
+		require.Len(t, deleteSet.Objects, 3)
+		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[0]))
+		assert.Equal(t, "bayesian-link", environment.GetName(deleteSet.Objects[0]))
+		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[1]))
+		assert.Equal(t, "jenkins", environment.GetName(deleteSet.Objects[1]))
+		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[2]))
+		assert.Equal(t, "jenkins-jnlp", environment.GetName(deleteSet.Objects[2]))
 	})
 
 	s.T().Run("GetOperationSets method should do reverse sorted and and not delete all objects for remove", func(t *testing.T) {
@@ -543,7 +570,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
-			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenClean(t, config, environment.TypeJenkins, environment.TypeChe)
+			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenClean(environment.TypeJenkins, environment.TypeChe)
 			assert.EqualValues(t, expectedNumberOfCalls, calls)
 			assert.NoError(t, err)
 			assertion.AssertTenant(t, repo).

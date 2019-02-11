@@ -31,8 +31,6 @@ type methodDefCreator func(endpoint string) MethodDefinition
 type RequestCreatorModifier func(requestCreator RequestCreator) RequestCreator
 type MethodDefModifier func(*MethodDefinition) *MethodDefinition
 
-const MethodDeleteAll = "DELETEALL"
-
 type BeforeDoCallbackFuncCreator func(previousCallback BeforeDoCallbackFunc) BeforeDoCallbackFunc
 type BeforeDoCallbackFunc func(context CallbackContext) (*MethodDefinition, []byte, error)
 
@@ -156,21 +154,6 @@ func DELETE(modifiers ...MethodDefModifier) methodDefCreator {
 	return func(urlTemplate string) MethodDefinition {
 		return NewMethodDefinition(
 			http.MethodDelete,
-			[]BeforeDoCallback{},
-			[]AfterDoCallback{IgnoreWhenDoesNotExistOrConflicts},
-			RequestCreator{
-				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {
-					body = []byte(deleteOptions)
-					return newDefaultRequest(http.MethodDelete, urlCreator(urlTemplate), body)
-				}},
-			modifiers...)
-	}
-}
-
-func DELETEALL(modifiers ...MethodDefModifier) methodDefCreator {
-	return func(urlTemplate string) MethodDefinition {
-		return NewMethodDefinition(
-			MethodDeleteAll,
 			[]BeforeDoCallback{},
 			[]AfterDoCallback{IgnoreWhenDoesNotExistOrConflicts},
 			RequestCreator{

@@ -97,7 +97,6 @@ func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeServi
 	}
 
 	operationSets := []OperationSet{NewOperationSet(c.method, objects)}
-
 	object, shouldBeAdded := envService.AdditionalObject()
 	if len(object) > 0 {
 		action := c.method
@@ -277,68 +276,72 @@ func (d *DeleteAction) Filter() FilterFunc {
 	if d.deleteOptions.removeFromCluster {
 		return isOfKind(environment.ValKindProjectRequest)
 	}
-	return isOfKind(AllKindsToClean...)
+	return isOfKind(AllToGetAndDelete...)
 }
 
-var AllToDeleteAll = []string{environment.ValKindPod, environment.ValKindReplicationController, environment.ValKindDaemonSet,
+var AllToGetAndDelete = []string{environment.ValKindService, environment.ValKindPod, environment.ValKindReplicationController, environment.ValKindDaemonSet,
 	environment.ValKindDeployment, environment.ValKindReplicaSet, environment.ValKindStatefulSet, environment.ValKindJob,
 	environment.ValKindHorizontalPodAutoScaler, environment.ValKindCronJob, environment.ValKindDeploymentConfig,
 	environment.ValKindBuildConfig, environment.ValKindBuild, environment.ValKindImageStream, environment.ValKindRoute,
 	environment.ValKindPersistentVolumeClaim, environment.ValKindConfigMap}
 
-var AllToGetAndDelete = []string{environment.ValKindService}
-
-var AllKindsToClean = append(AllToDeleteAll, AllToGetAndDelete...)
-
 func (d *DeleteAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
-	env, objectsToDelete, err := envService.GetEnvDataAndObjects(d.Filter())
+	env, toDelete, err := envService.GetEnvDataAndObjects(d.Filter())
 	if err != nil {
 		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
 	}
 	var operationSets []OperationSet
-
 	if !d.deleteOptions.removeFromCluster {
-		var deleteAllSet environment.Objects
-		for _, kind := range AllToDeleteAll {
-			obj := NewObject(kind, envService.GetNamespaceName(), "")
-			deleteAllSet = append(deleteAllSet, obj)
+		var err error
+		toDelete, err = getCleanObjects(client, envService.GetNamespaceName())
+		if err != nil {
+			return env, nil, err
 		}
-		sort.Sort(sort.Reverse(environment.ByKind(deleteAllSet)))
-		operationSets = append(operationSets, NewOperationSet(MethodDeleteAll, deleteAllSet))
+	}
+	sort.Sort(sort.Reverse(environment.ByKind(toDelete)))
+	operationSets = append(operationSets, NewOperationSet(http.MethodDelete, toDelete))
+	return env, operationSets, nil
+}
 
-		for _, kind := range AllToGetAndDelete {
-			kindToGet := NewObject(kind, envService.GetNamespaceName(), "")
-			result, err := Apply(client, http.MethodGet, kindToGet)
-			if err != nil {
-				return env, nil, errors.Wrapf(err,
-					"unable to get list of current objects of kind %s in namespace %s", kindToGet, envService.GetNamespaceName())
+func getCleanObjects(client Client, namespaceName string) (environment.Objects, error) {
+	toClean := make(environment.Objects, 0)
+	for _, kind := range AllToGetAndDelete {
+		kindToGet := NewObject(kind, namespaceName, "")
+		result, err := Apply(client, http.MethodGet, kindToGet)
+		if err != nil {
+			if result != nil && result.Response != nil {
+				code := result.Response.StatusCode
+				if code == http.StatusNotFound || code == http.StatusForbidden {
+					log.Error(nil, map[string]interface{}{
+						"kind":          kind,
+						"namespaceName": namespaceName,
+						"err":           err,
+					}, "unable to get list of current objects. it is possible that there is no such object kind available")
+					continue
+				}
 			}
-			var returnedObj environment.Object
-			err = yaml.Unmarshal(result.Body, &returnedObj)
-			if err != nil {
-				return env, nil, errors.Wrapf(err, "unable unmarshal object responded from OS "+
-					"while getting list of current objects of kind %s in namespace %s", kindToGet, envService.GetNamespaceName())
-			}
+			return nil, errors.Wrapf(err, "unable to get list of current objects of kind %s in namespace %s", kind, namespaceName)
+		}
+		var returnedObj environment.Object
+		err = yaml.Unmarshal(result.Body, &returnedObj)
+		if err != nil {
+			return nil, errors.Wrapf(err,
+				"unable unmarshal object responded from OS while getting list of current objects of kind %s in namespace %s", kind, namespaceName)
+		}
 
-			if items, itemsFound := returnedObj["items"]; itemsFound {
-				if objects, isSlice := items.([]interface{}); isSlice && len(objects) > 0 {
-					for _, obj := range objects {
-						if object, isObj := obj.(environment.Object); isObj {
-							if name := environment.GetName(object); name != "" {
-								objectsToDelete = append(objectsToDelete, NewObject(kind, envService.GetNamespaceName(), name))
-							}
+		if items, itemsFound := returnedObj["items"]; itemsFound {
+			if objects, isSlice := items.([]interface{}); isSlice && len(objects) > 0 {
+				for _, obj := range objects {
+					if object, isObj := obj.(environment.Object); isObj {
+						if name := environment.GetName(object); name != "" {
+							toClean = append(toClean, NewObject(kind, namespaceName, name))
 						}
 					}
 				}
 			}
 		}
 	}
-
-	sort.Sort(sort.Reverse(environment.ByKind(objectsToDelete)))
-	deleteOpSet := NewOperationSet(d.method, objectsToDelete)
-	operationSets = append(operationSets, deleteOpSet)
-
-	return env, operationSets, nil
+	return toClean, nil
 }
 
 func NewObject(kind, namespaceName string, name string) environment.Object {
