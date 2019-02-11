@@ -20,8 +20,7 @@ type NamespaceAction interface {
 	MethodName() string
 	GetNamespaceEntity(nsTypeService EnvironmentTypeService) (*tenant.Namespace, error)
 	UpdateNamespace(env *environment.EnvData, cluster *cluster.Cluster, namespace *tenant.Namespace, failed bool)
-	GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error)
-	Filter() FilterFunc
+	GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error)
 	ForceMasterTokenGlobally() bool
 	HealingStrategy() HealingFuncGenerator
 	ManageAndUpdateResults(errorChan chan error, envTypes []environment.Type, healing Healing) error
@@ -91,11 +90,28 @@ func (c *commonNamespaceAction) MethodName() string {
 	return c.method
 }
 
-func (c *commonNamespaceAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
-	operationSets := OperationSet{}
-	sort.Sort(environment.ByKind(toSort))
-	operationSets[c.method] = toSort
-	return operationSets, nil
+func (c *commonNamespaceAction) getOperationSets(envService EnvironmentTypeService, client Client, filterFunc FilterFunc) (*environment.EnvData, []OperationSet, error) {
+	env, objects, err := envService.GetEnvDataAndObjects(filterFunc)
+	if err != nil {
+		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
+	}
+
+	operationSets := []OperationSet{NewOperationSet(c.method, objects)}
+	object, shouldBeAdded := envService.AdditionalObject()
+	if len(object) > 0 {
+		action := c.method
+		if !shouldBeAdded {
+			action = http.MethodDelete
+		}
+		if action == c.method {
+			operationSets[0].Objects = append(operationSets[0].Objects, object)
+		} else {
+			operationSets = append(operationSets, NewOperationSet(action, []environment.Object{object}))
+		}
+	}
+
+	sort.Sort(environment.ByKind(operationSets[0].Objects))
+	return env, operationSets, nil
 }
 
 func (c *commonNamespaceAction) Filter() FilterFunc {
@@ -210,6 +226,10 @@ func (c *CreateAction) ForceMasterTokenGlobally() bool {
 	return false
 }
 
+func (c *CreateAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
+	return c.getOperationSets(envService, client, c.Filter())
+}
+
 func NewDeleteAction(tenantRepo tenant.Repository, existingNamespaces []*tenant.Namespace, deleteOpts *DeleteActionOption) *DeleteAction {
 	return &DeleteAction{
 		withExistingNamespacesAction: &withExistingNamespacesAction{
@@ -265,25 +285,28 @@ var AllToGetAndDelete = []string{environment.ValKindService, environment.ValKind
 	environment.ValKindBuildConfig, environment.ValKindBuild, environment.ValKindImageStream, environment.ValKindRoute,
 	environment.ValKindPersistentVolumeClaim, environment.ValKindConfigMap}
 
-func (d *DeleteAction) GetOperationSets(toSort environment.Objects, client Client, namespaceName string) (OperationSet, error) {
-	operationSets := OperationSet{}
+func (d *DeleteAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
+	env, toDelete, err := envService.GetEnvDataAndObjects(d.Filter())
+	if err != nil {
+		return env, nil, errors.Wrap(err, "getting environment data and objects failed")
+	}
+	var operationSets []OperationSet
 	if !d.deleteOptions.removeFromCluster {
 		var err error
-		toSort, err = getCleanObjects(client, namespaceName)
+		toDelete, err = getCleanObjects(client, envService.GetNamespaceName())
 		if err != nil {
-			return nil, err
+			return env, nil, err
 		}
 	}
-	sort.Sort(sort.Reverse(environment.ByKind(toSort)))
-	operationSets[d.method] = toSort
-
-	return operationSets, nil
+	sort.Sort(sort.Reverse(environment.ByKind(toDelete)))
+	operationSets = append(operationSets, NewOperationSet(http.MethodDelete, toDelete))
+	return env, operationSets, nil
 }
 
 func getCleanObjects(client Client, namespaceName string) (environment.Objects, error) {
 	toClean := make(environment.Objects, 0)
 	for _, kind := range AllToGetAndDelete {
-		kindToGet := newObject(kind, namespaceName, "")
+		kindToGet := NewObject(kind, namespaceName, "")
 		result, err := Apply(client, http.MethodGet, kindToGet)
 		if err != nil {
 			if result != nil && result.Response != nil {
@@ -311,7 +334,7 @@ func getCleanObjects(client Client, namespaceName string) (environment.Objects, 
 				for _, obj := range objects {
 					if object, isObj := obj.(environment.Object); isObj {
 						if name := environment.GetName(object); name != "" {
-							toClean = append(toClean, newObject(kind, namespaceName, name))
+							toClean = append(toClean, NewObject(kind, namespaceName, name))
 						}
 					}
 				}
@@ -321,7 +344,7 @@ func getCleanObjects(client Client, namespaceName string) (environment.Objects, 
 	return toClean, nil
 }
 
-func newObject(kind, namespaceName string, name string) environment.Object {
+func NewObject(kind, namespaceName string, name string) environment.Object {
 	return environment.Object{
 		"kind": kind,
 		"metadata": environment.Object{
@@ -418,6 +441,10 @@ func (u *UpdateAction) UpdateNamespace(env *environment.EnvData, cluster *cluste
 
 func (u *UpdateAction) Filter() FilterFunc {
 	return isNotOfKind(environment.ValKindProjectRequest)
+}
+
+func (u *UpdateAction) GetOperationSets(envService EnvironmentTypeService, client Client) (*environment.EnvData, []OperationSet, error) {
+	return u.getOperationSets(envService, client, u.Filter())
 }
 
 func (u *UpdateAction) HealingStrategy() HealingFuncGenerator {

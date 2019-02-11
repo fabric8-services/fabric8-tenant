@@ -1,10 +1,10 @@
 package openshift
 
 import (
-	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
+	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/pkg/errors"
 	"net/http"
 	"os"
@@ -21,7 +21,7 @@ type EnvironmentTypeService interface {
 	GetCluster() cluster.Cluster
 	AfterCallback(client *Client, action string) error
 	GetTokenProducer(forceMasterTokenGlobally bool) TokenProducer
-	GetRequestsContext() context.Context
+	AdditionalObject() (environment.Object, bool)
 }
 
 func NewEnvironmentTypeService(envType environment.Type, context *ServiceContext, envService *environment.Service) EnvironmentTypeService {
@@ -32,6 +32,11 @@ func NewEnvironmentTypeService(envType environment.Type, context *ServiceContext
 	}
 	if envType == environment.TypeUser {
 		return &UserNamespaceTypeService{CommonEnvTypeService: service}
+	} else if envType == environment.TypeChe {
+		return &CheNamespaceTypeService{
+			CommonEnvTypeService: service,
+			isToggleEnabled:      toggles.IsEnabled,
+		}
 	}
 	return service
 }
@@ -40,10 +45,6 @@ type CommonEnvTypeService struct {
 	name       environment.Type
 	context    *ServiceContext
 	envService *environment.Service
-}
-
-func (t *CommonEnvTypeService) GetRequestsContext() context.Context {
-	return t.context.requestCtx
 }
 
 func (t *CommonEnvTypeService) GetType() environment.Type {
@@ -98,6 +99,29 @@ func (t *CommonEnvTypeService) GetTokenProducer(forceMasterTokenGlobally bool) T
 	return func(forceMasterToken bool) string {
 		return t.GetCluster().Token
 	}
+}
+
+func (t *CommonEnvTypeService) AdditionalObject() (environment.Object, bool) {
+	return environment.Object{}, true
+}
+
+type CheNamespaceTypeService struct {
+	*CommonEnvTypeService
+	isToggleEnabled toggles.IsToggleEnabled
+}
+
+func (t *CheNamespaceTypeService) AdditionalObject() (environment.Object, bool) {
+	return t.newEditRightsObject(), t.isToggleEnabled(t.context.requestCtx, "che.edit.rights", false)
+}
+
+func (t *CheNamespaceTypeService) newEditRightsObject() environment.Object {
+	adminRb := NewObject(environment.ValKindRoleBinding, t.GetNamespaceName(), "user-edit")
+	adminRb["roleRef"] = environment.Object{"name": "edit"}
+	adminRb["subjects"] = environment.Objects{{
+		"kind": "User",
+		"name": t.context.openShiftUsername}}
+	adminRb["userNames"] = []string{t.context.openShiftUsername}
+	return adminRb
 }
 
 type UserNamespaceTypeService struct {

@@ -181,6 +181,12 @@ func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, n
 	cluster = test.Normalize(cluster)
 	for _, env := range envs {
 		namespaceName := nsBaseName
+		gock.New(cluster).
+			Delete(fmt.Sprintf(`/oapi/v1/namespaces/%s-che/rolebindings/user-edit`, nsBaseName)).
+			Persist().
+			Reply(200).
+			BodyString("{}")
+
 		if env != environment.TypeUser {
 			namespaceName = nsBaseName + "-" + env.String()
 		} else {
@@ -216,7 +222,13 @@ func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, n
 func MockPatchRequestsToOS(calls *int, cluster string) {
 	cluster = test.Normalize(cluster)
 	gock.New(cluster).
-		Path("").
+		Delete(`/oapi/v1/namespaces/.+-che/rolebindings/user-edit`).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+
+	gock.New(cluster).
+		Patch("").
 		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).

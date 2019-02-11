@@ -43,7 +43,6 @@ func TestEnvironmentTypeService(t *testing.T) {
 			// then
 			assert.Equal(t, envType, service.GetType())
 			assert.Equal(t, fmt.Sprintf("http://starter-for-type-%s.com", envType.String()), service.GetCluster().APIURL)
-			assert.Equal(t, context.Background(), service.GetRequestsContext())
 			envData, objects, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
 				return true
 			})
@@ -51,6 +50,16 @@ func TestEnvironmentTypeService(t *testing.T) {
 			assert.Equal(t, envType, envData.EnvType)
 			assert.NotEmpty(t, envData.Templates)
 			assert.NotEmpty(t, objects)
+
+			if envType != environment.TypeChe {
+				object, add := service.AdditionalObject()
+				assert.Empty(t, object)
+				assert.True(t, add)
+			} else {
+				object, add := service.AdditionalObject()
+				assert.NotEmpty(t, object)
+				assert.False(t, add)
+			}
 
 			if envType != environment.TypeUser {
 				assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(false))
