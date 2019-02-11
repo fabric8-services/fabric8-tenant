@@ -297,9 +297,13 @@ func (d *DeleteAction) GetOperationSets(envService EnvironmentTypeService, clien
 		if err != nil {
 			return env, nil, err
 		}
+		operationSets = append(operationSets, NewOperationSet(http.MethodDelete, toDelete))
+		operationSets = append(operationSets, NewOperationSet(EnsureDeletion, toDelete))
+	} else {
+		operationSets = append(operationSets, NewOperationSet(http.MethodDelete, toDelete))
 	}
+
 	sort.Sort(sort.Reverse(environment.ByKind(toDelete)))
-	operationSets = append(operationSets, NewOperationSet(http.MethodDelete, toDelete))
 	return env, operationSets, nil
 }
 
