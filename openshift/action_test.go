@@ -363,13 +363,16 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		_, sets, err := delete.GetOperationSets(NewAllTypesService(nil, false), *client)
 		// then
 		assert.NoError(t, err)
-		assert.Len(t, sets, 1)
+		assert.Len(t, sets, 2)
 		length := len(toSort)
 		deleteSet := sets[0]
 		assert.Equal(t, "DELETE", deleteSet.Method)
 		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[length-1]))
 		assert.Equal(t, environment.ValKindPersistentVolumeClaim, environment.GetKind(deleteSet.Objects[length-2]))
 		assert.Equal(t, environment.ValKindConfigMap, environment.GetKind(deleteSet.Objects[length-3]))
+
+		assert.Equal(t, openshift.EnsureDeletion, sets[1].Method)
+		assert.Equal(t, deleteSet.Objects, sets[1].Objects)
 	})
 
 	s.T().Run("GetOperationSets method should not fail when get returns 404 or 403", func(t *testing.T) {
@@ -387,7 +390,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		_, sets, err := delete.GetOperationSets(NewAllTypesService(nil, false), *client)
 		// then
 		assert.NoError(t, err)
-		assert.Len(t, sets, 1)
+		assert.Len(t, sets, 2)
 	})
 
 	s.T().Run("GetOperationSets method should fail when get returns 505", func(t *testing.T) {
@@ -425,7 +428,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		_, sets, err := delete.GetOperationSets(allTypesService, *client)
 		// then
 		assert.NoError(t, err)
-		assert.Len(t, sets, 1)
+		assert.Len(t, sets, 2)
 		deleteSet := sets[0]
 		assert.Equal(t, "DELETE", deleteSet.Method)
 		require.Len(t, deleteSet.Objects, 3)
@@ -435,6 +438,9 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		assert.Equal(t, "jenkins", environment.GetName(deleteSet.Objects[1]))
 		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[2]))
 		assert.Equal(t, "jenkins-jnlp", environment.GetName(deleteSet.Objects[2]))
+
+		assert.Equal(t, openshift.EnsureDeletion, sets[1].Method)
+		assert.Equal(t, deleteSet.Objects, sets[1].Objects)
 	})
 
 	s.T().Run("GetOperationSets method should do reverse sorted and and not delete all objects for remove", func(t *testing.T) {

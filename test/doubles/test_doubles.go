@@ -202,16 +202,19 @@ func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, n
 			SetMatcher(test.SpyOnCalls(calls)).
 			Reply(404)
 
-		basePath := fmt.Sprintf(".*(%s|projectrequests).*", namespaceName)
 		gock.New(cluster).
-			Post(basePath).
+			Post(fmt.Sprintf(".*(%s|projectrequests).*", namespaceName)).
 			SetMatcher(test.SpyOnCalls(calls)).
 			Persist().
 			Reply(200).
 			BodyString("{}")
-
 		gock.New(cluster).
-			Get(basePath).
+			Get("/oapi/v1/projects/" + namespaceName).
+			SetMatcher(test.SpyOnCalls(calls)).
+			Reply(200).
+			BodyString(`{"status": {"phase":"Active"}}`)
+		gock.New(cluster).
+			Get(fmt.Sprintf(".*(%s)/.+", namespaceName)).
 			SetMatcher(test.SpyOnCalls(calls)).
 			Persist().
 			Reply(200).
@@ -262,7 +265,7 @@ func MockCleanRequestsToOS(calls *int, cluster string) {
 		Reply(200).
 		BodyString(`{"items": [{"metadata": {"name": "first-item"}}, {"metadata": {"name": "second-item"}}]}`)
 	gock.New(cluster).
-		Get(`.*\/(persistentvolumeclaims)\/.*`).
+		Get(`/.+/namespaces/.+`).
 		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(404)
@@ -284,8 +287,7 @@ func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int
 }
 
 func ExpectedNumberOfCallsWhenClean(envTypes ...environment.Type) int {
-	cleanAllOps := (len(openshift.AllToGetAndDelete)) * len(envTypes) * 3
-	return cleanAllOps + len(envTypes)*2
+	return (len(openshift.AllToGetAndDelete)) * len(envTypes) * 5
 }
 
 func ExpectedNumberOfCallsWhenPatch(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
@@ -300,10 +302,6 @@ func NumberOfGetChecks(objects environment.Objects) int {
 	return CountObjectsThat(
 		objects,
 		isOfKind(environment.ValKindNamespace, environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindResourceQuota))
-}
-
-func NumberOfObjectsToClean(objects environment.Objects) int {
-	return CountObjectsThat(objects, isOfKind(openshift.AllToGetAndDelete...))
 }
 
 func NumberOfObjectsToRemove(objects environment.Objects) int {

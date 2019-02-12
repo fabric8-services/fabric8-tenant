@@ -34,6 +34,14 @@ var terminatingPVC = `{"kind":"PersistentVolumeClaim","apiVersion":"v1","metadat
 "spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"volumeName":"pv0052"},"status":{"phase":"Terminating",
 "accessModes":["ReadWriteOnce","ReadWriteMany","ReadOnlyMany"],"capacity":{"storage":"100Gi"}}}`
 
+var podRunning = `{"kind":"Table","apiVersion":"meta.k8s.io/v1beta1","metadata":{"selfLink":"/api/v1/namespaces/mjobanek-preview4-jenkins/pods/jenkins-1-deploy",
+"resourceVersion":"586168153"},"rows":[{"cells":["jenkins-1-deploy","1/1","Running",0,"41s","10.130.59.41","ip-172-31-76-248.us-east-2.compute.internal","\u003cnone\u003e"],
+"object":{"kind":"PartialObjectMetadata","apiVersion":"meta.k8s.io/v1beta1","metadata":{"name":"jenkins-1-deploy","namespace":"mjobanek-preview4-jenkins",
+"selfLink":"/api/v1/namespaces/mjobanek-preview4-jenkins/pods/jenkins-1-deploy","uid":"60431091-2e11-11e9-ae24-02074d91bc8a","resourceVersion":"586168153",
+"creationTimestamp":"2019-02-11T15:26:17Z","labels":{"openshift.io/deployer-pod-for.name":"jenkins-1"},"annotations":{"kubernetes.io/limit-ranger":"LimitRanger plugin set: 
+cpu, memory request for container deployment; cpu, memory limit for container deployment","openshift.io/deployment-config.name":"jenkins","openshift.io/deployment.name":
+"jenkins-1","openshift.io/scc":"restricted"},"ownerReferences":[{"apiVersion":"v1","kind":"ReplicationController","name":"jenkins-1","uid":"5ff61988-2e11-11e9-ae24-02074d91bc8a"}]}}}]}`
+
 var pvcToSet = `
 - apiVersion: v1
   kind: PersistentVolumeClaim
@@ -714,6 +722,74 @@ func TestWaitUntilIsGone(t *testing.T) {
 		test.AssertError(t, err,
 			test.HasMessageContaining("server responded with status: 500 for the POST request"))
 		assert.Equal(t, failingResult, callbackResult)
+	})
+}
+
+func TestWaitUntilIsRemoved(t *testing.T) {
+	// given
+	podObj := openshift.NewObject(environment.ValKindPod, "john-jenkins", "jenkins-1-deploy")
+	obj, err := yaml.Marshal(environment.Objects{podObj})
+	require.NoError(t, err)
+	callbackContext := newCallbackContext(t, openshift.EnsureDeletion, environment.ValKindPod, string(obj))
+
+	t.Run("wait until it returns 404 when is activated", func(t *testing.T) {
+		defer gock.OffAll()
+		notFoundCalls := 0
+		gock.New(test.ClusterURL).
+			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Times(2).
+			Reply(200).
+			BodyString(podRunning)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			SetMatcher(test.SpyOnCalls(&notFoundCalls)).
+			Reply(404)
+
+		// when
+		waitUntilIsRemoved := openshift.WaitUntilIsRemoved(true)
+		method, body, err := waitUntilIsRemoved.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, openshift.WaitUntilIsRemovedName, waitUntilIsRemoved.Name)
+		assert.Nil(t, method)
+		assert.Nil(t, body)
+		assert.Equal(t, 1, notFoundCalls)
+	})
+
+	t.Run("wait until it returns 403 when is activated", func(t *testing.T) {
+		defer gock.OffAll()
+		gock.New(test.ClusterURL).
+			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Times(2).
+			Reply(200).
+			BodyString(podRunning)
+		gock.New("https://starter.com").
+			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Reply(403)
+
+		// when
+		waitUntilIsRemoved := openshift.WaitUntilIsRemoved(true)
+		method, body, err := waitUntilIsRemoved.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
+
+		// then
+		assert.NoError(t, err)
+		assert.Nil(t, method)
+		assert.Nil(t, body)
+	})
+
+	t.Run("don't do anything when is not activated", func(t *testing.T) {
+		defer gock.OffAll()
+
+		// when
+		waitUntilIsRemoved := openshift.WaitUntilIsRemoved(false)
+		method, body, err := waitUntilIsRemoved.Create(newBeforeCallbackFunc(callbackContext))(callbackContext)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, openshift.WaitUntilIsRemovedName, waitUntilIsRemoved.Name)
+		assert.Nil(t, method)
+		assert.Nil(t, body)
 	})
 }
 
