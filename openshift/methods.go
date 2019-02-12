@@ -132,7 +132,8 @@ func PATCH(modifiers ...MethodDefModifier) methodDefCreator {
 					if err != nil {
 						return nil, err
 					}
-					req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
+					req.Header.Set("Accept", "application/json")
+					req.Header.Set("Content-Type", "application/merge-patch+json")
 					return req, err
 				}},
 			modifiers...)
