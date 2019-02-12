@@ -368,9 +368,15 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		deleteSet := sets[0]
 		assert.Equal(t, "DELETE", deleteSet.Method)
 		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[length-1]))
-		assert.Equal(t, environment.ValKindPersistentVolumeClaim, environment.GetKind(deleteSet.Objects[length-2]))
-		assert.Equal(t, environment.ValKindConfigMap, environment.GetKind(deleteSet.Objects[length-3]))
-
+		assert.Equal(t, environment.ValKindPod, environment.GetKind(deleteSet.Objects[length-2]))
+		assert.Equal(t, environment.ValKindPersistentVolumeClaim, environment.GetKind(deleteSet.Objects[length-3]))
+		kindOrder := []string{environment.ValKindDeploymentConfig, environment.ValKindReplicationController, environment.ValKindPod}
+		for i := 0; i < len(deleteSet.Objects) && len(kindOrder) > 0; i++ {
+			if kindOrder[0] == environment.GetKind(deleteSet.Objects[i]) {
+				kindOrder = kindOrder[1:]
+			}
+		}
+		assert.Empty(t, kindOrder, "objects are not in correct order")
 		assert.Equal(t, openshift.EnsureDeletion, sets[1].Method)
 		assert.Equal(t, deleteSet.Objects, sets[1].Objects)
 	})

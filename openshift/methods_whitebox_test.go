@@ -70,7 +70,8 @@ func TestEachMethodSeparately(t *testing.T) {
 		request, err := methodDefinition.requestCreator.createRequestFor("http://starter", object[0], []byte(objectToBeParsed))
 		assert.NoError(t, err)
 		assert.Equal(t, "http://starter/targeting-object-name", request.URL.String())
-		assert.Equal(t, "application/strategic-merge-patch+json", request.Header.Get("Content-Type"))
+		assert.Equal(t, "application/merge-patch+json", request.Header.Get("Content-Type"))
+		assert.Equal(t, "application/json", request.Header.Get("Accept"))
 		assert.Equal(t, http.MethodPatch, request.Method)
 	})
 
