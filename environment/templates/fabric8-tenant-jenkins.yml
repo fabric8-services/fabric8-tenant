@@ -434,6 +434,7 @@ objects:
           <string>method groovy.util.XmlSlurper parseText java.lang.String</string>
           <string>method groovy.util.slurpersupport.GPathResult text</string>
           <string>method groovy.xml.DOMBuilder parseText java.lang.String</string>
+          <string>method hudson.PluginManager getPlugin java.lang.String</string>
           <string>method hudson.model.Actionable getAction java.lang.Class</string>
           <string>method hudson.model.Job getBuildByNumber int</string>
           <string>method hudson.model.Job getProperty java.lang.Class</string>
@@ -521,6 +522,7 @@ objects:
           <string>method java.util.regex.Pattern matcher java.lang.CharSequence</string>
           <string>method jenkins.model.Jenkins getCloud java.lang.String</string>
           <string>method jenkins.model.Jenkins getItemByFullName java.lang.String</string>
+          <string>method jenkins.model.Jenkins getPluginManager</string>
           <string>method org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction getEnvironment</string>
           <string>method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild</string>
           <string>method org.w3c.dom.Document getDocumentElement</string>
