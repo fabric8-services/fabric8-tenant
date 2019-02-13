@@ -181,6 +181,12 @@ func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, n
 	cluster = test.Normalize(cluster)
 	for _, env := range envs {
 		namespaceName := nsBaseName
+		gock.New(cluster).
+			Delete(fmt.Sprintf(`/oapi/v1/namespaces/%s-che/rolebindings/user-edit`, nsBaseName)).
+			Persist().
+			Reply(200).
+			BodyString("{}")
+
 		if env != environment.TypeUser {
 			namespaceName = nsBaseName + "-" + env.String()
 		} else {
@@ -196,16 +202,19 @@ func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, n
 			SetMatcher(test.SpyOnCalls(calls)).
 			Reply(404)
 
-		basePath := fmt.Sprintf(".*(%s|projectrequests).*", namespaceName)
 		gock.New(cluster).
-			Post(basePath).
+			Post(fmt.Sprintf(".*(%s|projectrequests).*", namespaceName)).
 			SetMatcher(test.SpyOnCalls(calls)).
 			Persist().
 			Reply(200).
 			BodyString("{}")
-
 		gock.New(cluster).
-			Get(basePath).
+			Get("/oapi/v1/projects/" + namespaceName).
+			SetMatcher(test.SpyOnCalls(calls)).
+			Reply(200).
+			BodyString(`{"status": {"phase":"Active"}}`)
+		gock.New(cluster).
+			Get(fmt.Sprintf(".*(%s)/.+", namespaceName)).
 			SetMatcher(test.SpyOnCalls(calls)).
 			Persist().
 			Reply(200).
@@ -216,7 +225,13 @@ func MockPostRequestsToOS(calls *int, cluster string, envs []environment.Type, n
 func MockPatchRequestsToOS(calls *int, cluster string) {
 	cluster = test.Normalize(cluster)
 	gock.New(cluster).
-		Path("").
+		Delete(`/oapi/v1/namespaces/.+-che/rolebindings/user-edit`).
+		Persist().
+		Reply(200).
+		BodyString("{}")
+
+	gock.New(cluster).
+		Patch("").
 		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).
@@ -231,28 +246,29 @@ func MockPatchRequestsToOS(calls *int, cluster string) {
 }
 
 func MockCleanRequestsToOS(calls *int, cluster string) {
-	listOfKinds := ""
-	for _, kind := range openshift.AllKindsToClean {
-		listOfKinds += fmt.Sprintf("%ss|", strings.ToLower(kind))
+	listOfCleanKinds := ""
+	for _, kind := range openshift.AllToGetAndDelete {
+		listOfCleanKinds += fmt.Sprintf("%ss|", strings.ToLower(kind))
 	}
+	listOfCleanKindsRegexp := listOfCleanKinds[:len(listOfCleanKinds)-1]
 	cluster = test.Normalize(cluster)
 	gock.New(cluster).
-		Delete(fmt.Sprintf(`.*\/(%s)(\/|$).*`, listOfKinds[:len(listOfKinds)-1])).
+		Delete(fmt.Sprintf(`/.+/namespaces/[^/]+/(%s)/.+`, listOfCleanKindsRegexp)).
 		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).
 		BodyString("{}")
 	gock.New(cluster).
-		Get(`.*\/(persistentvolumeclaims)\/.*`).
-		SetMatcher(test.SpyOnCalls(calls)).
-		Persist().
-		Reply(404)
-	gock.New(cluster).
-		Get(`\/api\/v1\/namespaces\/[^\/].+\/services`).
+		Get(fmt.Sprintf(`/.+/namespaces/[^/]+/(%s)/$`, listOfCleanKindsRegexp)).
 		SetMatcher(test.SpyOnCalls(calls)).
 		Persist().
 		Reply(200).
-		BodyString(`{"items": []}`)
+		BodyString(`{"items": [{"metadata": {"name": "first-item"}}, {"metadata": {"name": "second-item"}}]}`)
+	gock.New(cluster).
+		Get(`/.+/namespaces/.+`).
+		SetMatcher(test.SpyOnCalls(calls)).
+		Persist().
+		Reply(404)
 }
 
 func MockRemoveRequestsToOS(calls *int, cluster string) {
@@ -270,11 +286,8 @@ func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int
 	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1 + 5
 }
 
-func ExpectedNumberOfCallsWhenClean(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
-	objectsInTemplates := RetrieveObjects(t, config, DefaultClusterMapping, DefaultUserInfo, envTypes...)
-	pvcNumber := CountObjectsThat(objectsInTemplates, isOfKind(environment.ValKindPersistentVolumeClaim))
-	cleanAllOps := (len(openshift.AllKindsToClean)) * len(envTypes)
-	return NumberOfObjectsToClean(objectsInTemplates) + pvcNumber + cleanAllOps
+func ExpectedNumberOfCallsWhenClean(envTypes ...environment.Type) int {
+	return (len(openshift.AllToGetAndDelete)) * len(envTypes) * 5
 }
 
 func ExpectedNumberOfCallsWhenPatch(t *testing.T, config *configuration.Data, envTypes ...environment.Type) int {
@@ -289,10 +302,6 @@ func NumberOfGetChecks(objects environment.Objects) int {
 	return CountObjectsThat(
 		objects,
 		isOfKind(environment.ValKindNamespace, environment.ValKindProjectRequest, environment.ValKindProject, environment.ValKindResourceQuota))
-}
-
-func NumberOfObjectsToClean(objects environment.Objects) int {
-	return CountObjectsThat(objects, isOfKind(openshift.AllKindsToClean...))
 }
 
 func NumberOfObjectsToRemove(objects environment.Objects) int {

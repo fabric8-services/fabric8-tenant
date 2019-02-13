@@ -70,7 +70,8 @@ func TestEachMethodSeparately(t *testing.T) {
 		request, err := methodDefinition.requestCreator.createRequestFor("http://starter", object[0], []byte(objectToBeParsed))
 		assert.NoError(t, err)
 		assert.Equal(t, "http://starter/targeting-object-name", request.URL.String())
-		assert.Equal(t, "application/strategic-merge-patch+json", request.Header.Get("Content-Type"))
+		assert.Equal(t, "application/merge-patch+json", request.Header.Get("Content-Type"))
+		assert.Equal(t, "application/json", request.Header.Get("Accept"))
 		assert.Equal(t, http.MethodPatch, request.Method)
 	})
 
@@ -89,15 +90,16 @@ func TestEachMethodSeparately(t *testing.T) {
 		assert.Equal(t, http.MethodDelete, request.Method)
 	})
 
-	t.Run("DELETEALL method", func(t *testing.T) {
+	t.Run("ENSURE_DELETION method", func(t *testing.T) {
 		// when
-		methodDefinition := DELETEALL()(dummyEndpoint)
+		methodDefinition := ENSURE_DELETION(true)(dummyEndpoint)
 
 		// then
-		assert.Empty(t, methodDefinition.beforeDoCallbacks)
+		assert.Len(t, methodDefinition.beforeDoCallbacks, 1)
+		assert.Equal(t, methodDefinition.beforeDoCallbacks[0].Name, WaitUntilIsRemoved(true).Name)
 		assert.Len(t, methodDefinition.afterDoCallbacks, 1)
 		assert.Equal(t, methodDefinition.afterDoCallbacks[0].Name, IgnoreWhenDoesNotExistOrConflicts.Name)
-		assert.Equal(t, MethodDeleteAll, methodDefinition.action)
+		assert.Equal(t, EnsureDeletion, methodDefinition.action)
 		request, err := methodDefinition.requestCreator.createRequestFor("http://starter", object[0], []byte(objectToBeParsed))
 		assert.NoError(t, err)
 		assert.Equal(t, "http://starter/targeting-object-name", request.URL.String())

@@ -27,11 +27,11 @@ func NewMethodDefinition(action string, beforeCallbacks []BeforeDoCallback, afte
 	return methodDefinition
 }
 
+const EnsureDeletion = "ENSURE_DELETION"
+
 type methodDefCreator func(endpoint string) MethodDefinition
 type RequestCreatorModifier func(requestCreator RequestCreator) RequestCreator
 type MethodDefModifier func(*MethodDefinition) *MethodDefinition
-
-const MethodDeleteAll = "DELETEALL"
 
 type BeforeDoCallbackFuncCreator func(previousCallback BeforeDoCallbackFunc) BeforeDoCallbackFunc
 type BeforeDoCallbackFunc func(context CallbackContext) (*MethodDefinition, []byte, error)
@@ -132,7 +132,8 @@ func PATCH(modifiers ...MethodDefModifier) methodDefCreator {
 					if err != nil {
 						return nil, err
 					}
-					req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
+					req.Header.Set("Accept", "application/json")
+					req.Header.Set("Content-Type", "application/merge-patch+json")
 					return req, err
 				}},
 			modifiers...)
@@ -167,11 +168,11 @@ func DELETE(modifiers ...MethodDefModifier) methodDefCreator {
 	}
 }
 
-func DELETEALL(modifiers ...MethodDefModifier) methodDefCreator {
+func ENSURE_DELETION(active bool, modifiers ...MethodDefModifier) methodDefCreator {
 	return func(urlTemplate string) MethodDefinition {
 		return NewMethodDefinition(
-			MethodDeleteAll,
-			[]BeforeDoCallback{},
+			EnsureDeletion,
+			[]BeforeDoCallback{WaitUntilIsRemoved(active)},
 			[]AfterDoCallback{IgnoreWhenDoesNotExistOrConflicts},
 			RequestCreator{
 				creator: func(urlCreator urlCreator, body []byte) (*http.Request, error) {

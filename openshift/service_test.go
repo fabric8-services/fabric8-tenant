@@ -309,7 +309,6 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 		Reply(200)
 
-	//namespaceCreator := Ns("aslak-run", environment.TypeRun)
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces(environment.TypeRun))
 	tnnt := fxt.Tenants[0]
 	service := testdoubles.NewOSService(
@@ -334,6 +333,12 @@ func (s *ServiceTestSuite) TestClean() {
 	defer gock.OffAll()
 	config, reset := test.LoadTestConfig(s.T())
 	defer reset()
+	okCalls := 0
+	gock.New(test.ClusterURL).
+		Get("/api/v1/namespaces/john-jenkins/pods/first-item").
+		SetMatcher(test.SpyOnCalls(&okCalls)).
+		Times(2).
+		Reply(200)
 
 	testdoubles.MockCleanRequestsToOS(ptr.Int(0), test.ClusterURL)
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
@@ -348,6 +353,7 @@ func (s *ServiceTestSuite) TestClean() {
 
 	// then
 	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 2, okCalls)
 	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
 		Exists()
 }
@@ -433,14 +439,50 @@ func (s *ServiceTestSuite) TestCleanReturns404() {
 		Reply(404).
 		BodyString("{}")
 	gock.New(test.ClusterURL).
-		Get(`.*\/(persistentvolumeclaims)\/.*`).
-		Persist().
-		Reply(404)
-	gock.New(test.ClusterURL).
-		Get(`\/api\/v1\/namespaces\/[^\/].+\/services`).
+		Get(`/.+/namespaces/john[^/]*/[^/]+/$`).
 		Persist().
 		Reply(200).
 		BodyString(`{"items": []}`)
+	gock.New(test.ClusterURL).
+		Get(`.*\/(persistentvolumeclaims)\/.*`).
+		Persist().
+		Reply(404)
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
+	tnnt := fxt.Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		testdoubles.AddUser("john").WithToken("abc123"),
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Delete(environment.DefaultEnvTypes, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+		Exists()
+}
+
+func (s *ServiceTestSuite) TestCleanReturns404WhenGatheringAvailableObjects() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+
+	gock.New(test.ClusterURL).
+		Delete("").
+		Persist().
+		Reply(202).
+		BodyString("{}")
+	gock.New(test.ClusterURL).
+		Get(`/.+/namespaces/john[^/]*/[^/]+/$`).
+		Persist().
+		Reply(404).
+		BodyString(`{"items": []}`)
+	gock.New(test.ClusterURL).
+		Get(`.*\/(persistentvolumeclaims)\/.*`).
+		Persist().
+		Reply(404)
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
 	tnnt := fxt.Tenants[0]
 	service := testdoubles.NewOSService(
@@ -499,7 +541,6 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflic
 		Get("/oapi/v1/projects/johndoe-che").
 		Reply(200).
 		BodyString("{}")
-	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe2")
 	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe")
 	gock.New("http://api.cluster1").
 		Delete("/oapi/v1/projects/.*").
@@ -507,6 +548,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflic
 		Times(5).
 		Reply(200).
 		BodyString("{}")
+	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe2")
 
 	repo := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
 	service := testdoubles.NewOSService(
@@ -539,7 +581,6 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 		Get("/oapi/v1/projects/johndoe-che").
 		Reply(200).
 		BodyString("{}")
-	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe3")
 	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe")
 	gock.New("http://api.cluster1").
 		Delete("/oapi/v1/projects/.*").
@@ -547,6 +588,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 		Times(5).
 		Reply(200).
 		BodyString("{}")
+	testdoubles.MockPostRequestsToOS(ptr.Int(0), test.ClusterURL, environment.DefaultEnvTypes, "johndoe3")
 
 	repo := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
 	service := testdoubles.NewOSService(

@@ -31,6 +31,7 @@ const (
 	GetObjectName                     = "GetObject"
 	IgnoreWhenDoesNotExistName        = "IgnoreWhenDoesNotExistOrConflicts"
 	TryToWaitUntilIsGoneName          = "TryToWaitUntilIsGone"
+	WaitUntilIsRemovedName            = "WaitUntilIsRemoved"
 )
 
 // Before callbacks
@@ -120,6 +121,47 @@ var FailIfAlreadyExists = BeforeDoCallback{
 		}
 	},
 	Name: FailIfExistsName,
+}
+
+func WaitUntilIsRemoved(doCheckAndContinue bool) BeforeDoCallback {
+	return BeforeDoCallback{
+		Create: func(previousCallback BeforeDoCallbackFunc) BeforeDoCallbackFunc {
+			return func(context CallbackContext) (*MethodDefinition, []byte, error) {
+				method, body, err := previousCallback(context)
+				if err != nil {
+					return method, body, err
+				}
+				if !doCheckAndContinue {
+					return nil, nil, nil
+				}
+				retries := 30
+				msg := waitUntilIsGone(context, retries, false)
+				if len(msg) > 0 {
+					logrus.WithFields(map[string]interface{}{
+						"action":         context.Method.action,
+						"object-kind":    environment.GetKind(context.Object),
+						"object-name":    environment.GetName(context.Object),
+						"namespace":      environment.GetNamespace(context.Object),
+						"cluster":        context.Client.MasterURL,
+						"first-5-errors": msg,
+					}).Warnf("The object wasn't removed - checked in %d of unsuccessful retries", retries)
+					return addAfterDoCallbackIfNotExist(*method, TryToWaitUntilIsGone), body, err
+				}
+				return nil, nil, nil
+			}
+		},
+		Name: WaitUntilIsRemovedName,
+	}
+}
+
+func addAfterDoCallbackIfNotExist(method MethodDefinition, callbackToAdd AfterDoCallback) *MethodDefinition {
+	for _, callback := range method.afterDoCallbacks {
+		if callback.Name == callbackToAdd.Name {
+			return &method
+		}
+	}
+	method.afterDoCallbacks = append(method.afterDoCallbacks, callbackToAdd)
+	return &method
 }
 
 // After callbacks
@@ -215,7 +257,7 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 					"object-kind": environment.GetKind(context.Object),
 					"object-name": environment.GetName(context.Object),
 					"namespace":   environment.GetNamespace(context.Object),
-					"message":     result.Body,
+					"message":     string(result.Body),
 				}).Warnf("failed to %s the object. Ignoring this error because it probably does not exist or is being removed",
 					context.Method.action)
 				return &Result{}, nil
@@ -235,26 +277,7 @@ var TryToWaitUntilIsGone = AfterDoCallback{
 				return result, err
 			}
 			retries := 60
-			errorChan := retry.Do(retries, time.Millisecond*500, func() error {
-				result, err := context.ObjEndpoints.Apply(context.Client, context.Object, http.MethodGet)
-				if result != nil && isNotPresent(result.Response.StatusCode) {
-					return nil
-				}
-				if err != nil {
-					return err
-				}
-				var returnedObj environment.Object
-				err = yaml.Unmarshal(result.Body, &returnedObj)
-				if err != nil {
-					return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
-				}
-				if isInTerminatingState(returnedObj) {
-					return nil
-				}
-				return fmt.Errorf("the object %s hasn't been removed nor set to terminating state "+
-					"- waiting till it is completely removed to finish the %s action", returnedObj, context.Method.action)
-			})
-			msg := utils.ListErrorsInMessage(errorChan, 5)
+			msg := waitUntilIsGone(context, retries, true)
 			if len(msg) > 0 {
 				// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
 				logrus.WithFields(map[string]interface{}{
@@ -271,6 +294,32 @@ var TryToWaitUntilIsGone = AfterDoCallback{
 		}
 	},
 	Name: TryToWaitUntilIsGoneName,
+}
+
+func waitUntilIsGone(context CallbackContext, retries int, checkTerminating bool) string {
+	errorChan := retry.Do(retries, time.Millisecond*500, func() error {
+		result, err := context.ObjEndpoints.Apply(context.Client, context.Object, http.MethodGet)
+		if result != nil && isNotPresent(result.Response.StatusCode) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		var returnedObj environment.Object
+		err = yaml.Unmarshal(result.Body, &returnedObj)
+		if err != nil {
+			return errors.Wrapf(err, "unable unmarshal object responded from OS while doing GET method")
+		}
+		errMsgPrefix := fmt.Sprintf("the object %s hasn't been removed ", returnedObj)
+		if checkTerminating {
+			if isInTerminatingState(returnedObj) {
+				return nil
+			}
+			errMsgPrefix += "nor set to terminating state "
+		}
+		return fmt.Errorf("%s - waiting till it is completely removed to finish the %s action", errMsgPrefix, context.Method.action)
+	})
+	return utils.ListErrorsInMessage(errorChan, 5)
 }
 
 func isNotPresent(statusCode int) bool {
