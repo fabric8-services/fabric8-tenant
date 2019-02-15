@@ -111,6 +111,9 @@ type CheNamespaceTypeService struct {
 }
 
 func (t *CheNamespaceTypeService) AdditionalObject() (environment.Object, bool) {
+	if t.context.requestCtx == nil {
+		return environment.Object{}, true
+	}
 	return t.newEditRightsObject(), t.isToggleEnabled(t.context.requestCtx, "che.edit.rights", false)
 }
 
