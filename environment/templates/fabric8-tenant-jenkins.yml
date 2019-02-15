@@ -836,6 +836,41 @@ objects:
     to:
       kind: Service
       name: jenkins
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    labels:
+      app: jenkins
+      provider: fabric8
+      version: ${COMMIT}
+      version-quotas: ${COMMIT_QUOTAS}
+    name: openshift-jenkins-login-plugin-config
+    namespace: ${USER_NAME}-jenkins
+  data:
+    Overall-Read: admin,edit,view
+    Overall-RunScripts: admin,edit,view
+    Overall-Administer: admin
+    Job-Build: admin,edit,view
+    Job-Configure: admin,edit,view
+    Job-Create: admin,edit,view
+    Job-Delete: admin,edit,view
+    Job-Cancel: admin,edit,view
+    Job-Wokspace: admin,edit,view
+    Job-Read: admin,edit,view
+    Job-Discover: admin,edit,view
+    Run-Delete: admin
+    Run-Update: admin
+    View-Configure: admin
+    View-Create: admin
+    View-Delete: admin
+    Credentials-Create: admin
+    Credentials-Update: admin
+    Credentials-Delete: admin
+    Credentials-ManageDomains: admin
+    Credentials-View: admin,edit,view
+    SCM-Tag: admin,edit,view
+    Slave-Configure: admin
+    Slave-Delete: admin
 parameters:
 - name: USER_NAME
   value: developer
