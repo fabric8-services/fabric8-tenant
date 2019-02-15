@@ -105,8 +105,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 	var run sync.WaitGroup
 	run.Add(1)
 
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("johny")), tf.AddNamespaces())
-	id := fxt.Tenants[0].ID
+	id := uuid.NewV4()
 
 	deleteCalls := 0
 	gock.New("http://api.cluster1").
@@ -131,7 +130,12 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 			run.Wait()
 
 			// when
-			ctrl.Setup(setupCtx)
+			err = ctrl.Setup(setupCtx)
+
+			// then
+			if err != nil {
+				assert.Equal(s.T(), err, test.IsOfType(setupCtx.Conflict()))
+			}
 		}()
 	}
 	run.Done()
@@ -188,7 +192,12 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 				run.Wait()
 
 				// when
-				ctrl.Setup(setupCtx)
+				err = ctrl.Setup(setupCtx)
+
+				// then
+				if err != nil {
+					assert.Equal(s.T(), err, test.IsOfType(setupCtx.Conflict()))
+				}
 			}()
 		}
 	}
