@@ -16,6 +16,7 @@ import (
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
 // TenantController implements the tenant resource.
@@ -175,6 +176,9 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		}
 		err = tenantRepository.CreateTenant(dbTenant)
 		if err != nil {
+			if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
+				return ctx.Conflict()
+			}
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
 			}, "unable to store tenant configuration")
