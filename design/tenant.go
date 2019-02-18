@@ -110,6 +110,24 @@ var _ = a.Resource("tenant", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
+	a.Action("setupEnv", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.POST(":envType"),
+		)
+		a.Params(func() {
+			a.Param("envType", d.String, "Environment type to be initialized")
+		})
+
+		a.Description("Initialize new tenant environment with given Environment type.")
+		a.Response(d.Accepted)
+		a.Response(d.Conflict)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
 	a.Action("update", func() {
 		a.Security("jwt")
 		a.Routing(
