@@ -69,6 +69,40 @@ func TestEnvironmentTypeService(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("test service behavior common for all types when request context is nil", func(t *testing.T) {
+		for _, envType := range environment.DefaultEnvTypes {
+			// when
+			ctx := openshift.NewServiceContext(
+				nil, config, cluster.ForTypeMapping(clusterMapping), "developer", "developer1", func(cluster cluster.Cluster) string {
+					return "userToken"
+				})
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// then
+			assert.Equal(t, envType, service.GetType())
+			assert.Equal(t, fmt.Sprintf("http://starter-for-type-%s.com", envType.String()), service.GetCluster().APIURL)
+			envData, objects, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
+				return true
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, envType, envData.EnvType)
+			assert.NotEmpty(t, envData.Templates)
+			assert.NotEmpty(t, objects)
+
+			object, add := service.AdditionalObject()
+			assert.Empty(t, object)
+			assert.True(t, add)
+
+			if envType != environment.TypeUser {
+				assert.Equal(t, "clusterToken", service.GetTokenProducer(false)(false))
+				assert.Equal(t, "clusterToken", service.GetTokenProducer(true)(true))
+				assert.NoError(t, service.AfterCallback(client, "POST"))
+				assert.Equal(t, "developer1-"+envType.String(), service.GetNamespaceName())
+			}
+		}
+	})
+
 	t.Run("test service behavior specific for user type", func(t *testing.T) {
 		// when
 		service := openshift.NewEnvironmentTypeService(environment.TypeUser, ctx, envService)
