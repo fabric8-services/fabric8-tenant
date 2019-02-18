@@ -178,6 +178,60 @@ func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdate() {
 	})
 }
 
+func (s *TenantServiceTestSuite) TestGetThreeClustersToUpdate() {
+	// given
+	configuration.Commit = "123abc"
+	testdoubles.SetTemplateVersions()
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().Outdated().MasterURL("http://cool-cluster.com"))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().Outdated().MasterURL("http://my-cluster.com"))
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	clusters, err := svc.GetClustersToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "xyz")
+
+	// then
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), clusters, 3)
+	assert.Contains(s.T(), clusters, test.Normalize(test.ClusterURL))
+	assert.Contains(s.T(), clusters, "http://cool-cluster.com")
+	assert.Contains(s.T(), clusters, "http://my-cluster.com")
+}
+func (s *TenantServiceTestSuite) TestGetOneClusterToUpdate() {
+	// given
+	configuration.Commit = "123abc"
+	testdoubles.SetTemplateVersions()
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().MasterURL("http://cool-cluster.com"))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().MasterURL("http://my-cluster.com"))
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	clusters, err := svc.GetClustersToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "xyz")
+
+	// then
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), clusters, 1)
+	assert.Contains(s.T(), clusters, test.Normalize(test.ClusterURL))
+}
+
+func (s *TenantServiceTestSuite) TestGetNoClusterToUpdate() {
+	// given
+	configuration.Commit = "123abc"
+	testdoubles.SetTemplateVersions()
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().MasterURL("http://cool-cluster.com"))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(3), tf.AddDefaultNamespaces().MasterURL("http://my-cluster.com"))
+	svc := tenant.NewDBService(s.DB)
+
+	// when
+	clusters, err := svc.GetClustersToUpdate(testdoubles.GetMappedVersions(environment.DefaultEnvTypes...), "xyz")
+
+	// then
+	assert.NoError(s.T(), err)
+	assert.Empty(s.T(), clusters)
+}
+
 func (s *TenantServiceTestSuite) TestGetAllTenantsToUpdateBatchByBatch() {
 	s.T().Run("will need to call GetTenantsToUpdate three times to get all tenants to update", func(t *testing.T) {
 		// given
