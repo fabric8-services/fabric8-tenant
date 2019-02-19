@@ -45,3 +45,14 @@ func (ns *Type) Scan(value interface{}) error {
 func (t Type) String() string {
 	return string(t)
 }
+
+func ToType(typeStr string) Type {
+	var envType Type
+	for _, nsType := range DefaultEnvTypes {
+		if nsType.String() == typeStr {
+			envType = nsType
+			break
+		}
+	}
+	return envType
+}
