@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -149,7 +150,13 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 }
 
 func (c *TenantController) SetupEnv(ctx *app.SetupEnvTenantContext) error {
-	envType := ctx.EnvType
+	// convert to valid env type
+	envType := environment.ToType(ctx.EnvType)
+	if envType == "" {
+		return errors.NewInternalErrorFromString(fmt.Sprintf("Environment type '%s' is either invalid or not supported", ctx.EnvType))
+	}
+
+	// setup env
 	err := c.internalSetup(ctx, envType)
 	if ctx.ResponseData.Status == http.StatusAccepted {
 		ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
@@ -157,7 +164,7 @@ func (c *TenantController) SetupEnv(ctx *app.SetupEnvTenantContext) error {
 	return err
 }
 
-func (c *TenantController) internalSetup(ctx setupContext, envType ...string) error {
+func (c *TenantController) internalSetup(ctx setupContext, envTypes ...environment.Type) error {
 	// gets user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
@@ -216,7 +223,12 @@ func (c *TenantController) internalSetup(ctx setupContext, envType ...string) er
 	}
 
 	// check if any environment type is missing - should be provisioned
-	missing, _ := filterMissingAndExisting(namespaces)
+	var missing []environment.Type
+	if len(envTypes) == 0 {
+		missing, _ = filterMissingAndExisting(namespaces, environment.DefaultEnvTypes)
+	} else {
+		missing, _ = filterMissingAndExisting(namespaces, envTypes)
+	}
 	if len(missing) == 0 {
 		return ctx.Conflict()
 	}
@@ -390,18 +402,17 @@ func (c *TenantController) newOpenShiftService(ctx context.Context, user *auth.U
 	return openshift.NewService(serviceContext, nsRepo, envService)
 }
 
-func filterMissingAndExisting(namespaces []*tenant.Namespace) (missing []environment.Type, existing []environment.Type) {
+func filterMissingAndExisting(namespaces []*tenant.Namespace, searchEnvTypes []environment.Type) (missing []environment.Type, existing []environment.Type) {
 	exitingTypes := GetNamespaceByType(namespaces)
 
 	missingNamespaces := make([]environment.Type, 0)
 	existingNamespaces := make([]environment.Type, 0)
-	for _, nsType := range environment.DefaultEnvTypes {
+	for _, nsType := range searchEnvTypes {
 		_, exits := exitingTypes[nsType]
 		if !exits {
 			missingNamespaces = append(missingNamespaces, nsType)
 		} else {
 			existingNamespaces = append(existingNamespaces, nsType)
-
 		}
 	}
 	return missingNamespaces, existingNamespaces
