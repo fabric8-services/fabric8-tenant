@@ -376,6 +376,73 @@ func (s *TenantsUpdaterTestSuite) TestWhenStopIsCalledThenNothingIsUpdatedAndSta
 	assert.NotEqual(s.T(), 250, updateExecs[0].NumberOfCalls)
 }
 
+func (s *TenantsUpdaterTestSuite) TestUpdateAllTenantsForMoreClustersInParallel() {
+	// given
+	defer gock.OffAll()
+	testdoubles.MockCommunicationWithAuth(test.ClusterURL, "http://api.cluster2", "http://api.cluster3",
+		"http://api.cluster4", "http://api.cluster5", "http://api.cluster6", "http://api.cluster7", "http://api.cluster8")
+	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
+	updateExecutor.TimeToSleep = 1 * time.Second
+	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.AllTypes, "")
+	defer reset()
+	testdoubles.SetTemplateVersions()
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster2")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster3")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster4")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster5")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster6")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster7")
+	testdoubles.MockPatchRequestsToOS(ptr.Int(0), "http://api.cluster8")
+
+	*updateExecutor.NumberOfCalls = 0
+	var tnnts []*tenant.Tenant
+
+	tnnts = append(tnnts, tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated()).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster2")).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster3")).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster4")).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster5")).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster6")).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster7")).Tenants...)
+	tnnts = append(tnnts,
+		tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddDefaultNamespaces().Outdated().MasterURL("http://api.cluster8")).Tenants...)
+	configuration.Commit = "124abcd"
+
+	s.tx(s.T(), func(repo update.Repository) error {
+		return repo.UpdateStatus(update.Status(update.Finished))
+	})
+	s.tx(s.T(), func(repo update.Repository) error {
+		return testupdate.UpdateVersionsTo(repo, "0xy")
+	})
+	before := time.Now()
+
+	// when
+	tenantsUpdater.UpdateAllTenants()
+	finished := time.Now()
+
+	// then
+	assert.Equal(s.T(), 8, int(*updateExecutor.NumberOfCalls))
+	s.assertStatusAndAllVersionAreUpToDate(s.T(), update.Finished)
+	for _, tnnt := range tnnts {
+		assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
+			HasNamespacesThat(func(assertion *assertion.NamespaceAssertion) {
+				assertion.
+					HasCurrentCompleteVersion().
+					HasUpdatedBy("124abcd").
+					HasState(tenant.Ready).
+					WasUpdatedAfter(before)
+			})
+	}
+	assert.True(s.T(), before.After(finished.Add(-7*time.Second)))
+}
+
 func (s *TenantsUpdaterTestSuite) TestMoreGoroutinesTryingToUpdate() {
 	//given
 	defer gock.OffAll()

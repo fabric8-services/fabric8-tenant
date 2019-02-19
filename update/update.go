@@ -2,6 +2,7 @@ package update
 
 import (
 	"context"
+	"fmt"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
@@ -10,7 +11,9 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
+	"github.com/fabric8-services/fabric8-tenant/utils"
 	"github.com/jinzhu/gorm"
+	"sync"
 	"time"
 )
 
@@ -199,8 +202,6 @@ func IsOlderThanTimeout(when time.Time, config *configuration.Data) bool {
 func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) followUpFunc {
 	return func() error {
 		mappedTemplates := environment.RetrieveMappedTemplates()
-		tenantRepo := tenant.NewDBService(u.db)
-
 		typesWithVersion := map[environment.Type]string{}
 
 		for _, envType := range envTypes {
@@ -209,39 +210,78 @@ func (u *TenantsUpdater) updateTenantsForTypes(envTypes []environment.Type) foll
 			}
 		}
 
-		for {
-			toUpdate, err := tenantRepo.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit, u.limitToCluster)
+		var clustersToUpdate []string
+		if u.limitToCluster != "" {
+			clustersToUpdate = []string{u.limitToCluster}
+		} else {
+			var err error
+			clustersToUpdate, err = tenant.NewDBService(u.db).GetClustersToUpdate(typesWithVersion, configuration.Commit)
 			if err != nil {
 				return err
 			}
-			if len(toUpdate) == 0 {
-				break
-			}
-			log.Info(nil, map[string]interface{}{
-				"number_of_tenants_to_update": len(toUpdate),
-			}, "starting update for next batch of outdated/failed tenants")
-
-			canContinue, err := u.updateTenants(toUpdate, tenantRepo, typesWithVersion)
-			if err != nil {
-				return err
-			}
-			if !canContinue {
-				break
-			}
-
-			err = dbsupport.Transaction(u.db, lock(func(repo Repository) error {
-				return repo.UpdateLastTimeUpdated()
-			}))
-			if err != nil {
-				return err
-			}
+		}
+		errorChan := make(chan error, len(clustersToUpdate))
+		wg := sync.WaitGroup{}
+		wg.Add(len(clustersToUpdate))
+		for _, cluster := range clustersToUpdate {
+			go func(clusterURL string, typesAndVersion map[environment.Type]string, db *gorm.DB, config *configuration.Data, updateExecutor Executor) {
+				defer wg.Done()
+				err := updateForCluster(clusterURL, typesAndVersion, db, config, updateExecutor)
+				if err != nil {
+					errorChan <- err
+					log.Error(nil, map[string]interface{}{
+						"cluster_URL": clusterURL,
+						"error":       err,
+					}, "the tenants updated failed for the cluster")
+				}
+			}(cluster, typesWithVersion, u.db, u.config, u.updateExecutor)
+		}
+		wg.Wait()
+		close(errorChan)
+		errorMsg := utils.ListErrorsInMessage(errorChan, len(clustersToUpdate))
+		if errorMsg != "" {
+			return fmt.Errorf(errorMsg)
 		}
 
 		err := dbsupport.Transaction(u.db, lock(func(repo Repository) error {
 			return u.setStatusAndVersionsAfterUpdate(repo)
 		}))
+
 		return err
 	}
+}
+
+func updateForCluster(clusterURL string, typesWithVersion map[environment.Type]string, db *gorm.DB, config *configuration.Data, updateExecutor Executor) error {
+	for {
+		dbService := tenant.NewDBService(db)
+		toUpdate, err := dbService.GetTenantsToUpdate(typesWithVersion, 100, configuration.Commit, clusterURL)
+		if err != nil {
+			return err
+		}
+		if len(toUpdate) == 0 {
+			break
+		}
+		log.Info(nil, map[string]interface{}{
+			"number_of_tenants_to_update": len(toUpdate),
+			"master_url":                  clusterURL,
+		}, "starting update for next batch of outdated/failed tenants")
+
+		canContinue, err := updateTenants(toUpdate, typesWithVersion, db, config, updateExecutor)
+		if err != nil {
+			return err
+		}
+		if !canContinue {
+			break
+		}
+
+		err = dbsupport.Transaction(db, lock(func(repo Repository) error {
+			return repo.UpdateLastTimeUpdated()
+		}))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error {
@@ -274,12 +314,13 @@ func (u *TenantsUpdater) setStatusAndVersionsAfterUpdate(repo Repository) error 
 	return repo.SaveTenantsUpdate(tenantUpdate)
 }
 
-func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tenant.Service, typesWithVersion map[environment.Type]string) (bool, error) {
+func updateTenants(tenants []*tenant.Tenant, typesWithVersion map[environment.Type]string,
+	db *gorm.DB, config *configuration.Data, updateExecutor Executor) (bool, error) {
 	canContinue := true
 	var err error
 
 	for _, tnnt := range tenants {
-		err := dbsupport.Transaction(u.db, func(tx *gorm.DB) error {
+		err := dbsupport.Transaction(db, func(tx *gorm.DB) error {
 			var err error
 			canContinue, err = NewRepository(tx).CanContinue()
 			return err
@@ -289,8 +330,8 @@ func (u *TenantsUpdater) updateTenants(tenants []*tenant.Tenant, tenantRepo tena
 			break
 		}
 
-		updateTenant(u.updateExecutor, tnnt, typesWithVersion, u.db)
-		time.Sleep(u.config.GetAutomatedUpdateTimeGap())
+		updateTenant(updateExecutor, tnnt, typesWithVersion, db)
+		time.Sleep(config.GetAutomatedUpdateTimeGap())
 	}
 	return canContinue, err
 }
