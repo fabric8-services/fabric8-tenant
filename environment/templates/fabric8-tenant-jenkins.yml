@@ -875,7 +875,7 @@ parameters:
 - name: USER_NAME
   value: developer
 - name: JENKINS_OPENSHIFT_VERSION
-  value: v5d6d049
+  value: SNAPSHOT-PR-231-151
 - name: PROJECT_USER
   value: developer
 - name: RECOMMENDER_EXTERNAL_NAME
