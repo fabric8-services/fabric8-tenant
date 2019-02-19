@@ -2,6 +2,9 @@ package controller
 
 import (
 	"context"
+	"net/http"
+	"strings"
+
 	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -15,8 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
-	"strings"
+	uuid "github.com/satori/go.uuid"
 )
 
 // TenantController implements the tenant resource.
@@ -43,6 +45,16 @@ func NewTenantController(
 		authClientService: authClientService,
 		tenantService:     tenantService,
 	}
+}
+
+type setupContext interface {
+	context.Context
+	Accepted() error
+	BadRequest(r *app.JSONAPIErrors) error
+	Unauthorized(r *app.JSONAPIErrors) error
+	NotFound(r *app.JSONAPIErrors) error
+	Conflict() error
+	InternalServerError(r *app.JSONAPIErrors) error
 }
 
 // Clean runs the clean action.
@@ -129,6 +141,23 @@ func GetClusterMapping(ctx context.Context, clusterService cluster.Service, name
 
 // Setup runs the setup action.
 func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
+	err := c.internalSetup(ctx)
+	if ctx.ResponseData.Status == http.StatusAccepted {
+		ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
+	}
+	return err
+}
+
+func (c *TenantController) SetupEnv(ctx *app.SetupEnvTenantContext) error {
+	envType := ctx.EnvType
+	err := c.internalSetup(ctx, envType)
+	if ctx.ResponseData.Status == http.StatusAccepted {
+		ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
+	}
+	return err
+}
+
+func (c *TenantController) internalSetup(ctx setupContext, envType ...string) error {
 	// gets user info
 	user, err := c.authClientService.GetUser(ctx)
 	if err != nil {
@@ -216,7 +245,6 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
 
