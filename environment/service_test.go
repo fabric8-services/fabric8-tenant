@@ -162,7 +162,7 @@ func XTestDownloadFromExistingLocation(t *testing.T) {
 	}
 }
 
-func TestDownloadFromGivenBlob(t *testing.T) {
+func TestDownloadFromGivenBlobSetAsTenantConfig(t *testing.T) {
 	// given
 	defer gock.OffAll()
 	gock.New("https://raw.githubusercontent.com").
@@ -185,6 +185,68 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 	assert.Len(t, objects, 1)
 	assert.Equal(t, environment.GetLabel(objects[0], "test"), "default-location")
 	assert.Equal(t, environment.GetLabelVersion(objects[0]), "987654321")
+}
+
+func TestDownloadFromGivenVersion(t *testing.T) {
+	// given
+	defer gock.OffAll()
+	gock.New("https://raw.githubusercontent.com").
+		Get("fabric8-services/fabric8-tenant/987654321/environment/templates/fabric8-tenant-deploy.yml").
+		Reply(200).
+		BodyString(defaultLocationTempl)
+	testdoubles.SetTemplateVersions()
+	service := environment.NewServiceForBlob("987654321")
+
+	// when
+	envData, err := service.GetEnvData(context.Background(), environment.TypeRun)
+
+	// then
+	require.NoError(t, err)
+	vars := map[string]string{
+		"USER_NAME": "dev",
+	}
+	objects, err := envData.Templates[0].Process(vars)
+	require.NoError(t, err)
+	assert.Len(t, objects, 1)
+	assert.Equal(t, "default-location", environment.GetLabel(objects[0], "test"))
+	assert.Equal(t, "987654321", environment.GetLabelVersion(objects[0]))
+}
+
+func TestDownloadFromGivenVersionThatContainsTwoParts(t *testing.T) {
+	// given
+	defer gock.OffAll()
+	gock.New("https://raw.githubusercontent.com").
+		Get("fabric8-services/fabric8-tenant/98765/environment/templates/fabric8-tenant-che-mt.yml").
+		Reply(200).
+		BodyString(customLocationTempl)
+	gock.New("https://raw.githubusercontent.com").
+		Get("fabric8-services/fabric8-tenant/4321/environment/templates/fabric8-tenant-che-quotas.yml").
+		Reply(200).
+		BodyString(customLocationQuotas)
+	testdoubles.SetTemplateVersions()
+	service := environment.NewServiceForBlob("98765_4321")
+
+	// when
+	envData, err := service.GetEnvData(context.Background(), environment.TypeChe)
+
+	// then
+	require.NoError(t, err)
+	vars := map[string]string{
+		"USER_NAME": "dev",
+	}
+	assert.Len(t, envData.Templates, 2)
+	objects, err := envData.Templates[0].Process(vars)
+	require.NoError(t, err)
+	assert.Len(t, objects, 1)
+	assert.Equal(t, "custom-location", environment.GetLabel(objects[0], "test"))
+	assert.Equal(t, "98765", environment.GetLabelVersion(objects[0]))
+	assert.Equal(t, "4321", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+
+	objects, err = envData.Templates[1].Process(vars)
+	require.NoError(t, err)
+	assert.Len(t, objects, 1)
+	assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
+	assert.Equal(t, environment.GetLabelVersion(objects[0]), "4321")
 }
 
 func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {

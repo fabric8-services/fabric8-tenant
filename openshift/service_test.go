@@ -410,7 +410,7 @@ func (s *ServiceTestSuite) TestCleanWhenGetForServicesReturns500() {
 	defer reset()
 
 	gock.New(test.ClusterURL).
-		Get("/api/v1/namespaces/john-jenkins/services").
+		Get("/api/v1/namespaces/john[^/]*/services").
 		Persist().
 		Reply(500)
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
@@ -682,6 +682,44 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsRes
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)+1, calls)
 	assert.Equal(s.T(), 1, deleteCalls)
+	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), namespaces, 5)
+}
+
+func (s *ServiceTestSuite) TestUpdateWithDeletesOfRemovedObjects() {
+	// given
+	defer gock.OffAll()
+	config, reset := test.LoadTestConfig(s.T())
+	defer reset()
+	testdoubles.SetTemplateVersions()
+
+	calls := 0
+	deleteCalls := 0
+	testdoubles.MockPatchRequestsToOS(&calls, test.ClusterURL)
+	mockCallsToGetTemplates(s.T(), "0000", "developer", true)
+	gock.New(test.ClusterURL).
+		Delete("/oapi/v1/namespaces/developer.*/rolebindings/view-rb-to-remove").
+		SetMatcher(test.SpyOnCalls(&deleteCalls)).
+		Times(5).
+		Reply(200)
+
+	userCreator := testdoubles.AddUser("developer").WithToken("12345")
+
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddDefaultNamespaces().Outdated())
+	tnnt := fxt.Tenants[0]
+	service := testdoubles.NewOSService(
+		config,
+		userCreator,
+		tenant.NewTenantRepository(s.DB, tnnt.ID))
+
+	// when
+	err := service.Update(environment.DefaultEnvTypes, fxt.Namespaces, openshift.UpdateOpts().EnableSelfHealing())
+
+	// then
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPatch(s.T(), config, environment.DefaultEnvTypes...), calls)
+	assert.Equal(s.T(), 5, deleteCalls)
 	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), namespaces, 5)

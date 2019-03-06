@@ -6,13 +6,34 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
+	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
+	"io/ioutil"
 	"strings"
 	"testing"
 )
+
+var prObjTemplate = `
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      app: fabric8-tenant
+      provider: fabric8
+      version: 123abc
+      version-quotas: 123abc
+    name: view-rb-to-remove
+    namespace: %s
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: cd-bot
+`
 
 func TestEnvironmentTypeService(t *testing.T) {
 	// given
@@ -43,13 +64,13 @@ func TestEnvironmentTypeService(t *testing.T) {
 			// then
 			assert.Equal(t, envType, service.GetType())
 			assert.Equal(t, fmt.Sprintf("http://starter-for-type-%s.com", envType.String()), service.GetCluster().APIURL)
-			envData, objects, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
-				return true
-			})
+			envDataMngr, err := service.GetEnvDataAndObjects()
 			assert.NoError(t, err)
-			assert.Equal(t, envType, envData.EnvType)
-			assert.NotEmpty(t, envData.Templates)
-			assert.NotEmpty(t, objects)
+			assert.Equal(t, envType, envDataMngr.EnvData.EnvType)
+			assert.NotEmpty(t, envDataMngr.EnvData.Templates)
+			assert.NotEmpty(t, envDataMngr.GetObjects(func(objects environment.Object) bool {
+				return true
+			}))
 
 			if envType != environment.TypeChe {
 				object, add := service.AdditionalObject()
@@ -145,6 +166,122 @@ func TestEnvironmentTypeService(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	})
+
+	t.Run("EnvAndObjectManager should return missing object", func(t *testing.T) {
+		defer gock.OffAll()
+		mockCallsToGetTemplates(t, "123abc", "developer1", true)
+		for envType := range environment.RetrieveMappedTemplates() {
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// when
+			envAndObjectsManager, err := service.GetEnvDataAndObjects()
+			require.NoError(t, err)
+			objectsToDelete, err := envAndObjectsManager.GetMissingObjectsComparingWith("123abc")
+
+			// then
+			require.NoError(t, err)
+			assert.Len(t, objectsToDelete, 1)
+			assert.Equal(t, environment.ValKindRoleBinding, environment.GetKind(objectsToDelete[0]))
+			assert.Equal(t, "view-rb-to-remove", environment.GetName(objectsToDelete[0]))
+			assert.Equal(t, tenant.ConstructNamespaceName(envType, "developer1"), environment.GetNamespace(objectsToDelete[0]))
+		}
+	})
+
+	t.Run("EnvAndObjectManager should not return any object", func(t *testing.T) {
+		defer gock.OffAll()
+		mockCallsToGetTemplates(t, "1234abc", "developer1", false)
+		for envType := range environment.RetrieveMappedTemplates() {
+			// given
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// when
+			envAndObjectsManager, err := service.GetEnvDataAndObjects()
+			require.NoError(t, err)
+			objectsToDelete, err := envAndObjectsManager.GetMissingObjectsComparingWith("1234abc")
+
+			// then
+			require.NoError(t, err)
+			assert.Len(t, objectsToDelete, 0)
+		}
+	})
+
+	t.Run("EnvAndObjectManager should return error when there is a failure during template download", func(t *testing.T) {
+		defer gock.OffAll()
+		for envType, tmpls := range environment.RetrieveMappedTemplates() {
+			// given
+			for _, tmpl := range tmpls {
+				gock.New("https://raw.githubusercontent.com").
+					Get("/fabric8-services/fabric8-tenant/12345abc/environment/templates/" + tmpl.Filename).
+					Reply(404)
+			}
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// when
+			envAndObjectsManager, err := service.GetEnvDataAndObjects()
+			require.NoError(t, err)
+			_, err = envAndObjectsManager.GetMissingObjectsComparingWith("12345abc")
+
+			// then
+			test.AssertError(t, err, test.HasMessage("server responded with error 404"))
+		}
+	})
+
+	t.Run("EnvAndObjectManager should not return error when there is a failure for the first download and not for the second one", func(t *testing.T) {
+		defer gock.OffAll()
+		// given
+		for envType, tmpls := range environment.RetrieveMappedTemplates() {
+			for _, tmpl := range tmpls {
+				gock.New("https://raw.githubusercontent.com").
+					Get("/fabric8-services/fabric8-tenant/123456abc/environment/templates/" + tmpl.Filename).
+					Reply(404)
+			}
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+			envAndObjectsManager, err := service.GetEnvDataAndObjects()
+			require.NoError(t, err)
+			_, err = envAndObjectsManager.GetMissingObjectsComparingWith("123456abc")
+			test.AssertError(t, err, test.HasMessage("server responded with error 404"))
+		}
+		gock.OffAll()
+		mockCallsToGetTemplates(t, "123456abc", "developer1", true)
+
+		for envType := range environment.RetrieveMappedTemplates() {
+			service := openshift.NewEnvironmentTypeService(envType, ctx, envService)
+
+			// when
+			envAndObjectsManager, err := service.GetEnvDataAndObjects()
+			require.NoError(t, err)
+			objectsToDelete, err := envAndObjectsManager.GetMissingObjectsComparingWith("123456abc")
+
+			// then
+			require.NoError(t, err, envType.String())
+			assert.Len(t, objectsToDelete, 1)
+			assert.Equal(t, environment.ValKindRoleBinding, environment.GetKind(objectsToDelete[0]))
+			assert.Equal(t, "view-rb-to-remove", environment.GetName(objectsToDelete[0]))
+			assert.Equal(t, tenant.ConstructNamespaceName(envType, "developer1"), environment.GetNamespace(objectsToDelete[0]))
+		}
+	})
+}
+
+func mockCallsToGetTemplates(t *testing.T, version, nsBaseName string, addRb bool) {
+	for envType, tmpls := range environment.RetrieveMappedTemplates() {
+		namespaceName := tenant.ConstructNamespaceName(envType, nsBaseName)
+		rbToRemove := fmt.Sprintf(prObjTemplate, namespaceName)
+		for _, tmpl := range tmpls {
+			// given
+			bytes, err := ioutil.ReadFile("../environment/templates/" + tmpl.Filename)
+			require.NoError(t, err)
+			body := string(bytes)
+			if addRb && !strings.Contains(tmpl.Filename, "quotas") {
+				body = strings.Replace(body, "parameters:", rbToRemove+"\nparameters:", 1)
+			}
+
+			path := fmt.Sprintf("/fabric8-services/fabric8-tenant/%s/environment/templates/%s", version, tmpl.Filename)
+			gock.New("https://raw.githubusercontent.com").
+				Get(path).
+				Reply(200).
+				BodyString(body)
+		}
+	}
 }
 
 func TestPresenceOfTemplateObjects(t *testing.T) {

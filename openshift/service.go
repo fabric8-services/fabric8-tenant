@@ -69,15 +69,18 @@ func NewServiceContext(callerCtx context.Context, config *configuration.Data, cl
 }
 
 func (b *ServiceBuilder) Create(nsTypes []environment.Type, actionOpts *ActionOptions) error {
-	return b.service.processAndApplyAll(nsTypes, NewCreateAction(b.service.tenantRepository, actionOpts))
+	return b.service.processAndApplyAll(nsTypes,
+		NewCreateAction(b.service.tenantRepository, b.service.context.requestCtx, actionOpts))
 }
 
 func (b *ServiceBuilder) Update(nsTypes []environment.Type, existingNamespaces []*tenant.Namespace, actionOpts *ActionOptions) error {
-	return b.service.processAndApplyAll(nsTypes, NewUpdateAction(b.service.tenantRepository, existingNamespaces, actionOpts))
+	return b.service.processAndApplyAll(nsTypes,
+		NewUpdateAction(b.service.tenantRepository, b.service.context.requestCtx, existingNamespaces, actionOpts))
 }
 
 func (b *ServiceBuilder) Delete(nsTypes []environment.Type, existingNamespaces []*tenant.Namespace, deleteOpts *DeleteActionOption) error {
-	return b.service.processAndApplyAll(nsTypes, NewDeleteAction(b.service.tenantRepository, existingNamespaces, deleteOpts))
+	return b.service.processAndApplyAll(nsTypes,
+		NewDeleteAction(b.service.tenantRepository, b.service.context.requestCtx, existingNamespaces, deleteOpts))
 }
 
 func (s *Service) processAndApplyAll(nsTypes []environment.Type, action NamespaceAction) error {
@@ -146,7 +149,6 @@ func processAndApplyNs(nsTypeWait *sync.WaitGroup, nsTypeService EnvironmentType
 	if err != nil {
 		errorChan <- errors.Wrapf(err, "the after callback of a namespace %s failed for the type %s", action.MethodName(), nsTypeService.GetNamespaceName())
 	}
-	namespace.Version = env.Version()
 	action.UpdateNamespace(env, &cluster, namespace, failed || err != nil)
 }
 

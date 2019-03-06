@@ -34,7 +34,7 @@ func TestAdditionalObjectForChe(t *testing.T) {
 
 	service := &CheNamespaceTypeService{
 		CommonEnvTypeService: &CommonEnvTypeService{
-			name:       environment.TypeChe,
+			envType:    environment.TypeChe,
 			context:    ctx,
 			envService: environment.NewService(),
 		},

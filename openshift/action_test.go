@@ -45,7 +45,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 	defer reset()
 
 	// when
-	create := openshift.NewCreateAction(repo, openshift.CreateOpts().EnableSelfHealing())
+	create := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -54,7 +54,12 @@ func (s *ActionTestSuite) TestCreateAction() {
 
 	s.T().Run("filter method should always return true", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
-			assert.True(t, create.Filter()(obj))
+			_, sets, err := create.GetOperationSets(NewOneObjectService(obj), openshift.Client{})
+			// then
+			require.NoError(t, err)
+			require.Len(t, sets, 1)
+			assert.Len(t, sets[0].Objects, 1)
+			assert.Equal(t, obj, sets[0].Objects[0])
 		}
 	})
 
@@ -190,7 +195,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreateAction(repo, openshift.CreateOpts().EnableSelfHealing()).
+			err := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -216,7 +221,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("dev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreateAction(repo, openshift.CreateOpts().EnableSelfHealing()).
+			err := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -243,7 +248,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("developertofail")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreateAction(repo, openshift.CreateOpts().EnableSelfHealing()).
+			err := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -277,7 +282,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewCreateAction(repo, openshift.CreateOpts().EnableSelfHealing()).
+			err := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -294,7 +299,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// when
-			err := openshift.NewCreateAction(repo, openshift.CreateOpts().DisableSelfHealing()).
+			err := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().DisableSelfHealing()).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
@@ -305,7 +310,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			errorChan := make(chan error, 10)
 			close(errorChan)
 			// when
-			err := openshift.NewCreateAction(repo, openshift.CreateOpts().EnableSelfHealing()).
+			err := openshift.NewCreateAction(repo, nil, openshift.CreateOpts().EnableSelfHealing()).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			assert.NoError(t, err)
@@ -324,30 +329,12 @@ func (s *ActionTestSuite) TestDeleteAction() {
 	client := openshift.NewClient(nil, test.ClusterURL, tokenProducer)
 
 	// when
-	delete := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
-	deleteFromCluster := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster())
+	delete := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing())
+	deleteFromCluster := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster())
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
 		assert.Equal(t, "DELETE", delete.MethodName())
-	})
-
-	s.T().Run("verify filter method", func(t *testing.T) {
-		for _, obj := range getObjectsOfAllKinds() {
-			if environment.GetKind(obj) == "ProjectRequest" {
-				assert.False(t, delete.Filter()(obj), obj.ToString())
-				assert.True(t, deleteFromCluster.Filter()(obj), obj.ToString())
-			} else {
-				assert.False(t, deleteFromCluster.Filter()(obj), obj.ToString())
-				if environment.GetKind(obj) == "PersistentVolumeClaim" || environment.GetKind(obj) == "ConfigMap" ||
-					environment.GetKind(obj) == "Service" || environment.GetKind(obj) == "DeploymentConfig" || environment.GetKind(obj) == "Route" ||
-					environment.GetKind(obj) == "Job" || environment.GetKind(obj) == "Deployment" {
-					assert.True(t, delete.Filter()(obj), obj.ToString())
-				} else {
-					assert.False(t, delete.Filter()(obj), obj.ToString())
-				}
-			}
-		}
 	})
 
 	s.T().Run("GetOperationSets method should do reverse sorted and delete all objects for clean", func(t *testing.T) {
@@ -455,13 +442,10 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// then
 		assert.NoError(t, err)
 		assert.Len(t, sets, 1)
-		length := len(allKinds)
 		assert.Equal(t, "DELETE", sets[0].Method)
 		sorted := sets[0].Objects
-		require.Len(t, sorted, length)
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[length-1]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[length-2]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[length-3]))
+		require.Len(t, sorted, 1)
+		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[0]))
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
@@ -578,7 +562,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing()).
+			err := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -604,7 +588,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster()).
+			err := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -630,7 +614,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing()).
+			err := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -659,7 +643,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster()).
+			err := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -675,7 +659,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// when
-			err := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().DisableSelfHealing().RemoveFromCluster()).
+			err := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().DisableSelfHealing().RemoveFromCluster()).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
@@ -687,7 +671,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// and also when
-			err := openshift.NewDeleteAction(repo, fxt.Namespaces, openshift.DeleteOpts().DisableSelfHealing()).
+			err := openshift.NewDeleteAction(repo, nil, fxt.Namespaces, openshift.DeleteOpts().DisableSelfHealing()).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
@@ -721,7 +705,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 	defer reset()
 
 	// when
-	update := openshift.NewUpdateAction(repo, namespaces, openshift.UpdateOpts().EnableSelfHealing())
+	update := openshift.NewUpdateAction(repo, nil, namespaces, openshift.UpdateOpts().EnableSelfHealing())
 
 	// then
 	s.T().Run("method name should match", func(t *testing.T) {
@@ -730,45 +714,70 @@ func (s *ActionTestSuite) TestUpdateAction() {
 
 	s.T().Run("filter method should always return true except for project request", func(t *testing.T) {
 		for _, obj := range getObjectsOfAllKinds() {
+			_, sets, err := update.GetOperationSets(NewOneObjectService(obj), openshift.Client{})
+			require.NoError(t, err)
+			require.Len(t, sets, 2)
 			if environment.GetKind(obj) == "ProjectRequest" {
-				assert.False(t, update.Filter()(obj))
+				assert.Empty(t, sets[0].Objects)
 			} else {
-				assert.True(t, update.Filter()(obj))
+				assert.Len(t, sets[0].Objects, 1)
+				assert.Equal(t, obj, sets[0].Objects[0])
 			}
 
 		}
 	})
 
 	s.T().Run("GetOperationSets should not add additional set and should sort the objects", func(t *testing.T) {
+		// given
+		openshift.CacheOfRemovedObjects = &openshift.RemovedObjectsCache{}
 		// when
 		_, sets, err := update.GetOperationSets(NewAllTypesService(nil, true), openshift.Client{})
 		// then
 		assert.NoError(t, err)
-		require.Len(t, sets, 1)
+		require.Len(t, sets, 2)
 		assert.Equal(t, "PATCH", sets[0].Method)
 		sorted := sets[0].Objects
-		require.Len(t, sorted, len(allKinds))
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(sorted[0]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[1]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[2]))
+		require.Len(t, sorted, len(allKinds)-1)
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(sorted[0]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(sorted[1]))
+		assert.Equal(t, environment.ValKindLimitRange, environment.GetKind(sorted[2]))
+
+		assert.Equal(t, "DELETE", sets[1].Method)
+		deleteSorted := sets[1].Objects
+		require.Len(t, deleteSorted, 3)
+		assert.Equal(t, environment.ValKindRoleBinding, environment.GetKind(deleteSorted[0]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(deleteSorted[1]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(deleteSorted[2]))
 	})
 
 	s.T().Run("GetOperationSets should add additional object to existing set and sort the objects", func(t *testing.T) {
+		// given
+		openshift.CacheOfRemovedObjects = &openshift.RemovedObjectsCache{}
 		// when
 		_, sets, err := update.GetOperationSets(NewAllTypesService(myDummyRole, true), openshift.Client{})
 		// then
 		assert.NoError(t, err)
-		require.Len(t, sets, 1)
+		require.Len(t, sets, 2)
 		assert.Equal(t, "PATCH", sets[0].Method)
 		patchSorted := sets[0].Objects
-		require.Len(t, patchSorted, len(allKinds)+1)
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(patchSorted[0]))
+		require.Len(t, patchSorted, len(allKinds))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(patchSorted[0]))
 		assert.Equal(t, environment.ValKindRole, environment.GetKind(patchSorted[1]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(patchSorted[2]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(patchSorted[3]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(patchSorted[2]))
+		assert.Equal(t, environment.ValKindLimitRange, environment.GetKind(patchSorted[3]))
+
+		assert.Equal(t, "DELETE", sets[1].Method)
+		deleteSorted := sets[1].Objects
+		require.Len(t, deleteSorted, 3)
+		assert.Equal(t, environment.ValKindRoleBinding, environment.GetKind(deleteSorted[0]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(deleteSorted[1]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(deleteSorted[2]))
+
 	})
 
 	s.T().Run("GetOperationSets should add additional object to new set and sort the objects", func(t *testing.T) {
+		// given
+		openshift.CacheOfRemovedObjects = &openshift.RemovedObjectsCache{}
 		// when
 		_, sets, err := update.GetOperationSets(NewAllTypesService(myDummyRole, false), openshift.Client{})
 		// then
@@ -776,15 +785,34 @@ func (s *ActionTestSuite) TestUpdateAction() {
 		require.Len(t, sets, 2)
 		assert.Equal(t, "PATCH", sets[0].Method)
 		patchSorted := sets[0].Objects
-		require.Len(t, patchSorted, len(allKinds))
-		assert.Equal(t, environment.ValKindProjectRequest, environment.GetKind(patchSorted[0]))
-		assert.Equal(t, environment.ValKindRole, environment.GetKind(patchSorted[1]))
-		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(patchSorted[2]))
+		require.Len(t, patchSorted, len(allKinds)-1)
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(patchSorted[0]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(patchSorted[1]))
+		assert.Equal(t, environment.ValKindLimitRange, environment.GetKind(patchSorted[2]))
 
 		assert.Equal(t, "DELETE", sets[1].Method)
 		deleteSorted := sets[1].Objects
-		require.Len(t, deleteSorted, 1)
-		assert.Equal(t, myDummyRole, deleteSorted[0])
+		require.Len(t, deleteSorted, 4)
+		assert.Equal(t, environment.ValKindRoleBinding, environment.GetKind(deleteSorted[0]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(deleteSorted[1]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(deleteSorted[2]))
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(deleteSorted[3]))
+	})
+
+	s.T().Run("GetOperationSets should not add missing objects nor fail when receives error", func(t *testing.T) {
+		// given
+		openshift.CacheOfRemovedObjects = &openshift.RemovedObjectsCache{}
+		// when
+		_, sets, err := update.GetOperationSets(NewAllTypesServiceWithError(true), openshift.Client{})
+		// then
+		assert.NoError(t, err)
+		require.Len(t, sets, 1)
+		assert.Equal(t, "PATCH", sets[0].Method)
+		patchSorted := sets[0].Objects
+		require.Len(t, patchSorted, len(allKinds)-1)
+		assert.Equal(t, environment.ValKindRole, environment.GetKind(patchSorted[0]))
+		assert.Equal(t, environment.ValKindRoleBindingRestriction, environment.GetKind(patchSorted[1]))
+		assert.Equal(t, environment.ValKindLimitRange, environment.GetKind(patchSorted[2]))
 	})
 
 	s.T().Run("it should require master token globally", func(t *testing.T) {
@@ -793,7 +821,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 
 	for _, envType := range environment.DefaultEnvTypes {
 		// given
-		envService, envData := gewEnvServiceWithData(s.T(), envType, config)
+		envService, _ := gewEnvServiceWithData(s.T(), envType, config)
 
 		// verify getting namespace - it should return only if exists
 		namespace, err := update.GetNamespaceEntity(envService)
@@ -815,6 +843,9 @@ func (s *ActionTestSuite) TestUpdateAction() {
 
 		// verify namespace update to ready
 		s.T().Run("update namespace to ready", func(t *testing.T) {
+			// given
+			testdoubles.SetTemplateVersions()
+			_, envData := gewEnvServiceWithData(s.T(), envType, config)
 			// when
 			update.UpdateNamespace(envData, &cluster.Cluster{APIURL: test.ClusterURL}, namespace, false)
 			// then
@@ -822,20 +853,24 @@ func (s *ActionTestSuite) TestUpdateAction() {
 				HasNumberOfNamespaces(2).
 				HasNamespaceOfTypeThat(envType).
 				HasState(tenant.Ready).
-				HasMasterURL(test.ClusterURL)
+				HasMasterURL(test.ClusterURL).
+				HasCurrentCompleteVersion()
 		})
 
 		// verify namespace update to failed
 		s.T().Run("update namespace to failed", func(t *testing.T) {
+			// given
+			testdoubles.SetTemplateSameVersion("xxx")
+			_, envData := gewEnvServiceWithData(s.T(), envType, config)
 			// when
 			update.UpdateNamespace(envData, &cluster.Cluster{APIURL: test.ClusterURL}, namespace, true)
 			// then
-
 			assertion.AssertTenant(t, repo).
 				HasNumberOfNamespaces(2).
 				HasNamespaceOfTypeThat(envType).
 				HasState(tenant.Failed).
-				HasMasterURL(test.ClusterURL)
+				HasMasterURL(test.ClusterURL).
+				HasCurrentCompleteVersion()
 		})
 	}
 
@@ -880,7 +915,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			userModifier := testdoubles.AddUser("developer")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewUpdateAction(repo, namespaces, openshift.UpdateOpts().EnableSelfHealing()).
+			err := openshift.NewUpdateAction(repo, nil, namespaces, openshift.UpdateOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
@@ -909,7 +944,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			userModifier := testdoubles.AddUser("anotherdev")
 			serviceBuilder := testdoubles.NewOSService(config, userModifier, repo)
 			// when
-			err := openshift.NewUpdateAction(repo, namespaces, openshift.UpdateOpts().EnableSelfHealing()).
+			err := openshift.NewUpdateAction(repo, nil, namespaces, openshift.UpdateOpts().EnableSelfHealing()).
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
@@ -927,7 +962,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			errorChan <- fmt.Errorf("first dummy error")
 			close(errorChan)
 			// when
-			err := openshift.NewUpdateAction(repo, namespaces, openshift.UpdateOpts().DisableSelfHealing()).
+			err := openshift.NewUpdateAction(repo, nil, namespaces, openshift.UpdateOpts().DisableSelfHealing()).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			test.AssertError(t, err, test.HasMessageContaining("first dummy error"))
@@ -938,7 +973,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 			errorChan := make(chan error, 10)
 			close(errorChan)
 			// when
-			err := openshift.NewUpdateAction(repo, namespaces, openshift.UpdateOpts().EnableSelfHealing()).
+			err := openshift.NewUpdateAction(repo, nil, namespaces, openshift.UpdateOpts().EnableSelfHealing()).
 				ManageAndUpdateResults(errorChan, []environment.Type{environment.TypeChe}, returnErrHealing)
 			// then
 			assert.NoError(t, err)
@@ -952,18 +987,17 @@ func gewEnvServiceWithData(t *testing.T, envType environment.Type, config *confi
 			return "HMs8laMmBSsJi8hpMDOtiglbXJ-2eyymE1X46ax5wX8"
 		})
 	service := openshift.NewEnvironmentTypeService(envType, osContext, environment.NewService())
-	data, _, err := service.GetEnvDataAndObjects(func(objects environment.Object) bool {
-		return true
-	})
+	envDataMngr, err := service.GetEnvDataAndObjects()
 	assert.NoError(t, err)
-	return service, data
+	return service, envDataMngr.EnvData
 }
 
 type allTypesService struct {
 	*openshift.CommonEnvTypeService
-	allObjects       environment.Objects
-	additionalObject environment.Object
-	shouldBeAdded    bool
+	allObjects             environment.Objects
+	additionalObject       environment.Object
+	shouldBeAdded          bool
+	objForVersionReturnErr bool
 }
 
 func NewAllTypesService(additionalObject environment.Object, shouldBeAdded bool) allTypesService {
@@ -974,8 +1008,35 @@ func NewAllTypesService(additionalObject environment.Object, shouldBeAdded bool)
 	}
 }
 
-func (s allTypesService) GetEnvDataAndObjects(filter openshift.FilterFunc) (*environment.EnvData, environment.Objects, error) {
-	return nil, s.allObjects, nil
+func NewAllTypesServiceWithError(objForVersionReturnErr bool) allTypesService {
+	return allTypesService{
+		allObjects:             getObjectsOfAllKinds(),
+		objForVersionReturnErr: objForVersionReturnErr,
+	}
+}
+
+func NewOneObjectService(obj environment.Object) allTypesService {
+	return allTypesService{
+		allObjects: environment.Objects{obj},
+	}
+}
+
+func (s allTypesService) GetEnvDataAndObjects() (*openshift.EnvAndObjectsManager, error) {
+	return openshift.NewEnvAndObjectsManager(&environment.EnvData{}, s.allObjects,
+		func(version string) (data *environment.EnvData, objects environment.Objects, e error) {
+			if s.objForVersionReturnErr {
+				return nil, nil, fmt.Errorf("some error")
+			}
+			return &environment.EnvData{}, environment.Objects{
+				openshift.NewObject(environment.ValKindRole, s.GetNamespaceName(), "r-to-remove"),
+				openshift.NewObject(environment.ValKindRoleBinding, s.GetNamespaceName(), "rbr-to-remove"),
+				openshift.NewObject(environment.ValKindRoleBindingRestriction, s.GetNamespaceName(), "rbr-to-remove"),
+			}, nil
+		}, s.GetType(), s.GetNamespaceName()), nil
+}
+
+func (s allTypesService) GetType() environment.Type {
+	return environment.TypeJenkins
 }
 
 func (s allTypesService) GetNamespaceName() string {

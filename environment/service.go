@@ -88,6 +88,10 @@ func NewService() *Service {
 	return &Service{}
 }
 
+func NewServiceForBlob(templatesRepoBlob string) *Service {
+	return &Service{templatesRepoBlob: templatesRepoBlob}
+}
+
 func NewServiceForUserData(user *authclient.UserDataAttributes) *Service {
 	service := NewService()
 	if user != nil {
@@ -170,10 +174,16 @@ func (s *Service) retrieveTemplates(tmpls []*Template) error {
 	)
 	for _, template := range tmpls {
 		if s.templatesRepoBlob != "" {
-			fileURL := fmt.Sprintf(rawFileURLTemplate, s.getRepo(), s.templatesRepoBlob, s.getPath(template))
+			commit, commitQuotas := getVersions(s.templatesRepoBlob)
+			template.DefaultParams[varCommit] = commit
+			template.DefaultParams[varCommitQuotas] = commitQuotas
+			template.Version = commit
+			if strings.Contains(template.Filename, "quotas") {
+				template.Version = commitQuotas
+			}
+
+			fileURL := fmt.Sprintf(rawFileURLTemplate, s.getRepo(), template.Version, s.getPath(template))
 			content, err = utils.DownloadFile(fileURL)
-			template.DefaultParams[varCommit] = s.templatesRepoBlob
-			template.DefaultParams[varCommitQuotas] = s.templatesRepoBlob
 		} else {
 			content, err = templates.Asset(template.Filename)
 		}
@@ -183,6 +193,16 @@ func (s *Service) retrieveTemplates(tmpls []*Template) error {
 		template.Content = string(content)
 	}
 	return nil
+}
+
+func getVersions(blob string) (string, string) {
+	if strings.Contains(blob, "_") {
+		splitVersion := strings.Split(blob, "_")
+		if len(splitVersion) == 2 {
+			return splitVersion[0], splitVersion[1]
+		}
+	}
+	return blob, blob
 }
 
 func (s *Service) getRepo() string {

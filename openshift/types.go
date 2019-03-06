@@ -17,7 +17,7 @@ import (
 type EnvironmentTypeService interface {
 	GetType() environment.Type
 	GetNamespaceName() string
-	GetEnvDataAndObjects(filter FilterFunc) (*environment.EnvData, environment.Objects, error)
+	GetEnvDataAndObjects() (*EnvAndObjectsManager, error)
 	GetCluster() cluster.Cluster
 	AfterCallback(client *Client, action string) error
 	GetTokenProducer(forceMasterTokenGlobally bool) TokenProducer
@@ -26,7 +26,7 @@ type EnvironmentTypeService interface {
 
 func NewEnvironmentTypeService(envType environment.Type, context *ServiceContext, envService *environment.Service) EnvironmentTypeService {
 	service := &CommonEnvTypeService{
-		name:       envType,
+		envType:    envType,
 		context:    context,
 		envService: envService,
 	}
@@ -42,32 +42,46 @@ func NewEnvironmentTypeService(envType environment.Type, context *ServiceContext
 }
 
 type CommonEnvTypeService struct {
-	name       environment.Type
+	envType    environment.Type
 	context    *ServiceContext
 	envService *environment.Service
 }
 
 func (t *CommonEnvTypeService) GetType() environment.Type {
-	return t.name
+	return t.envType
 }
 
 func (t *CommonEnvTypeService) GetNamespaceName() string {
-	return fmt.Sprintf("%s-%s", t.context.nsBaseName, t.name)
+	return fmt.Sprintf("%s-%s", t.context.nsBaseName, t.envType)
 }
 
-func (t *CommonEnvTypeService) GetEnvDataAndObjects(filter FilterFunc) (*environment.EnvData, environment.Objects, error) {
-	envData, err := t.envService.GetEnvData(t.context.requestCtx, t.name)
+func (t *CommonEnvTypeService) GetEnvDataAndObjects() (*EnvAndObjectsManager, error) {
+	return t.getEnvDataAndObjects(t.GetNamespaceName())
+}
+
+func (t *CommonEnvTypeService) getEnvDataAndObjects(namespaceName string) (*EnvAndObjectsManager, error) {
+	envData, objects, err := getEnvDataAndObjects(t.envService, t.envType, *t.context)
+	envAndObjectsManager := NewEnvAndObjectsManager(envData, objects,
+		func(version string) (*environment.EnvData, environment.Objects, error) {
+			return getEnvDataAndObjects(environment.NewServiceForBlob(version), t.envType, *t.context)
+		}, t.envType, namespaceName,
+	)
+	return envAndObjectsManager, err
+}
+
+func getEnvDataAndObjects(envService *environment.Service, envType environment.Type, context ServiceContext) (*environment.EnvData, environment.Objects, error) {
+	envData, err := envService.GetEnvData(context.requestCtx, envType)
 	if err != nil {
 		return nil, nil, err
 	}
-	objects, err := t.getObjects(envData, filter)
+	objects, err := getObjects(envData, envType, context)
 	return envData, objects, err
 }
 
-func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter FilterFunc) (environment.Objects, error) {
+func getObjects(env *environment.EnvData, envType environment.Type, context ServiceContext) (environment.Objects, error) {
 	var objs environment.Objects
-	cluster := t.context.clusterForType(t.name)
-	vars := environment.CollectVars(t.context.openShiftUsername, t.context.nsBaseName, cluster.User, t.context.config)
+	cluster := context.clusterForType(envType)
+	vars := environment.CollectVars(context.openShiftUsername, context.nsBaseName, cluster.User, context.config)
 
 	for _, template := range env.Templates {
 		if os.Getenv("DISABLE_OSO_QUOTAS") == "true" && strings.Contains(template.Filename, "quotas") {
@@ -78,17 +92,13 @@ func (t *CommonEnvTypeService) getObjects(env *environment.EnvData, filter Filte
 		if err != nil {
 			return nil, err
 		}
-		for _, obj := range objects {
-			if filter(obj) {
-				objs = append(objs, obj)
-			}
-		}
+		objs = append(objs, objects...)
 	}
 	return objs, nil
 }
 
 func (t *CommonEnvTypeService) GetCluster() cluster.Cluster {
-	return t.context.clusterForType(t.name)
+	return t.context.clusterForType(t.envType)
 }
 
 func (t *CommonEnvTypeService) AfterCallback(client *Client, action string) error {
@@ -157,6 +167,10 @@ func (t *UserNamespaceTypeService) GetNamespaceName() string {
 	return t.context.nsBaseName
 }
 
+func (t *UserNamespaceTypeService) GetEnvDataAndObjects() (*EnvAndObjectsManager, error) {
+	return t.getEnvDataAndObjects(t.GetNamespaceName())
+}
+
 func CreateAdminRoleBinding(namespace string) environment.Object {
 	objs, err := environment.ParseObjects(adminRole)
 	if err == nil {
@@ -167,4 +181,47 @@ func CreateAdminRoleBinding(namespace string) environment.Object {
 		return obj
 	}
 	return environment.Object{}
+}
+
+type EnvAndObjectsManager struct {
+	EnvData           *environment.EnvData
+	allObjects        environment.Objects
+	objectsForVersion objectsForVersionRetrieval
+	envType           environment.Type
+	namespaceName     string
+}
+
+func NewEnvAndObjectsManager(envData *environment.EnvData, allObjects environment.Objects,
+	objectsForVersion objectsForVersionRetrieval, envType environment.Type, namespaceName string) *EnvAndObjectsManager {
+	return &EnvAndObjectsManager{
+		EnvData:           envData,
+		allObjects:        allObjects,
+		objectsForVersion: objectsForVersion,
+		envType:           envType,
+		namespaceName:     namespaceName,
+	}
+}
+
+func (m *EnvAndObjectsManager) GetMissingObjectsComparingWith(version string) (environment.Objects, error) {
+	removedObjects, err := CacheOfRemovedObjects.GetResolver(m.envType, version, m.objectsForVersion, m.allObjects).Resolve()
+	if err != nil {
+		CacheOfRemovedObjects.RemoveResolver(m.envType, version)
+		return nil, err
+	}
+	var objs environment.Objects
+	for _, removedObj := range removedObjects {
+		objs = append(objs, removedObj.toObject(m.namespaceName))
+	}
+
+	return objs, nil
+}
+
+func (m *EnvAndObjectsManager) GetObjects(filterFunc FilterFunc) environment.Objects {
+	var filtered environment.Objects
+	for _, obj := range m.allObjects {
+		if filterFunc(obj) {
+			filtered = append(filtered, obj)
+		}
+	}
+	return filtered
 }
