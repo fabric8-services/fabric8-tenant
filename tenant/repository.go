@@ -19,6 +19,7 @@ type Service interface {
 	NamespaceExists(nsName string) (bool, error)
 	ExistsWithNsBaseName(nsBaseName string) (bool, error)
 	GetTenantsToUpdate(typeWithVersion map[environment.Type]string, count int, commit string, masterURL string) ([]*Tenant, error)
+	GetClustersToUpdate(typeWithVersion map[environment.Type]string, commit string) ([]string, error)
 	GetNumberOfOutdatedTenants(typeWithVersion map[environment.Type]string, commit string, masterURL string) (int, error)
 }
 
@@ -89,6 +90,20 @@ func (s *DBService) GetTenantsToUpdate(typeWithVersion map[environment.Type]stri
 	return tenants, err
 }
 
+func (s *DBService) GetClustersToUpdate(typeWithVersion map[environment.Type]string, commit string) ([]string, error) {
+	var namespaces []*Namespace
+	err := s.newGetOutdatedNamespacesQuery(typeWithVersion, "master_url", commit, "").Scan(&namespaces).Error
+	if err != nil {
+		return nil, err
+	}
+	clusters := make([]string, 0, len(namespaces))
+	for _, ns := range namespaces {
+		clusters = append(clusters, ns.MasterURL)
+	}
+
+	return clusters, err
+}
+
 func (s *DBService) GetNumberOfOutdatedTenants(typeWithVersion map[environment.Type]string, commit string, masterURL string) (int, error) {
 	var count int
 	err := s.newGetOutdatedTenantsQuery(typeWithVersion, commit, masterURL).Count(&count).Error
@@ -96,8 +111,8 @@ func (s *DBService) GetNumberOfOutdatedTenants(typeWithVersion map[environment.T
 	return count, err
 }
 
-func (s *DBService) newGetOutdatedTenantsQuery(typeWithVersion map[environment.Type]string, commit string, masterURL string) *gorm.DB {
-	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select("tenant_id")
+func (s *DBService) newGetOutdatedNamespacesQuery(typeWithVersion map[environment.Type]string, toSelect, commit, masterURL string) *gorm.DB {
+	nsSubQuery := s.db.Table(Namespace{}.TableName()).Select(toSelect)
 	nsSubQuery = nsSubQuery.Where("state != 'failed' OR (state = 'failed' AND updated_by != ?)", commit)
 	if masterURL != "" {
 		nsSubQuery = nsSubQuery.Where("master_url = ?", masterURL)
@@ -109,7 +124,12 @@ func (s *DBService) newGetOutdatedTenantsQuery(typeWithVersion map[environment.T
 		conditions = append(conditions, "(namespaces.type = ? AND namespaces.version != ?)")
 		params = append(params, envType, version)
 	}
-	nsSubQuery = nsSubQuery.Where(strings.Join(conditions, " OR "), params...).Group("tenant_id")
+	nsSubQuery = nsSubQuery.Where(strings.Join(conditions, " OR "), params...).Group(toSelect)
+	return nsSubQuery
+}
+
+func (s *DBService) newGetOutdatedTenantsQuery(typeWithVersion map[environment.Type]string, commit string, masterURL string) *gorm.DB {
+	nsSubQuery := s.newGetOutdatedNamespacesQuery(typeWithVersion, "tenant_id", commit, masterURL)
 	return s.db.Table(Tenant{}.TableName()).
 		Joins("INNER JOIN ? n ON tenants.id = n.tenant_id", nsSubQuery.SubQuery())
 }
