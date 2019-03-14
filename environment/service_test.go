@@ -27,7 +27,7 @@ objects:
 var customLocationTempl = `apiVersion: v1
 kind: Template
 metadata:
-  name: fabric8-tenant-jenkins
+  name: fabric8-tenant-che
 objects:
 - apiVersion: v1
   kind: ProjectRequest
@@ -36,7 +36,7 @@ objects:
       test: custom-location
       version: ${COMMIT}
       version-quotas: ${COMMIT_QUOTAS}
-    name: ${USER_NAME}-jenkins`
+    name: ${USER_NAME}-che`
 
 var customLocationQuotas = `apiVersion: v1
 kind: List
@@ -45,11 +45,11 @@ items:
   kind: LimitRange
   metadata:
     labels:
-      app: fabric8-tenant-jenkins-quotas
+      app: fabric8-tenant-che-quotas
       provider: fabric8
       version: ${COMMIT_QUOTAS}
     name: resource-limits
-    namespace: ${USER_NAME}-jenkins`
+    namespace: ${USER_NAME}-che`
 
 func TestGetAllTemplatesForAllTypes(t *testing.T) {
 	// given
@@ -77,23 +77,10 @@ func TestGetAllTemplatesForAllTypes(t *testing.T) {
 				assert.Equal(t, "234bcd", environment.GetLabelVersion(objects[0]))
 				assert.Equal(t, "zyx098", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 
-			case "jenkins":
-				assert.Len(t, env.Templates, 2)
-				assert.Contains(t, env.Templates[0].Filename, envType)
-				assert.Contains(t, env.Templates[1].Filename, "quotas")
-				assert.Equal(t, "567efg", environment.GetLabelVersion(objects[0]))
-				assert.Equal(t, "yxw987", environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-
 			case "user":
 				assert.Len(t, env.Templates, 1)
 				assert.Contains(t, env.Templates[0].Filename, envType)
 				assert.Equal(t, "345cde", environment.GetLabelVersion(objects[0]))
-				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
-
-			default:
-				assert.Len(t, env.Templates, 1)
-				assert.Contains(t, env.Templates[0].Filename, "deploy")
-				assert.Equal(t, "456def", environment.GetLabelVersion(objects[0]))
 				assert.Empty(t, environment.GetLabel(objects[0], environment.FieldVersionQuotas))
 			}
 
@@ -166,14 +153,14 @@ func TestDownloadFromGivenBlob(t *testing.T) {
 	// given
 	defer gock.OffAll()
 	gock.New("https://raw.githubusercontent.com").
-		Get("fabric8-services/fabric8-tenant/987654321/environment/templates/fabric8-tenant-deploy.yml").
+		Get("fabric8-services/fabric8-tenant/987654321/environment/templates/fabric8-tenant-user.yml").
 		Reply(200).
 		BodyString(defaultLocationTempl)
 	testdoubles.SetTemplateVersions()
 	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("", "987654321", ""))
 
 	// when
-	envData, err := service.GetEnvData(context.Background(), "run")
+	envData, err := service.GetEnvData(context.Background(), environment.TypeUser)
 
 	// then
 	require.NoError(t, err)
@@ -191,18 +178,18 @@ func TestDownloadFromGivenBlobLocatedInCustomLocation(t *testing.T) {
 	// given
 	defer gock.OffAll()
 	gock.New("http://raw.githubusercontent.com").
-		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins.yml").
+		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-che-mt.yml").
 		Reply(200).
 		BodyString(customLocationTempl)
 	gock.New("http://raw.githubusercontent.com").
-		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-jenkins-quotas.yml").
+		Get("my-services/my-tenant/987cba/any/path/fabric8-tenant-che-quotas.yml").
 		Reply(200).
 		BodyString(customLocationQuotas)
 	testdoubles.SetTemplateVersions()
 	service := environment.NewServiceForUserData(testdoubles.NewUserDataWithTenantConfig("http://github.com/my-services/my-tenant", "987cba", "any/path"))
 
 	// when
-	envData, err := service.GetEnvData(context.Background(), "jenkins")
+	envData, err := service.GetEnvData(context.Background(), environment.TypeChe)
 
 	// then
 	require.NoError(t, err)
@@ -240,33 +227,12 @@ func TestConstructCompleteVersion(t *testing.T) {
 		// then
 		assert.Equal(t, "234bcd_zyx098", completeVersion)
 	})
-	t.Run("check jenkins complete version", func(t *testing.T) {
-		// and when
-		completeVersion := mappedTemplates["jenkins"].ConstructCompleteVersion()
-
-		// then
-		assert.Equal(t, "567efg_yxw987", completeVersion)
-	})
 	t.Run("check user complete version", func(t *testing.T) {
 		// and when
 		completeVersion := mappedTemplates["user"].ConstructCompleteVersion()
 
 		// then
 		assert.Equal(t, "345cde", completeVersion)
-	})
-	t.Run("check run complete version", func(t *testing.T) {
-		// and when
-		completeVersion := mappedTemplates["run"].ConstructCompleteVersion()
-
-		// then
-		assert.Equal(t, "456def", completeVersion)
-	})
-	t.Run("check stage complete version", func(t *testing.T) {
-		// and when
-		completeVersion := mappedTemplates["stage"].ConstructCompleteVersion()
-
-		// then
-		assert.Equal(t, "456def", completeVersion)
 	})
 }
 

@@ -12,7 +12,6 @@ image:https://codecov.io/gh/fabric8-services/fabric8-tenant/branch/master/graph/
 
 All template YAML files and YAML files containing resource quotas and limits are located in link:environment/templates/[] directory.
 Every template uses the same versioning system - the version is stored as a label called `version` and is equal to a short version of `SHA` of the latest commit that changes the particular file.
-Both link:environment/templates/fabric8-tenant-jenkins.yml[jenkins] and link:environment/templates/fabric8-tenant-che.yml[single-tenant-che] templates contain also versions of imagines to be deployed - these versions are stored as a template parameter. In case of jenkins the parameter is `JENKINS_OPENSHIFT_VERSION` and in case of che `CHE_SERVER_VERSION`
 
 ==== In-production testing
 

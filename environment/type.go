@@ -10,13 +10,8 @@ type Type string
 
 // Represents the namespace type
 const (
-	TypeChe     Type = "che"
-	TypeJenkins Type = "jenkins"
-	TypeTest    Type = "test"
-	TypeStage   Type = "stage"
-	TypeRun     Type = "run"
-	TypeUser    Type = "user"
-	TypeCustom  Type = "custom"
+	TypeChe  Type = "che"
+	TypeUser Type = "user"
 )
 
 // Value - Implementation of valuer for database/sql

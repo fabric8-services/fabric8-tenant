@@ -95,8 +95,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses
 			*updateExecutor.NumberOfCalls = 0
 			fxt := tf.FillDB(t, s.DB, tf.AddTenants(1),
 				tf.AddNamespaces(environment.TypeChe).State(tenant.Ready).Outdated(),
-				tf.AddNamespaces(environment.TypeJenkins).State(tenant.Failed),
-				tf.AddNamespaces(environment.TypeRun, environment.TypeUser, environment.TypeStage).State(tenant.Ready))
+				tf.AddNamespaces(environment.TypeUser).State(tenant.Ready))
 			configuration.Commit = "124abcd"
 			before := time.Now()
 
@@ -111,7 +110,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses
 			tenantsUpdater.UpdateAllTenants()
 
 			// then
-			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenPatch(t, s.Configuration, environment.TypeChe, environment.TypeJenkins)
+			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenPatch(t, s.Configuration, environment.TypeChe)
 			assert.Equal(t, expectedNumberOfCalls, calls)
 			s.assertStatusAndAllVersionAreUpToDate(t, update.Finished)
 			for _, tnnt := range fxt.Tenants {
@@ -121,7 +120,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateOnlyOutdatedNamespacesForAllStatuses
 					nsAssertion := assertion.AssertNamespace(t, ns).
 						HasCurrentCompleteVersion().
 						HasState(tenant.Ready)
-					if ns.Type == environment.TypeChe || ns.Type == environment.TypeJenkins {
+					if ns.Type == environment.TypeChe {
 						nsAssertion.
 							HasUpdatedBy("124abcd").
 							WasUpdatedAfter(before)
@@ -297,7 +296,7 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 	defer gock.OffAll()
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
 	updateExecutor := testupdate.NewDummyUpdateExecutor(s.DB, s.Configuration)
-	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.OneType(environment.TypeJenkins), "")
+	tenantsUpdater, reset := s.newTenantsUpdater(updateExecutor, 0, update.OneType(environment.TypeChe), "")
 	defer reset()
 	testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
 
@@ -315,14 +314,14 @@ func (s *TenantsUpdaterTestSuite) TestUpdateFilteredForSpecificEnvType() {
 	tenantsUpdater.UpdateAllTenants()
 
 	// then
-	testupdate.AssertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Incomplete, update.OneType(environment.TypeJenkins))
+	testupdate.AssertStatusAndAllVersionAreUpToDate(s.T(), s.DB, update.Incomplete, update.OneType(environment.TypeChe))
 	for _, tnnt := range fxt1.Tenants {
 		namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 		assert.NoError(s.T(), err)
 		for _, ns := range namespaces {
 			nsAssertion := assertion.AssertNamespace(s.T(), ns).
 				HasState(tenant.Ready)
-			if ns.Type == environment.TypeJenkins {
+			if ns.Type == environment.TypeChe {
 				nsAssertion.
 					HasUpdatedBy("xyz").
 					HasCurrentCompleteVersion().

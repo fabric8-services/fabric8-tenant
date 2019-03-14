@@ -283,7 +283,7 @@ func MockRemoveRequestsToOS(calls *int, cluster string) {
 
 func ExpectedNumberOfCallsWhenPost(t *testing.T, config *configuration.Data) int {
 	objectsInTemplates := AllDefaultObjects(t, config)
-	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1 + 5
+	return len(objectsInTemplates) + NumberOfGetChecks(objectsInTemplates) + 1 + len(environment.DefaultEnvTypes)
 }
 
 func ExpectedNumberOfCallsWhenClean(envTypes ...environment.Type) int {

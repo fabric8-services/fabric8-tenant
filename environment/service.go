@@ -31,32 +31,21 @@ var (
 	VersionFabric8TenantJenkinsQuotasFile string
 	VersionFabric8TenantCheQuotasFile     string
 	VersionFabric8TenantDeployFile        string
-	DefaultEnvTypes                       = []Type{TypeChe, TypeJenkins, TypeRun, TypeStage, TypeUser}
+	DefaultEnvTypes                       = []Type{TypeChe, TypeUser}
 )
 
 type Templates []*Template
 
 func RetrieveMappedTemplates() map[Type]Templates {
 	return map[Type]Templates{
-		TypeRun:   tmpl(deploy("run"), "fabric8-tenant-deploy.yml"),
-		TypeStage: tmpl(deploy("stage"), "fabric8-tenant-deploy.yml"),
 		TypeChe: tmplWithQuota(versions(VersionFabric8TenantCheMtFile, VersionFabric8TenantCheQuotasFile),
 			"fabric8-tenant-che-mt.yml", "fabric8-tenant-che-quotas.yml"),
-		TypeJenkins: tmplWithQuota(versions(VersionFabric8TenantJenkinsFile, VersionFabric8TenantJenkinsQuotasFile),
-			"fabric8-tenant-jenkins.yml", "fabric8-tenant-jenkins-quotas.yml"),
 		TypeUser: tmpl(versions(VersionFabric8TenantUserFile, ""), "fabric8-tenant-user.yml"),
 	}
 }
 
 func versions(version, quotasVersion string) map[string]string {
 	return map[string]string{varCommit: version, varCommitQuotas: quotasVersion}
-}
-
-func deploy(stage string) map[string]string {
-	return map[string]string{
-		varCommit:     VersionFabric8TenantDeployFile,
-		varDeployType: stage,
-	}
 }
 
 func tmplWithQuota(defaultParams map[string]string, fileName string, quotasFileName string) []*Template {

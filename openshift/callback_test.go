@@ -14,45 +14,45 @@ import (
 	"testing"
 )
 
-var boundPVC = `{"kind":"PersistentVolumeClaim","apiVersion":"v1","metadata":{"name":"jenkins-home","namespace":"john-jenkins",
-"selfLink":"/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home","uid":"e7c571fa-1598-11e9-aef5-525400d75155",
-"resourceVersion":"360049","creationTimestamp":"2019-01-11T12:03:27Z","labels":{"app":"jenkins","provider":"fabric8","version":"123abc",
+var boundPVC = `{"kind":"PersistentVolumeClaim","apiVersion":"v1","metadata":{"name":"claim-che-workspace","namespace":"john-che",
+"selfLink":"/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace","uid":"e7c571fa-1598-11e9-aef5-525400d75155",
+"resourceVersion":"360049","creationTimestamp":"2019-01-11T12:03:27Z","labels":{"app":"che","provider":"fabric8","version":"123abc",
 "version-quotas":"123abc"},"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",
-\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"jenkins\",\"provider\":\"fabric8\",\"version\":\"123abc\",\"version-quotas\":\"123abc\"},
-\"name\":\"jenkins-home\",\"namespace\":\"john-jenkins\"},\"spec\":{\"accessModes\":[\"ReadWriteOnce\"],
+\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"che\",\"provider\":\"fabric8\",\"version\":\"123abc\",\"version-quotas\":\"123abc\"},
+\"name\":\"claim-che-workspace\",\"namespace\":\"john-che\"},\"spec\":{\"accessModes\":[\"ReadWriteOnce\"],
 \"resources\":{\"requests\":{\"storage\":\"1Gi\"}}}}\n","pv.kubernetes.io/bind-completed":"yes","pv.kubernetes.io/bound-by-controller":"yes"}},
 "spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"volumeName":"pv0052"},"status":{"phase":"Bound",
 "accessModes":["ReadWriteOnce","ReadWriteMany","ReadOnlyMany"],"capacity":{"storage":"100Gi"}}}`
 
-var terminatingPVC = `{"kind":"PersistentVolumeClaim","apiVersion":"v1","metadata":{"name":"jenkins-home","namespace":"john-jenkins",
-"selfLink":"/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home","uid":"e7c571fa-1598-11e9-aef5-525400d75155",
-"resourceVersion":"360049","creationTimestamp":"2019-01-11T12:03:27Z","labels":{"app":"jenkins","provider":"fabric8","version":"123abc",
+var terminatingPVC = `{"kind":"PersistentVolumeClaim","apiVersion":"v1","metadata":{"name":"claim-che-workspace","namespace":"john-che",
+"selfLink":"/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace","uid":"e7c571fa-1598-11e9-aef5-525400d75155",
+"resourceVersion":"360049","creationTimestamp":"2019-01-11T12:03:27Z","labels":{"app":"che","provider":"fabric8","version":"123abc",
 "version-quotas":"123abc"},"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",
-\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"jenkins\",\"provider\":\"fabric8\",\"version\":\"123abc\",\"version-quotas\":\"123abc\"},
-\"name\":\"jenkins-home\",\"namespace\":\"john-jenkins\"},\"spec\":{\"accessModes\":[\"ReadWriteOnce\"],
+\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"che\",\"provider\":\"fabric8\",\"version\":\"123abc\",\"version-quotas\":\"123abc\"},
+\"name\":\"claim-che-workspace\",\"namespace\":\"john-che\"},\"spec\":{\"accessModes\":[\"ReadWriteOnce\"],
 \"resources\":{\"requests\":{\"storage\":\"1Gi\"}}}}\n","pv.kubernetes.io/bind-completed":"yes","pv.kubernetes.io/bound-by-controller":"yes"}},
 "spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"volumeName":"pv0052"},"status":{"phase":"Terminating",
 "accessModes":["ReadWriteOnce","ReadWriteMany","ReadOnlyMany"],"capacity":{"storage":"100Gi"}}}`
 
-var podRunning = `{"kind":"Table","apiVersion":"meta.k8s.io/v1beta1","metadata":{"selfLink":"/api/v1/namespaces/mjobanek-preview4-jenkins/pods/jenkins-1-deploy",
-"resourceVersion":"586168153"},"rows":[{"cells":["jenkins-1-deploy","1/1","Running",0,"41s","10.130.59.41","ip-172-31-76-248.us-east-2.compute.internal","\u003cnone\u003e"],
-"object":{"kind":"PartialObjectMetadata","apiVersion":"meta.k8s.io/v1beta1","metadata":{"name":"jenkins-1-deploy","namespace":"mjobanek-preview4-jenkins",
-"selfLink":"/api/v1/namespaces/mjobanek-preview4-jenkins/pods/jenkins-1-deploy","uid":"60431091-2e11-11e9-ae24-02074d91bc8a","resourceVersion":"586168153",
-"creationTimestamp":"2019-02-11T15:26:17Z","labels":{"openshift.io/deployer-pod-for.name":"jenkins-1"},"annotations":{"kubernetes.io/limit-ranger":"LimitRanger plugin set: 
-cpu, memory request for container deployment; cpu, memory limit for container deployment","openshift.io/deployment-config.name":"jenkins","openshift.io/deployment.name":
-"jenkins-1","openshift.io/scc":"restricted"},"ownerReferences":[{"apiVersion":"v1","kind":"ReplicationController","name":"jenkins-1","uid":"5ff61988-2e11-11e9-ae24-02074d91bc8a"}]}}}]}`
+var podRunning = `{"kind":"Table","apiVersion":"meta.k8s.io/v1beta1","metadata":{"selfLink":"/api/v1/namespaces/mjobanek-preview4-che/pods/che-1-deploy",
+"resourceVersion":"586168153"},"rows":[{"cells":["che-1-deploy","1/1","Running",0,"41s","10.130.59.41","ip-172-31-76-248.us-east-2.compute.internal","\u003cnone\u003e"],
+"object":{"kind":"PartialObjectMetadata","apiVersion":"meta.k8s.io/v1beta1","metadata":{"name":"che-1-deploy","namespace":"mjobanek-preview4-che",
+"selfLink":"/api/v1/namespaces/mjobanek-preview4-che/pods/che-1-deploy","uid":"60431091-2e11-11e9-ae24-02074d91bc8a","resourceVersion":"586168153",
+"creationTimestamp":"2019-02-11T15:26:17Z","labels":{"openshift.io/deployer-pod-for.name":"che-1"},"annotations":{"kubernetes.io/limit-ranger":"LimitRanger plugin set: 
+cpu, memory request for container deployment; cpu, memory limit for container deployment","openshift.io/deployment-config.name":"che","openshift.io/deployment.name":
+"che-1","openshift.io/scc":"restricted"},"ownerReferences":[{"apiVersion":"v1","kind":"ReplicationController","name":"che-1","uid":"5ff61988-2e11-11e9-ae24-02074d91bc8a"}]}}}]}`
 
 var pvcToSet = `
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
     labels:
-      app: jenkins
+      app: che
       provider: fabric8
       version: 123
       version-quotas: 456
-    name: jenkins-home
-    namespace: john-jenkins
+    name: claim-che-workspace
+    namespace: john-che
   spec:
     accessModes:
     - ReadWriteOnce
@@ -65,19 +65,19 @@ var pvcToSet = `
       - john@ibm-redhat.com
 `
 
-var projectRequestJenkins = `- apiVersion: v1
+var projectRequestche = `- apiVersion: v1
   kind: ProjectRequest
   metadata:
     annotations:
-      openshift.io/description: john Jenkins Environment
-      openshift.io/display-name: john Jenkins
+      openshift.io/description: john che Environment
+      openshift.io/display-name: john che
       openshift.io/requester: john
     labels:
-      app: fabric8-tenant-jenkins
+      app: fabric8-tenant-che
       provider: fabric8
       version: 123
       version-quotas: john
-    name: john-jenkins
+    name: john-che
 `
 
 var projectRequestUser = `- apiVersion: v1
@@ -108,7 +108,7 @@ func TestGetExistingObjectAndMerge(t *testing.T) {
 	callbackContext := newCallbackContext(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	gock.New("https://starter.com").
-		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+		Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 		Reply(200).
 		BodyString(boundPVC)
 
@@ -131,13 +131,13 @@ func TestGetExistingObjectAndWaitTillIsNotTerminating(t *testing.T) {
 
 	terminatingCalls := 0
 	gock.New("https://starter.com").
-		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+		Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 		SetMatcher(test.SpyOnCalls(&terminatingCalls)).
 		Reply(200).
 		BodyString(terminatingPVC)
 	boundCalls := 0
 	gock.New("https://starter.com").
-		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+		Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 		SetMatcher(test.SpyOnCalls(&boundCalls)).
 		Reply(200).
 		BodyString(boundPVC)
@@ -162,7 +162,7 @@ func TestGetMissingObjectAndMerge(t *testing.T) {
 	callbackContext := newCallbackContext(t, "PATCH", environment.ValKindPersistentVolumeClaim, pvcToSet)
 
 	gock.New("https://starter.com").
-		Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+		Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 		Reply(404)
 
 	// when
@@ -198,7 +198,7 @@ func TestWhenNoConflictThenJustCheckResponseCode(t *testing.T) {
 	t.Run("original response is 404 and error is nil, so an error is returned", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
-		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home")
+		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace")
 		require.NoError(t, err)
 		result := openshift.NewResult(&http.Response{
 			StatusCode: http.StatusNotFound,
@@ -242,13 +242,13 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Delete("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(404)
 		gock.New("https://starter.com").
-			Post("/api/v1/namespaces/john-jenkins/persistentvolumeclaims").
+			Post("/api/v1/namespaces/john-che/persistentvolumeclaims").
 			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(callbackContext.Object))).
 			Reply(200)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
@@ -265,7 +265,7 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Delete("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(500)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
 
@@ -283,13 +283,13 @@ func TestWhenConflictThenDeleteAndRedoAction(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Delete("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Delete("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(404)
 		gock.New("https://starter.com").
-			Post("/api/v1/namespaces/john-jenkins/persistentvolumeclaims").
+			Post("/api/v1/namespaces/john-che/persistentvolumeclaims").
 			SetMatcher(test.ExpectRequest(test.HasBodyContainingObject(callbackContext.Object))).
 			Reply(409)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, nil)
@@ -352,7 +352,7 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").Times(0)
-		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home")
+		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace")
 		require.NoError(t, err)
 		result := openshift.NewResult(&http.Response{
 			StatusCode: http.StatusInternalServerError,
@@ -398,7 +398,7 @@ func TestGetObject(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200).
 			BodyString(`{"kind": "RoleBindingRestriction", "status": {"phase":"Active"}}`)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
@@ -416,13 +416,13 @@ func TestGetObject(t *testing.T) {
 		defer gock.OffAll()
 		counter := 0
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Times(3).
 			SetMatcher(test.SpyOnCalls(&counter)).
 			Reply(200).
 			BodyString(`{"kind": "RoleBindingRestriction"`)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200).
 			BodyString(`{"kind": "RoleBindingRestriction", "status": {"phase":"Active"}}`)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
@@ -440,11 +440,11 @@ func TestGetObject(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200).
 			BodyString(`{"kind": "RoleBindingRestriction""`)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200).
 			BodyString(`{"kind": "RoleBindingRestriction", "status": {"phase":"Active"}}`)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
@@ -461,10 +461,10 @@ func TestGetObject(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(404)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200).
 			BodyString(`{"kind": "RoleBindingRestriction", "status": {"phase":"Active"}}`)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
@@ -481,7 +481,7 @@ func TestGetObject(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Times(50).
 			Reply(404)
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusOK}, []byte{}, nil)
@@ -499,7 +499,7 @@ func TestGetObject(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").Times(0)
-		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home")
+		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace")
 		require.NoError(t, err)
 		result := openshift.NewResult(&http.Response{
 			StatusCode: http.StatusNotFound,
@@ -535,13 +535,13 @@ func TestGetObject(t *testing.T) {
 
 func TestFailIfAlreadyExists(t *testing.T) {
 	// given
-	callbackContext := newCallbackContext(t, "POST", environment.ValKindProjectRequest, projectRequestJenkins)
+	callbackContext := newCallbackContext(t, "POST", environment.ValKindProjectRequest, projectRequestche)
 
 	t.Run("when returns 200, then it returns error", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/oapi/v1/projects/john-jenkins").
+			Get("/oapi/v1/projects/john-che").
 			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
 			Reply(200).
 			BodyString(``)
@@ -559,7 +559,7 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/oapi/v1/projects/john-jenkins").
+			Get("/oapi/v1/projects/john-che").
 			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
 			Reply(404).
 			BodyString(``)
@@ -570,14 +570,14 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, callbackContext.Method, actualMethodDef)
-		assert.Contains(t, string(body), "name: john-jenkins")
+		assert.Contains(t, string(body), "name: john-che")
 	})
 
 	t.Run("when returns 403, then it should return original method and body", func(t *testing.T) {
 		// given
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/oapi/v1/projects/john-jenkins").
+			Get("/oapi/v1/projects/john-che").
 			SetMatcher(test.ExpectRequest(test.HasBearerWithSub("master-token"))).
 			Reply(403).
 			BodyString(``)
@@ -588,7 +588,7 @@ func TestFailIfAlreadyExists(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.Equal(t, callbackContext.Method, actualMethodDef)
-		assert.Contains(t, string(body), "name: john-jenkins")
+		assert.Contains(t, string(body), "name: john-che")
 	})
 }
 
@@ -643,13 +643,13 @@ func TestWaitUntilIsGone(t *testing.T) {
 		terminatingCalls := 0
 		boundCalls := 0
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			SetMatcher(test.SpyOnCalls(&boundCalls)).
 			Times(2).
 			Reply(200).
 			BodyString(boundPVC)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			SetMatcher(test.SpyOnCalls(&terminatingCalls)).
 			Reply(200).
 			BodyString(terminatingPVC)
@@ -668,12 +668,12 @@ func TestWaitUntilIsGone(t *testing.T) {
 	t.Run("wait until it returns 404", func(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Times(2).
 			Reply(200).
 			BodyString(boundPVC)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(404)
 
 		// when
@@ -688,11 +688,11 @@ func TestWaitUntilIsGone(t *testing.T) {
 	t.Run("wait until it returns 403", func(t *testing.T) {
 		defer gock.OffAll()
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(200).
 			BodyString(boundPVC)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home").
+			Get("/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace").
 			Reply(403)
 
 		// when
@@ -705,7 +705,7 @@ func TestWaitUntilIsGone(t *testing.T) {
 
 	t.Run("if gets result with 500, then returns an error", func(t *testing.T) {
 		// given
-		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-jenkins/persistentvolumeclaims/jenkins-home")
+		url, err := url.Parse("https://starter.com/api/v1/namespaces/john-che/persistentvolumeclaims/claim-che-workspace")
 		require.NoError(t, err)
 		failingResult := openshift.NewResult(&http.Response{
 			StatusCode: http.StatusInternalServerError,
@@ -727,7 +727,7 @@ func TestWaitUntilIsGone(t *testing.T) {
 
 func TestWaitUntilIsRemoved(t *testing.T) {
 	// given
-	podObj := openshift.NewObject(environment.ValKindPod, "john-jenkins", "jenkins-1-deploy")
+	podObj := openshift.NewObject(environment.ValKindPod, "john-che", "che-1-deploy")
 	obj, err := yaml.Marshal(environment.Objects{podObj})
 	require.NoError(t, err)
 	callbackContext := newCallbackContext(t, openshift.EnsureDeletion, environment.ValKindPod, string(obj))
@@ -736,12 +736,12 @@ func TestWaitUntilIsRemoved(t *testing.T) {
 		defer gock.OffAll()
 		notFoundCalls := 0
 		gock.New(test.ClusterURL).
-			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Get("/api/v1/namespaces/john-che/pods/che-1-deploy").
 			Times(2).
 			Reply(200).
 			BodyString(podRunning)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Get("/api/v1/namespaces/john-che/pods/che-1-deploy").
 			SetMatcher(test.SpyOnCalls(&notFoundCalls)).
 			Reply(404)
 
@@ -760,12 +760,12 @@ func TestWaitUntilIsRemoved(t *testing.T) {
 	t.Run("wait until it returns 403 when is activated", func(t *testing.T) {
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Get("/api/v1/namespaces/john-che/pods/che-1-deploy").
 			Times(2).
 			Reply(200).
 			BodyString(podRunning)
 		gock.New("https://starter.com").
-			Get("/api/v1/namespaces/john-jenkins/pods/jenkins-1-deploy").
+			Get("/api/v1/namespaces/john-che/pods/che-1-deploy").
 			Reply(403)
 
 		// when

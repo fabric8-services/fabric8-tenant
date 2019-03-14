@@ -332,7 +332,7 @@ func (s *TenantServiceTestSuite) TestCreateNamespaceInParallel() {
 
 	// then
 	assertion.AssertTenantFromDB(s.T(), s.DB, fxt.Tenants[0].ID).
-		HasNumberOfNamespaces(5)
+		HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 }
 
 func assertContentOfTenants(t *testing.T, expectedTenants []*tenant.Tenant, slice []*tenant.Tenant, shouldContain bool) {
@@ -488,8 +488,8 @@ func (s *TenantServiceTestSuite) TestGetNumberOfOutdatedTenantsLimitedToEnvType(
 	// given
 	testdoubles.SetTemplateVersions()
 	configuration.Commit = "123abc"
-	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
-	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddNamespaces(environment.TypeJenkins, environment.TypeUser).Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddNamespaces(environment.TypeUser, environment.TypeUser).Outdated())
 	tf.FillDB(s.T(), s.DB, tf.AddTenants(4), tf.AddDefaultNamespaces().Outdated())
 
 	svc := tenant.NewDBService(s.DB)
@@ -505,14 +505,7 @@ func (s *TenantServiceTestSuite) TestGetNumberOfOutdatedTenantsLimitedToEnvType(
 func (s *TenantServiceTestSuite) TestDeleteNamespaces() {
 	s.T().Run("all info", func(t *testing.T) {
 		// given
-		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(2), tf.Namespaces(10, func(fxt *tf.TestFixture, idx int) error {
-			if idx < 5 {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-			} else {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[1].ID
-			}
-			return nil
-		}))
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(2), tf.AddDefaultNamespaces())
 		repo1 := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
 		repo2 := tenant.NewTenantRepository(s.DB, fxt.Tenants[1].ID)
 		// when
@@ -531,21 +524,14 @@ func (s *TenantServiceTestSuite) TestDeleteNamespaces() {
 		// should not be deleted
 		assertion.AssertTenant(t, repo2).
 			Exists().
-			HasNumberOfNamespaces(5)
+			HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 	})
 }
 
 func (s *TenantServiceTestSuite) TestDeleteTenant() {
 	s.T().Run("all info", func(t *testing.T) {
 		// given
-		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(2), tf.Namespaces(10, func(fxt *tf.TestFixture, idx int) error {
-			if idx < 5 {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[0].ID
-			} else {
-				fxt.Namespaces[idx].TenantID = fxt.Tenants[1].ID
-			}
-			return nil
-		}))
+		fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(2), tf.AddDefaultNamespaces())
 		repo1 := tenant.NewTenantRepository(s.DB, fxt.Tenants[0].ID)
 		repo2 := tenant.NewTenantRepository(s.DB, fxt.Tenants[1].ID)
 		// when
@@ -555,12 +541,12 @@ func (s *TenantServiceTestSuite) TestDeleteTenant() {
 		// should be deleted only tenant
 		assertion.AssertTenant(t, repo1).
 			DoesNotExist().
-			HasNumberOfNamespaces(5)
+			HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 
 		// should not be deleted
 		assertion.AssertTenant(t, repo2).
 			Exists().
-			HasNumberOfNamespaces(5)
+			HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 	})
 }
 
