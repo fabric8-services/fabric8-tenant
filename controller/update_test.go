@@ -394,7 +394,7 @@ func (s *UpdateControllerTestSuite) newUpdateController(executor *testupdate.Dum
 		test.Env("F8_AUTOMATED_UPDATE_RETRY_SLEEP", timeout.String()),
 		test.Env("F8_API_SERVER_USE_TLS", "false"),
 		test.Env("F8_AUTOMATED_UPDATE_TIME_GAP", "0"))
-	clusterService, _, config, reset := prepareConfigClusterAndAuthService(s.T())
+	clusterService, _, config, reset := testdoubles.PrepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
 	executor.ClusterService = clusterService
 	return svc, controller.NewUpdateController(svc, s.DB, config, clusterService, executor), func() {

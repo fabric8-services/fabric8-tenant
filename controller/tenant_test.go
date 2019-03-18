@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	apptest "github.com/fabric8-services/fabric8-tenant/app/test"
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
@@ -16,7 +15,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,7 +46,8 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 		defer gock.OffAll()
 		fxt := tf.NewTestFixture(t, s.DB, tf.Tenants(1), tf.Namespaces(1))
 		// when
-		_, tnnt := apptest.ShowTenantOK(t, createAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
+		_, tnnt := apptest.ShowTenantOK(t,
+			testdoubles.CreateAndMockUserAndToken(s.T(), fxt.Tenants[0].ID.String(), false), svc, ctrl)
 		// then
 		assert.Equal(t, fxt.Tenants[0].ID, *tnnt.Data.ID)
 		assert.Equal(t, 1, len(tnnt.Data.Attributes.Namespaces))
@@ -67,13 +66,15 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 			defer gock.OffAll()
 
 			// when/then
-			apptest.ShowTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
+			apptest.ShowTenantUnauthorized(t,
+				testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
 			defer gock.OffAll()
 			// when/then
-			apptest.ShowTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
+			apptest.ShowTenantNotFound(t,
+				testdoubles.CreateAndMockUserAndToken(t, uuid.NewV4().String(), false), svc, ctrl)
 		})
 	})
 }
@@ -86,7 +87,8 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExists() {
 	calls := 0
 	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny")
 	// when
-	apptest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
+	apptest.SetupTenantAccepted(s.T(),
+		testdoubles.CreateAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	// then
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
 
@@ -118,7 +120,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 	for i := 0; i < 100; i++ {
 		go func() {
 			defer wg.Done()
-			ctx := createAndMockUserAndToken(s.T(), id.String(), false)
+			ctx := testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false)
 
 			// Setup request context
 			req, err := http.NewRequest("POST", "/api/tenant", nil)
@@ -180,7 +182,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 		for i := 0; i < 10; i++ {
 			go func() {
 				defer wg.Done()
-				ctx := createAndMockUserAndToken(s.T(), id.String(), false)
+				ctx := testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false)
 
 				// Setup request context
 				req, err := http.NewRequest("POST", "/api/tenant", nil)
@@ -225,7 +227,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny1")
 
 	// when
-	apptest.SetupTenantAccepted(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
+	apptest.SetupTenantAccepted(s.T(), testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
 	// then
 	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
 	cheObjects := testdoubles.SingleTemplatesObjectsWithDefaults(s.T(), config, environment.TypeChe)
@@ -250,7 +252,7 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 		defer gock.OffAll()
 
 		// when/then
-		apptest.SetupTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
+		apptest.SetupTenantUnauthorized(t, testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
 	})
 
 	s.T().Run("Internal error because of 500 returned from OS", func(t *testing.T) {
@@ -264,7 +266,8 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 			Reply(500)
 		testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny")
 		// when
-		apptest.SetupTenantInternalServerError(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
+		apptest.SetupTenantInternalServerError(t,
+			testdoubles.CreateAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 	})
 }
 func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
@@ -276,7 +279,7 @@ func (s *TenantControllerTestSuite) TestSetupConflictFailure() {
 	defer reset()
 
 	// when/then
-	apptest.SetupTenantConflict(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
+	apptest.SetupTenantConflict(s.T(), testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
 }
 
 func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
@@ -296,7 +299,8 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			calls := 0
 			testdoubles.MockCleanRequestsToOS(&calls, test.ClusterURL)
 			// when
-			apptest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl, false)
+			apptest.CleanTenantNoContent(s.T(),
+				testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl, false)
 			// then
 			assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenClean(environment.DefaultEnvTypes...), calls)
 			assertion.AssertTenantFromService(t, repo, id).
@@ -310,7 +314,8 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			calls := 0
 			testdoubles.MockRemoveRequestsToOS(&calls, test.ClusterURL)
 			// when
-			apptest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
+			apptest.CleanTenantNoContent(s.T(),
+				testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
 			objects := testdoubles.AllDefaultObjects(s.T(), config)
 			assert.Equal(s.T(), testdoubles.NumberOfObjectsToRemove(objects), calls)
@@ -334,7 +339,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			Reply(404)
 		testdoubles.MockRemoveRequestsToOS(&calls, test.ClusterURL)
 		// when
-		apptest.CleanTenantNoContent(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
+		apptest.CleanTenantNoContent(s.T(), testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 		// then
 		assertion.AssertTenantFromService(t, repo, id).
 			DoesNotExist().
@@ -361,13 +366,15 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			defer gock.OffAll()
 
 			// when/then
-			apptest.CleanTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl, false)
+			apptest.CleanTenantUnauthorized(t,
+				testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl, false)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
 			defer gock.OffAll()
 			// when/then
-			apptest.CleanTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl, false)
+			apptest.CleanTenantNotFound(t,
+				testdoubles.CreateAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl, false)
 		})
 	})
 
@@ -390,7 +397,8 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 				Reply(500)
 			testdoubles.MockCleanRequestsToOS(&calls, test.ClusterURL)
 			// when
-			apptest.CleanTenantInternalServerError(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, false)
+			apptest.CleanTenantInternalServerError(s.T(),
+				testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, false)
 			// then
 			assertion.AssertTenantFromService(t, repo, id).
 				Exists().
@@ -407,7 +415,8 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 				Reply(500)
 			testdoubles.MockRemoveRequestsToOS(&calls, test.ClusterURL)
 			// when
-			apptest.CleanTenantInternalServerError(s.T(), createAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
+			apptest.CleanTenantInternalServerError(s.T(),
+				testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), true), svc, ctrl, true)
 			// then
 			assertion.AssertTenantFromService(t, repo, id).
 				Exists().
@@ -431,7 +440,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 		calls := 0
 		testdoubles.MockPatchRequestsToOS(&calls, test.ClusterURL)
 		// when
-		apptest.UpdateTenantAccepted(t, createAndMockUserAndToken(s.T(), id, false), svc, ctrl)
+		apptest.UpdateTenantAccepted(t, testdoubles.CreateAndMockUserAndToken(s.T(), id, false), svc, ctrl)
 		// then
 		objects := testdoubles.AllDefaultObjects(t, config)
 		// get and patch requests for all objects but ProjectRequest
@@ -451,13 +460,13 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 			defer gock.OffAll()
 
 			// when/then
-			apptest.UpdateTenantUnauthorized(t, createAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
+			apptest.UpdateTenantUnauthorized(t, testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
 			defer gock.OffAll()
 			// when/then
-			apptest.UpdateTenantNotFound(t, createAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
+			apptest.UpdateTenantNotFound(t, testdoubles.CreateAndMockUserAndToken(s.T(), uuid.NewV4().String(), false), svc, ctrl)
 		})
 
 		t.Run("fails when an update of one object fails", func(t *testing.T) {
@@ -471,69 +480,15 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 			calls := 0
 			testdoubles.MockPatchRequestsToOS(&calls, test.ClusterURL)
 			// when/then
-			apptest.UpdateTenantInternalServerError(t, createAndMockUserAndToken(s.T(), id, false), svc, ctrl)
+			apptest.UpdateTenantInternalServerError(t, testdoubles.CreateAndMockUserAndToken(s.T(), id, false), svc, ctrl)
 		})
 	})
 }
 
 func (s *TenantControllerTestSuite) newTestTenantController() (*goa.Service, *controller.TenantController, *configuration.Data, func()) {
 	testdoubles.MockCommunicationWithAuth(test.ClusterURL)
-	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
+	clusterService, authService, config, reset := testdoubles.PrepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
 	return svc, ctrl, config, reset
-}
-
-func createAndMockUserAndToken(t *testing.T, sub string, internal bool) context.Context {
-	createTokenMock(sub)
-	return createAndMockUser(t, sub, internal)
-}
-
-func createAndMockUser(t *testing.T, sub string, internal bool) context.Context {
-	userToken, err := test.NewToken(
-		map[string]interface{}{
-			"sub":                sub,
-			"preferred_username": "johny",
-			"email":              "johny@redhat.com",
-		},
-		"../test/private_key.pem",
-	)
-	require.NoError(t, err)
-	featureLevel := ""
-	if internal {
-		featureLevel = auth.InternalFeatureLevel
-	}
-
-	createUserMock(sub, featureLevel)
-	return goajwt.WithJWT(context.Background(), userToken)
-}
-
-func createUserMock(tenantId string, featureLevel string) {
-	gock.New("http://authservice").
-		Get("/api/users/" + tenantId).
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
-		Reply(200).
-		BodyString(fmt.Sprintf(`{
-           	  "data": {
-           		"attributes": {
-                  "identityID": "%s",
-           		  "cluster": "%s",
-           		  "email": "johny@redhat.com",
-                  "featureLevel": "%s"
-           		}
-           	  }
-           	}`, tenantId, test.Normalize(test.ClusterURL), featureLevel))
-}
-func createTokenMock(tenantId string) {
-	gock.New("http://authservice").
-		Get("/api/token").
-		MatchParam("for", test.ClusterURL).
-		MatchParam("force_pull", "false").
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub(tenantId))).
-		Reply(200).
-		BodyString(`{ 
-      "token_type": "bearer",
-      "username": "johny@redhat.com",
-      "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
-    }`)
 }

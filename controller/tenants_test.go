@@ -2,23 +2,17 @@ package controller_test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-tenant/test/assertion"
-	"testing"
-	"time"
-
 	"github.com/dgrijalva/jwt-go"
 	goatest "github.com/fabric8-services/fabric8-tenant/app/test"
-	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/client"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
-	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/controller"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/test"
+	"github.com/fabric8-services/fabric8-tenant/test/assertion"
 	"github.com/fabric8-services/fabric8-tenant/test/doubles"
 	"github.com/fabric8-services/fabric8-tenant/test/gormsupport"
-	"github.com/fabric8-services/fabric8-tenant/test/recorder"
 	tf "github.com/fabric8-services/fabric8-tenant/test/testfixture"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -27,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
+	"testing"
 )
 
 type TenantsControllerTestSuite struct {
@@ -279,32 +274,8 @@ func createInvalidSAContext() context.Context {
 	return goajwt.WithJWT(context.Background(), token)
 }
 
-func prepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
-	saToken, err := test.NewToken(
-		map[string]interface{}{
-			"sub": "tenant_service",
-		},
-		"../test/private_key.pem",
-	)
-	require.NoError(t, err)
-
-	resetVars := test.SetEnvironments(test.Env("F8_AUTH_TOKEN_KEY", "foo"), test.Env("F8_API_SERVER_USE_TLS", "false"))
-	authService, _, cleanup :=
-		testdoubles.NewAuthServiceWithRecorder(t, "", "http://authservice", saToken.Raw, recorder.WithJWTMatcher)
-	config, resetConf := test.LoadTestConfig(t)
-	reset := func() {
-		resetVars()
-		cleanup()
-		resetConf()
-	}
-
-	clusterService := cluster.NewClusterService(time.Hour, authService)
-	err = clusterService.Start()
-	require.NoError(t, err)
-	return clusterService, authService, config, reset
-}
 func (s *TenantsControllerTestSuite) newTestTenantsController() (*goa.Service, *controller.TenantsController, func()) {
-	clusterService, authService, config, reset := prepareConfigClusterAndAuthService(s.T())
+	clusterService, authService, config, reset := testdoubles.PrepareConfigClusterAndAuthService(s.T())
 	svc := goa.New("Tenants-service")
 	ctrl := controller.NewTenantsController(svc, tenant.NewDBService(s.DB), clusterService, authService, config)
 	return svc, ctrl, reset
