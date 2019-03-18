@@ -8,23 +8,23 @@ import (
 
 var (
 	ProvisionedTenantsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "provisioned_tenants",
+		Name: "provisioned_tenants_total",
 		Help: "Total number of the provisioned tenants",
 	}, []string{"successful"})
 	CleanedTenantsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "cleaned_tenants",
+		Name: "cleaned_tenants_total",
 		Help: "Total number of cleaned tenants",
 	}, []string{"successful", "nsBaseName"})
 	UpdatedTenantsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "updated_tenants",
+		Name: "updated_tenants_total",
 		Help: "Total number of updated tenants",
 	}, []string{"successful", "nsBaseName"})
 )
 
 func RegisterMetrics() {
-	ProvisionedTenantsCounter = register(ProvisionedTenantsCounter, "provisioned_tenants").(*prometheus.CounterVec)
-	CleanedTenantsCounter = register(CleanedTenantsCounter, "cleaned_tenants").(*prometheus.CounterVec)
-	UpdatedTenantsCounter = register(UpdatedTenantsCounter, "updated_tenants").(*prometheus.CounterVec)
+	ProvisionedTenantsCounter = register(ProvisionedTenantsCounter, "provisioned_tenants_total").(*prometheus.CounterVec)
+	CleanedTenantsCounter = register(CleanedTenantsCounter, "cleaned_tenants_total").(*prometheus.CounterVec)
+	UpdatedTenantsCounter = register(UpdatedTenantsCounter, "updated_tenants_total").(*prometheus.CounterVec)
 	log.Info(nil, nil, "metrics registered successfully")
 }
 
@@ -48,7 +48,7 @@ func register(collector prometheus.Collector, name string) prometheus.Collector 
 func RecordProvisionedTenant(successful bool) {
 	if counter, err := ProvisionedTenantsCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
-			"metric_name": "provisioned_tenants",
+			"metric_name": "provisioned_tenants_total",
 			"successful":  successful,
 			"err":         err,
 		}, "Failed to get metric")
@@ -60,7 +60,7 @@ func RecordProvisionedTenant(successful bool) {
 func RecordCleanedTenant(successful bool, nsBaseName string) {
 	if counter, err := CleanedTenantsCounter.GetMetricWithLabelValues(strconv.FormatBool(successful), nsBaseName); err != nil {
 		log.Error(nil, map[string]interface{}{
-			"metric_name": "cleaned_tenants",
+			"metric_name": "cleaned_tenants_total",
 			"successful":  successful,
 			"nsBaseName":  nsBaseName,
 			"err":         err,
@@ -73,7 +73,7 @@ func RecordCleanedTenant(successful bool, nsBaseName string) {
 func RecordUpdatedTenant(successful bool, nsBaseName string) {
 	if counter, err := UpdatedTenantsCounter.GetMetricWithLabelValues(strconv.FormatBool(successful), nsBaseName); err != nil {
 		log.Error(nil, map[string]interface{}{
-			"metric_name": "updated_tenants",
+			"metric_name": "updated_tenants_total",
 			"successful":  successful,
 			"nsBaseName":  nsBaseName,
 			"err":         err,
