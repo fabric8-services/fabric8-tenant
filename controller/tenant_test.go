@@ -235,6 +235,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 	//cheObjects := testdoubles.SingleTemplatesObjectsWithDefaults(s.T(), config, environment.TypeChe)
 	//numberOfGetChecksForChe := testdoubles.NumberOfGetChecks(cheObjects)
 	//assert.Equal(s.T(), totalNumber-(len(cheObjects)+numberOfGetChecksForChe+1), calls)
+	assert.Equal(s.T(), 0, calls)
 }
 
 func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
