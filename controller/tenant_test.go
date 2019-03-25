@@ -194,7 +194,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenTenantExistsInParallelF
 				run.Wait()
 
 				// when
-				ctrl.Setup(setupCtx)
+				err = ctrl.Setup(setupCtx)
 
 				// then
 				if err != nil {
