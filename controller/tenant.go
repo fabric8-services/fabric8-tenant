@@ -141,24 +141,22 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	// check if tenant already exists
 	if tenantRepository.Exists() {
 		// if exists, then check existing namespace (if all of them are created or if any is missing)
-		//namespaces, err = tenantRepository.GetNamespaces()
-		//if err != nil {
-		//	log.Error(ctx, map[string]interface{}{
-		//		"err":      err,
-		//		"tenantID": user.ID,
-		//	}, "retrieval of existing namespaces from DB failed")
-		//	return jsonapi.JSONErrorResponse(ctx, err)
-		//}
-		//dbTenant, err = c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
-		//if err != nil {
-		//	log.Error(ctx, map[string]interface{}{
-		//		"err":      err,
-		//		"tenantID": user.ID,
-		//	}, "retrieval of tenant entity from DB failed")
-		//	return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
-		//}
-
-		return ctx.Conflict()
+		namespaces, err = tenantRepository.GetNamespaces()
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"tenantID": user.ID,
+			}, "retrieval of existing namespaces from DB failed")
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		dbTenant, err = c.getExistingTenant(ctx, user.ID, user.OpenShiftUsername)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"tenantID": user.ID,
+			}, "retrieval of tenant entity from DB failed")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
+		}
 	} else {
 		nsBaseName, err := tenant.ConstructNsBaseName(c.tenantService, environment.RetrieveUserName(user.OpenShiftUsername))
 		if err != nil {
