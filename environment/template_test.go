@@ -18,7 +18,6 @@ var processTemplate = `
       openshift.io/description: ${PROJECT_DESCRIPTION}
       openshift.io/display-name: ${PROJECT_DISPLAYNAME}
       openshift.io/requester: ${PROJECT_REQUESTING_USER}
-      serviceaccounts.openshift.io/oauth-redirectreference.jenkins: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"jenkins"}}'
     labels:
       provider: fabric8
       project: fabric8-tenant-team-environments
@@ -131,7 +130,6 @@ objects:
   metadata:
     labels:
       user_name: ${USER_NAME}
-      jenkins_openshift_version: ${JENKINS_OPENSHIFT_VERSION}
       project_user: ${PROJECT_USER}
       project_displayname: ${PROJECT_DISPLAYNAME}
       commit: ${COMMIT}
@@ -218,9 +216,6 @@ func TestProcess(t *testing.T) {
 		assert.Contains(t, processed, vars["PROJECT_REQUESTING_USER"], "missing")
 		assert.Contains(t, processed, vars["PROJECT_NAME"], "missing")
 	})
-	t.Run("Verify not fiddling with values", func(t *testing.T) {
-		assert.Contains(t, processed, `'{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"jenkins"}}'`)
-	})
 
 	t.Run("Verify not escaping xml/html values", func(t *testing.T) {
 		assert.Contains(t, processed, `<?xml version='1.0' encoding='UTF-8'?>`)
@@ -263,6 +258,5 @@ func TestUseTemplateParams(t *testing.T) {
 	assert.Equal(t, "Aslak", environment.GetLabel(objects[0], "user_name"))
 	assert.Equal(t, "12345", environment.GetLabel(objects[0], "commit"))
 	assert.Equal(t, "Test-Project-Name", environment.GetLabel(objects[0], "project_displayname"))
-	assert.Equal(t, "9865421", environment.GetLabel(objects[0], "jenkins_openshift_version"))
 
 }

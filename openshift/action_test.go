@@ -176,7 +176,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 
 		t.Run("when there was an error, then should delete and create with basename developer2", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -202,7 +202,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 		t.Run("when there was an error and dev2 already exists then it should create dev3", func(t *testing.T) {
 			// given
 			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("dev"), tf.SingleWithName("dev2")),
-				tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+				tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -227,7 +227,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 
 		t.Run("when deletion fails then it should stop recreation and return an error", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developertofail")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developertofail")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
@@ -235,7 +235,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 			defer gock.OffAll()
 			deleteCalls := 0
 			gock.New(test.ClusterURL).
-				Delete(".*/developertofail-jenkins.*").
+				Delete(".*/developertofail-che.*").
 				Times(2).
 				Reply(500).
 				BodyString("{}")
@@ -247,7 +247,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
-				test.HasMessageContaining("DELETE method applied to namespace types [che jenkins run stage user] failed"),
+				test.HasMessageContaining("DELETE method applied to namespace types [che user] failed"),
 				test.HasMessageContaining("server responded with status: 500 for the DELETE request"),
 				test.HasMessageContaining("while doing self-healing operations triggered by error: [some error]"))
 			assert.EqualValues(t, 1, deleteCalls)
@@ -256,7 +256,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 
 		t.Run("when recreation fails then it should not do another one and return an error", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			repoService := tenant.NewDBService(s.DB)
 			repo := repoService.NewTenantRepository(id)
@@ -265,11 +265,11 @@ func (s *ActionTestSuite) TestCreateAction() {
 			deleteCalls := 0
 			postCalls := 0
 			gock.New(test.ClusterURL).
-				Post(".*/anotherdev-jenkins.*").
+				Post(".*/anotherdev/.*").
 				Reply(500).
 				BodyString("{}")
 			gock.New(test.ClusterURL).
-				Post(".*/anotherdev2-jenkins.*").
+				Post(".*/anotherdev2/.*").
 				Reply(500).
 				BodyString("{}")
 			testdoubles.MockPostRequestsToOS(&postCalls, test.ClusterURL, environment.DefaultEnvTypes, "anotherdev2")
@@ -281,7 +281,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
-				test.HasMessageContaining("POST method applied to namespace types [che jenkins run stage user] failed"),
+				test.HasMessageContaining("POST method applied to namespace types [che user] failed"),
 				test.HasMessageContaining("server responded with status: 500 for the POST request"),
 				test.HasMessageContaining("while doing self-healing operations triggered by error: [some error]"))
 			assert.EqualValues(t, 2, deleteCalls)
@@ -315,7 +315,7 @@ func (s *ActionTestSuite) TestCreateAction() {
 
 func (s *ActionTestSuite) TestDeleteAction() {
 	// given
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 	id := fxt.Tenants[0].ID
 	repoService := tenant.NewDBService(s.DB)
 	repo := repoService.NewTenantRepository(id)
@@ -354,7 +354,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Get("/.+/namespaces/johny/[^/]+/$").
 			Times(len(openshift.AllToGetAndDelete)).
 			Reply(200).
 			BodyString(`{"items": [{"metadata": {"name": "some-item"}}]}`)
@@ -385,11 +385,11 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Get("/.+/namespaces/johny/[^/]+/$").
 			Times(len(openshift.AllToGetAndDelete) / 2).
 			Reply(404)
 		gock.New(test.ClusterURL).
-			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Get("/.+/namespaces/johny/[^/]+/$").
 			Times(len(openshift.AllToGetAndDelete)/2 + 1).
 			Reply(403)
 		// when
@@ -403,7 +403,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Get("/.+/namespaces/johny/[^/]+/$").
 			Reply(505)
 		// when
 		_, _, err := delete.GetOperationSets(NewAllTypesService(nil, false), *client)
@@ -417,14 +417,14 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		defer gock.OffAll()
 		gock.New(test.ClusterURL).
-			Get("/api/v1/namespaces/johny-jenkins/services").
+			Get("/api/v1/namespaces/johny/services").
 			Reply(200).
 			BodyString(`{"items": [
         {"metadata": {"name": "bayesian-link"}},
-        {"metadata": {"name": "jenkins"}},
-        {"metadata": {"name": "jenkins-jnlp"}}]}`)
+        {"metadata": {"name": "user"}},
+        {"metadata": {"name": "cool-jnlp"}}]}`)
 		gock.New(test.ClusterURL).
-			Get("/.+/namespaces/johny-jenkins/[^/]+/$").
+			Get("/.+/namespaces/johny/[^/]+/$").
 			Times(len(openshift.AllToGetAndDelete)).
 			Reply(200).
 			BodyString(`{"items": []}`)
@@ -441,9 +441,9 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[0]))
 		assert.Equal(t, "bayesian-link", environment.GetName(deleteSet.Objects[0]))
 		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[1]))
-		assert.Equal(t, "jenkins", environment.GetName(deleteSet.Objects[1]))
+		assert.Equal(t, "user", environment.GetName(deleteSet.Objects[1]))
 		assert.Equal(t, environment.ValKindService, environment.GetKind(deleteSet.Objects[2]))
-		assert.Equal(t, "jenkins-jnlp", environment.GetName(deleteSet.Objects[2]))
+		assert.Equal(t, "cool-jnlp", environment.GetName(deleteSet.Objects[2]))
 
 		assert.Equal(t, openshift.EnsureDeletion, sets[1].Method)
 		assert.Equal(t, deleteSet.Objects, sets[1].Objects)
@@ -477,7 +477,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		assert.NoError(s.T(), err)
 
 		s.T().Run("verify new namespace is returned only if exists", func(t *testing.T) {
-			if envType == environment.TypeChe || envType == environment.TypeJenkins {
+			if envType == environment.TypeChe || envType == environment.TypeUser {
 				assertion.AssertNamespace(t, namespace).
 					IsOFType(envType).
 					HasState(tenant.Ready)
@@ -520,7 +520,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
 			tnnt.ID = id
-		}), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		}), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 
 		errorChan := make(chan error, 10)
 		close(errorChan)
@@ -535,7 +535,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		// given
 		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
 			tnnt.ID = id
-		}), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+		}), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 		errorChan := make(chan error, 10)
 		close(errorChan)
 		// when
@@ -566,7 +566,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 		t.Run("when there was an error, then should redo clean and call delete calls another time", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -582,7 +582,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
-			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenClean(environment.TypeJenkins, environment.TypeChe)
+			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenClean(environment.TypeUser, environment.TypeChe)
 			assert.EqualValues(t, expectedNumberOfCalls, calls)
 			assert.NoError(t, err)
 			assertion.AssertTenant(t, repo).
@@ -592,7 +592,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 		t.Run("when there was an error, then should redo delete and call delete calls another time", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -615,7 +615,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 		t.Run("when the second attempts for the clean fails, then it should stop trying again and return error", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -623,7 +623,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 			defer gock.OffAll()
 			gock.New(test.ClusterURL).
-				Delete(".*/anotherdev-jenkins/persistentvolumeclaims.*").
+				Delete(".*/anotherdev/persistentvolumeclaims.*").
 				Reply(500).
 				BodyString("{}")
 			testdoubles.MockCleanRequestsToOS(ptr.Int(0), test.ClusterURL)
@@ -634,7 +634,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
-				test.HasMessageContaining("DELETE method applied to namespace types [che jenkins run stage user] failed"),
+				test.HasMessageContaining("DELETE method applied to namespace types [che user] failed"),
 				test.HasMessageContaining("server responded with status: 500 for the DELETE request"),
 				test.HasMessageContaining("unable to redo the given action for the existing namespaces while doing"))
 			assertion.AssertTenant(t, repo).
@@ -644,7 +644,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 		t.Run("when the second attempts for the delete fails, then it should stop trying again and return error", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -652,7 +652,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 			defer gock.OffAll()
 			gock.New(test.ClusterURL).
-				Delete(".*/anotherdev-jenkins.*").
+				Delete(".*/anotherdev").
 				Reply(500).
 				BodyString("{}")
 			testdoubles.MockRemoveRequestsToOS(ptr.Int(0), test.ClusterURL)
@@ -663,7 +663,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
-				test.HasMessageContaining("DELETE method applied to namespace types [che jenkins run stage user] failed"),
+				test.HasMessageContaining("DELETE method applied to namespace types [che user] failed"),
 				test.HasMessageContaining("server responded with status: 500 for the DELETE request"),
 				test.HasMessageContaining("unable to redo the given action for the existing namespaces while doing"))
 			assertion.AssertTenant(t, repo).HasNsBaseName("anotherdev")
@@ -711,7 +711,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 
 func (s *ActionTestSuite) TestUpdateAction() {
 	// given
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddNamespaces(environment.TypeChe, environment.TypeJenkins).State(tenant.Updating))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddTenants(1), tf.AddNamespaces(environment.TypeChe, environment.TypeUser).State(tenant.Updating))
 	namespaces := fxt.Namespaces
 	id := fxt.Tenants[0].ID
 
@@ -800,7 +800,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 		assert.NoError(s.T(), err)
 
 		s.T().Run("verify new namespace is returned only if exists", func(t *testing.T) {
-			if envType == environment.TypeChe || envType == environment.TypeJenkins {
+			if envType == environment.TypeChe || envType == environment.TypeUser {
 				assertion.AssertTenant(t, repo).
 					HasNumberOfNamespaces(2).
 					HasNamespaceOfTypeThat(envType).
@@ -868,7 +868,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 
 		t.Run("when there was an error, then should redo update and call patch calls another time", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("developer")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -884,7 +884,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			assert.NoError(t, err)
-			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenPatch(t, s.Configuration, environment.TypeChe, environment.TypeJenkins)
+			expectedNumberOfCalls := testdoubles.ExpectedNumberOfCallsWhenPatch(t, s.Configuration, environment.TypeChe, environment.TypeUser)
 			assert.EqualValues(t, expectedNumberOfCalls, calls)
 			assert.NoError(t, err)
 			assertion.AssertTenant(t, repo).
@@ -894,7 +894,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 
 		t.Run("when the second attempts for the update fails, then it should stop trying again and return error", func(t *testing.T) {
 			// given
-			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeJenkins, environment.TypeChe))
+			fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("anotherdev")), tf.AddNamespaces(environment.TypeUser, environment.TypeChe))
 			id := fxt.Tenants[0].ID
 			fmt.Println(id)
 			repoService := tenant.NewDBService(s.DB)
@@ -902,7 +902,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 
 			defer gock.OffAll()
 			gock.New(test.ClusterURL).
-				Patch(".*/anotherdev-jenkins/role.*").
+				Patch(".*/anotherdev/role.*").
 				Reply(500).
 				BodyString("{}")
 			testdoubles.MockPatchRequestsToOS(ptr.Int(0), test.ClusterURL)
@@ -913,7 +913,7 @@ func (s *ActionTestSuite) TestUpdateAction() {
 				HealingStrategy()(serviceBuilder)(fmt.Errorf("some error"))
 			// then
 			test.AssertError(t, err,
-				test.HasMessageContaining("PATCH method applied to namespace types [che jenkins run stage user] failed"),
+				test.HasMessageContaining("PATCH method applied to namespace types [che user] failed"),
 				test.HasMessageContaining("server responded with status: 500 for the PATCH request"),
 				test.HasMessageContaining("unable to redo the given action for the existing namespaces while doing"))
 			assertion.AssertTenant(t, repo).
@@ -979,7 +979,7 @@ func (s allTypesService) GetEnvDataAndObjects(filter openshift.FilterFunc) (*env
 }
 
 func (s allTypesService) GetNamespaceName() string {
-	return "johny-jenkins"
+	return "johny"
 }
 
 func (s allTypesService) AdditionalObject() (environment.Object, bool) {

@@ -148,7 +148,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 	assert.Equal(s.T(), 0, deleteCalls)
 	assertion.AssertTenantFromDB(s.T(), s.DB, id).
 		HasNsBaseName("johny").
-		HasNumberOfNamespaces(5)
+		HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 
 }
 
@@ -212,7 +212,7 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenTenantExistsInParallelF
 	for index, id := range tenantIDs {
 		assertion.AssertTenantFromDB(s.T(), s.DB, id).
 			HasNsBaseName(fmt.Sprintf("%djohny", index)).
-			HasNumberOfNamespaces(5)
+			HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 	}
 }
 
@@ -305,7 +305,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantOK() {
 			assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenClean(environment.DefaultEnvTypes...), calls)
 			assertion.AssertTenantFromService(t, repo, id).
 				Exists().
-				HasNumberOfNamespaces(5)
+				HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 		})
 
 		t.Run("remove namespaces and tenant", func(t *testing.T) {
@@ -391,7 +391,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			// given
 			defer gock.OffAll()
 			gock.New(test.ClusterURL).
-				Delete("/api/v1/namespaces/johny1-jenkins/configmaps").
+				Delete("/api/v1/namespaces/johny1-che/persistentvolumeclaims").
 				Persist().
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
@@ -402,7 +402,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 			// then
 			assertion.AssertTenantFromService(t, repo, id).
 				Exists().
-				HasNumberOfNamespaces(5)
+				HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 		})
 
 		t.Run("remove tenant fails when one namespace removal fails", func(t *testing.T) {
@@ -444,7 +444,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 		// then
 		objects := testdoubles.AllDefaultObjects(t, config)
 		// get and patch requests for all objects but ProjectRequest
-		assert.Equal(t, (len(objects)-5)*2, calls)
+		assert.Equal(t, (len(objects)-len(environment.DefaultEnvTypes))*2, calls)
 	})
 
 	s.T().Run("Failures", func(t *testing.T) {
@@ -473,7 +473,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 			// given
 			defer gock.OffAll()
 			gock.New(test.ClusterURL).
-				Patch("/api/v1/namespaces/johny1-jenkins/configmaps").
+				Patch("/api/v1/namespaces/johny1-che/serviceaccounts").
 				Times(2).
 				SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 				Reply(500)
