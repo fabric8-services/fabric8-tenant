@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/configuration"
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
+	"github.com/fabric8-services/fabric8-tenant/metric"
 	"github.com/fabric8-services/fabric8-tenant/openshift"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-wit/rest"
@@ -93,6 +94,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 	// perform delete method on the list of existing namespaces
 	err = openShiftService.Delete(environment.DefaultEnvTypes, namespaces, deleteOptions)
 	if err != nil {
+		metric.RecordCleanedTenant(false, dbTenant.NsBaseName)
 		namespaces, getErr := tenantRepository.GetNamespaces()
 		if getErr != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -106,7 +108,7 @@ func (c *TenantController) Clean(ctx *app.CleanTenantContext) error {
 		log.Error(ctx, params, "deletion of namespaces failed")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
+	metric.RecordCleanedTenant(true, dbTenant.NsBaseName)
 	return ctx.NoContent()
 }
 
@@ -213,10 +215,12 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 			"tenantID":        user.ID,
 			"envTypeToCreate": missing,
 		}, "creation of namespaces failed")
+		metric.RecordProvisionedTenant(false)
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
+	metric.RecordProvisionedTenant(true)
 	return ctx.Accepted()
 }
 
@@ -272,9 +276,18 @@ func (c *TenantController) Update(ctx *app.UpdateTenantContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("tenant", user.ID.String()))
 	}
 
-	TenantUpdater{Config: c.config, ClusterService: c.clusterService, TenantService: c.tenantService}.
+	err = TenantUpdater{Config: c.config, ClusterService: c.clusterService, TenantService: c.tenantService}.
 		Update(ctx, dbTenant, user, environment.DefaultEnvTypes, true)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"tenantID": dbTenant.ID,
+		}, "update of namespaces failed")
+		metric.RecordUpdatedTenant(false, dbTenant.NsBaseName)
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
+	metric.RecordUpdatedTenant(true, dbTenant.NsBaseName)
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	return ctx.Accepted()
 }
@@ -290,17 +303,13 @@ func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user
 	// get tenant's namespaces
 	namespaces, err := tenantRepository.GetNamespaces()
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"tenantID": dbTenant.ID,
-		}, "retrieval of existing namespaces from DB failed")
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return errs.Wrap(err, "retrieval of existing namespaces from DB failed")
 	}
 
 	// create cluster mapping from existing namespaces
 	clusterMapping, err := GetClusterMapping(ctx, u.ClusterService, namespaces)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return err
 	}
 
 	// create openshift service
@@ -321,24 +330,7 @@ func (u TenantUpdater) Update(ctx context.Context, dbTenant *tenant.Tenant, user
 	openShiftService := openshift.NewService(serviceContext, nsRepo, envService)
 
 	// perform patch method on the list of exiting namespaces
-	err = openShiftService.Update(envTypes, namespaces, openshift.UpdateOpts().EnableSelfHealing())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":                err,
-			"tenantID":           dbTenant.ID,
-			"namespacesToUpdate": listNames(namespaces),
-		}, "update of namespaces failed")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	return nil
-}
-
-func listNames(namespaces []*tenant.Namespace) []string {
-	var names []string
-	for _, ns := range namespaces {
-		names = append(names, ns.Name)
-	}
-	return names
+	return openShiftService.Update(envTypes, namespaces, openshift.UpdateOpts().EnableSelfHealing())
 }
 
 func (c *TenantController) getExistingTenant(ctx context.Context, id uuid.UUID, osUsername string) (*tenant.Tenant, error) {

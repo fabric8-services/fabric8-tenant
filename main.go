@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/fabric8-services/fabric8-tenant/metric"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"time"
@@ -28,7 +30,6 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -111,6 +112,9 @@ func main() {
 	}
 	defer haltSentry()
 
+	// register prometheus metrics
+	metric.RegisterMetrics()
+
 	tenantService := tenant.NewDBService(db)
 
 	tenantUpdater := controller.TenantUpdater{
@@ -152,11 +156,11 @@ func main() {
 
 	// Start/mount metrics http
 	if config.GetHTTPAddress() == config.GetMetricsHTTPAddress() {
-		http.Handle("/metrics", prometheus.Handler())
+		http.Handle("/metrics", promhttp.Handler())
 	} else {
 		go func(metricAddress string) {
 			mx := http.NewServeMux()
-			mx.Handle("/metrics", prometheus.Handler())
+			mx.Handle("/metrics", promhttp.Handler())
 			if err := http.ListenAndServe(metricAddress, mx); err != nil {
 				log.Error(nil, map[string]interface{}{
 					"addr": metricAddress,
