@@ -152,19 +152,13 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 	defer reset()
 	templateObjects := testdoubles.AllDefaultObjects(t, data)
 
-	t.Run("verify jenkins deployment config", func(t *testing.T) {
-		assert.NoError(t,
-			contain(templateObjects,
-				environment.ValKindDeploymentConfig,
-				withNamespace("developer-jenkins")))
-	})
-	t.Run("verify jenkins deployment config", func(t *testing.T) {
+	t.Run("verify che deployment config", func(t *testing.T) {
 		assert.Error(t,
 			contain(templateObjects,
 				environment.ValKindDeploymentConfig,
 				withNamespace("developer-che")))
 	})
-	t.Run("verify jenkins deployment config", func(t *testing.T) {
+	t.Run("verify che pvc", func(t *testing.T) {
 		assert.NoError(t,
 			contain(templateObjects,
 				environment.ValKindPersistentVolumeClaim,
@@ -176,24 +170,6 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 			contain(templateObjects,
 				environment.ValKindProjectRequest,
 				withName("developer-che")))
-	})
-	t.Run("verify jenkins project request", func(t *testing.T) {
-		assert.NoError(t,
-			contain(templateObjects,
-				environment.ValKindProjectRequest,
-				withName("developer-jenkins")))
-	})
-	t.Run("verify run project request", func(t *testing.T) {
-		assert.NoError(t,
-			contain(templateObjects,
-				environment.ValKindProjectRequest,
-				withName("developer-run")))
-	})
-	t.Run("verify stage project request", func(t *testing.T) {
-		assert.NoError(t,
-			contain(templateObjects,
-				environment.ValKindProjectRequest,
-				withName("developer-stage")))
 	})
 	t.Run("verify user project request", func(t *testing.T) {
 		assert.NoError(t,
@@ -213,10 +189,6 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 			contain(templateObjects,
 				environment.ValKindResourceQuota,
 				withNamespace("developer-che")))
-		assert.NoError(t,
-			contain(templateObjects,
-				environment.ValKindResourceQuota,
-				withNamespace("developer-jenkins")))
 	})
 
 	t.Run("verify resource quotas are not present when DISABLE_OSO_QUOTAS is true", func(t *testing.T) {
@@ -230,10 +202,6 @@ func TestPresenceOfTemplateObjects(t *testing.T) {
 			contain(templateObjects,
 				environment.ValKindResourceQuota,
 				withNamespace("developer-che")))
-		assert.Error(t,
-			contain(templateObjects,
-				environment.ValKindResourceQuota,
-				withNamespace("developer-jenkins")))
 	})
 
 	t.Run("verify all variables are replaced", func(t *testing.T) {

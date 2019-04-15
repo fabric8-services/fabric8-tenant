@@ -35,15 +35,15 @@ var projectRequestObject = `
   kind: ProjectRequest
   metadata:
     annotations:
-      openshift.io/description: run-Project-Description
-      openshift.io/display-name: run-Project-Name
+      openshift.io/description: user-Project-Description
+      openshift.io/display-name: user-Project-Name
       openshift.io/requester: Aslak-User
     labels:
       provider: fabric8
       project: fabric8-tenant-team-environments
       version: 1.0.58
       group: io.fabric8.online.packages
-    name: ${USER_NAME}-run
+    name: ${USER_NAME}
 `
 var roleBindingObject = `
 - apiVersion: v1
@@ -74,7 +74,7 @@ var roleBindingRestrictionRun = `
       version: 2.0.85
       group: io.fabric8.tenant.packages
     name: dsaas-user-access
-    namespace: ${USER_NAME}-run
+    namespace: ${USER_NAME}
   spec:
     userrestriction:
       users:
@@ -113,21 +113,24 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 	defer reset()
 
 	gock.New("https://raw.githubusercontent.com").
-		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
+		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-user.yml").
 		Reply(200).
 		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionRun)
 	gock.New("http://api.cluster1/").
 		Post("/oapi/v1/projectrequests").
 		Reply(200)
 	gock.New("http://api.cluster1/").
-		Get("/oapi/v1/projects/aslak-run").
+		Get("/oapi/v1/projects/aslak").
 		Reply(404)
 	gock.New("http://api.cluster1/").
-		Get("/oapi/v1/projects/aslak-run").
+		Get("/oapi/v1/projects/aslak").
 		Reply(200).
 		BodyString(`{"status": {"phase":"Active"}}`)
 	gock.New("http://api.cluster1/").
-		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
+		Post("/oapi/v1/namespaces/aslak/rolebindingrestrictions").
+		Reply(200)
+	gock.New("http://api.cluster1/").
+		Delete("/oapi/v1/namespaces/aslak/rolebindings/admin").
 		Reply(200)
 
 	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces()).Tenants[0]
@@ -139,14 +142,14 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjects() {
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.Create([]environment.Type{environment.TypeRun}, openshift.CreateOpts().EnableSelfHealing())
+	err := service.Create([]environment.Type{environment.TypeUser}, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
 	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
 		HasNumberOfNamespaces(1).
-		HasNamespaceOfTypeThat(environment.TypeRun).
-		HasName("aslak-run").
+		HasNamespaceOfTypeThat(environment.TypeUser).
+		HasName("aslak").
 		HasState(tenant.Ready)
 }
 
@@ -157,21 +160,24 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjectsWhen403IsReturn
 	defer reset()
 
 	gock.New("https://raw.githubusercontent.com").
-		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
+		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-user.yml").
 		Reply(200).
 		BodyString(templateHeader + projectRequestObject + roleBindingRestrictionRun)
 	gock.New("http://api.cluster1/").
 		Post("/oapi/v1/projectrequests").
 		Reply(200)
 	gock.New("http://api.cluster1/").
-		Get("/oapi/v1/projects/aslak-run").
+		Get("/oapi/v1/projects/aslak").
 		Reply(403)
 	gock.New("http://api.cluster1/").
-		Get("/oapi/v1/projects/aslak-run").
+		Get("/oapi/v1/projects/aslak").
 		Reply(200).
 		BodyString(`{"status": {"phase":"Active"}}`)
 	gock.New("http://api.cluster1/").
-		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
+		Post("/oapi/v1/namespaces/aslak/rolebindingrestrictions").
+		Reply(200)
+	gock.New("http://api.cluster1/").
+		Delete("/oapi/v1/namespaces/aslak/rolebindings/admin").
 		Reply(200)
 
 	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces()).Tenants[0]
@@ -183,14 +189,14 @@ func (s *ServiceTestSuite) TestInvokePostAndGetCallsForAllObjectsWhen403IsReturn
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.Create([]environment.Type{environment.TypeRun}, openshift.CreateOpts().EnableSelfHealing())
+	err := service.Create([]environment.Type{environment.TypeUser}, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
 	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
 		HasNumberOfNamespaces(1).
-		HasNamespaceOfTypeThat(environment.TypeRun).
-		HasName("aslak-run").
+		HasNamespaceOfTypeThat(environment.TypeUser).
+		HasName("aslak").
 		HasState(tenant.Ready)
 }
 
@@ -257,22 +263,25 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 	defer reset()
 
 	gock.New("https://raw.githubusercontent.com").
-		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
+		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-user.yml").
 		Reply(200).
 		BodyString(templateHeader + roleBindingRestrictionRun)
 	gock.New("http://api.cluster1/").
-		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
+		Post("/oapi/v1/namespaces/aslak/rolebindingrestrictions").
 		Reply(409)
 	gock.New("http://api.cluster1/").
-		Delete("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions/dsaas-user-access").
+		Delete("/oapi/v1/namespaces/aslak/rolebindingrestrictions/dsaas-user-access").
 		Reply(200)
 	gock.New("http://api.cluster1/").
-		Post("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions").
+		Post("/oapi/v1/namespaces/aslak/rolebindingrestrictions").
 		Reply(200)
 	gock.New("http://api.cluster1/").
-		Get("/oapi/v1/namespaces/aslak-run/rolebindingrestrictions/dsaas-user-access").
+		Get("/oapi/v1/namespaces/aslak/rolebindingrestrictions/dsaas-user-access").
 		Reply(200).
 		BodyString(roleBindingRestrictionRun)
+	gock.New("http://api.cluster1/").
+		Delete("/oapi/v1/namespaces/aslak/rolebindings/admin").
+		Reply(200)
 
 	tnnt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces()).Tenants[0]
 	service := testdoubles.NewOSService(
@@ -283,14 +292,14 @@ func (s *ServiceTestSuite) TestDeleteIfThereIsConflict() {
 		tenant.NewTenantRepository(s.DB, tnnt.ID))
 
 	// when
-	err := service.Create([]environment.Type{environment.TypeRun}, openshift.CreateOpts().EnableSelfHealing())
+	err := service.Create([]environment.Type{environment.TypeUser}, openshift.CreateOpts().EnableSelfHealing())
 
 	// then
 	require.NoError(s.T(), err)
 	assertion.AssertTenantFromDB(s.T(), s.DB, tnnt.ID).
 		HasNumberOfNamespaces(1).
-		HasNamespaceOfTypeThat(environment.TypeRun).
-		HasName("aslak-run").
+		HasNamespaceOfTypeThat(environment.TypeUser).
+		HasName("aslak").
 		HasState(tenant.Ready)
 }
 
@@ -301,15 +310,15 @@ func (s *ServiceTestSuite) TestDeleteAndGet() {
 	defer reset()
 
 	gock.New("https://raw.githubusercontent.com").
-		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-deploy.yml").
+		Get("fabric8-services/fabric8-tenant/12345/environment/templates/fabric8-tenant-user.yml").
 		Reply(200).
 		BodyString(templateHeader + projectRequestObject)
 	gock.New("http://api.cluster1/").
-		Delete("/oapi/v1/projects/aslak-run").
+		Delete("/oapi/v1/projects/aslak").
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
 		Reply(200)
 
-	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces(environment.TypeRun))
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("aslak")), tf.AddNamespaces(environment.TypeUser))
 	tnnt := fxt.Tenants[0]
 	service := testdoubles.NewOSService(
 		config,
@@ -335,7 +344,7 @@ func (s *ServiceTestSuite) TestClean() {
 	defer reset()
 	okCalls := 0
 	gock.New(test.ClusterURL).
-		Get("/api/v1/namespaces/john-jenkins/pods/first-item").
+		Get("/api/v1/namespaces/john-che/pods/first-item").
 		SetMatcher(test.SpyOnCalls(&okCalls)).
 		Times(2).
 		Reply(200)
@@ -368,18 +377,18 @@ func (s *ServiceTestSuite) TestCleanWhenGetReturnsSomeServices() {
 	secondCoolSvcCall := 0
 
 	gock.New(test.ClusterURL).
-		Get("/api/v1/namespaces/john-jenkins/services").
+		Get("/api/v1/namespaces/john-che/services").
 		Reply(200).
 		BodyString(`{"items": [
         {"metadata": {"name": "my-first-cool-service"}},
         {"metadata": {"name": "my-second-cool-service"}}]}`)
 	gock.New(test.ClusterURL).
-		Delete("/api/v1/namespaces/john-jenkins/services/my-first-cool-service").
+		Delete("/api/v1/namespaces/john-che/services/my-first-cool-service").
 		SetMatcher(test.SpyOnCalls(&firstCoolSvcCall)).
 		Reply(200).
 		BodyString("{}")
 	gock.New(test.ClusterURL).
-		Delete("/api/v1/namespaces/john-jenkins/services/my-second-cool-service").
+		Delete("/api/v1/namespaces/john-che/services/my-second-cool-service").
 		SetMatcher(test.SpyOnCalls(&secondCoolSvcCall)).
 		Reply(200).
 		BodyString("{}")
@@ -410,7 +419,7 @@ func (s *ServiceTestSuite) TestCleanWhenGetForServicesReturns500() {
 	defer reset()
 
 	gock.New(test.ClusterURL).
-		Get("/api/v1/namespaces/john-jenkins/services").
+		Get("/api/v1/namespaces/john-che/services").
 		Persist().
 		Reply(500)
 	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("john")), tf.AddDefaultNamespaces())
@@ -524,7 +533,7 @@ func (s *ServiceTestSuite) TestNumberOfCallsToCluster() {
 	assert.Equal(s.T(), testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config), calls)
 	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 	require.NoError(s.T(), err)
-	assert.Len(s.T(), namespaces, 5)
+	assert.Len(s.T(), namespaces, len(environment.DefaultEnvTypes))
 }
 
 func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflictsWithProject() {
@@ -561,10 +570,10 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding2WhenConflic
 
 	// then
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), 5, deleteCalls)
+	assert.Equal(s.T(), len(environment.DefaultEnvTypes), deleteCalls)
 	assertion.AssertTenant(s.T(), repo).
 		HasNsBaseName("johndoe2").
-		HasNumberOfNamespaces(5)
+		HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 }
 
 func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflictsWithProjectAndWith2Exists() {
@@ -601,10 +610,10 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithBaseNameEnding3WhenConflic
 
 	// then
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), 5, deleteCalls)
+	assert.Equal(s.T(), len(environment.DefaultEnvTypes), deleteCalls)
 	assertion.AssertTenant(s.T(), repo).
 		HasNsBaseName("johndoe3").
-		HasNumberOfNamespaces(5)
+		HasNumberOfNamespaces(len(environment.DefaultEnvTypes))
 }
 
 func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLimitRangesReturnsConflict() {
@@ -616,11 +625,11 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLim
 
 	deleteCalls := 0
 	gock.New(test.ClusterURL).
-		Post("/api/v1/namespaces/johndoe-jenkins/limitranges").
+		Post("/api/v1/namespaces/johndoe-che/limitranges").
 		Reply(409).
 		BodyString("{}")
 	gock.New(test.ClusterURL).
-		Delete("/api/v1/namespaces/johndoe-jenkins/limitranges/resource-limits").
+		Delete("/api/v1/namespaces/johndoe-che/limitranges/resource-limits").
 		SetMatcher(test.SpyOnCalls(&deleteCalls)).
 		Times(1).
 		Reply(200).
@@ -644,7 +653,7 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsLim
 	assert.Equal(s.T(), 1, deleteCalls)
 	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 	require.NoError(s.T(), err)
-	assert.Len(s.T(), namespaces, 5)
+	assert.Len(s.T(), namespaces, len(environment.DefaultEnvTypes))
 }
 
 func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsResourceQuotasReturnsConflict() {
@@ -684,5 +693,5 @@ func (s *ServiceTestSuite) TestCreateNewNamespacesWithNormalBaseNameWhenFailsRes
 	assert.Equal(s.T(), 1, deleteCalls)
 	namespaces, err := tenant.NewTenantRepository(s.DB, tnnt.ID).GetNamespaces()
 	require.NoError(s.T(), err)
-	assert.Len(s.T(), namespaces, 5)
+	assert.Len(s.T(), namespaces, len(environment.DefaultEnvTypes))
 }

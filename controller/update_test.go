@@ -164,7 +164,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 		})
 
 		// when
-		goatest.StartUpdateAccepted(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, ptr.String("http://api.cluster1/"), ptr.String("jenkins"))
+		goatest.StartUpdateAccepted(t, createValidSAContext("fabric8-tenant-update"), svc, ctrl, ptr.String("http://api.cluster1/"), ptr.String("user"))
 
 		// then
 		err := test.WaitWithTimeout(10 * time.Second).Until(func() error {
@@ -182,7 +182,7 @@ func (s *UpdateControllerTestSuite) TestStartUpdateOk() {
 				assert.NoError(t, err)
 				for _, ns := range namespaces {
 					assert.Equal(t, tenant.Ready.String(), ns.State.String())
-					if ns.MasterURL == "http://api.cluster1/" && ns.Type == environment.TypeJenkins {
+					if ns.MasterURL == "http://api.cluster1/" && ns.Type == environment.TypeUser {
 						assertion.AssertNamespace(t, ns).
 							HasState(tenant.Ready).
 							HasVersion(environment.RetrieveMappedTemplates()[ns.Type].ConstructCompleteVersion()).
@@ -250,7 +250,7 @@ func (s *UpdateControllerTestSuite) TestShowUpdateOk() {
 	versionManagers := update.RetrieveVersionManagers()
 	configuration.Commit = "123abc"
 	tf.FillDB(s.T(), s.DB, tf.AddTenants(5), tf.AddDefaultNamespaces())
-	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddNamespaces(environment.TypeJenkins, environment.TypeUser).Outdated())
+	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddNamespaces(environment.TypeChe, environment.TypeUser).Outdated())
 	tf.FillDB(s.T(), s.DB, tf.AddTenants(6), tf.AddDefaultNamespaces().Outdated())
 	tf.FillDB(s.T(), s.DB, tf.AddTenants(4), tf.AddDefaultNamespaces().MasterURL("http://api.cluster2/").Outdated())
 

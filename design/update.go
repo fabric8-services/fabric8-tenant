@@ -50,7 +50,7 @@ var _ = a.Resource("update", func() {
 		a.Params(func() {
 			a.Param("cluster_url", d.String, "the URL of the OSO cluster the update should be limited to")
 			a.Param("env_type", d.String, "environment type the update should be executed for", func() {
-				a.Enum("user", "che", "jenkins", "stage", "run")
+				a.Enum("user", "che")
 			})
 		})
 
@@ -70,7 +70,7 @@ var _ = a.Resource("update", func() {
 		a.Params(func() {
 			a.Param("cluster_url", d.String, "the URL of the OSO cluster the number of outdated tenants should be limited to")
 			a.Param("env_type", d.String, "environment type the number of outdated tenants should be limited to", func() {
-				a.Enum("user", "che", "jenkins", "stage", "run")
+				a.Enum("user", "che")
 			})
 		})
 

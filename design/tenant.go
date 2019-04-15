@@ -64,7 +64,7 @@ var namespaceAttributes = a.Type("NamespaceAttributes", func() {
 	a.Attribute("cluster-capacity-exhausted", d.Boolean, "Whether cluster hosting this namespace exhausted it's capacity", func() {
 	})
 	a.Attribute("type", d.String, "The tenant namespaces", func() {
-		a.Enum("user", "che", "jenkins", "stage", "test", "run")
+		a.Enum("user", "che")
 	})
 })
 

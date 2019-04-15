@@ -26,27 +26,6 @@ func RetrieveVersionManagers() []*VersionManager {
 			}, func(tu *TenantsUpdate, version string) {
 				tu.LastVersionFabric8TenantCheQuotasFile = version
 			}, environment.TypeChe),
-
-		versionManager(environment.VersionFabric8TenantJenkinsFile, "fabric8-tenant-jenkins.yml",
-			func(tu *TenantsUpdate) string {
-				return tu.LastVersionFabric8TenantJenkinsFile
-			}, func(tu *TenantsUpdate, version string) {
-				tu.LastVersionFabric8TenantJenkinsFile = version
-			}, environment.TypeJenkins),
-
-		versionManager(environment.VersionFabric8TenantJenkinsQuotasFile, "fabric8-tenant-jenkins-quotas.yml",
-			func(tu *TenantsUpdate) string {
-				return tu.LastVersionFabric8TenantJenkinsQuotasFile
-			}, func(tu *TenantsUpdate, version string) {
-				tu.LastVersionFabric8TenantJenkinsQuotasFile = version
-			}, environment.TypeJenkins),
-
-		versionManager(environment.VersionFabric8TenantDeployFile, "fabric8-tenant-deploy.yml",
-			func(tu *TenantsUpdate) string {
-				return tu.LastVersionFabric8TenantDeployFile
-			}, func(tu *TenantsUpdate, version string) {
-				tu.LastVersionFabric8TenantDeployFile = version
-			}, environment.TypeStage, environment.TypeRun),
 	}
 }
 
