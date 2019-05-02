@@ -562,7 +562,7 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		assertion.AssertTenant(t, repo).DoesNotExist()
 	})
 
-	s.T().Run("ManageAndUpdateResults should delete also unsupported entities", func(t *testing.T) {
+	s.T().Run("ManageAndUpdateResults should delete also DB entities of unsupported namespaces", func(t *testing.T) {
 		// given
 		repo := tenant.NewTenantRepository(s.DB, id)
 		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
