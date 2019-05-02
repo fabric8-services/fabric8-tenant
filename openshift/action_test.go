@@ -562,6 +562,21 @@ func (s *ActionTestSuite) TestDeleteAction() {
 		assertion.AssertTenant(t, repo).DoesNotExist()
 	})
 
+	s.T().Run("ManageAndUpdateResults should delete also DB entities of unsupported namespaces", func(t *testing.T) {
+		// given
+		repo := tenant.NewTenantRepository(s.DB, id)
+		tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(func(tnnt *tenant.Tenant) {
+			tnnt.ID = id
+		}), tf.AddNamespaces(environment.Type("jenkins"), environment.Type("run"), environment.Type("stage")))
+		errorChan := make(chan error, 10)
+		close(errorChan)
+		// when
+		err := deleteFromCluster.ManageAndUpdateResults(errorChan, environment.DefaultEnvTypes, emptyHealing)
+		// then
+		assert.NoError(t, err)
+		assertion.AssertTenant(t, repo).DoesNotExist()
+	})
+
 	s.T().Run("HealingStrategy should return healing strategy that re-does the delete when error is not nil", func(t *testing.T) {
 
 		t.Run("when there was an error, then should redo clean and call delete calls another time", func(t *testing.T) {

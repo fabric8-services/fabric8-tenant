@@ -384,6 +384,20 @@ func (d *DeleteAction) ManageAndUpdateResults(errorChan chan error, envTypes []e
 	if d.deleteOptions.removeFromCluster {
 		var names []string
 		for _, ns := range namespaces {
+			if !isDefaultType(ns.Type) {
+				err := d.tenantRepo.DeleteNamespace(ns)
+				if err != nil {
+					log.Error(nil, map[string]interface{}{
+						"id":        ns.ID,
+						"tenantID":  ns.TenantID,
+						"namespace": ns.Name,
+						"type":      ns.Type,
+						"err":       err,
+					}, "unable to delete namespace record from DB")
+				} else {
+					continue
+				}
+			}
 			names = append(names, ns.Name)
 		}
 		if d.deleteOptions.keepTenant {
@@ -391,13 +405,22 @@ func (d *DeleteAction) ManageAndUpdateResults(errorChan chan error, envTypes []e
 				return fmt.Errorf("all namespaces of the tenant %s weren't properly removed - some namespaces %s still exist", namespaces[0].TenantID, names)
 			}
 		} else {
-			if len(namespaces) == 0 {
+			if len(names) == 0 {
 				return d.tenantRepo.DeleteTenant()
 			}
 			return fmt.Errorf("cannot remove tenant %s from DB - some namespaces %s still exist", namespaces[0].TenantID, names)
 		}
 	}
 	return nil
+}
+
+func isDefaultType(envType environment.Type) bool {
+	for _, defaultType := range environment.DefaultEnvTypes {
+		if defaultType == envType {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *DeleteAction) HealingStrategy() HealingFuncGenerator {
