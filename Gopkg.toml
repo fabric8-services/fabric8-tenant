@@ -40,6 +40,7 @@ required = [
     "github.com/jteeuwen/go-bindata/go-bindata",
     "github.com/jstemmer/go-junit-report",
     "github.com/wadey/gocovmerge",
+    "github.com/pact-foundation/pact-go",
     ]
 
 ignored = [
@@ -103,6 +104,10 @@ ignored = [
 [[constraint]]
   name = "github.com/wadey/gocovmerge"
   revision = "master"
+
+[[constraint]]
+  name = "github.com/pact-foundation/pact-go"
+  revision = "v1.0.0-beta.3"
 
 [prune]
   go-tests = true
