@@ -190,6 +190,34 @@ func (s *TenantsControllerTestSuite) TestSuccessfullyDeleteTenants() {
 			HasNoNamespace()
 	})
 
+	s.T().Run("ok when unsupported namespaces exist in DB", func(t *testing.T) {
+		// given
+		defer gock.OffAll()
+		testdoubles.MockCommunicationWithAuth(test.ClusterURL)
+		gock.New(test.ClusterURL).
+			Delete("/oapi/v1/projects/foo-che").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(200).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+		gock.New(test.ClusterURL).
+			Delete("/oapi/v1/projects/foo").
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
+			Reply(200).
+			BodyString(`{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Success"}`)
+
+		fxt := tf.FillDB(t, s.DB, tf.AddSpecificTenants(tf.SingleWithName("foo")),
+			tf.AddNamespaces(environment.TypeUser, environment.TypeChe, environment.Type("stage"),
+				environment.Type("run"), environment.Type("jenkins")))
+
+		svc, ctrl, reset := s.newTestTenantsController()
+		defer reset()
+		// when
+		goatest.DeleteTenantsNoContent(t, createValidSAContext("fabric8-auth"), svc, ctrl, fxt.Tenants[0].ID)
+		// then
+		assertion.AssertTenantFromService(t, repo, fxt.Tenants[0].ID).
+			DoesNotExist().
+			HasNoNamespace()
+	})
 }
 
 func (s *TenantsControllerTestSuite) TestFailedDeleteTenants() {
