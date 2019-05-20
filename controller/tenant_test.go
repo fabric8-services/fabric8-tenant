@@ -125,7 +125,8 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 			// Setup request context
 			req, err := http.NewRequest("POST", "/api/tenant", nil)
 			require.NoError(s.T(), err)
-			goaCtx := goa.NewContext(goa.WithAction(ctx, "TenantTest"), httptest.NewRecorder(), req, url.Values{})
+			rw := httptest.NewRecorder()
+			goaCtx := goa.NewContext(goa.WithAction(ctx, "TenantTest"), rw, req, url.Values{})
 			setupCtx, err := app.NewSetupTenantContext(goaCtx, req, service)
 			require.NoError(s.T(), err)
 
@@ -135,8 +136,9 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 			err = ctrl.Setup(setupCtx)
 
 			// then
-			if err != nil {
-				test.AssertError(s.T(), err, test.HasMessageContaining("conflict"))
+			assert.NoError(s.T(), err)
+			if rw.Code != 202 && rw.Code != 409 {
+				assert.Fail(s.T(), fmt.Sprintf("the response code should be either 202 or 409 but was %d", rw.Code))
 			}
 		}()
 	}
@@ -187,7 +189,8 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenTenantExistsInParallelF
 				// Setup request context
 				req, err := http.NewRequest("POST", "/api/tenant", nil)
 				require.NoError(s.T(), err)
-				goaCtx := goa.NewContext(goa.WithAction(ctx, "TenantTest"), httptest.NewRecorder(), req, url.Values{})
+				rw := httptest.NewRecorder()
+				goaCtx := goa.NewContext(goa.WithAction(ctx, "TenantTest"), rw, req, url.Values{})
 				setupCtx, err := app.NewSetupTenantContext(goaCtx, req, service)
 				require.NoError(s.T(), err)
 
@@ -197,8 +200,9 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenTenantExistsInParallelF
 				err = ctrl.Setup(setupCtx)
 
 				// then
-				if err != nil {
-					test.AssertError(s.T(), err, test.HasMessageContaining("conflict"))
+				assert.NoError(s.T(), err)
+				if rw.Code != 202 && rw.Code != 409 {
+					assert.Fail(s.T(), fmt.Sprintf("the response code should be either 202 or 409 but was %d", rw.Code))
 				}
 			}()
 		}
