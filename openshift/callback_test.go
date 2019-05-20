@@ -322,6 +322,18 @@ func TestIgnoreWhenDoesNotExist(t *testing.T) {
 		assert.Empty(t, callbackResult)
 	})
 
+	t.Run("when there is 403, then it ignores it even if there is an error", func(t *testing.T) {
+		// given
+		result := openshift.NewResult(&http.Response{StatusCode: http.StatusForbidden}, []byte{}, fmt.Errorf("forbidden"))
+
+		// when
+		callbackResult, err := openshift.IgnoreWhenDoesNotExistOrConflicts.Create(newAfterCallbackFunc(result, fmt.Errorf("forbidden")))(callbackContext)
+
+		// then
+		assert.NoError(t, err)
+		assert.Empty(t, callbackResult)
+	})
+
 	t.Run("when there is 409, then it ignores it even if there is an error", func(t *testing.T) {
 		// given
 		result := openshift.NewResult(&http.Response{StatusCode: http.StatusConflict}, []byte{}, fmt.Errorf("conflict"))

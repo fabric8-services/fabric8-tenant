@@ -249,7 +249,7 @@ var IgnoreWhenDoesNotExistOrConflicts = AfterDoCallback{
 		return func(context CallbackContext) (*Result, error) {
 			result, err := previousCallback(context)
 			code := result.Response.StatusCode
-			if code == http.StatusNotFound || code == http.StatusConflict {
+			if isNotPresent(code) || code == http.StatusConflict {
 				// todo investigate why logging here ends with panic: runtime error: index out of range in common logic
 				logrus.WithFields(map[string]interface{}{
 					"action":      context.Method.action,
