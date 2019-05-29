@@ -61,7 +61,7 @@ func (s *AutomatedUpdateMinishiftTestSuite) TestAutomaticUpdateOfTenantNamespace
 			if err != nil {
 				return err
 			}
-			if len(namespaces) != 5 {
+			if len(namespaces) != 2 {
 				return fmt.Errorf("not all namespaces created. created only: %+v", namespaces)
 			}
 			return nil
@@ -115,7 +115,7 @@ func (s *AutomatedUpdateMinishiftTestSuite) verifyAreUpdated(tenantIDs []uuid.UU
 			assert.NoError(t, err)
 			namespaces, err := repo.GetNamespaces()
 			assert.NoError(t, err)
-			assert.Len(t, namespaces, 5)
+			assert.Len(t, namespaces, 2)
 			for _, ns := range namespaces {
 				assert.True(t, wasBefore.Before(ns.UpdatedAt))
 				assert.Contains(t, ns.Version, "2abcd")
