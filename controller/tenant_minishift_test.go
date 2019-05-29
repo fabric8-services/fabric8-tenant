@@ -49,7 +49,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		if err != nil {
 			return err
 		}
-		if len(namespaces) != 5 {
+		if len(namespaces) != 2 {
 			return fmt.Errorf("not all namespaces created. created only: %+v", namespaces)
 		}
 		return nil
@@ -67,7 +67,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		// then
 		namespaces, err := repo.GetNamespaces()
 		assert.NoError(t, err)
-		assert.Len(t, namespaces, 5)
+		assert.Len(t, namespaces, 2)
 		s.VerifyObjectsPresence(t, tnnt.NsBaseName, "2abcd", false)
 	})
 
@@ -101,7 +101,7 @@ func (s *TenantControllerMinishiftTestSuite) TestSetupUpdateCleanAndDeleteTenant
 		// then
 		namespaces, err := repo.GetNamespaces()
 		assert.NoError(t, err)
-		assert.Len(t, namespaces, 5)
+		assert.Len(t, namespaces, 2)
 	})
 
 	s.T().Run("remove namespaces and tenant", func(t *testing.T) {
