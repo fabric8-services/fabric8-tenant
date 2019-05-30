@@ -67,7 +67,7 @@ func (s *TenantControllerTestSuite) TestShowTenant() {
 
 			// when/then
 			apptest.ShowTenantUnauthorized(t,
-				testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
+				testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false, false), svc, ctrl)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
@@ -117,11 +117,11 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenNoTenantExistsInParalle
 		Reply(200)
 	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "johny.*")
 
+	ctx := testdoubles.CreateAndMockUserAndTokenPersisted(s.T(), id.String(), false)
+
 	for i := 0; i < 100; i++ {
 		go func() {
 			defer wg.Done()
-			ctx := testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false)
-
 			// Setup request context
 			req, err := http.NewRequest("POST", "/api/tenant", nil)
 			require.NoError(s.T(), err)
@@ -181,10 +181,11 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenTenantExistsInParallelF
 		id := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName(userName)), tf.AddNamespaces()).Tenants[0].ID
 		tenantIDs = append(tenantIDs, id)
 		testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, userName+".*")
+		ctx := testdoubles.CreateAndMockUserAndTokenPersisted(s.T(), id.String(), false)
+
 		for i := 0; i < 10; i++ {
 			go func() {
 				defer wg.Done()
-				ctx := testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false)
 
 				// Setup request context
 				req, err := http.NewRequest("POST", "/api/tenant", nil)
@@ -256,7 +257,7 @@ func (s *TenantControllerTestSuite) TestSetupUnauthorizedFailures() {
 		defer gock.OffAll()
 
 		// when/then
-		apptest.SetupTenantUnauthorized(t, testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
+		apptest.SetupTenantUnauthorized(t, testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false, false), svc, ctrl)
 	})
 
 	s.T().Run("Internal error because of 500 returned from OS", func(t *testing.T) {
@@ -371,7 +372,7 @@ func (s *TenantControllerTestSuite) TestDeleteTenantFailures() {
 
 			// when/then
 			apptest.CleanTenantUnauthorized(t,
-				testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl, false)
+				testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false, false), svc, ctrl, false)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
@@ -464,7 +465,7 @@ func (s *TenantControllerTestSuite) TestUpdateTenant() {
 			defer gock.OffAll()
 
 			// when/then
-			apptest.UpdateTenantUnauthorized(t, testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false), svc, ctrl)
+			apptest.UpdateTenantUnauthorized(t, testdoubles.CreateAndMockUser(t, uuid.NewV4().String(), false, false), svc, ctrl)
 		})
 
 		t.Run("Not found - non existing user", func(t *testing.T) {
