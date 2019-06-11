@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/fabric8-services/fabric8-tenant/metric"
 	"reflect"
 
 	"fmt"
@@ -166,6 +167,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 	// perform delete method on the list of existing namespaces
 	err = service.Delete(environment.DefaultEnvTypes, namespaces, openshift.DeleteOpts().EnableSelfHealing().RemoveFromCluster())
 	if err != nil {
+		metric.RecordDeletedTenant(false)
 		namespaces, getErr := tenantRepository.GetNamespaces()
 		if getErr != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -182,6 +184,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 
 	// the tenant should have been deleted - check it
 	if tenantRepository.Exists() {
+		metric.RecordDeletedTenant(false)
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
 			"tenantID": tenantID,
@@ -189,6 +192,7 @@ func (c *TenantsController) Delete(ctx *app.DeleteTenantsContext) error {
 		return jsonapi.JSONErrorResponse(ctx, fmt.Errorf("unable to delete tenant %s", tenantID))
 	}
 
+	metric.RecordDeletedTenant(true)
 	log.Info(ctx, map[string]interface{}{"tenant_id": tenantID}, "tenant deleted")
 	return ctx.NoContent()
 }

@@ -218,6 +218,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:14f3dc47ce9fec6a2696a28cf21ffd5aef579584897acfdeb0190bc8cf7b1132"
+  name = "github.com/hashicorp/go-version"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "192140e6f3e645d971b134d4e35b5191adb9dfd3"
+
+[[projects]]
   digest = "1:67474f760e9ac3799f740db2c489e6423a4cde45520673ec123ac831ad849cb8"
   name = "github.com/hashicorp/golang-lru"
   packages = ["simplelru"]
@@ -243,6 +251,14 @@
   pruneopts = "UT"
   revision = "8cb6e5b959231cc1119e43259c4a608f9c51a241"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:16ae35b3a854c667baaf55ff5d455c486f7c2baf040a2727f2ef0e4b096b2a95"
+  name = "github.com/hashicorp/logutils"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a335183dfd075f638afcc820c90591ca3c97eba6"
 
 [[projects]]
   digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
@@ -340,6 +356,21 @@
   pruneopts = "UT"
   revision = "3536a929edddb9a5b34bd6861dc4a9647cb459fe"
   version = "v1.1.2"
+
+[[projects]]
+  digest = "1:d3b7af902faf50a957c415c2e1bdb9b60614b0fa58e23f37c67028dfb8b0b370"
+  name = "github.com/pact-foundation/pact-go"
+  packages = [
+    ".",
+    "client",
+    "command",
+    "dsl",
+    "install",
+    "types",
+    "utils",
+  ]
+  pruneopts = "UT"
+  revision = "v1.0.0-beta.3"
 
 [[projects]]
   digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
@@ -644,6 +675,9 @@
     "github.com/jstemmer/go-junit-report",
     "github.com/jteeuwen/go-bindata/go-bindata",
     "github.com/lib/pq",
+    "github.com/pact-foundation/pact-go",
+    "github.com/pact-foundation/pact-go/dsl",
+    "github.com/pact-foundation/pact-go/types",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
