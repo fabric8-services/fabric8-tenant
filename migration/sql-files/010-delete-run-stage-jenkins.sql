@@ -1,0 +1,1 @@
+DELETE FROM namespaces WHERE type = 'run' OR type = 'stage' OR type = 'jenkins';
