@@ -2,6 +2,8 @@ package cluster_test
 
 import (
 	"context"
+	"fmt"
+	"gopkg.in/h2non/gock.v1"
 	"math/rand"
 	"sync"
 	"testing"
@@ -19,6 +21,38 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUpdateCluster(t *testing.T) {
+	// given
+	defer gock.Off()
+	testdoubles.MockCommunicationWithAuthSettingCapacityFlag(testsupport.ClusterURL, false, false)
+	testdoubles.MockCommunicationWithAuthSettingCapacityFlag(testsupport.ClusterURL, false, false)
+
+	// when
+	clusterService, _, _, reset := testdoubles.PrepareConfigClusterAndAuthServiceWithRefreshInt(time.Second, t)
+	defer reset()
+
+	// then
+	err := clusterService.Start()
+	require.NoError(t, err)
+	clusters := clusterService.GetClusters(context.Background())
+	require.Len(t, clusters, 1)
+	assert.False(t, clusters[0].CapacityExhausted)
+
+	// and when
+	testdoubles.MockCommunicationWithAuthSettingCapacityFlag(testsupport.ClusterURL, true, true)
+
+	// then
+	err = testsupport.WaitWithTimeout(3 * time.Second).Until(func() error {
+		clusters := clusterService.GetClusters(context.Background())
+		require.Len(t, clusters, 1)
+		if !clusters[0].CapacityExhausted {
+			return fmt.Errorf("CapacityExhausted flag is still false")
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+}
 
 func TestResolveCluster(t *testing.T) {
 
