@@ -82,6 +82,10 @@ func createTokenMock(tenantId string, persist bool) {
 }
 
 func PrepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
+	return PrepareConfigClusterAndAuthServiceWithRefreshInt(time.Hour, t)
+}
+
+func PrepareConfigClusterAndAuthServiceWithRefreshInt(refreshInt time.Duration, t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
 	saToken, err := test.NewToken(
 		map[string]interface{}{
 			"sub": "tenant_service",
@@ -100,7 +104,7 @@ func PrepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Ser
 		resetConf()
 	}
 
-	clusterService := cluster.NewClusterService(time.Hour, authService)
+	clusterService := cluster.NewClusterService(refreshInt, authService)
 	err = clusterService.Start()
 	require.NoError(t, err)
 	return clusterService, authService, config, reset

@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -349,14 +350,20 @@ func GetMappedVersions(envTypes ...environment.Type) map[environment.Type]string
 }
 
 func MockCommunicationWithAuth(cluster string, otherClusters ...string) {
+	MockCommunicationWithAuthSettingCapacityFlag(cluster, false, true, otherClusters...)
+}
+
+func MockCommunicationWithAuthSettingCapacityFlag(cluster string, capacityExhausted, persist bool, otherClusters ...string) {
 	clusterList := ""
 	var clusters []string
 	clusters = append(otherClusters, cluster)
 	for _, cl := range clusters {
-		gock.New("http://authservice").
-			Get("/api/token").
-			Persist().
-			MatchParam("for", cl+"/").
+		mockAuth := gock.New("http://authservice").
+			Get("/api/token")
+		if persist {
+			mockAuth = mockAuth.Persist()
+		}
+		mockAuth.MatchParam("for", cl+"/").
 			MatchParam("force_pull", "false").
 			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
 			Reply(200).
@@ -366,11 +373,13 @@ func MockCommunicationWithAuth(cluster string, otherClusters ...string) {
 			"username": "devtools-sre"
     }`)
 
-		gock.New(cl).
+		mockUsers := gock.New(cl).
 			Get("/apis/user.openshift.io/v1/users/~").
-			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre"))).
-			Persist().
-			Reply(200).
+			SetMatcher(test.ExpectRequest(test.HasJWTWithSub("devtools-sre")))
+		if persist {
+			mockUsers = mockUsers.Persist()
+		}
+		mockUsers.Reply(200).
 			BodyString(`{
      "kind":"User",
      "apiVersion":"user.openshift.io/v1",
@@ -393,16 +402,18 @@ func MockCommunicationWithAuth(cluster string, otherClusters ...string) {
           "metrics-url": "%s/",
           "logging-url": "%s/",
           "app-dns": "foo",
-          "capacity-exhausted": false
-        },`, cl, cl, cl, cl)
+          "capacity-exhausted": %s
+        },`, cl, cl, cl, cl, strconv.FormatBool(capacityExhausted))
 
 	}
 
-	gock.New("http://authservice").
+	mockClusters := gock.New("http://authservice").
 		Get("/api/clusters/").
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
-		Persist().
-		Reply(200).
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service")))
+	if persist {
+		mockClusters = mockClusters.Persist()
+	}
+	mockClusters.Reply(200).
 		BodyString(fmt.Sprintf(`{
       "data":[
         %s
