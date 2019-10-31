@@ -16,11 +16,16 @@ import (
 )
 
 func CreateAndMockUserAndToken(t *testing.T, sub string, internal bool) context.Context {
-	createTokenMock(sub)
-	return CreateAndMockUser(t, sub, internal)
+	createTokenMock(sub, false)
+	return CreateAndMockUser(t, sub, internal, false)
 }
 
-func CreateAndMockUser(t *testing.T, sub string, internal bool) context.Context {
+func CreateAndMockUserAndTokenPersisted(t *testing.T, sub string, internal bool) context.Context {
+	createTokenMock(sub, true)
+	return CreateAndMockUser(t, sub, internal, true)
+}
+
+func CreateAndMockUser(t *testing.T, sub string, internal, persist bool) context.Context {
 	userToken, err := test.NewToken(
 		map[string]interface{}{
 			"sub":                sub,
@@ -35,15 +40,18 @@ func CreateAndMockUser(t *testing.T, sub string, internal bool) context.Context 
 		featureLevel = auth.InternalFeatureLevel
 	}
 
-	createUserMock(sub, featureLevel)
+	createUserMock(sub, featureLevel, persist)
 	return goajwt.WithJWT(context.Background(), userToken)
 }
 
-func createUserMock(tenantId string, featureLevel string) {
-	gock.New("http://authservice").
+func createUserMock(tenantId string, featureLevel string, persist bool) {
+	matcher := gock.New("http://authservice").
 		Get("/api/users/" + tenantId).
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service"))).
-		Reply(200).
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service")))
+	if persist {
+		matcher.Persist()
+	}
+	matcher.Reply(200).
 		BodyString(fmt.Sprintf(`{
            	  "data": {
            		"attributes": {
@@ -55,12 +63,16 @@ func createUserMock(tenantId string, featureLevel string) {
            	  }
            	}`, tenantId, test.Normalize(test.ClusterURL), featureLevel))
 }
-func createTokenMock(tenantId string) {
-	gock.New("http://authservice").
+func createTokenMock(tenantId string, persist bool) {
+	matcher := gock.New("http://authservice").
 		Get("/api/token").
 		MatchParam("for", test.ClusterURL).
 		MatchParam("force_pull", "false").
-		SetMatcher(test.ExpectRequest(test.HasJWTWithSub(tenantId))).
+		SetMatcher(test.ExpectRequest(test.HasJWTWithSub(tenantId)))
+	if persist {
+		matcher.Persist()
+	}
+	matcher.
 		Reply(200).
 		BodyString(`{ 
       "token_type": "bearer",
