@@ -119,6 +119,7 @@ type Template struct {
 var (
 	specialCharRegexp = regexp.MustCompile("[^a-z0-9]")
 	variableRegexp    = regexp.MustCompile(`\${([A-Z_0-9]+)}`)
+	OnlyNumbers       = regexp.MustCompile("^[0-9]*$")
 )
 
 func newTemplate(filename string, defaultParams map[string]string, version string) Template {
@@ -202,8 +203,8 @@ func RetrieveUserName(openshiftUsername string) string {
 	if strings.HasSuffix(userName, "-") {
 		userName = userName + "io"
 	}
-	matched, err := regexp.MatchString("^[0-9]*$", userName)
-	if matched || err != nil {
+	matched := OnlyNumbers.MatchString(userName)
+	if matched {
 		userName = "os-" + userName + "-io"
 	}
 	return userName

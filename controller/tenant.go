@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"strings"
+
 	"github.com/fabric8-services/fabric8-common/errors"
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
@@ -17,7 +19,6 @@ import (
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"strings"
 )
 
 // TenantController implements the tenant resource.
@@ -189,9 +190,28 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	}
 
 	// check if any environment type is missing - should be provisioned
-	missing, _ := filterMissingAndExisting(namespaces)
+	missing, existing := filterMissingAndExisting(namespaces)
 	if len(missing) == 0 {
 		return ctx.Conflict()
+	}
+
+	if len(existing) == 0 && isNotCompliant(dbTenant.NsBaseName) {
+		nsBaseName, err := tenant.ConstructNsBaseName(c.tenantService, environment.RetrieveUserName(user.OpenShiftUsername))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"os_username": user.OpenShiftUsername,
+			}, "unable to construct namespace base name")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+		dbTenant.NsBaseName = nsBaseName
+		err = tenantRepository.SaveTenant(dbTenant)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "unable to update tenant with the new nsBaseName")
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
 	}
 
 	clusterNsMapping, err := c.clusterService.GetUserClusterForType(ctx, user)
@@ -222,6 +242,10 @@ func (c *TenantController) Setup(ctx *app.SetupTenantContext) error {
 	ctx.ResponseData.Header().Set("Location", rest.AbsoluteURL(ctx.RequestData.Request, app.TenantHref()))
 	metric.RecordProvisionedTenant(true)
 	return ctx.Accepted()
+}
+
+func isNotCompliant(nsBaseName string) bool {
+	return strings.HasPrefix(nsBaseName, "-") || strings.HasSuffix(nsBaseName, "-") || environment.OnlyNumbers.MatchString(nsBaseName)
 }
 
 // Show runs the show action.
