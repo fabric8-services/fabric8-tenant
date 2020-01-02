@@ -260,3 +260,30 @@ func TestUseTemplateParams(t *testing.T) {
 	assert.Equal(t, "Test-Project-Name", environment.GetLabel(objects[0], "project_displayname"))
 
 }
+
+func TestRetrieveUserName(t *testing.T) {
+	assertName(t, "some", "some@email.com")
+	assertName(t, "so-me", "so-me@email.com")
+	assertName(t, "some", "some")
+	assertName(t, "so-me", "so-me")
+	assertName(t, "so-me", "so_me")
+	assertName(t, "so-me", "so me")
+	assertName(t, "so-me", "so me@email.com")
+	assertName(t, "so-me", "so.me")
+	assertName(t, "so-me", "so?me")
+	assertName(t, "so-me", "so:me")
+	assertName(t, "some1", "some1")
+	assertName(t, "so1me1", "so1me1")
+	assertName(t, "os-me", "-me")
+	assertName(t, "os-me", "_me")
+	assertName(t, "me-io", "me-")
+	assertName(t, "me-io", "me_")
+	assertName(t, "os-me-io", "_me_")
+	assertName(t, "os-me-io", "-me-")
+	assertName(t, "os-12345-io", "12345")
+}
+
+func assertName(t *testing.T, expected, username string) {
+	assert.Regexp(t, dnsRegExp, environment.RetrieveUserName(username))
+	assert.Equal(t, expected, environment.RetrieveUserName(username))
+}

@@ -195,7 +195,18 @@ func CollectVars(osUsername, nsBaseName, masterUser string, config *configuratio
 
 // RetrieveUserName returns a safe namespace basename based on a username
 func RetrieveUserName(openshiftUsername string) string {
-	return specialCharRegexp.ReplaceAllString(strings.Split(openshiftUsername, "@")[0], "-")
+	userName := specialCharRegexp.ReplaceAllString(strings.Split(openshiftUsername, "@")[0], "-")
+	if strings.HasPrefix(userName, "-") {
+		userName = "os" + userName
+	}
+	if strings.HasSuffix(userName, "-") {
+		userName = userName + "io"
+	}
+	matched, err := regexp.MatchString("^[0-9]*$", userName)
+	if matched || err != nil {
+		userName = "os-" + userName + "-io"
+	}
+	return userName
 }
 
 func getVariables(config *configuration.Data) map[string]string {
