@@ -235,23 +235,3 @@ func TestConstructCompleteVersion(t *testing.T) {
 		assert.Equal(t, "345cde", completeVersion)
 	})
 }
-
-func TestCreateUsername(t *testing.T) {
-	assertName(t, "some", "some@email.com")
-	assertName(t, "so-me", "so-me@email.com")
-	assertName(t, "some", "some")
-	assertName(t, "so-me", "so-me")
-	assertName(t, "so-me", "so_me")
-	assertName(t, "so-me", "so me")
-	assertName(t, "so-me", "so me@email.com")
-	assertName(t, "so-me", "so.me")
-	assertName(t, "so-me", "so?me")
-	assertName(t, "so-me", "so:me")
-	assertName(t, "some1", "some1")
-	assertName(t, "so1me1", "so1me1")
-}
-
-func assertName(t *testing.T, expected, username string) {
-	assert.Regexp(t, dnsRegExp, environment.RetrieveUserName(username))
-	assert.Equal(t, expected, environment.RetrieveUserName(username))
-}
