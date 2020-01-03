@@ -3,6 +3,12 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"sync"
+	"testing"
+
 	"github.com/fabric8-services/fabric8-tenant/app"
 	apptest "github.com/fabric8-services/fabric8-tenant/app/test"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -20,11 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"sync"
-	"testing"
 )
 
 type TenantControllerTestSuite struct {
@@ -233,6 +234,46 @@ func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExists() {
 
 	// when
 	apptest.SetupTenantAccepted(s.T(), testdoubles.CreateAndMockUserAndToken(s.T(), id.String(), false), svc, ctrl)
+	// then
+	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
+	cheObjects := testdoubles.SingleTemplatesObjectsWithDefaults(s.T(), config, environment.TypeChe)
+	numberOfGetChecksForChe := testdoubles.NumberOfGetChecks(cheObjects)
+	assert.Equal(s.T(), totalNumber-(len(cheObjects)+numberOfGetChecksForChe+1), calls)
+}
+
+func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExistsButWithUserNameStoredWithDashes() {
+	// given
+	defer gock.OffAll()
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("-johny-")), tf.AddNamespaces())
+	id := fxt.Tenants[0].ID
+	svc, ctrl, config, reset := s.newTestTenantController()
+	defer reset()
+	calls := 0
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "os-johny-io")
+	ctx := testdoubles.CreateAndMockUserWithUsernameAndTokenPersisted(s.T(), id.String(), "-johny-", false)
+
+	// when
+	apptest.SetupTenantAccepted(s.T(), ctx, svc, ctrl)
+
+	// then
+	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
+	assert.Equal(s.T(), totalNumber, calls)
+}
+
+func (s *TenantControllerTestSuite) TestSetupTenantOKWhenAlreadyExistsButWithUserNameStoredAsNumber() {
+	// given
+	defer gock.OffAll()
+	fxt := tf.FillDB(s.T(), s.DB, tf.AddSpecificTenants(tf.SingleWithName("12345")), tf.AddNamespaces(environment.TypeChe))
+	id := fxt.Tenants[0].ID
+	svc, ctrl, config, reset := s.newTestTenantController()
+	defer reset()
+	calls := 0
+	testdoubles.MockPostRequestsToOS(&calls, test.ClusterURL, environment.DefaultEnvTypes, "12345")
+	ctx := testdoubles.CreateAndMockUserWithUsernameAndTokenPersisted(s.T(), id.String(), "12345", false)
+
+	// when
+	apptest.SetupTenantAccepted(s.T(), ctx, svc, ctrl)
+
 	// then
 	totalNumber := testdoubles.ExpectedNumberOfCallsWhenPost(s.T(), config)
 	cheObjects := testdoubles.SingleTemplatesObjectsWithDefaults(s.T(), config, environment.TypeChe)

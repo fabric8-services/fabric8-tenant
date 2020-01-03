@@ -3,6 +3,9 @@ package testdoubles
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/fabric8-services/fabric8-tenant/auth"
 	"github.com/fabric8-services/fabric8-tenant/cluster"
 	"github.com/fabric8-services/fabric8-tenant/configuration"
@@ -11,8 +14,6 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
-	"testing"
-	"time"
 )
 
 func CreateAndMockUserAndToken(t *testing.T, sub string, internal bool) context.Context {
@@ -25,12 +26,21 @@ func CreateAndMockUserAndTokenPersisted(t *testing.T, sub string, internal bool)
 	return CreateAndMockUser(t, sub, internal, true)
 }
 
+func CreateAndMockUserWithUsernameAndTokenPersisted(t *testing.T, sub, username string, internal bool) context.Context {
+	createTokenMockWithUsername(sub, username, true)
+	return CreateAndMockUserWithUsername(t, sub, username, internal, true)
+}
+
 func CreateAndMockUser(t *testing.T, sub string, internal, persist bool) context.Context {
+	return CreateAndMockUserWithUsername(t, sub, "johny", internal, persist)
+}
+
+func CreateAndMockUserWithUsername(t *testing.T, sub, username string, internal, persist bool) context.Context {
 	userToken, err := test.NewToken(
 		map[string]interface{}{
 			"sub":                sub,
-			"preferred_username": "johny",
-			"email":              "johny@redhat.com",
+			"preferred_username": username,
+			"email":              username + "@redhat.com",
 		},
 		"../test/private_key.pem",
 	)
@@ -40,11 +50,11 @@ func CreateAndMockUser(t *testing.T, sub string, internal, persist bool) context
 		featureLevel = auth.InternalFeatureLevel
 	}
 
-	createUserMock(sub, featureLevel, persist)
+	createUserMock(sub, username, featureLevel, persist)
 	return goajwt.WithJWT(context.Background(), userToken)
 }
 
-func createUserMock(tenantId string, featureLevel string, persist bool) {
+func createUserMock(tenantId, username string, featureLevel string, persist bool) {
 	matcher := gock.New("http://authservice").
 		Get("/api/users/" + tenantId).
 		SetMatcher(test.ExpectRequest(test.HasJWTWithSub("tenant_service")))
@@ -57,13 +67,18 @@ func createUserMock(tenantId string, featureLevel string, persist bool) {
            		"attributes": {
                   "identityID": "%s",
            		  "cluster": "%s",
-           		  "email": "johny@redhat.com",
+           		  "email": "%s@redhat.com",
                   "featureLevel": "%s"
            		}
            	  }
-           	}`, tenantId, test.Normalize(test.ClusterURL), featureLevel))
+           	}`, tenantId, test.Normalize(test.ClusterURL), username, featureLevel))
 }
+
 func createTokenMock(tenantId string, persist bool) {
+	createTokenMockWithUsername(tenantId, "johny", persist)
+}
+
+func createTokenMockWithUsername(tenantId, username string, persist bool) {
 	matcher := gock.New("http://authservice").
 		Get("/api/token").
 		MatchParam("for", test.ClusterURL).
@@ -74,11 +89,11 @@ func createTokenMock(tenantId string, persist bool) {
 	}
 	matcher.
 		Reply(200).
-		BodyString(`{ 
+		BodyString(fmt.Sprintf(`{ 
       "token_type": "bearer",
-      "username": "johny@redhat.com",
+      "username": "%s@redhat.com",
       "access_token": "jA0ECQMCWbHrs0GtZQlg0sDQAYMwVoNofrjMocCLv5+FR4GkCPEOiKvK6ifRVsZ6VWLcBVF5k/MFO0Y3EmE8O77xDFRvA9AVPETb7M873tGXMEmqFjgpWvppN81zgmk/enaeJbTBeYhXScyShw7G7kIbgaRy2ufPzVj7f2muM0PHRS334xOVtWZIuaq4lP7EZvW4u0JinSVT0oIHBoCKDFlMlNS1sTygewyI3QOX1quLEEhaDr6/eTG66aTfqMYZQpM4B+m78mi02GLPx3Z24DpjzgshagmGQ8f2kj49QA0LbbFaCUvpqlyStkXNwFm7z+Vuefpp+XYGbD+8MfOKsQxDr7S6ziEdjs+zt/QAr1ZZyoPsC4TaE6kkY1JHIIcrdO5YoX6mbxDMdkLY1ybMN+qMNKtVW4eV9eh34fZKUJ6sjTfdaZ8DjN+rGDKMtZDqwa1h+YYz938jl/bRBEQjK479o7Y6Iu/v4Rwn4YjM4YGjlXs/T/rUO1uye3AWmVNFfi6GtqNpbsKEbkr80WKOOWiSuYeZHbXA7pWMit17U9LtUA=="
-    }`)
+    }`, username))
 }
 
 func PrepareConfigClusterAndAuthService(t *testing.T) (cluster.Service, auth.Service, *configuration.Data, func()) {
