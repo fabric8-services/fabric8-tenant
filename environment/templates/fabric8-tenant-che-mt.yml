@@ -12,9 +12,9 @@ objects:
   kind: ProjectRequest
   metadata:
     annotations:
-      openshift.io/description: ${USER_NAME} Che Environment
-      openshift.io/display-name: ${USER_NAME} Che
-      openshift.io/requester: ${PROJECT_REQUESTING_USER}
+      openshift.io/description: "${USER_NAME} Che Environment"
+      openshift.io/display-name: "${USER_NAME} Che"
+      openshift.io/requester: "${PROJECT_REQUESTING_USER}"
     labels:
       app: fabric8-tenant-che
       provider: fabric8
