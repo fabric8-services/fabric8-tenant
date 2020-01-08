@@ -5,7 +5,7 @@ metadata:
   labels:
     provider: fabric8
     project: fabric8-tenant-user
-    version: ${COMMIT}
+    version: "${COMMIT}"
   name: fabric8-tenant-user
 objects:
 - apiVersion: v1
@@ -18,69 +18,69 @@ objects:
     labels:
       provider: fabric8
       project: fabric8-tenant-user
-      version: ${COMMIT}
-    name: ${USER_NAME}
+      version: "${COMMIT}"
+    name: "${USER_NAME}"
 - apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
       app: fabric8-tenant-user
       provider: fabric8
-      version: ${COMMIT}
+      version: "${COMMIT}"
     name: user-edit
-    namespace: ${USER_NAME}
+    namespace: "${USER_NAME}"
   roleRef:
     name: edit
   subjects:
   - kind: User
-    name: ${PROJECT_USER}
+    name: "${PROJECT_USER}"
   userNames:
-  - ${PROJECT_USER}
+  - "${PROJECT_USER}"
 - apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
       app: fabric8-tenant-user
       provider: fabric8
-      version: ${COMMIT}
+      version: "${COMMIT}"
     name: user-view
-    namespace: ${USER_NAME}
+    namespace: "${USER_NAME}"
   roleRef:
     name: view
   subjects:
   - kind: User
-    name: ${PROJECT_USER}
+    name: "${PROJECT_USER}"
   userNames:
-  - ${PROJECT_USER}
+  - "${PROJECT_USER}"
 - apiVersion: v1
   kind: RoleBindingRestriction
   metadata:
     labels:
       app: fabric8-tenant-user
       provider: fabric8
-      version: ${COMMIT}
+      version: "${COMMIT}"
     name: dsaas-access-users
-    namespace: ${USER_NAME}
+    namespace: "${USER_NAME}"
   spec:
     userrestriction:
       users:
-      - ${PROJECT_ADMIN_USER}
+      - "${PROJECT_ADMIN_USER}"
 - apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
       app: fabric8-tenant-user
       provider: fabric8
-      version: ${COMMIT}
+      version: "${COMMIT}"
     name: dsaas-admin
-    namespace: ${USER_NAME}
+    namespace: "${USER_NAME}"
   roleRef:
     name: admin
   subjects:
   - kind: User
-    name: ${PROJECT_ADMIN_USER}
+    name: "${PROJECT_ADMIN_USER}"
   userNames:
-  - ${PROJECT_ADMIN_USER}
+  - "${PROJECT_ADMIN_USER}"
 parameters:
 - name: USER_NAME
   value: developer

@@ -8,9 +8,9 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT_QUOTAS}
+      version: "${COMMIT_QUOTAS}"
     name: resource-limits
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   spec:
     limits:
     - max:
@@ -44,9 +44,9 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT_QUOTAS}
+      version: "${COMMIT_QUOTAS}"
     name: compute-resources
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   spec:
     hard:
       limits.cpu: "6"
@@ -59,9 +59,9 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT_QUOTAS}
+      version: "${COMMIT_QUOTAS}"
     name: compute-resources-timebound
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   spec:
     hard:
       limits.cpu: "6"
@@ -74,9 +74,9 @@ items:
     labels:
       app: fabric8-tenant-che-quotas
       provider: fabric8
-      version: ${COMMIT_QUOTAS}
+      version: "${COMMIT_QUOTAS}"
     name: object-counts
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   spec:
     hard:
       persistentvolumeclaims: "2"
