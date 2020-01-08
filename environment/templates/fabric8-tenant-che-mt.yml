@@ -5,7 +5,7 @@ metadata:
   labels:
     app: fabric8-tenant-che-mt
     provider: fabric8
-    version: ${COMMIT}
+    version: "${COMMIT}"
   name: fabric8-tenant-che-mt
 objects:
 - apiVersion: v1
@@ -18,53 +18,53 @@ objects:
     labels:
       app: fabric8-tenant-che
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
-    name: ${USER_NAME}-che
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
+    name: "${USER_NAME}-che"
 - apiVersion: v1
   kind: RoleBindingRestriction
   metadata:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: dsaas-user-access
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   spec:
     userrestriction:
       users:
-      - ${PROJECT_USER}
+      - "${PROJECT_USER}"
 - apiVersion: v1
   kind: ServiceAccount
   metadata:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: che
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
 - apiVersion: v1
   kind: ServiceAccount
   metadata:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: che-workspace
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
 - apiVersion: v1
   kind: Role
   metadata:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: exec
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   rules:
   - apiGroups:
     - ""
@@ -78,10 +78,10 @@ objects:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: che-edit
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   roleRef:
     name: edit
   subjects:
@@ -93,48 +93,48 @@ objects:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: user-exec
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   roleRef:
     name: exec
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   subjects:
   - kind: User
-    name: ${PROJECT_USER}
+    name: "${PROJECT_USER}"
   userNames:
-  - ${PROJECT_USER}
+  - "${PROJECT_USER}"
 - apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: user-view
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   roleRef:
     name: view
   subjects:
   - kind: User
-    name: ${PROJECT_USER}
+    name: "${PROJECT_USER}"
   userNames:
-  - ${PROJECT_USER}
+  - "${PROJECT_USER}"
 - apiVersion: v1
   kind: RoleBinding
   metadata:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: workspace-exec
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   roleRef:
     name: exec
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   subjects:
   - kind: ServiceAccount
     name: che-workspace
@@ -144,10 +144,10 @@ objects:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: workspace-view
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   roleRef:
     name: view
   subjects:
@@ -159,10 +159,10 @@ objects:
     labels:
       app: fabric8-tenant-che-mt
       provider: fabric8
-      version: ${COMMIT}
-      version-quotas: ${COMMIT_QUOTAS}
+      version: "${COMMIT}"
+      version-quotas: "${COMMIT_QUOTAS}"
     name: claim-che-workspace
-    namespace: ${USER_NAME}-che
+    namespace: "${USER_NAME}-che"
   spec:
     accessModes:
     - ReadWriteOnce
