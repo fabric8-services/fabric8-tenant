@@ -15,7 +15,7 @@ items:
     limits:
     - max:
         cpu: 6000m
-        memory: 3Gi
+        memory: 7Gi
       min:
         cpu: 29m
         memory: 30Mi
@@ -28,7 +28,7 @@ items:
         memory: 307Mi
       max:
         cpu: 6000m
-        memory: 3Gi
+        memory: 7Gi
       min:
         cpu: 29m
         memory: 30Mi
@@ -50,7 +50,7 @@ items:
   spec:
     hard:
       limits.cpu: "6"
-      limits.memory: 3Gi
+      limits.memory: 7Gi
     scopes:
     - NotTerminating
 - apiVersion: v1
@@ -65,7 +65,7 @@ items:
   spec:
     hard:
       limits.cpu: "6"
-      limits.memory: 3Gi
+      limits.memory: 7Gi
     scopes:
     - Terminating
 - apiVersion: v1
