@@ -14,7 +14,7 @@ items:
   spec:
     limits:
     - max:
-        cpu: 6000m
+        cpu: 14000m
         memory: 7Gi
       min:
         cpu: 29m
@@ -27,7 +27,7 @@ items:
         cpu: 60m
         memory: 307Mi
       max:
-        cpu: 6000m
+        cpu: 14000m
         memory: 7Gi
       min:
         cpu: 29m
@@ -49,7 +49,7 @@ items:
     namespace: "${USER_NAME}-che"
   spec:
     hard:
-      limits.cpu: "6"
+      limits.cpu: "14"
       limits.memory: 7Gi
     scopes:
     - NotTerminating
@@ -64,7 +64,7 @@ items:
     namespace: "${USER_NAME}-che"
   spec:
     hard:
-      limits.cpu: "6"
+      limits.cpu: "14"
       limits.memory: 7Gi
     scopes:
     - Terminating
