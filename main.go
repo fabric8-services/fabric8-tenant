@@ -2,13 +2,14 @@ package main
 
 import (
 	"flag"
-	"github.com/fabric8-services/fabric8-tenant/metric"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
 
-	"fmt"
+	"github.com/fabric8-services/fabric8-tenant/metric"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 	"github.com/fabric8-services/fabric8-tenant/auth"
@@ -18,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-tenant/environment"
 	"github.com/fabric8-services/fabric8-tenant/jsonapi"
 	"github.com/fabric8-services/fabric8-tenant/migration"
-	"github.com/fabric8-services/fabric8-tenant/sentry"
 	"github.com/fabric8-services/fabric8-tenant/tenant"
 	"github.com/fabric8-services/fabric8-tenant/toggles"
 	"github.com/fabric8-services/fabric8-tenant/update"
@@ -104,13 +104,13 @@ func main() {
 	}
 	defer clusterService.Stop()
 
-	haltSentry, err := sentry.InitializeLogger(config, configuration.Commit)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to setup the sentry client")
-	}
-	defer haltSentry()
+	//haltSentry, err := sentry.InitializeLogger(config, configuration.Commit)
+	//if err != nil {
+	//	log.Panic(nil, map[string]interface{}{
+	//		"err": err,
+	//	}, "failed to setup the sentry client")
+	//}
+	//defer haltSentry()
 
 	// register prometheus metrics
 	metric.RegisterMetrics()
