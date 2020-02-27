@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-common/log"
 	"github.com/fabric8-services/fabric8-tenant/app"
 
-	"github.com/fabric8-services/fabric8-common/sentry"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 )
@@ -150,7 +149,7 @@ func JSONErrorResponse(obj interface{}, err error) error {
 	x, ok := obj.(InternalServerError)
 
 	if !ok {
-		sentry.Sentry().CaptureError(c, err)
+		//sentry.Sentry().CaptureError(c, err)
 		return errs.WithStack(errors.NewInternalError(c, err))
 	}
 
@@ -177,7 +176,7 @@ func JSONErrorResponse(obj interface{}, err error) error {
 			return errs.WithStack(ctx.Conflict(jsonErr))
 		}
 	default:
-		sentry.Sentry().CaptureError(c, err)
+		//sentry.Sentry().CaptureError(c, err)
 		return errs.WithStack(x.InternalServerError(jsonErr))
 	}
 	return nil
