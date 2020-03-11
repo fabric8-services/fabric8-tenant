@@ -168,7 +168,7 @@ objects:
     - ReadWriteOnce
     resources:
       requests:
-        storage: 1Gi
+        storage: 2Gi
 parameters:
 - name: USER_NAME
   value: developer
