@@ -147,43 +147,44 @@ func (c *commonNamespaceAction) ManageAndUpdateResults(errorChan chan error, env
 }
 
 func (c *CreateAction) HealingStrategy() HealingFuncGenerator {
-	return func(openShiftService *ServiceBuilder) Healing {
-		return func(originalError error) error {
-			log.Error(openShiftService.service.context.requestCtx, map[string]interface{}{
-				"err":                   originalError,
-				"self-healing-strategy": "recreate-with-new-nsBaseName",
-			}, "the creation failed, starting self-healing logic")
-			openShiftUsername := openShiftService.service.context.openShiftUsername
-			tnnt, err := c.tenantRepo.GetTenant()
-			errMsgSuffix := fmt.Sprintf("while doing self-healing operations triggered by error: [%s]", originalError)
-			if err != nil {
-				return errors.Wrapf(err, "unable to get tenant %s", errMsgSuffix)
-			}
-			namespaces, err := c.tenantRepo.GetNamespaces()
-			if err != nil {
-				return errors.Wrapf(err, "unable to get namespaces of tenant %s %s", tnnt.ID, errMsgSuffix)
-			}
-			err = openShiftService.Delete(environment.DefaultEnvTypes, namespaces, DeleteOpts().EnableSelfHealing().RemoveFromCluster().ButKeepTenantEntity())
-			if err != nil {
-				return errors.Wrapf(err, "deletion of namespaces failed %s", errMsgSuffix)
-			}
-			newNsBaseName, err := tenant.ConstructNsBaseName(c.tenantRepo, environment.RetrieveUserName(openShiftUsername))
-			if err != nil {
-				return errors.Wrapf(err, "unable to construct namespace base name for user with OSname %s %s", openShiftUsername, errMsgSuffix)
-			}
-			tnnt.NsBaseName = newNsBaseName
-			err = c.tenantRepo.SaveTenant(tnnt)
-			if err != nil {
-				return errors.Wrapf(err, "unable to update tenant db entity %s", errMsgSuffix)
-			}
-			openShiftService.service.context.nsBaseName = newNsBaseName
-			err = openShiftService.Create(environment.DefaultEnvTypes, CreateOpts().DisableSelfHealing())
-			if err != nil {
-				return errors.Wrapf(err, "unable to create new namespaces %s", errMsgSuffix)
-			}
-			return nil
-		}
-	}
+	return NoHealing
+	//return func(openShiftService *ServiceBuilder) Healing {
+	//	return func(originalError error) error {
+	//		log.Error(openShiftService.service.context.requestCtx, map[string]interface{}{
+	//			"err":                   originalError,
+	//			"self-healing-strategy": "recreate-with-new-nsBaseName",
+	//		}, "the creation failed, starting self-healing logic")
+	//		openShiftUsername := openShiftService.service.context.openShiftUsername
+	//		tnnt, err := c.tenantRepo.GetTenant()
+	//		errMsgSuffix := fmt.Sprintf("while doing self-healing operations triggered by error: [%s]", originalError)
+	//		if err != nil {
+	//			return errors.Wrapf(err, "unable to get tenant %s", errMsgSuffix)
+	//		}
+	//		namespaces, err := c.tenantRepo.GetNamespaces()
+	//		if err != nil {
+	//			return errors.Wrapf(err, "unable to get namespaces of tenant %s %s", tnnt.ID, errMsgSuffix)
+	//		}
+	//		err = openShiftService.Delete(environment.DefaultEnvTypes, namespaces, DeleteOpts().EnableSelfHealing().RemoveFromCluster().ButKeepTenantEntity())
+	//		if err != nil {
+	//			return errors.Wrapf(err, "deletion of namespaces failed %s", errMsgSuffix)
+	//		}
+	//		newNsBaseName, err := tenant.ConstructNsBaseName(c.tenantRepo, environment.RetrieveUserName(openShiftUsername))
+	//		if err != nil {
+	//			return errors.Wrapf(err, "unable to construct namespace base name for user with OSname %s %s", openShiftUsername, errMsgSuffix)
+	//		}
+	//		tnnt.NsBaseName = newNsBaseName
+	//		err = c.tenantRepo.SaveTenant(tnnt)
+	//		if err != nil {
+	//			return errors.Wrapf(err, "unable to update tenant db entity %s", errMsgSuffix)
+	//		}
+	//		openShiftService.service.context.nsBaseName = newNsBaseName
+	//		err = openShiftService.Create(environment.DefaultEnvTypes, CreateOpts().DisableSelfHealing())
+	//		if err != nil {
+	//			return errors.Wrapf(err, "unable to create new namespaces %s", errMsgSuffix)
+	//		}
+	//		return nil
+	//	}
+	//}
 }
 
 func NewCreateAction(tenantRepo tenant.Repository, actionOpts *ActionOptions) *CreateAction {
